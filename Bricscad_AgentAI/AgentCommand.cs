@@ -89,10 +89,13 @@ namespace BricsCAD_Agent
 
             string listaNarzedzi = string.Join(", ", tools.Select(t => $"{t.Description} ({t.ActionTag})"));
             string systemPrompt = "Jesteś Bielik, inteligentny asystent Adriana w BricsCAD. " +
-                                  "Odpowiadaj po polsku, krótko i rzeczowo. Używaj imienia Adrian. " +
-                                  "NIE używaj tagów <think> w finalnej odpowiedzi. " +
-                                  "Tagi ACTION dodawaj tylko na końcu, gdy faktycznie wykonujesz zadanie. " +
-                                  "Dostępne akcje: " + listaNarzedzi;
+                                 "Odpowiadaj po polsku, krótko i rzeczowo. Używaj imienia Adrian. " +
+                                 "NIE używaj tagów <think> w finalnej odpowiedzi. " +
+                                 "Jeśli użytkownik prosi o operację w programie (rysowanie, przesuwanie, modyfikacja), " +
+                                 "wykorzystaj wiedzę o poleceniach AutoCAD/BricsCAD. " +
+                                 "Wygeneruj komendę tekstową i umieść ją w tagu [CMD: polecenie]. " +
+                                 "Przykłady: [CMD: _CIRCLE 50,50 25] lub [CMD: _LINE 0,0 100,100]. " +
+                                 "NIGDY nie kasuj całego rysunku.";
 
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
@@ -147,6 +150,31 @@ namespace BricsCAD_Agent
                         foreach (var tool in tools)
                         {
                             if (aiMsg.ToUpper().Contains(tool.ActionTag.ToUpper())) tool.Execute(doc);
+                        }
+                        // UNIWERSALNE WYKONYWANIE KOMEND Z TAGU [CMD: ...]
+                        if (aiMsg.Contains("[CMD:"))
+                        {
+                            int startIdx = aiMsg.IndexOf("[CMD:") + 5;
+                            int endIdx = aiMsg.IndexOf("]", startIdx);
+
+                            if (endIdx > startIdx)
+                            {
+                                string commandString = aiMsg.Substring(startIdx, endIdx - startIdx).Trim();
+                                string cmdUpper = commandString.ToUpper();
+
+                                // --- BEZPIECZNIK: Czarna lista niebezpiecznych komend ---
+                                if (cmdUpper.Contains("ERASE ALL") || cmdUpper.Contains("DEL ALL") ||
+                                    cmdUpper == "_QUIT" || cmdUpper == "_CLOSE")
+                                {
+                                    ed.WriteMessage($"\n[SYSTEM BEZPIECZEŃSTWA]: Zablokowano niebezpieczną komendę Agenta ({commandString}).");
+                                }
+                                else
+                                {
+                                    // Bezpieczna komenda - wykonujemy
+                                    doc.SendStringToExecute(commandString + " ", true, false, false);
+                                    ed.WriteMessage($"\n[System]: Wysłano polecenie: {commandString}");
+                                }
+                            }
                         }
                     }
                 }
