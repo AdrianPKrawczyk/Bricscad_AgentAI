@@ -98,18 +98,18 @@ namespace BricsCAD_Agent
             historiaRozmowy.Clear();
             WczytajPamiec(doc);
 
-            string systemPrompt = "Jesteś Bielik, asystent inżyniera. Odpowiadaj krótko. " +
-                "Analizuj zadania w tagach <think>. " +
-                "RYSOWANIE: używaj [LISP: kod].\n" +
-                "ZAZNACZANIE/WYSZUKIWANIE: używaj [SELECT: JSON].\n" +
-                "Zasady dla [SELECT: ...]:\n" +
-                "- EntityType: Typ obiektu API (np. Line, Polyline, MText, Text, Circle). Możesz podać kilka po przecinku, np. \"Text, MText\".\n" +
-                "- Conditions: Używaj Property (np. Length, Height, Radius), Operator (==, >, <, >=, <=, Contains) i Value.\n" +
-                "- Jeśli użytkownik prosi o wysokość tekstu, ZAWSZE używaj właściwości \"Height\".\n" +
-                "- Jeśli użytkownik chce WSZYSTKIE obiekty z danego typu, zostaw Conditions puste: []\n" +
-                "- Aby ODZNACZYĆ, użyj: [SELECT: {\"EntityType\": \"Clear\", \"Conditions\": []}]";
+            string systemPrompt = "Jesteś asystentem Bielik w BricsCAD. Odpowiadaj krótko. " +
+                "Analizuj zadania w tagach <think>. Przetłumacz polecenie użytkownika na angielskie nazwy klas BricsCAD API (np. elipsa -> Ellipse, wymiar -> Dimension).\n" +
+                "Masz do dyspozycji DWA KROKI, jeśli użytkownik prosi o wyszukiwanie/zaznaczanie:\n" +
+                "KROK 1: Jeśli nie znasz dokładnych właściwości (Properties) dla danej klasy, wygeneruj tag [SEARCH: NazwaKlasyPoAngielsku]. System zwróci Ci dokumentację.\n" +
+                "KROK 2: Po otrzymaniu dokumentacji (lub od razu, jeśli wiesz wszystko), wygeneruj tag [SELECT: JSON].\n" +
+                "Zasady [SELECT: ...]:\n" +
+                "- EntityType: Podaj klasę API obiektu.\n" +
+                "- Conditions: Używaj TYLKO właściwości, które otrzymałeś z [SEARCH]. Podaj Property, Operator (==, >, <, >=, <=, Contains) i Value.\n" +
+                "- WSZYSTKIE obiekty danego typu: zostaw Conditions puste: []\n" +
+                "- ODZNACZANIE: [SELECT: {\"EntityType\": \"Clear\", \"Conditions\": []}]";
 
-            if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
+            if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))   
             {
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + SafeJson(systemPrompt) + "\"}");
                 ed.WriteMessage($"\n--- Agent Bielik gotowy (Model: {wybranyModel}) ---");
@@ -195,10 +195,10 @@ namespace BricsCAD_Agent
                 string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
                 var warunki = new List<(string Prop, string Op, string Val)>();
 
-                MatchCollection matches = Regex.Matches(json, @"\{\s*\""Property\""\s*:\s*\""([^\""]+)\""\s*,\s*\""Operator\""\s*:\s*\""([^\""]+)\""\s*,\s*\""Value\""\s*:\s*\""([^\""]+)\""\s*\}");
+                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)");
                 foreach (Match m in matches)
                 {
-                    warunki.Add((m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value));
+                    warunki.Add((m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value.Trim('\"')));
                 }
 
                 if (string.IsNullOrEmpty(entityTypeStr)) return;
@@ -210,9 +210,8 @@ namespace BricsCAD_Agent
                     return;
                 }
 
-                // Rozdzielamy typy, jeśli Agent podał kilka (np. "Text, MText")
                 string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                ed.WriteMessage($"\n[System]: Szukam obiektów typu '{string.Join(" / ", typyDoSzukania)}' (Warunki: {warunki.Count})...");
+                ed.WriteMessage($"\n[System]: Szukam obiektów '{string.Join(" / ", typyDoSzukania)}' (Warunków: {warunki.Count})...");
 
                 List<ObjectId> znalezioneObiekty = new List<ObjectId>();
 
@@ -228,10 +227,19 @@ namespace BricsCAD_Agent
 
                         string nazwaTypuEnt = ent.GetType().Name;
                         bool typPasuje = false;
+
                         foreach (var t in typyDoSzukania)
                         {
-                            if (nazwaTypuEnt.Equals(t, StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
+                            string szukanyTyp = t.Trim();
+
+                            // TŁUMACZ TYPÓW BAZOWYCH (Base Classes)
+                            if (szukanyTyp.Equals("Text", StringComparison.OrdinalIgnoreCase) && ent is DBText) { typPasuje = true; break; }
+                            if (szukanyTyp.Equals("Dimension", StringComparison.OrdinalIgnoreCase) && ent is Dimension) { typPasuje = true; break; }
+
+                            // Standardowe dopasowanie
+                            if (nazwaTypuEnt.Equals(szukanyTyp, StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
                         }
+
                         if (!typPasuje) continue;
 
                         bool spelniaWszystkie = true;
@@ -240,14 +248,19 @@ namespace BricsCAD_Agent
                         {
                             foreach (var warunek in warunki)
                             {
-                                PropertyInfo propInfo = ent.GetType().GetProperty(warunek.Prop, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                                string rzeczywistaWlasciwosc = warunek.Prop;
 
-                                // ALIAS: Jeśli szukamy "Height" ale obiekt to "MText", użyj "TextHeight"
-                                if (propInfo == null && warunek.Prop.Equals("Height", StringComparison.OrdinalIgnoreCase))
+                                // TŁUMACZ WŁAŚCIWOŚCI
+                                if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    propInfo = ent.GetType().GetProperty("TextHeight", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                                    rzeczywistaWlasciwosc = "TextHeight";
+                                }
+                                else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    rzeczywistaWlasciwosc = "Dimtxt"; // API name dla wysokości tekstu wymiaru
                                 }
 
+                                PropertyInfo propInfo = ent.GetType().GetProperty(rzeczywistaWlasciwosc, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
                                 if (propInfo == null) { spelniaWszystkie = false; break; }
 
                                 object wartoscObiektu = propInfo.GetValue(ent);
@@ -256,8 +269,10 @@ namespace BricsCAD_Agent
                                 string valStr = wartoscObiektu.ToString();
                                 bool warunekSpelniony = false;
 
-                                if (double.TryParse(valStr, out double valNum) && double.TryParse(warunek.Val.Replace(".", ","), out double warNum))
+                                if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
+                                    double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))
                                 {
+
                                     switch (warunek.Op)
                                     {
                                         case "==": warunekSpelniony = Math.Abs(valNum - warNum) < 0.0001; break;
@@ -298,7 +313,6 @@ namespace BricsCAD_Agent
             }
             catch (System.Exception ex) { ed.WriteMessage($"\n[Błąd Zaznaczania C#]: {ex.Message}"); }
         }
-
         private void ZapiszPamiec(Document doc)
         {
             try
