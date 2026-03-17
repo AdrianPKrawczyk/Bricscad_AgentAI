@@ -90,20 +90,26 @@ namespace BricsCAD_Agent
 
             if (!File.Exists(path))
             {
-                ed.WriteMessage("\n[System]: Plik bazy wiedzy nie istnieje. Uruchom skrypt Pająka w Pythonie.");
+                ed.WriteMessage("\n[System]: Plik bazy wiedzy nie istnieje.");
                 return;
             }
 
             try
             {
-                string[] linie = File.ReadAllLines(path);
-                foreach (string linia in linie)
+                // Czytamy CAŁY sklejony tekst na raz
+                string calyTekst = File.ReadAllText(path);
+
+                // Magiczny Regex: Wyciąga klucz i wartość ignorując braki enterów
+                MatchCollection matches = Regex.Matches(calyTekst, @"([a-zA-Z0-9_]+)\|Klasa API:\s*(.*?)(?=(?:[a-zA-Z0-9_]+\|Klasa API:|$))", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+                foreach (Match m in matches)
                 {
-                    if (string.IsNullOrWhiteSpace(linia) || !linia.Contains("|")) continue;
-                    string[] podzial = linia.Split(new char[] { '|' }, 2);
-                    bazaWiedzyAPI[podzial[0].Trim().ToLower()] = podzial[1].Trim();
+                    string klucz = m.Groups[1].Value.Trim().ToLower();
+                    string wartosc = "Klasa API: " + m.Groups[2].Value.Trim();
+                    bazaWiedzyAPI[klucz] = wartosc;
                 }
-                ed.WriteMessage($"\n[System]: Załadowano do pamięci {bazaWiedzyAPI.Count} klas BricsCAD API.");
+
+                ed.WriteMessage($"\n[System]: Załadowano do pamięci {bazaWiedzyAPI.Count} zoptymalizowanych klas BricsCAD API.");
             }
             catch { ed.WriteMessage("\n[System]: Błąd odczytu bazy wiedzy API."); }
         }
@@ -218,8 +224,7 @@ namespace BricsCAD_Agent
                 string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
                 var warunki = new List<(string Prop, string Op, string Val)>();
 
-                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)");
-                foreach (Match m in matches)
+                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase); foreach (Match m in matches)
                 {
                     warunki.Add((m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value.Trim('\"')));
                 }
@@ -346,15 +351,17 @@ namespace BricsCAD_Agent
             WczytajBazeWiedzy(ed); // Ładujemy wiedzę od Pająka!
 
             string systemPrompt = "Jesteś asystentem Bielik w BricsCAD. Odpowiadaj krótko. " +
-                            "Analizuj zadania w tagach <think>. Przetłumacz polecenie użytkownika na angielskie nazwy klas BricsCAD API (np. elipsa -> Ellipse, wymiar -> Dimension).\n" +
-                            "Masz do dyspozycji DWA KROKI, jeśli użytkownik prosi o wyszukiwanie/zaznaczanie:\n" +
-                            "KROK 1: Jeśli nie znasz właściwości dla danej klasy, wygeneruj TYLKO tag [SEARCH: NazwaKlasyPoAngielsku]. Nie dodawaj po nim ŻADNEGO tekstu. System zwróci Ci dokumentację.\n" +
-                            "KROK 2: Po otrzymaniu dokumentacji, wygeneruj tag [SELECT: JSON].\n" +
-                            "Zasady [SELECT: ...]:\n" +
-                            "- EntityType: Podaj klasę API obiektu.\n" +
-                            "- Conditions: Używaj TYLKO właściwości otrzymanych z [SEARCH]. Podaj Property, Operator (==, >, <, >=, <=, Contains) i Value.\n" +
-                            "- WSZYSTKIE obiekty: zostaw Conditions puste: []\n" +
-                            "- ODZNACZANIE: [SELECT: {\"EntityType\": \"Clear\", \"Conditions\": []}]";
+                                    "Analizuj zadania w tagach <think>.\n\n" +
+                                    "--- NARZĘDZIE RYSOWANIA [LISP: ...] ---\n" +
+                                    "Jeśli użytkownik chce coś narysować lub zmienić, UŻYJ: [LISP: (command \"_KOMENDA\" ...) ].\n" +
+                                    "ZASADY LISP:\n" +
+                                    "1. ZAWSZE dodawaj podkreślnik przed komendą, np. \"_LINE\", \"_CIRCLE\", \"_MOVE\".\n" +
+                                    "2. Komenda LINE musi być zakończona pustym stringiem, np: (command \"_LINE\" p1 p2 \"\").\n" +
+                                    "3. Używaj współrzędnych jako stringów \"x,y\" lub list (list x y).\n\n" +
+                                    "--- NARZĘDZIE WIEDZY [SEARCH: ...] i [SELECT: ...] ---\n" +
+                                    "Jeśli nie znasz właściwości obiektu do zaznaczania, użyj [SEARCH: Klasa]. " +
+                                    "Potem wygeneruj [SELECT: JSON_w_jednej_linii].\n\n" +
+                                    "Pamiętaj: Możesz rysować i edytować WSZYSTKO przez [LISP]. Nigdy nie mów, że nie masz uprawnień.";
 
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("KROK 1"))
             {
@@ -435,13 +442,27 @@ namespace BricsCAD_Agent
                                 ed.WriteMessage("\n[Agent AI]: " + aiMsg);
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
 
-                                int start = aiMsg.IndexOf("[SELECT:") + 8;
-                                int end = aiMsg.LastIndexOf("]");
-                                if (end > start)
+                                // Kuloodporne wyciąganie JSON-a niezależnie od enterów
+                                int startTag = aiMsg.IndexOf("[SELECT:");
+                                int startJson = aiMsg.IndexOf("{", startTag);
+                                int endJson = aiMsg.LastIndexOf("}");
+
+                                if (startJson != -1 && endJson > startJson)
                                 {
-                                    string jsonStr = aiMsg.Substring(start, end - start).Trim();
+                                    string jsonStr = aiMsg.Substring(startJson, endJson - startJson + 1);
                                     WykonajInteligentneZaznaczenie(doc, jsonStr);
                                     ZapiszPamiec(doc);
+                                }
+                                else
+                                {
+                                    // Fallback np. dla samego [SELECT: Clear]
+                                    int start = startTag + 8;
+                                    int end = aiMsg.IndexOf("]", start);
+                                    if (end > start)
+                                    {
+                                        WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start));
+                                        ZapiszPamiec(doc);
+                                    }
                                 }
                             }
                             else if (aiMsg.Contains("[LISP:"))
@@ -455,6 +476,7 @@ namespace BricsCAD_Agent
                                 {
                                     string lisp = aiMsg.Substring(start, end - start).Trim().Replace("`", "");
                                     ed.WriteMessage("\n[System]: Wykonywanie kodu AutoLISP...");
+                                    ed.WriteMessage("\n[Debug LISP]: " + lisp); // To pokaże Ci w konsoli, co dokładnie AI wysyła do BricsCADa
                                     doc.SendStringToExecute(lisp + "\n", true, false, false);
                                     doc.SendStringToExecute("AGENT_START\n", true, false, false);
                                     return;
@@ -471,6 +493,51 @@ namespace BricsCAD_Agent
                     }
                 }
                 catch (System.Exception ex) { ed.WriteMessage("\n[Błąd komunikacji]: " + ex.Message); }
+            }
+        }
+
+        [CommandMethod("AGENT_CHECK_DB")]
+        public void SprawdzBazeWiedzy()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            // Upewniamy się, że baza jest załadowana
+            if (bazaWiedzyAPI.Count == 0)
+            {
+                WczytajBazeWiedzy(ed);
+            }
+
+            ed.WriteMessage($"\n--- TESTER BAZY WIEDZY API ({bazaWiedzyAPI.Count} wczytanych klas) ---");
+
+            PromptStringOptions pso = new PromptStringOptions("\nPodaj nazwę klasy do wyszukania (np. circle, mtext, dimension) lub 'exit': ");
+            pso.AllowSpaces = false;
+
+            while (true)
+            {
+                PromptResult pr = ed.GetString(pso);
+                if (pr.Status != PromptStatus.OK) break;
+
+                string szukane = pr.StringResult.Trim().ToLower();
+                if (szukane == "exit") break;
+
+                if (bazaWiedzyAPI.ContainsKey(szukane))
+                {
+                    ed.WriteMessage($"\n\n--- ZNALEZIONO KLASĘ: {szukane.ToUpper()} ---");
+
+                    string tresc = bazaWiedzyAPI[szukane];
+
+                    // Formatujemy "sklejkę" na ładny i czytelny wygląd dla inżyniera
+                    tresc = tresc.Replace("Właściwości (Properties):", "\n[WŁAŚCIWOŚCI]:\n  - ");
+                    tresc = tresc.Replace(", ", "\n  - ");
+                    tresc = tresc.Replace("Opis:", "\n\n[OPIS]:");
+
+                    ed.WriteMessage($"\n{tresc}\n");
+                }
+                else
+                {
+                    ed.WriteMessage($"\n[Brak wyników]: Nie znaleziono klucza '{szukane}' w załadowanej bazie do RAM.");
+                }
             }
         }
     }
