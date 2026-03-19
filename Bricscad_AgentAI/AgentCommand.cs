@@ -52,8 +52,8 @@ namespace BricsCAD_Agent
                                 "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
                                 "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
                                 "Tag: [ACTION:MTEXT_FORMAT]\n" +
-                                "Opis: Zmienia wewnętrzne formatowanie MText.\n" +
-                                "Argumenty: {\"Mode\": \"HighlightWord\"|\"ClearFormatting\", \"Word\": \"słowo\", \"Color\": nr_koloru, \"Bold\": true/false}\n\n" +
+                                "Opis: Zmienia formatowanie MText.\n" +
+                                "Argumenty: {\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko dla HighlightWord),\"Color\": nr_koloru (indeks ACI od 1 do 255, np. 1-czerwony, 2-żółty, 3-zielony, 79-jasnozielony, itd.), \"Bold\": true/false}\n\n" +
                                 "--- PRZYKŁADY ZACHOWANIA: ---\n" +
                                 "User: Zaznacz linie dłuższe niż 50\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
