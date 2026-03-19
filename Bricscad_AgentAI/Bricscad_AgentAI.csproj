@@ -57,6 +57,7 @@
     <Compile Include="AgentControl.Designer.cs">
       <DependentUpon>AgentControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="MTextEditTool.cs" />
     <Compile Include="MTextFormatTool.cs" />
     <Compile Include="ITool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

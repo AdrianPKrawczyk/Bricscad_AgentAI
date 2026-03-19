@@ -26,6 +26,10 @@ namespace BricsCAD_Agent
         private static List<string> historiaRozmowy = new List<string>();
         private static string wybranyModel = "qwen3.5-9b-instruct";
 
+        // --- GLOBALNA PAMIĘĆ ZAZNACZENIA ---
+        public static ObjectId[] OstatnieZaznaczenie = new ObjectId[0];
+        private static bool isSelectionHooked = false;
+
         // --- Dwie bazy danych (Tiered Storage) ---
         private static Dictionary<string, string> bazaQuick = new Dictionary<string, string>();
         private static Dictionary<string, string> bazaFull = new Dictionary<string, string>();
@@ -33,7 +37,8 @@ namespace BricsCAD_Agent
         private List<ITool> tools = new List<ITool>
 
         {
-        new MTextFormatTool()
+        new MTextFormatTool(),
+        new MTextEditTool()
         };
 
         private static PaletteSet oknoAgenta = null;
@@ -54,6 +59,9 @@ namespace BricsCAD_Agent
                                 "Tag: [ACTION:MTEXT_FORMAT]\n" +
                                 "Opis: Zmienia formatowanie MText.\n" +
                                 "Argumenty: {\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko dla HighlightWord),\"Color\": nr_koloru (indeks ACI od 1 do 255, np. 1-czerwony, 2-żółty, 3-zielony, 79-jasnozielony, itd.), \"Bold\": true/false}\n\n" +
+                                "Tag: [ACTION:MTEXT_EDIT]\n" +
+                                "Opis: Dodaje lub zamienia tekst w MText.\n" +
+                                "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko dla Replace), \"Color\": nr_koloru (np. 6 dla fioletu), \"Underline\": true/false}\n\n" +
                                 "--- PRZYKŁADY ZACHOWANIA: ---\n" +
                                 "User: Zaznacz linie dłuższe niż 50\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
@@ -69,6 +77,22 @@ namespace BricsCAD_Agent
         public void UruchomInterfejsAgenta()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
+
+            // PODSŁUCH ZAZNACZENIA: Działa w tle i zapisuje wszystko co klikniesz!
+            if (!isSelectionHooked)
+            {
+                doc.ImpliedSelectionChanged += (s, e) =>
+                {
+                    PromptSelectionResult res = doc.Editor.SelectImplied();
+                    if (res.Status == PromptStatus.OK && res.Value != null && res.Value.Count > 0)
+                    {
+                        OstatnieZaznaczenie = res.Value.GetObjectIds();
+                    }
+                    // Zauważ: Jeśli wynik jest zerowy (bo np. kliknąłeś w czat), 
+                    // celowo NIE CZYŚCIMY pamięci. Agent zachowuje "ostatnio widziane" obiekty.
+                };
+                isSelectionHooked = true;
+            }
 
             if (oknoAgenta == null)
             {
@@ -92,10 +116,8 @@ namespace BricsCAD_Agent
         }
 
         // Nowy asynchroniczny "mózg" Agenta
-        public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc)
+        public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc, ObjectId[] przechwyconeZaznaczenie = null)
         {
-            //Editor ed = doc.Editor;
-            
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + new Komendy().SafeJson(systemPrompt) + "\"}");
@@ -105,7 +127,6 @@ namespace BricsCAD_Agent
 
             try
             {
-                // ZAPYTANIE DO LM STUDIO W TLE! Nie zawiesza okna.
                 string jsonBody = "{\"model\": \"" + wybranyModel + "\", \"messages\": [" + string.Join(",", historiaRozmowy) + "], \"temperature\": 0.1, \"stream\": false}";
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
@@ -118,10 +139,14 @@ namespace BricsCAD_Agent
                 {
                     historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + new Komendy().SafeJson(aiMsg) + "\"}");
 
-                    // BARDZO WAŻNE: Ponieważ modyfikujemy rysunek z interfejsu (PaletteSet), 
-                    // musimy ZABLOKOWAĆ dokument, inaczej BricsCAD wyrzuci błąd eLockViolation!
                     using (DocumentLock docLock = doc.LockDocument())
                     {
+                        // --- GENIALNY TRIK CZ. 2: Wstrzykujemy zaznaczenie z powrotem do BricsCADa! ---
+                        if (przechwyconeZaznaczenie != null && przechwyconeZaznaczenie.Length > 0)
+                        {
+                            doc.Editor.SetImpliedSelection(przechwyconeZaznaczenie);
+                        }
+
                         if (aiMsg.Contains("[SELECT:"))
                         {
                             int start = aiMsg.IndexOf("{", aiMsg.IndexOf("[SELECT:"));
@@ -136,15 +161,28 @@ namespace BricsCAD_Agent
                         {
                             foreach (var tool in new Komendy().tools)
                             {
-                                if (aiMsg.Contains(tool.ActionTag))
+                                // GENIALNY TRIK: Usuwamy zamykający nawias z nazwy narzędzia (czyli szukamy "[ACTION:MTEXT_FORMAT" zamiast "[ACTION:MTEXT_FORMAT]")
+                                string bazaTagu = tool.ActionTag.Replace("]", "");
+
+                                if (aiMsg.Contains(bazaTagu))
                                 {
                                     string args = "";
-                                    int startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(tool.ActionTag));
+                                    int startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(bazaTagu));
                                     int endArgs = aiMsg.LastIndexOf("}");
-                                    if (startArgs != -1 && endArgs > startArgs) args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
 
-                                    if (tool is MTextFormatTool mtextTool) mtextTool.Execute(doc, args);
-                                    else tool.Execute(doc);
+                                    if (startArgs != -1 && endArgs > startArgs)
+                                    {
+                                        args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
+                                    }
+
+                                    if (tool is MTextFormatTool mtextTool)
+                                    {
+                                        mtextTool.Execute(doc, args);
+                                    }
+                                    else
+                                    {
+                                        tool.Execute(doc);
+                                    }
 
                                     return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
                                 }
@@ -462,14 +500,16 @@ namespace BricsCAD_Agent
                 if (znalezioneObiekty.Count > 0)
                 {
                     ed.SetImpliedSelection(znalezioneObiekty.ToArray());
+                    OstatnieZaznaczenie = znalezioneObiekty.ToArray(); // <-- ZAPIS DLA AI
                     ed.WriteMessage($"\n[Sukces]: Zaznaczono {znalezioneObiekty.Count} obiekt(ów)!");
-                    return znalezioneObiekty.Count; // <-- PRAWIDŁOWY ZWROT ILOSCI
+                    return znalezioneObiekty.Count;
                 }
                 else
                 {
                     ed.WriteMessage("\n[System]: Nie znaleziono obiektów spełniających kryteria.");
                     ed.SetImpliedSelection(new ObjectId[0]);
-                    return 0; // <-- PRAWIDŁOWY ZWROT ZERA
+                    OstatnieZaznaczenie = new ObjectId[0]; // <-- CZYSZCZENIE PAMIĘCI
+                    return 0;
                 }
             }
             catch (System.Exception ex)
@@ -697,5 +737,95 @@ namespace BricsCAD_Agent
                 ed.WriteMessage($"\n-----------------------");
             }
         }
+        // ==========================================================
+        // NARZĘDZIA DEBUGOWANIA (DIAGNOSTYKA)
+        // ==========================================================
+
+        [CommandMethod("AGENT_DEBUG_1")]
+        public void DebugZaznaczenia()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            ed.WriteMessage("\n\n--- DIAGNOSTYKA ZAZNACZENIA ---");
+
+            // 1. Sprawdzamy SelectImplied (zaznaczenie aktywne)
+            PromptSelectionResult sel1 = ed.SelectImplied();
+            if (sel1.Status == PromptStatus.OK)
+            {
+                ed.WriteMessage($"\n[SelectImplied]: Wykryto {sel1.Value.Count} obiektów.");
+                using (Transaction tr = doc.TransactionManager.StartTransaction())
+                {
+                    foreach (ObjectId id in sel1.Value.GetObjectIds())
+                    {
+                        Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        ed.WriteMessage($"\n  -> Typ: {ent.GetType().Name}, ID: {id.Handle}");
+                    }
+                    tr.Commit();
+                }
+            }
+            else
+            {
+                ed.WriteMessage("\n[SelectImplied]: BRAK AKTYWNEGO ZAZNACZENIA.");
+            }
+
+            // 2. Sprawdzamy SelectPrevious (zaznaczenie poprzednie)
+            PromptSelectionResult sel2 = ed.SelectPrevious();
+            if (sel2.Status == PromptStatus.OK)
+            {
+                ed.WriteMessage($"\n[SelectPrevious]: Zapisano w pamięci {sel2.Value.Count} obiektów.");
+            }
+            else
+            {
+                ed.WriteMessage("\n[SelectPrevious]: PAMIĘĆ PUSTA.");
+            }
+            ed.WriteMessage("\n-------------------------------\n");
+        }
+
+        [CommandMethod("AGENT_DEBUG_2")]
+        public void DebugTwardeFormatowanie()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptEntityOptions peo = new PromptEntityOptions("\nWybierz jeden tekst MText do brutalnego testu formatowania: ");
+            peo.SetRejectMessage("\nMusisz wybrać MText.");
+            peo.AddAllowedClass(typeof(MText), true);
+
+            PromptEntityResult per = ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            using (DocumentLock docLock = doc.LockDocument())
+            {
+                using (Transaction tr = doc.TransactionManager.StartTransaction())
+                {
+                    MText mt = tr.GetObject(per.ObjectId, OpenMode.ForWrite) as MText;
+
+                    ed.WriteMessage("\n\n--- DIAGNOSTYKA MTEXT ---");
+                    ed.WriteMessage($"\n[PRZED] Contents (RTF): {mt.Contents}");
+                    ed.WriteMessage($"\n[PRZED] Czysty Tekst: {mt.Text}");
+
+                    // Twarde wymuszenie koloru czerwonego (1)
+                    try
+                    {
+                        // Próbujemy zapisać to dokładnie tak, jak robi to nasz system AI
+                        string testCode = "{\\C1;" + mt.Text + "}";
+                        mt.Contents = testCode;
+                        mt.RecordGraphicsModified(true);
+
+                        ed.WriteMessage($"\n[PO] Contents (RTF): {mt.Contents}");
+                        ed.WriteMessage("\n[WYNIK]: Operacja zapisu API powiodła się.");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        ed.WriteMessage($"\n[BŁĄD ZAPISU API]: {ex.Message}");
+                    }
+
+                    tr.Commit();
+                }
+            }
+            ed.WriteMessage("\n-------------------------\n");
+        }
+
     }
 }

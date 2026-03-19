@@ -4,6 +4,7 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Teigha.DatabaseServices;
 using Application = Bricscad.ApplicationServices.Application;
 
 namespace Bricscad_AgentAI
@@ -23,23 +24,31 @@ namespace Bricscad_AgentAI
             string userMsg = txtInput.Text.Trim();
             if (string.IsNullOrEmpty(userMsg)) return;
 
-            // 1. Wypisujemy na ekran naszą wiadomość i czyścimy pole
             AppendToHistory("TY", userMsg);
             txtInput.Clear();
-            btnSend.Enabled = false; // Blokujemy przycisk na czas myślenia AI
+            btnSend.Enabled = false;
 
-            // 2. Pobieramy aktualny dokument CAD
             Document doc = Application.DocumentManager.MdiActiveDocument;
+
+            // --- GENIALNY TRIK CZ. 1: Łapiemy zaznaczenie ZANIM okno ukradnie fokus i wejdziemy w tło! ---
+            ObjectId[] przechwyconeZaznaczenie = null;
+            try
+            {
+                PromptSelectionResult selRes = doc.Editor.SelectImplied();
+                if (selRes.Status == PromptStatus.OK)
+                {
+                    przechwyconeZaznaczenie = selRes.Value.GetObjectIds();
+                }
+            }
+            catch { } // Cicha obrona przed błędami
 
             try
             {
                 AppendToHistory("SYSTEM", "Bielik myśli...");
 
-                // 3. Wywołujemy asynchroniczną metodę z naszej głównej klasy Komendy
-                // "await" sprawia, że interfejs BricsCADa NIE ZAMARZA!
-                string aiResponse = await BricsCAD_Agent.Komendy.ZapytajAgentaAsync(userMsg, doc);
+                // Przekazujemy nasz skarb (przechwyconeZaznaczenie) dalej do Agenta
+                string aiResponse = await BricsCAD_Agent.Komendy.ZapytajAgentaAsync(userMsg, doc, przechwyconeZaznaczenie);
 
-                // 4. Wypisujemy odpowiedź Agenta
                 AppendToHistory("BIELIK", aiResponse);
             }
             catch (Exception ex)
@@ -48,7 +57,7 @@ namespace Bricscad_AgentAI
             }
             finally
             {
-                btnSend.Enabled = true; // Odblokowujemy przycisk
+                btnSend.Enabled = true;
             }
         }
 

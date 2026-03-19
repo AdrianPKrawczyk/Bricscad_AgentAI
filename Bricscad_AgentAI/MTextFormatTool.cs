@@ -1,10 +1,8 @@
 ﻿using Bricscad.ApplicationServices;
 using Bricscad.EditorInput;
 using System;
-using System.Linq;
 using System.Text.RegularExpressions;
 using Teigha.DatabaseServices;
-using Teigha.Runtime;
 
 namespace BricsCAD_Agent
 {
@@ -12,28 +10,28 @@ namespace BricsCAD_Agent
     {
         public string ActionTag => "[ACTION:MTEXT_FORMAT]";
 
-        // ZMIANA 1: Aktualizacja opisu dla AI
         public string Description =>
             "Edytuje formatowanie MText. Wymaga JSON: " +
-            "{\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko HighlightWord), \"Color\": 1-czerwony, 2-żółty, 3-zielony itd., \"Bold\": true/false}";
+            "{\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko HighlightWord), \"Color\": nr_koloru (indeks ACI od 1 do 255), \"Bold\": true/false}";
 
         public void Execute(Document doc, string jsonArgs)
         {
             Editor ed = doc.Editor;
-            PromptSelectionResult selRes = ed.SelectImplied();
-            ObjectId[] ids;
 
-            if (selRes.Status == PromptStatus.OK) { ids = selRes.Value.GetObjectIds(); }
-            else
+            // --- CZYTAMY WPROST Z PODŚWIADOMEJ PAMIĘCI AGENTA ---
+            ObjectId[] ids = Komendy.OstatnieZaznaczenie;
+
+            if (ids == null || ids.Length == 0)
             {
-                ed.WriteMessage("\n[Narzędzie MText]: Nie wykryto zaznaczenia przez SelectImplied. Upewnij się, że obiekty są podświetlone.");
+                ed.WriteMessage("\n[Bielik]: Nie mam w pamięci żadnych obiektów! Zaznacz je myszką lub każ mi je znaleźć (np. 'Zaznacz wszystkie teksty').");
                 return;
             }
 
+            // --- BEZPIECZNE PARSOWANIE JSON ---
             string mode = Regex.Match(jsonArgs, @"\""Mode\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
             string word = Regex.Match(jsonArgs, @"\""Word\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
             string colorStr = Regex.Match(jsonArgs, @"\""Color\""\s*:\s*(\d+)").Groups[1].Value;
-            bool bold = jsonArgs.IndexOf("\"Bold\": true", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool bold = Regex.IsMatch(jsonArgs, @"\""Bold\""\s*:\s*true", RegexOptions.IgnoreCase);
             int color = int.TryParse(colorStr, out int c) ? c : 3;
 
             int zmodyfikowane = 0;
@@ -43,11 +41,10 @@ namespace BricsCAD_Agent
                 foreach (ObjectId objId in ids)
                 {
                     MText mtext = tr.GetObject(objId, OpenMode.ForWrite) as MText;
-                    if (mtext == null) continue;
+                    if (mtext == null) continue; // Ignorujemy, jeśli w pamięci plącze się np. linia
 
                     string zawartosc = mtext.Contents;
 
-                    // ZMIANA 2: Dodajemy obsługę różnych trybów (FormatAll i ClearFormatting)
                     if (mode == "HighlightWord" && !string.IsNullOrEmpty(word))
                     {
                         string formatCode = $"\\C{color};";
@@ -62,17 +59,16 @@ namespace BricsCAD_Agent
                             zmodyfikowane++;
                         }
                     }
-                    else if (mode == "FormatAll") // NOWY TRYB DO FORMATOWANIA CAŁOŚCI
+                    else if (mode == "FormatAll")
                     {
                         string formatCode = $"\\C{color};";
                         if (bold) formatCode += "\\fArial|b1;";
 
-                        // Używamy mtext.Text (czysty tekst bez rtf) i owijamy go formatowaniem
                         mtext.Contents = $"{{{formatCode}{mtext.Text}}}";
                         mtext.RecordGraphicsModified(true);
                         zmodyfikowane++;
                     }
-                    else if (mode == "ClearFormatting") // NAPRAWIONE CZYSZCZENIE
+                    else if (mode == "ClearFormatting")
                     {
                         mtext.Contents = mtext.Text;
                         mtext.RecordGraphicsModified(true);
@@ -81,7 +77,7 @@ namespace BricsCAD_Agent
                 }
                 tr.Commit();
             }
-            ed.WriteMessage($"\n[Sukces MText]: Zmodyfikowano {zmodyfikowane} obiekt(ów).");
+            ed.WriteMessage($"\n[Sukces MText]: Zmodyfikowano formatowanie {zmodyfikowane} obiektów.");
         }
 
         public void Execute(Document doc) { Execute(doc, ""); }
