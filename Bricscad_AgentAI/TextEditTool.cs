@@ -6,15 +6,15 @@ using Teigha.DatabaseServices;
 
 namespace BricsCAD_Agent
 {
-    public class MTextEditTool : ITool
+    public class TextEditTool : ITool
     {
-        public string ActionTag => "[ACTION:MTEXT_EDIT]";
+        public string ActionTag => "[ACTION:TEXT_EDIT]";
 
         public string Description =>
-            "Dodaje lub zamienia tekst w MText. Wymaga JSON: " +
-            "{\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania/podmiany\" (puste przy usuwaniu), \"FindText\": \"szukany tekst\" (tylko dla Replace), \"Color\": nr_koloru, \"Underline\": true/false, \"Bold\": true/false, \"Italic\": true/false}";
+            "Dodaje lub zamienia tekst w zwykłym obiekcie TEXT (DBText). Wymaga JSON: " +
+            "{\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania/podmiany\" (zostaw puste przy usuwaniu), \"FindText\": \"szukany tekst\" (tylko dla Replace), \"Color\": nr_koloru (opcjonalnie)}";
 
-        public void Execute(Document doc, string jsonArgs)
+        public string Execute(Document doc, string jsonArgs)
         {
             Editor ed = doc.Editor;
             ObjectId[] ids = Komendy.OstatnieZaznaczenie;
@@ -29,9 +29,6 @@ namespace BricsCAD_Agent
             string text = Regex.Match(jsonArgs, @"\""Text\""\s*:\s*\""(.*?)\""").Groups[1].Value;
             string findText = Regex.Match(jsonArgs, @"\""FindText\""\s*:\s*\""(.*?)\""").Groups[1].Value;
             string colorStr = Regex.Match(jsonArgs, @"\""Color\""\s*:\s*(\d+)").Groups[1].Value;
-            bool underline = Regex.IsMatch(jsonArgs, @"\""Underline\""\s*:\s*true", RegexOptions.IgnoreCase);
-            bool bold = Regex.IsMatch(jsonArgs, @"\""Bold\""\s*:\s*true", RegexOptions.IgnoreCase);
-            bool italic = Regex.IsMatch(jsonArgs, @"\""Italic\""\s*:\s*true", RegexOptions.IgnoreCase);
 
             // --- POPRAWIONE ZABEZPIECZENIA ---
             if (string.IsNullOrEmpty(mode))
@@ -50,63 +47,40 @@ namespace BricsCAD_Agent
                 return;
             }
 
-            string formattedText = text;
-            string fontFormat = "";
-
-            if (bold || italic)
-            {
-                int b = bold ? 1 : 0;
-                int i = italic ? 1 : 0;
-                fontFormat = $"\\fArial|b{b}|i{i};";
-            }
-
-            if (underline)
-            {
-                formattedText = $"\\L{formattedText}\\l";
-            }
-
-            if (!string.IsNullOrEmpty(colorStr) && int.TryParse(colorStr, out int c))
-            {
-                formattedText = $"\\C{c};{fontFormat}{formattedText}";
-            }
-            else if (!string.IsNullOrEmpty(fontFormat))
-            {
-                formattedText = $"{fontFormat}{formattedText}";
-            }
-
-            if ((underline || bold || italic || !string.IsNullOrEmpty(colorStr)) && !string.IsNullOrEmpty(text))
-            {
-                formattedText = $"{{{formattedText}}}";
-            }
-
             int zmodyfikowane = 0;
 
             using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
                 foreach (ObjectId objId in ids)
                 {
-                    MText mtext = tr.GetObject(objId, OpenMode.ForWrite) as MText;
-                    if (mtext == null) continue;
+                    DBText dbText = tr.GetObject(objId, OpenMode.ForWrite) as DBText;
+                    if (dbText == null) continue;
 
                     if (mode == "Append")
                     {
-                        mtext.Contents += formattedText;
+                        dbText.TextString += text;
                     }
                     else if (mode == "Prepend")
                     {
-                        mtext.Contents = formattedText + mtext.Contents;
+                        dbText.TextString = text + dbText.TextString;
                     }
                     else if (mode == "Replace" && !string.IsNullOrEmpty(findText))
                     {
-                        mtext.Contents = mtext.Contents.Replace(findText, formattedText);
+                        // Jeśli "text" jest puste, po prostu usunie "findText"
+                        dbText.TextString = dbText.TextString.Replace(findText, text);
                     }
 
-                    mtext.RecordGraphicsModified(true);
+                    if (!string.IsNullOrEmpty(colorStr) && int.TryParse(colorStr, out int c))
+                    {
+                        dbText.ColorIndex = c;
+                    }
+
+                    dbText.RecordGraphicsModified(true);
                     zmodyfikowane++;
                 }
                 tr.Commit();
             }
-            ed.WriteMessage($"\n[Sukces MText Edit]: Zmodyfikowano treść {zmodyfikowane} obiektów.");
+            ed.WriteMessage($"\n[Sukces TEXT Edit]: Zmodyfikowano treść {zmodyfikowane} obiektów TEXT.");
         }
 
         public void Execute(Document doc) { Execute(doc, ""); }

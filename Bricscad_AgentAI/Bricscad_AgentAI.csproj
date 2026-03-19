@@ -61,6 +61,7 @@
     <Compile Include="MTextFormatTool.cs" />
     <Compile Include="ITool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TextEditTool.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AgentControl.resx">

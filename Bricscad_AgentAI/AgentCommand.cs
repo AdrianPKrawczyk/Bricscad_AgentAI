@@ -38,7 +38,8 @@ namespace BricsCAD_Agent
 
         {
         new MTextFormatTool(),
-        new MTextEditTool()
+        new MTextEditTool(),
+        new TextEditTool()
         };
 
         private static PaletteSet oknoAgenta = null;
@@ -61,7 +62,10 @@ namespace BricsCAD_Agent
                                 "Argumenty: {\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko dla HighlightWord),\"Color\": nr_koloru (indeks ACI od 1 do 255, np. 1-czerwony, 2-żółty, 3-zielony, 79-jasnozielony, itd.), \"Bold\": true/false}\n\n" +
                                 "Tag: [ACTION:MTEXT_EDIT]\n" +
                                 "Opis: Dodaje lub zamienia tekst w MText.\n" +
-                                "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko dla Replace), \"Color\": nr_koloru (np. 6 dla fioletu), \"Underline\": true/false}\n\n" +
+                                "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko dla Replace), \"Color\": nr_koloru (np. 6 dla fioletu), \"Underline\": true/false, \"Bold\": true/false, \"Italic\": true/false}\n\n" +
+                                "Tag: [ACTION:TEXT_EDIT]\n" +
+                                "Opis: Dodaje lub zamienia zawartość zwykłego TEXT (DBText). Nie obsługuje formatowania wewnątrz tekstu.\n" +
+                                "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko Replace), \"Color\": nr_koloru (zmienia kolor całego obiektu)}\n\n" +
                                 "--- PRZYKŁADY ZACHOWANIA: ---\n" +
                                 "User: Zaznacz linie dłuższe niż 50\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
@@ -178,6 +182,14 @@ namespace BricsCAD_Agent
                                     if (tool is MTextFormatTool mtextTool)
                                     {
                                         mtextTool.Execute(doc, args);
+                                    }
+                                    else if (tool is MTextEditTool mtextEditTool) // <--- DODANA OBSŁUGA NOWEGO NARZĘDZIA
+                                    {
+                                        mtextEditTool.Execute(doc, args);
+                                    }
+                                    else if (tool is TextEditTool textEditTool) // <--- DODANA LINIJKA DLA TEXT
+                                    {
+                                        textEditTool.Execute(doc, args);
                                     }
                                     else
                                     {
