@@ -1,37 +1,40 @@
-﻿using System;
-using System.Net.Http;
-using System.Text;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Reflection;
-using Bricscad.ApplicationServices;
+﻿using Bricscad.ApplicationServices;
 using Bricscad.EditorInput;
-using Teigha.Runtime;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
 
 namespace BricsCAD_Agent
 {
-    // UWAGA: Zakładam, że interfejs ITool i klasy ColorRedTool, SelectLinesTool masz zdefiniowane w innym pliku.
+    // Zakładam, że ITool jest zdefiniowany w Twoim projekcie
+    
     public class Komendy
     {
-        // Czekamy do 5 minut na myślenie AI (Think)
         private static readonly HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMinutes(5) };
         private static List<string> historiaRozmowy = new List<string>();
         private static string wybranyModel = "qwen3.5-9b-instruct";
 
-        // --- NOWE: Baza wiedzy wyciągnięta przez Pająka w Pythonie ---
-        private static Dictionary<string, string> bazaWiedzyAPI = new Dictionary<string, string>();
+        // --- Dwie bazy danych (Tiered Storage) ---
+        private static Dictionary<string, string> bazaQuick = new Dictionary<string, string>();
+        private static Dictionary<string, string> bazaFull = new Dictionary<string, string>();
 
         private List<ITool> tools = new List<ITool>
+
         {
-            // new ColorRedTool(),
-            // new SelectLinesTool()
+        new MTextFormatTool()
         };
 
-        // --- PANCERNY ENKODER JSON ---
-        private string SafeJson(string text)
+    // --- PANCERNY ENKODER JSON ---
+    private string SafeJson(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
             StringBuilder sb = new StringBuilder();
@@ -52,10 +55,7 @@ namespace BricsCAD_Agent
             return sb.ToString();
         }
 
-        // ==========================================
-        // ZARZĄDZANIE PAMIĘCIĄ I ŚCIEŻKAMI
-        // ==========================================
-
+        // --- ŚCIEŻKI I PAMIĘĆ ---
         private string GetGlobalPath()
         {
             string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BricsCAD_Agent");
@@ -67,51 +67,49 @@ namespace BricsCAD_Agent
         {
             string docPath = doc.Database.Filename;
             if (string.IsNullOrEmpty(docPath)) return null;
-
-            string name = Path.GetFileName(docPath);
-            if (name.StartsWith("Drawing", StringComparison.OrdinalIgnoreCase)) return null;
-
             string dir = Path.GetDirectoryName(docPath);
             string nameNoExt = Path.GetFileNameWithoutExtension(docPath);
             return Path.Combine(dir, nameNoExt + "_ai_memory.json");
         }
 
-        private string GetBazaWiedzyPath()
+        // --- ŁADOWANIE BAZ WIEDZY (Poprawione) ---
+        private void WczytajBazyWiedzy(Editor ed)
         {
+            bazaQuick.Clear();
+            bazaFull.Clear();
+
             string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BricsCAD_Agent");
-            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
-            return Path.Combine(folder, "BricsCAD_API_V22.txt");
-        }
+            string pathQuick = Path.Combine(folder, "BricsCAD_API_Quick.txt");
+            string pathFull = Path.Combine(folder, "BricsCAD_API_V22.txt");
 
-        private void WczytajBazeWiedzy(Editor ed)
-        {
-            string path = GetBazaWiedzyPath();
-            bazaWiedzyAPI.Clear();
-
-            if (!File.Exists(path))
+            int LoadFile(string path, Dictionary<string, string> dict)
             {
-                ed.WriteMessage("\n[System]: Plik bazy wiedzy nie istnieje.");
-                return;
-            }
-
-            try
-            {
-                // Czytamy CAŁY sklejony tekst na raz
-                string calyTekst = File.ReadAllText(path);
-
-                // Magiczny Regex: Wyciąga klucz i wartość ignorując braki enterów
-                MatchCollection matches = Regex.Matches(calyTekst, @"([a-zA-Z0-9_]+)\|Klasa API:\s*(.*?)(?=(?:[a-zA-Z0-9_]+\|Klasa API:|$))", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-                foreach (Match m in matches)
+                if (!File.Exists(path)) return 0;
+                try
                 {
-                    string klucz = m.Groups[1].Value.Trim().ToLower();
-                    string wartosc = "Klasa API: " + m.Groups[2].Value.Trim();
-                    bazaWiedzyAPI[klucz] = wartosc;
-                }
+                    string content = File.ReadAllText(path);
+                    // NOWY REGEX: Łapie klucz przed '|' i całą resztę aż do następnego klucza
+                    var matches = Regex.Matches(content, @"([^|\r\n]+)\|(.*?)(?=(?:[^|\r\n]+\||$))",
+                                  RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
-                ed.WriteMessage($"\n[System]: Załadowano do pamięci {bazaWiedzyAPI.Count} zoptymalizowanych klas BricsCAD API.");
+                    foreach (Match m in matches)
+                    {
+                        string klucz = m.Groups[1].Value.Trim().ToLower();
+                        string wartosc = m.Groups[2].Value.Trim();
+                        dict[klucz] = wartosc;
+                    }
+                    return dict.Count;
+                }
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage($"\n[Błąd]: {Path.GetFileName(path)}: {ex.Message}");
+                    return 0;
+                }
             }
-            catch { ed.WriteMessage("\n[System]: Błąd odczytu bazy wiedzy API."); }
+
+            int qCount = LoadFile(pathQuick, bazaQuick);
+            int fCount = LoadFile(pathFull, bazaFull);
+            ed.WriteMessage($"\n[System]: Załadowano bazy API (Quick: {qCount}, Full: {fCount})");
         }
 
         private void ZapiszPamiec(Document doc)
@@ -146,10 +144,7 @@ namespace BricsCAD_Agent
             doc.Editor.WriteMessage("\n[System]: Pamięć wyczyszczona.");
         }
 
-        // ==========================================
-        // PARSOWANIE I LM STUDIO
-        // ==========================================
-
+        // --- LM STUDIO MODELS ---
         private List<string> ParsujListeModeli(string json)
         {
             List<string> l = new List<string>();
@@ -212,11 +207,8 @@ namespace BricsCAD_Agent
             catch { ed.WriteMessage("\n[Błąd]: Brak połączenia z LM Studio."); }
         }
 
-        // ==========================================
-        // SILNIK ZAZNACZANIA REFLEKSYJNEGO
-        // ==========================================
-
-        private void WykonajInteligentneZaznaczenie(Document doc, string json)
+        // --- SILNIK ZAZNACZANIA ---
+        private int WykonajInteligentneZaznaczenie(Document doc, string json)
         {
             Editor ed = doc.Editor;
             try
@@ -224,38 +216,35 @@ namespace BricsCAD_Agent
                 string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
                 var warunki = new List<(string Prop, string Op, string Val)>();
 
-                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase); foreach (Match m in matches)
+                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+                foreach (Match m in matches)
                 {
                     warunki.Add((m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value.Trim('\"')));
                 }
 
-                if (string.IsNullOrEmpty(entityTypeStr)) return;
+                if (string.IsNullOrEmpty(entityTypeStr)) return 0; // <-- POPRAWKA: return 0 zamiast return
 
                 if (entityTypeStr.Equals("Clear", StringComparison.OrdinalIgnoreCase))
                 {
                     ed.SetImpliedSelection(new ObjectId[0]);
                     ed.WriteMessage("\n[System]: Odznaczono obiekty.");
-                    return;
+                    return 0; // <-- POPRAWKA: return 0 zamiast return
                 }
 
                 string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                ed.WriteMessage($"\n[System]: Szukam obiektów '{string.Join(" / ", typyDoSzukania)}' (Warunków: {warunki.Count})...");
+                ed.WriteMessage($"\n[System]: Szukam '{string.Join("/", typyDoSzukania)}' (Warunki: {warunki.Count})...");
 
                 List<ObjectId> znalezioneObiekty = new List<ObjectId>();
-
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
                 {
                     BlockTable bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
                     BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
                     foreach (ObjectId objId in btr)
                     {
                         Entity ent = tr.GetObject(objId, OpenMode.ForRead) as Entity;
                         if (ent == null) continue;
-
                         string nazwaTypuEnt = ent.GetType().Name;
                         bool typPasuje = false;
-
                         foreach (var t in typyDoSzukania)
                         {
                             string szukanyTyp = t.Trim();
@@ -263,60 +252,66 @@ namespace BricsCAD_Agent
                             if (szukanyTyp.Equals("Dimension", StringComparison.OrdinalIgnoreCase) && ent is Dimension) { typPasuje = true; break; }
                             if (nazwaTypuEnt.Equals(szukanyTyp, StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
                         }
-
                         if (!typPasuje) continue;
 
                         bool spelniaWszystkie = true;
-
-                        if (warunki.Count > 0)
+                        foreach (var warunek in warunki)
                         {
-                            foreach (var warunek in warunki)
+                            string rzeczywistaWlasciwosc = warunek.Prop;
+                            if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
+                            else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
+
+                            System.Reflection.PropertyInfo propInfo = ent.GetType().GetProperty(rzeczywistaWlasciwosc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                            if (propInfo == null) { spelniaWszystkie = false; break; }
+                            object wartoscObiektu = propInfo.GetValue(ent);
+                            if (wartoscObiektu == null) { spelniaWszystkie = false; break; }
+
+                            string valStr = wartoscObiektu.ToString();
+
+                            // --- TŁUMACZ ZŁOŻONYCH OBIEKTÓW CAD ---
+                            if (wartoscObiektu is Teigha.Colors.Transparency transp)
                             {
-                                string rzeczywistaWlasciwosc = warunek.Prop;
-
-                                if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase))
+                                if (transp.IsByAlpha)
                                 {
-                                    rzeczywistaWlasciwosc = "TextHeight";
-                                }
-                                else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase)))
-                                {
-                                    rzeczywistaWlasciwosc = "Dimtxt";
-                                }
-
-                                PropertyInfo propInfo = ent.GetType().GetProperty(rzeczywistaWlasciwosc, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                                if (propInfo == null) { spelniaWszystkie = false; break; }
-
-                                object wartoscObiektu = propInfo.GetValue(ent);
-                                if (wartoscObiektu == null) { spelniaWszystkie = false; break; }
-
-                                string valStr = wartoscObiektu.ToString();
-                                bool warunekSpelniony = false;
-
-                                if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
-                                    double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))
-                                {
-                                    switch (warunek.Op)
-                                    {
-                                        case "==": warunekSpelniony = Math.Abs(valNum - warNum) < 0.0001; break;
-                                        case ">": warunekSpelniony = valNum > warNum; break;
-                                        case "<": warunekSpelniony = valNum < warNum; break;
-                                        case ">=": warunekSpelniony = valNum >= warNum; break;
-                                        case "<=": warunekSpelniony = valNum <= warNum; break;
-                                    }
+                                    double procent = (255.0 - transp.Alpha) / 255.0 * 100.0;
+                                    valStr = Math.Round(procent).ToString();
                                 }
                                 else
                                 {
-                                    switch (warunek.Op.ToLower())
-                                    {
-                                        case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
-                                        case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
-                                    }
+                                    valStr = "0";
                                 }
-
-                                if (!warunekSpelniony) { spelniaWszystkie = false; break; }
                             }
-                        }
+                            else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
+                            {
+                                valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
+                            }
+                            // ----------------------------------------
 
+                            bool warunekSpelniony = false;
+                            if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
+                                double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))
+                            {
+                                switch (warunek.Op)
+                                {
+                                    case "==": warunekSpelniony = Math.Abs(valNum - warNum) < 0.0001; break;
+                                    case "!=": warunekSpelniony = Math.Abs(valNum - warNum) >= 0.0001; break;
+                                    case ">": warunekSpelniony = valNum > warNum; break;
+                                    case "<": warunekSpelniony = valNum < warNum; break;
+                                    case ">=": warunekSpelniony = valNum >= warNum; break;
+                                    case "<=": warunekSpelniony = valNum <= warNum; break;
+                                }
+                            }
+                            else
+                            {
+                                switch (warunek.Op.ToLower())
+                                {
+                                    case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
+                                    case "!=": warunekSpelniony = !valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
+                                    case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
+                                }
+                            }
+                            if (!warunekSpelniony) { spelniaWszystkie = false; break; }
+                        }
                         if (spelniaWszystkie) znalezioneObiekty.Add(objId);
                     }
                     tr.Commit();
@@ -326,218 +321,264 @@ namespace BricsCAD_Agent
                 {
                     ed.SetImpliedSelection(znalezioneObiekty.ToArray());
                     ed.WriteMessage($"\n[Sukces]: Zaznaczono {znalezioneObiekty.Count} obiekt(ów)!");
+                    return znalezioneObiekty.Count; // <-- PRAWIDŁOWY ZWROT ILOSCI
                 }
                 else
                 {
                     ed.WriteMessage("\n[System]: Nie znaleziono obiektów spełniających kryteria.");
                     ed.SetImpliedSelection(new ObjectId[0]);
+                    return 0; // <-- PRAWIDŁOWY ZWROT ZERA
                 }
             }
-            catch (System.Exception ex) { ed.WriteMessage($"\n[Błąd Zaznaczania C#]: {ex.Message}"); }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage($"\n[Błąd Zaznaczania C#]: {ex.Message}");
+                return 0; // <-- POPRAWKA: Zabezpieczenie bloku catch (CS0161)
+            }
         }
 
-        // ==========================================
-        // GŁÓWNA PĘTLA AGENTA
-        // ==========================================
-
+        // --- GŁÓWNA PĘTLA AGENTA ---
         [CommandMethod("AGENT_START")]
         public void UruchomAgenta()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
-
             historiaRozmowy.Clear();
             WczytajPamiec(doc);
-            WczytajBazeWiedzy(ed); // Ładujemy wiedzę od Pająka!
+            WczytajBazyWiedzy(ed); // Poprawione wywołanie
 
-            string systemPrompt = "Jesteś asystentem Bielik w BricsCAD. Odpowiadaj krótko. " +
-                                    "Analizuj zadania w tagach <think>.\n\n" +
-                                    "--- NARZĘDZIE RYSOWANIA [LISP: ...] ---\n" +
-                                    "Jeśli użytkownik chce coś narysować lub zmienić, UŻYJ: [LISP: (command \"_KOMENDA\" ...) ].\n" +
-                                    "ZASADY LISP:\n" +
-                                    "1. ZAWSZE dodawaj podkreślnik przed komendą, np. \"_LINE\", \"_CIRCLE\", \"_MOVE\".\n" +
-                                    "2. Komenda LINE musi być zakończona pustym stringiem, np: (command \"_LINE\" p1 p2 \"\").\n" +
-                                    "3. Używaj współrzędnych jako stringów \"x,y\" lub list (list x y).\n\n" +
-                                    "--- NARZĘDZIE WIEDZY [SEARCH: ...] i [SELECT: ...] ---\n" +
-                                    "Jeśli nie znasz właściwości obiektu do zaznaczania, użyj [SEARCH: Klasa]. " +
-                                    "Potem wygeneruj [SELECT: JSON_w_jednej_linii].\n\n" +
-                                    "Pamiętaj: Możesz rysować i edytować WSZYSTKO przez [LISP]. Nigdy nie mów, że nie masz uprawnień.";
+            string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
+                                "Analizuj zadania w tagach <think>.\n\n" +
+                                "MUSISZ odpowiedzieć jednym z 5 tagów:\n" +
+                                "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA.\n" +
+                                "2. [SELECT: {\"EntityType\": \"Klasa\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==|>|<|>=|<=|!=|Contains\", \"Value\": \"wartość\"}]}] - do zaznaczania (JSON bez enterów!).\n" +
+                                "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
+                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, gdy użytkownik zada Ci pytanie (np. 'dlaczego?').\n" +
+                                "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
+                                "--- ZASADY LISP (KRYTYCZNE): ---\n" +
+                                "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
+                                "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
+                                "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
+                                "Tag: [ACTION:MTEXT_FORMAT]\n" +
+                                "Opis: Zmienia wewnętrzne formatowanie MText.\n" +
+                                "Argumenty: {\"Mode\": \"HighlightWord\"|\"ClearFormatting\", \"Word\": \"słowo\", \"Color\": nr_koloru, \"Bold\": true/false}\n\n" +
+                                "--- PRZYKŁADY ZACHOWANIA: ---\n" +
+                                "User: Zaznacz linie dłuższe niż 50\n" +
+                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
+                                "User: Znajdź linie, które nie zaczynają się w 0,0,0\n" +
+                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n" +
+                                "User: Zaznacz teksty z formatowaniem wewnętrznym\n" +
+                                "Bielik: [SELECT: {\"EntityType\": \"MText\", \"Conditions\": [{\"Property\": \"Contents\", \"Operator\": \"Contains\", \"Value\": \";\"}]}]\n" +
+                                "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
+                                "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
+                                "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
-            if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("KROK 1"))
+            if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + SafeJson(systemPrompt) + "\"}");
-                ed.WriteMessage($"\n--- Agent Bielik gotowy (Model: {wybranyModel}) ---");
+                ed.WriteMessage($"\n--- Agent Bielik gotowy ({wybranyModel}) ---");
             }
 
             while (true)
             {
-                PromptStringOptions pso = new PromptStringOptions("\nCo robimy, Adrianie? (exit/reset/modele): ");
+                PromptStringOptions pso = new PromptStringOptions("\nCo robimy? (exit/reset/modele): ");
                 pso.AllowSpaces = true;
                 PromptResult pr = ed.GetString(pso);
                 if (pr.Status != PromptStatus.OK) break;
                 string userMsg = pr.StringResult.Trim();
 
-                if (string.IsNullOrWhiteSpace(userMsg)) continue;
                 if (userMsg.ToLower() == "exit") break;
                 if (userMsg.ToLower() == "modele") { WybierzModela(); continue; }
-                if (userMsg.ToLower() == "reset")
-                {
-                    ResetujPamiec(doc);
-                    historiaRozmowy.Add("{\"role\": \"system\", \"content\": \"" + SafeJson(systemPrompt) + "\"}");
-                    continue;
-                }
+                if (userMsg.ToLower() == "reset") { ResetujPamiec(doc); historiaRozmowy.Add("{\"role\": \"system\", \"content\": \"" + SafeJson(systemPrompt) + "\"}"); continue; }
 
                 try
                 {
                     historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(userMsg) + "\"}");
-
+                    int licznikWyszukiwan = 0;
                     bool agentPotrzebujeDanych = true;
-
                     while (agentPotrzebujeDanych)
                     {
                         agentPotrzebujeDanych = false;
                         ed.WriteMessage("\nBielik myśli...");
-
                         string jsonBody = "{\"model\": \"" + wybranyModel + "\", \"messages\": [" + string.Join(",", historiaRozmowy) + "], \"temperature\": 0.1, \"stream\": false}";
-
                         var response = client.PostAsync("http://127.0.0.1:1234/v1/chat/completions", new StringContent(jsonBody, Encoding.UTF8, "application/json")).Result;
-                        string rawContent = WyciagnijContentZJson(response.Content.ReadAsStringAsync().Result);
-
-                        string aiMsg = rawContent;
-                        if (aiMsg.Contains("</think>"))
-                            aiMsg = aiMsg.Substring(aiMsg.LastIndexOf("</think>") + 8).Trim();
+                        string aiMsg = WyciagnijContentZJson(response.Content.ReadAsStringAsync().Result);
+                        if (aiMsg.Contains("</think>")) aiMsg = aiMsg.Substring(aiMsg.LastIndexOf("</think>") + 8).Trim();
 
                         if (!string.IsNullOrEmpty(aiMsg))
                         {
-                            // --- GILOTYNA KONTEKSTOWA ---
-                            // Zamiast zapisywać całą odpowiedź (z potencjalną halucynacją), najpierw sprawdzamy co to jest!
-
+                            // --- LOGIKA SEARCH (Poprawiona) ---
                             if (aiMsg.Contains("[SEARCH:"))
                             {
-                                int startSearch = aiMsg.IndexOf("[SEARCH:") + 8;
-                                int endSearch = aiMsg.IndexOf("]", startSearch);
-                                if (endSearch > startSearch)
+                                // 1. NAJPIERW zapisujemy to, co powiedział Agent (żeby nie miał luki w pamięci)
+                                historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
+
+                                // 2. Zwiększamy licznik
+                                licznikWyszukiwan++;
+
+                                // 3. Sprawdzamy bezpiecznik
+                                if (licznikWyszukiwan > 2)
                                 {
-                                    string szukanaKlasa = aiMsg.Substring(startSearch, endSearch - startSearch).Trim();
-
-                                    // Zapisujemy do pamięci TYLKO sam tag. Odcinamy ewentualny bełkot wygenerowany po nim!
-                                    historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson($"[SEARCH: {szukanaKlasa}]") + "\"}");
-
-                                    ed.WriteMessage($"\n[System]: Agent przeszukuje API dla hasła '{szukanaKlasa.ToLower()}'...");
-
-                                    string wynikWyszukiwania = "Brak informacji w dokumentacji dla tej klasy.";
-                                    if (bazaWiedzyAPI.ContainsKey(szukanaKlasa.ToLower()))
-                                    {
-                                        wynikWyszukiwania = bazaWiedzyAPI[szukanaKlasa.ToLower()];
-                                    }
-
-                                    string odpowiedzSystemu = $"[WYNIK DOKUMENTACJI API]: {wynikWyszukiwania} -> Wygeneruj komendę [SELECT: ...] bazując na tej wiedzy.";
-                                    historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(odpowiedzSystemu) + "\"}");
+                                    ed.WriteMessage("\n[System]: Przerwano nieskończoną pętlę wyszukiwania Agenta.");
+                                    historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"[SYSTEM]: Przekroczono limit wyszukiwań. ZAKAZ wyszukiwania. Użyj tego co już wiesz lub zapytaj użytkownika przez [MSG].\"}");
 
                                     agentPotrzebujeDanych = true;
+                                    continue; // Przerywamy TEN obieg, Agent wymyśla nową odpowiedź
                                 }
+
+                                // 4. Jeśli bezpiecznik nie wybił, normalnie szukamy w bazie
+                                string szukanaKlasa = aiMsg.Substring(aiMsg.IndexOf("[SEARCH:") + 8).Split(']')[0].Trim().ToLower();
+                                string wynik = "";
+
+                                if (bazaQuick.ContainsKey(szukanaKlasa)) wynik = bazaQuick[szukanaKlasa];
+                                else if (bazaFull.ContainsKey(szukanaKlasa)) wynik = bazaFull[szukanaKlasa];
+                                else wynik = "Brak definicji.";
+
+                                // 5. Odsyłamy wynik z bazy
+                                string odpowiedzSystemu = $"[DOKUMENTACJA]: {wynik}";
+                                historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(odpowiedzSystemu) + "\"}");
+                                agentPotrzebujeDanych = true;
                             }
                             else if (aiMsg.Contains("[SELECT:"))
                             {
-                                ed.WriteMessage("\n[Agent AI]: " + aiMsg);
+                                ed.WriteMessage("\n[Agent]: " + aiMsg);
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
 
-                                // Kuloodporne wyciąganie JSON-a niezależnie od enterów
-                                int startTag = aiMsg.IndexOf("[SELECT:");
-                                int startJson = aiMsg.IndexOf("{", startTag);
-                                int endJson = aiMsg.LastIndexOf("}");
+                                int start = aiMsg.IndexOf("{", aiMsg.IndexOf("[SELECT:"));
+                                int end = aiMsg.LastIndexOf("}");
+                                int zaznaczoneLiczba = 0;
 
-                                if (startJson != -1 && endJson > startJson)
+                                if (start != -1 && end > start)
                                 {
-                                    string jsonStr = aiMsg.Substring(startJson, endJson - startJson + 1);
-                                    WykonajInteligentneZaznaczenie(doc, jsonStr);
+                                    zaznaczoneLiczba = WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start + 1));
                                     ZapiszPamiec(doc);
                                 }
-                                else
-                                {
-                                    // Fallback np. dla samego [SELECT: Clear]
-                                    int start = startTag + 8;
-                                    int end = aiMsg.IndexOf("]", start);
-                                    if (end > start)
-                                    {
-                                        WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start));
-                                        ZapiszPamiec(doc);
-                                    }
-                                }
+
+                                // --- MAGIA ŁAŃCUCHOWANIA ZADAŃ (CHAINING) ---
+                                // Informujemy Agenta o wyniku i zmuszamy go do kontynuowania myślenia!
+                                string sysOdp = $"[SYSTEM]: Pomyślnie zaznaczono {zaznaczoneLiczba} obiekt(ów). Jeśli to koniec zadania, odpowiedz [MSG: Gotowe]. Jeśli miałeś w planach użyć narzędzia [ACTION], wygeneruj je TERAZ.";
+                                historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(sysOdp) + "\"}");
+
+                                agentPotrzebujeDanych = true; // NIE PRZERYWAMY PĘTLI! Agent działa dalej.
                             }
                             else if (aiMsg.Contains("[LISP:"))
                             {
-                                ed.WriteMessage("\n[Agent AI]: " + aiMsg);
+                                ed.WriteMessage("\n[Agent]: " + aiMsg);
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
-
                                 int start = aiMsg.IndexOf("[LISP:") + 6;
                                 int end = aiMsg.IndexOf("]", start);
                                 if (end > start)
                                 {
                                     string lisp = aiMsg.Substring(start, end - start).Trim().Replace("`", "");
-                                    ed.WriteMessage("\n[System]: Wykonywanie kodu AutoLISP...");
-                                    ed.WriteMessage("\n[Debug LISP]: " + lisp); // To pokaże Ci w konsoli, co dokładnie AI wysyła do BricsCADa
                                     doc.SendStringToExecute(lisp + "\n", true, false, false);
                                     doc.SendStringToExecute("AGENT_START\n", true, false, false);
                                     return;
                                 }
                             }
-                            else
+                            else if (aiMsg.Contains("[MSG:"))
                             {
-                                // Zwykła rozmowa
-                                ed.WriteMessage("\n[Agent AI]: " + aiMsg);
+                                int start = aiMsg.IndexOf("[MSG:") + 5;
+                                int end = aiMsg.LastIndexOf("]");
+                                if (end > start)
+                                {
+                                    ed.WriteMessage("\n[Bielik Mówi]: " + aiMsg.Substring(start, end - start).Trim());
+                                }
+                                else
+                                {
+                                    ed.WriteMessage("\n[Bielik Mówi]: " + aiMsg);
+                                }
+                                historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
+                                ZapiszPamiec(doc);
+                            }
+                        else if (aiMsg.Contains("[ACTION:"))
+                        {
+                            ed.WriteMessage("\n[Agent AI Używa Narzędzia]: " + aiMsg);
+                            historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
+
+                            // Szukamy odpowiedniego narzędzia na liście
+                            foreach (var tool in tools)
+                            {
+                                if (aiMsg.Contains(tool.ActionTag))
+                                {
+                                    // Wyciągamy argumenty JSON (jeśli są)
+                                    string args = "";
+                                    int startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(tool.ActionTag));
+                                    int endArgs = aiMsg.LastIndexOf("}");
+                                    if (startArgs != -1 && endArgs > startArgs)
+                                    {
+                                        args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
+                                    }
+
+                                    // Uruchamiamy narzędzie! (zakładam, że zaktualizowałeś ITool o metodę z dwoma parametrami)
+                                    // Jeśli nie, rzutujemy na nasz konkretny typ:
+                                    if (tool is MTextFormatTool mtextTool)
+                                    {
+                                        mtextTool.Execute(doc, args);
+                                    }
+                                    else
+                                    {
+                                        tool.Execute(doc);
+                                    }
+                                }
+                            }
+                            ZapiszPamiec(doc);
+                        }
+
+                        else
+                            {
+                                ed.WriteMessage("\n[Agent]: " + aiMsg);
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
                                 ZapiszPamiec(doc);
                             }
                         }
                     }
                 }
-                catch (System.Exception ex) { ed.WriteMessage("\n[Błąd komunikacji]: " + ex.Message); }
+                catch (System.Exception ex) { ed.WriteMessage("\n[Błąd]: " + ex.Message); }
             }
         }
 
+        // --- TESTER BAZY (Poprawiony) ---
         [CommandMethod("AGENT_CHECK_DB")]
         public void SprawdzBazeWiedzy()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
+            if (bazaQuick.Count == 0 && bazaFull.Count == 0) WczytajBazyWiedzy(ed);
 
-            // Upewniamy się, że baza jest załadowana
-            if (bazaWiedzyAPI.Count == 0)
+            PromptResult pr = ed.GetString("\nPodaj klasę (np. circle): ");
+            if (pr.Status != PromptStatus.OK) return;
+            string szukane = pr.StringResult.Trim().ToLower();
+
+            string tresc = "";
+            if (bazaQuick.TryGetValue(szukane, out tresc)) ed.WriteMessage("\n[Źródło: QUICK]");
+            else if (bazaFull.TryGetValue(szukane, out tresc)) ed.WriteMessage("\n[Źródło: FULL]");
+
+            if (!string.IsNullOrEmpty(tresc))
+                ed.WriteMessage($"\n{tresc.Replace(", ", "\n  - ").Replace("Właściwości", "\n[WŁASNOŚCI]").Replace("Opis", "\n[OPIS]")}");
+            else
+                ed.WriteMessage("\nNie znaleziono w bazach.");
+        }
+
+        [CommandMethod("AGENT_INSPECT")]
+        public void InspectMText()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptEntityOptions peo = new PromptEntityOptions("\nWybierz sformatowany MText do inspekcji: ");
+            peo.SetRejectMessage("\nTo nie jest MText!");
+            peo.AddAllowedClass(typeof(MText), true);
+
+            PromptEntityResult per = ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+
+            using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
-                WczytajBazeWiedzy(ed);
-            }
-
-            ed.WriteMessage($"\n--- TESTER BAZY WIEDZY API ({bazaWiedzyAPI.Count} wczytanych klas) ---");
-
-            PromptStringOptions pso = new PromptStringOptions("\nPodaj nazwę klasy do wyszukania (np. circle, mtext, dimension) lub 'exit': ");
-            pso.AllowSpaces = false;
-
-            while (true)
-            {
-                PromptResult pr = ed.GetString(pso);
-                if (pr.Status != PromptStatus.OK) break;
-
-                string szukane = pr.StringResult.Trim().ToLower();
-                if (szukane == "exit") break;
-
-                if (bazaWiedzyAPI.ContainsKey(szukane))
-                {
-                    ed.WriteMessage($"\n\n--- ZNALEZIONO KLASĘ: {szukane.ToUpper()} ---");
-
-                    string tresc = bazaWiedzyAPI[szukane];
-
-                    // Formatujemy "sklejkę" na ładny i czytelny wygląd dla inżyniera
-                    tresc = tresc.Replace("Właściwości (Properties):", "\n[WŁAŚCIWOŚCI]:\n  - ");
-                    tresc = tresc.Replace(", ", "\n  - ");
-                    tresc = tresc.Replace("Opis:", "\n\n[OPIS]:");
-
-                    ed.WriteMessage($"\n{tresc}\n");
-                }
-                else
-                {
-                    ed.WriteMessage($"\n[Brak wyników]: Nie znaleziono klucza '{szukane}' w załadowanej bazie do RAM.");
-                }
+                MText mt = tr.GetObject(per.ObjectId, OpenMode.ForRead) as MText;
+                ed.WriteMessage($"\n--- INSPEKCJA MTEXT ---");
+                ed.WriteMessage($"\nSurowa treść (Contents): {mt.Contents}");
+                ed.WriteMessage($"\nCzysty tekst (Text): {mt.Text}");
+                ed.WriteMessage($"\n-----------------------");
             }
         }
     }
