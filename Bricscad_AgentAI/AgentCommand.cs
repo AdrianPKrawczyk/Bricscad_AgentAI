@@ -1,5 +1,6 @@
 ﻿using Bricscad.ApplicationServices;
 using Bricscad.EditorInput;
+using Bricscad.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,10 +9,12 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
 using Teigha.Runtime;
+
 
 namespace BricsCAD_Agent
 {
@@ -33,8 +36,147 @@ namespace BricsCAD_Agent
         new MTextFormatTool()
         };
 
-    // --- PANCERNY ENKODER JSON ---
-    private string SafeJson(string text)
+        private static PaletteSet oknoAgenta = null;
+        private static Bricscad_AgentAI.AgentControl interfejsAgenta = null;
+
+        private static string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
+                                "Analizuj zadania w tagach <think>.\n\n" +
+                                "MUSISZ odpowiedzieć jednym z 5 tagów:\n" +
+                                "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA.\n" +
+                                "2. [SELECT: {\"EntityType\": \"Klasa\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==|>|<|>=|<=|!=|Contains\", \"Value\": \"wartość\"}]}] - do zaznaczania (JSON bez enterów!).\n" +
+                                "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
+                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, gdy użytkownik zada Ci pytanie (np. 'dlaczego?').\n" +
+                                "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
+                                "--- ZASADY LISP (KRYTYCZNE): ---\n" +
+                                "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
+                                "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
+                                "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
+                                "Tag: [ACTION:MTEXT_FORMAT]\n" +
+                                "Opis: Zmienia wewnętrzne formatowanie MText.\n" +
+                                "Argumenty: {\"Mode\": \"HighlightWord\"|\"ClearFormatting\", \"Word\": \"słowo\", \"Color\": nr_koloru, \"Bold\": true/false}\n\n" +
+                                "--- PRZYKŁADY ZACHOWANIA: ---\n" +
+                                "User: Zaznacz linie dłuższe niż 50\n" +
+                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
+                                "User: Znajdź linie, które nie zaczynają się w 0,0,0\n" +
+                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n" +
+                                "User: Zaznacz teksty z formatowaniem wewnętrznym\n" +
+                                "Bielik: [SELECT: {\"EntityType\": \"MText\", \"Conditions\": [{\"Property\": \"Contents\", \"Operator\": \"Contains\", \"Value\": \";\"}]}]\n" +
+                                "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
+                                "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
+                                "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
+
+        [CommandMethod("AGENT_UI")]
+        public void UruchomInterfejsAgenta()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+
+            if (oknoAgenta == null)
+            {
+                // Tworzymy główne okno dokowalne
+                oknoAgenta = new PaletteSet("Agent Bielik AI");
+                oknoAgenta.Style = PaletteSetStyles.ShowCloseButton | PaletteSetStyles.ShowPropertiesMenu | PaletteSetStyles.ShowAutoHideButton;
+                oknoAgenta.MinimumSize = new System.Drawing.Size(300, 500);
+
+                // Tworzymy nasz interfejs z przyciskami (ten z pliku AgentControl.cs)
+                interfejsAgenta = new Bricscad_AgentAI.AgentControl();
+
+                // Dodajemy interfejs do palety
+                oknoAgenta.Add("Czat z AI", interfejsAgenta);
+            }
+
+            // Pokazujemy paletę na ekranie
+            oknoAgenta.Visible = true;
+
+            // Wczytujemy bazy, jeśli są puste
+            if (bazaQuick.Count == 0 && bazaFull.Count == 0) WczytajBazyWiedzy(doc.Editor);
+        }
+
+        // Nowy asynchroniczny "mózg" Agenta
+        public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc)
+        {
+            //Editor ed = doc.Editor;
+            
+            if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
+            {
+                historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + new Komendy().SafeJson(systemPrompt) + "\"}");
+            }
+
+            historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson(userMsg) + "\"}");
+
+            try
+            {
+                // ZAPYTANIE DO LM STUDIO W TLE! Nie zawiesza okna.
+                string jsonBody = "{\"model\": \"" + wybranyModel + "\", \"messages\": [" + string.Join(",", historiaRozmowy) + "], \"temperature\": 0.1, \"stream\": false}";
+                var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync("http://127.0.0.1:1234/v1/chat/completions", content);
+                string aiMsg = new Komendy().WyciagnijContentZJson(await response.Content.ReadAsStringAsync());
+
+                if (aiMsg.Contains("</think>")) aiMsg = aiMsg.Substring(aiMsg.LastIndexOf("</think>") + 8).Trim();
+
+                if (!string.IsNullOrEmpty(aiMsg))
+                {
+                    historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + new Komendy().SafeJson(aiMsg) + "\"}");
+
+                    // BARDZO WAŻNE: Ponieważ modyfikujemy rysunek z interfejsu (PaletteSet), 
+                    // musimy ZABLOKOWAĆ dokument, inaczej BricsCAD wyrzuci błąd eLockViolation!
+                    using (DocumentLock docLock = doc.LockDocument())
+                    {
+                        if (aiMsg.Contains("[SELECT:"))
+                        {
+                            int start = aiMsg.IndexOf("{", aiMsg.IndexOf("[SELECT:"));
+                            int end = aiMsg.LastIndexOf("}");
+                            if (start != -1 && end > start)
+                            {
+                                int zaznaczoneLiczba = new Komendy().WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start + 1));
+                                return $"[Zaznaczono {zaznaczoneLiczba} obiektów]\n{aiMsg}";
+                            }
+                        }
+                        else if (aiMsg.Contains("[ACTION:"))
+                        {
+                            foreach (var tool in new Komendy().tools)
+                            {
+                                if (aiMsg.Contains(tool.ActionTag))
+                                {
+                                    string args = "";
+                                    int startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(tool.ActionTag));
+                                    int endArgs = aiMsg.LastIndexOf("}");
+                                    if (startArgs != -1 && endArgs > startArgs) args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
+
+                                    if (tool is MTextFormatTool mtextTool) mtextTool.Execute(doc, args);
+                                    else tool.Execute(doc);
+
+                                    return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
+                                }
+                            }
+                        }
+                        // Jeśli model wysłał LISP (wymaga wywołania po zwolnieniu blokady)
+                        else if (aiMsg.Contains("[LISP:"))
+                        {
+                            int start = aiMsg.IndexOf("[LISP:") + 6;
+                            int end = aiMsg.IndexOf("]", start);
+                            if (end > start)
+                            {
+                                string lisp = aiMsg.Substring(start, end - start).Trim().Replace("`", "");
+                                doc.SendStringToExecute(lisp + "\n", true, false, false);
+                            }
+                        }
+                    } // Tu kończy się blokada dokumentu (Unlock)
+
+                    return aiMsg;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return "BŁĄD KOMUNIKACJI: " + ex.Message;
+            }
+
+            return "Agent nic nie odpowiedział.";
+        }
+
+
+        // --- PANCERNY ENKODER JSON ---
+        private string SafeJson(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
             StringBuilder sb = new StringBuilder();
@@ -346,33 +488,7 @@ namespace BricsCAD_Agent
             historiaRozmowy.Clear();
             WczytajPamiec(doc);
             WczytajBazyWiedzy(ed); // Poprawione wywołanie
-
-            string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
-                                "Analizuj zadania w tagach <think>.\n\n" +
-                                "MUSISZ odpowiedzieć jednym z 5 tagów:\n" +
-                                "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA.\n" +
-                                "2. [SELECT: {\"EntityType\": \"Klasa\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==|>|<|>=|<=|!=|Contains\", \"Value\": \"wartość\"}]}] - do zaznaczania (JSON bez enterów!).\n" +
-                                "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
-                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, gdy użytkownik zada Ci pytanie (np. 'dlaczego?').\n" +
-                                "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
-                                "--- ZASADY LISP (KRYTYCZNE): ---\n" +
-                                "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
-                                "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
-                                "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
-                                "Tag: [ACTION:MTEXT_FORMAT]\n" +
-                                "Opis: Zmienia wewnętrzne formatowanie MText.\n" +
-                                "Argumenty: {\"Mode\": \"HighlightWord\"|\"ClearFormatting\", \"Word\": \"słowo\", \"Color\": nr_koloru, \"Bold\": true/false}\n\n" +
-                                "--- PRZYKŁADY ZACHOWANIA: ---\n" +
-                                "User: Zaznacz linie dłuższe niż 50\n" +
-                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
-                                "User: Znajdź linie, które nie zaczynają się w 0,0,0\n" +
-                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n" +
-                                "User: Zaznacz teksty z formatowaniem wewnętrznym\n" +
-                                "Bielik: [SELECT: {\"EntityType\": \"MText\", \"Conditions\": [{\"Property\": \"Contents\", \"Operator\": \"Contains\", \"Value\": \";\"}]}]\n" +
-                                "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
-                                "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
-                                "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
-
+                    
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + SafeJson(systemPrompt) + "\"}");

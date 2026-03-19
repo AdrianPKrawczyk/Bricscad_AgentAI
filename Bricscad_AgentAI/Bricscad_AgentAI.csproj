@@ -52,7 +52,7 @@
   <ItemGroup>
     <Compile Include="AgentCommand.cs" />
     <Compile Include="AgentControl.cs">
-      <SubType>Form</SubType>
+      <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="AgentControl.Designer.cs">
       <DependentUpon>AgentControl.cs</DependentUpon>
