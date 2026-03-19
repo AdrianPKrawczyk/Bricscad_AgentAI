@@ -57,10 +57,12 @@
     <Compile Include="AgentControl.Designer.cs">
       <DependentUpon>AgentControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="AnalyzeSelectionTool.cs" />
     <Compile Include="MTextEditTool.cs" />
     <Compile Include="MTextFormatTool.cs" />
     <Compile Include="ITool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReadTextSampleTool.cs" />
     <Compile Include="TextEditTool.cs" />
   </ItemGroup>
   <ItemGroup>

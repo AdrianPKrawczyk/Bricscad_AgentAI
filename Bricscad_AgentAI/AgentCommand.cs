@@ -39,7 +39,10 @@ namespace BricsCAD_Agent
         {
         new MTextFormatTool(),
         new MTextEditTool(),
-        new TextEditTool()
+        new TextEditTool(),
+        new ReadTextSampleTool(),
+        new AnalyzeSelectionTool(),
+
         };
 
         private static PaletteSet oknoAgenta = null;
@@ -66,6 +69,12 @@ namespace BricsCAD_Agent
                                 "Tag: [ACTION:TEXT_EDIT]\n" +
                                 "Opis: Dodaje lub zamienia zawartość zwykłego TEXT (DBText). Nie obsługuje formatowania wewnątrz tekstu.\n" +
                                 "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko Replace), \"Color\": nr_koloru (zmienia kolor całego obiektu)}\n\n" +
+                                "Tag: [ACTION:ANALYZE]\n" +
+                                "Opis: Zmysł wzroku Agenta. Użyj tego ZANIM zaczniesz edycję, gdy użytkownik każe Ci edytować 'zaznaczone obiekty', a Ty nie wiesz, czy są to obiekty typu TEXT czy MText. Zwraca podsumowanie tego, co obecnie znajduje się w pamięci zaznaczenia.\n" +
+                                "Argumenty: {}\n\n" +
+                                "Tag: [ACTION:READ_SAMPLE]\n" +
+                                "Opis: Zmysł czytania Agenta. Użyj tego BEZWZGLĘDNIE ZANIM użyjesz narzędzi edycji tekstu (zwłaszcza trybu Replace), aby 'przeczytać' zawartość i zrozumieć strukturę zaznaczonych tekstów na rysunku. Pozwala to uniknąć błędów przy podmianie słów.\n" +
+                                "Argumenty: {}\n\n" +
                                 "--- PRZYKŁADY ZACHOWANIA: ---\n" +
                                 "User: Zaznacz linie dłuższe niż 50\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
@@ -179,21 +188,21 @@ namespace BricsCAD_Agent
                                         args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
                                     }
 
-                                    if (tool is MTextFormatTool mtextTool)
+                                    string wynikNarzedzia = "";
+
+                                    if (tool is MTextFormatTool mtextTool) wynikNarzedzia = mtextTool.Execute(doc, args);
+                                    else if (tool is MTextEditTool mtextEditTool) wynikNarzedzia = mtextEditTool.Execute(doc, args);
+                                    else if (tool is TextEditTool textEditTool) wynikNarzedzia = textEditTool.Execute(doc, args);
+                                    else if (tool is AnalyzeSelectionTool analyzeTool) wynikNarzedzia = analyzeTool.Execute(doc, args);
+                                    else if (tool is ReadTextSampleTool readTool) wynikNarzedzia = readTool.Execute(doc, args);
+                                    else wynikNarzedzia = tool.Execute(doc); // Dla wszystkich innych, wywołaj bez args
+
+                                    // GENIALNY TRIK: Jeśli narzędzie zwróciło WYNIK (obserwację), dodajemy to do pamięci Agenta!
+                                    if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                     {
-                                        mtextTool.Execute(doc, args);
-                                    }
-                                    else if (tool is MTextEditTool mtextEditTool) // <--- DODANA OBSŁUGA NOWEGO NARZĘDZIA
-                                    {
-                                        mtextEditTool.Execute(doc, args);
-                                    }
-                                    else if (tool is TextEditTool textEditTool) // <--- DODANA LINIJKA DLA TEXT
-                                    {
-                                        textEditTool.Execute(doc, args);
-                                    }
-                                    else
-                                    {
-                                        tool.Execute(doc);
+                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson($"Zwrócony wynik z narzędzia:\n{wynikNarzedzia}\n\nTeraz, na podstawie tych danych, wykonaj moje wcześniejsze polecenie!") + "\"}");
+                                        // Zwracamy na ekran informację, że Agent przeczytał dane i czeka na potwierdzenie kontynuacji
+                                        return $"[Bielik użył zmysłu]: Przeanalizowałem dane. Kliknij Wyślij (puste pole), abym kontynuował działanie.\n{aiMsg}";
                                     }
 
                                     return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";

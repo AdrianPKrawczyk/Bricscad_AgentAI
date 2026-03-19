@@ -14,15 +14,14 @@ namespace BricsCAD_Agent
             "Dodaje lub zamienia tekst w MText. Wymaga JSON: " +
             "{\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania/podmiany\" (puste przy usuwaniu), \"FindText\": \"szukany tekst\" (tylko dla Replace), \"Color\": nr_koloru, \"Underline\": true/false, \"Bold\": true/false, \"Italic\": true/false}";
 
-        public void Execute(Document doc, string jsonArgs)
+        public string Execute(Document doc, string jsonArgs)
         {
             Editor ed = doc.Editor;
             ObjectId[] ids = Komendy.OstatnieZaznaczenie;
 
             if (ids == null || ids.Length == 0)
             {
-                ed.WriteMessage("\n[Bielik]: Nie mam w pamięci żadnych obiektów! Zaznacz je myszką.");
-                return;
+                return "[Błąd]: Nie mam w pamięci żadnych obiektów! Zaznacz je myszką.";
             }
 
             string mode = Regex.Match(jsonArgs, @"\""Mode\""\s*:\s*\""(.*?)\""").Groups[1].Value;
@@ -33,22 +32,9 @@ namespace BricsCAD_Agent
             bool bold = Regex.IsMatch(jsonArgs, @"\""Bold\""\s*:\s*true", RegexOptions.IgnoreCase);
             bool italic = Regex.IsMatch(jsonArgs, @"\""Italic\""\s*:\s*true", RegexOptions.IgnoreCase);
 
-            // --- POPRAWIONE ZABEZPIECZENIA ---
-            if (string.IsNullOrEmpty(mode))
-            {
-                ed.WriteMessage("\n[Błąd Narzędzia]: Brak wymaganego parametru Mode.");
-                return;
-            }
-            if ((mode == "Append" || mode == "Prepend") && string.IsNullOrEmpty(text))
-            {
-                ed.WriteMessage("\n[Błąd Narzędzia]: Tryb Append/Prepend wymaga parametru Text.");
-                return;
-            }
-            if (mode == "Replace" && string.IsNullOrEmpty(findText))
-            {
-                ed.WriteMessage("\n[Błąd Narzędzia]: Tryb Replace wymaga parametru FindText (czego szukać).");
-                return;
-            }
+            if (string.IsNullOrEmpty(mode)) return "[Błąd Narzędzia]: Brak wymaganego parametru Mode.";
+            if ((mode == "Append" || mode == "Prepend") && string.IsNullOrEmpty(text)) return "[Błąd Narzędzia]: Tryb Append/Prepend wymaga parametru Text.";
+            if (mode == "Replace" && string.IsNullOrEmpty(findText)) return "[Błąd Narzędzia]: Tryb Replace wymaga parametru FindText (czego szukać).";
 
             string formattedText = text;
             string fontFormat = "";
@@ -60,10 +46,7 @@ namespace BricsCAD_Agent
                 fontFormat = $"\\fArial|b{b}|i{i};";
             }
 
-            if (underline)
-            {
-                formattedText = $"\\L{formattedText}\\l";
-            }
+            if (underline) formattedText = $"\\L{formattedText}\\l";
 
             if (!string.IsNullOrEmpty(colorStr) && int.TryParse(colorStr, out int c))
             {
@@ -88,27 +71,18 @@ namespace BricsCAD_Agent
                     MText mtext = tr.GetObject(objId, OpenMode.ForWrite) as MText;
                     if (mtext == null) continue;
 
-                    if (mode == "Append")
-                    {
-                        mtext.Contents += formattedText;
-                    }
-                    else if (mode == "Prepend")
-                    {
-                        mtext.Contents = formattedText + mtext.Contents;
-                    }
-                    else if (mode == "Replace" && !string.IsNullOrEmpty(findText))
-                    {
-                        mtext.Contents = mtext.Contents.Replace(findText, formattedText);
-                    }
+                    if (mode == "Append") mtext.Contents += formattedText;
+                    else if (mode == "Prepend") mtext.Contents = formattedText + mtext.Contents;
+                    else if (mode == "Replace" && !string.IsNullOrEmpty(findText)) mtext.Contents = mtext.Contents.Replace(findText, formattedText);
 
                     mtext.RecordGraphicsModified(true);
                     zmodyfikowane++;
                 }
                 tr.Commit();
             }
-            ed.WriteMessage($"\n[Sukces MText Edit]: Zmodyfikowano treść {zmodyfikowane} obiektów.");
+            return $"WYNIK: Zmodyfikowano treść {zmodyfikowane} obiektów MText.";
         }
 
-        public void Execute(Document doc) { Execute(doc, ""); }
+        public string Execute(Document doc) { return Execute(doc, ""); }
     }
 }

@@ -14,20 +14,18 @@ namespace BricsCAD_Agent
             "Edytuje formatowanie MText. Wymaga JSON: " +
             "{\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko HighlightWord), \"Color\": nr_koloru (indeks ACI od 1 do 255), \"Bold\": true/false}";
 
-        public void Execute(Document doc, string jsonArgs)
+        // ZMIANA: public string zamiast public void
+        public string Execute(Document doc, string jsonArgs)
         {
             Editor ed = doc.Editor;
-
-            // --- CZYTAMY WPROST Z PODŚWIADOMEJ PAMIĘCI AGENTA ---
             ObjectId[] ids = Komendy.OstatnieZaznaczenie;
 
             if (ids == null || ids.Length == 0)
             {
-                ed.WriteMessage("\n[Bielik]: Nie mam w pamięci żadnych obiektów! Zaznacz je myszką lub każ mi je znaleźć (np. 'Zaznacz wszystkie teksty').");
-                return;
+                // ZMIANA: Zwracamy tekst błędu do Agenta
+                return "[Błąd]: Nie mam w pamięci żadnych obiektów! Zaznacz je myszką lub każ mi je znaleźć.";
             }
 
-            // --- BEZPIECZNE PARSOWANIE JSON ---
             string mode = Regex.Match(jsonArgs, @"\""Mode\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
             string word = Regex.Match(jsonArgs, @"\""Word\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
             string colorStr = Regex.Match(jsonArgs, @"\""Color\""\s*:\s*(\d+)").Groups[1].Value;
@@ -41,7 +39,7 @@ namespace BricsCAD_Agent
                 foreach (ObjectId objId in ids)
                 {
                     MText mtext = tr.GetObject(objId, OpenMode.ForWrite) as MText;
-                    if (mtext == null) continue; // Ignorujemy, jeśli w pamięci plącze się np. linia
+                    if (mtext == null) continue;
 
                     string zawartosc = mtext.Contents;
 
@@ -77,9 +75,11 @@ namespace BricsCAD_Agent
                 }
                 tr.Commit();
             }
-            ed.WriteMessage($"\n[Sukces MText]: Zmodyfikowano formatowanie {zmodyfikowane} obiektów.");
+            // ZMIANA: Zwracamy sukces do Agenta
+            return $"WYNIK: Zmodyfikowano formatowanie {zmodyfikowane} obiektów MText.";
         }
 
-        public void Execute(Document doc) { Execute(doc, ""); }
+        // ZMIANA: Wymagana do obsługi interfejsu
+        public string Execute(Document doc) { return Execute(doc, ""); }
     }
 }
