@@ -11,7 +11,7 @@ namespace BricsCAD_Agent
 
         public string Execute(Document doc, string jsonArgs)
         {
-            ObjectId[] ids = Komendy.OstatnieZaznaczenie;
+            ObjectId[] ids = Komendy.AktywneZaznaczenie;
             if (ids == null || ids.Length == 0) return "WYNIK: Nic nie jest zaznaczone.";
 
             Dictionary<string, int> licznik = new Dictionary<string, int>();

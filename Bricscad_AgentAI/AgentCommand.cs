@@ -22,12 +22,29 @@ namespace BricsCAD_Agent
     
     public class Komendy
     {
+        
         private static readonly HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMinutes(5) };
         private static List<string> historiaRozmowy = new List<string>();
         private static string wybranyModel = "qwen3.5-9b-instruct";
 
-        // --- GLOBALNA PAMIĘĆ ZAZNACZENIA ---
-        public static ObjectId[] OstatnieZaznaczenie = new ObjectId[0];
+        
+        // --- MULTI-DOKUMENTOWA PAMIĘĆ ZAZNACZENIA ---
+        public static Dictionary<Document, ObjectId[]> PamiecZaznaczenia = new Dictionary<Document, ObjectId[]>();
+
+        public static ObjectId[] AktywneZaznaczenie
+        {
+            get
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc != null && PamiecZaznaczenia.ContainsKey(doc)) return PamiecZaznaczenia[doc];
+                return new ObjectId[0];
+            }
+            set
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc != null) PamiecZaznaczenia[doc] = value;
+            }
+        }
         private static bool isSelectionHooked = false;
 
         // --- Dwie bazy danych (Tiered Storage) ---
@@ -35,6 +52,8 @@ namespace BricsCAD_Agent
         private static Dictionary<string, string> bazaFull = new Dictionary<string, string>();
 
         private List<ITool> tools = new List<ITool>
+
+
 
         {
         new MTextFormatTool(),
@@ -54,7 +73,7 @@ namespace BricsCAD_Agent
                                 "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA.\n" +
                                 "2. [SELECT: {\"EntityType\": \"Klasa\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==|>|<|>=|<=|!=|Contains\", \"Value\": \"wartość\"}]}] - do zaznaczania (JSON bez enterów!).\n" +
                                 "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
-                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, gdy użytkownik zada Ci pytanie (np. 'dlaczego?').\n" +
+                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, aby odpowiedzieć na pytania użytkownika, ZWŁASZCZA po zebraniu danych narzędziami ANALYZE lub READ_SAMPLE!\n" +
                                 "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
                                 "--- ZASADY LISP (KRYTYCZNE): ---\n" +
                                 "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
@@ -92,18 +111,32 @@ namespace BricsCAD_Agent
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
             // PODSŁUCH ZAZNACZENIA: Działa w tle i zapisuje wszystko co klikniesz!
+            // PODSŁUCH ZAZNACZENIA (MULTI-DOCUMENT): Działa w tle na każdym rysunku!
             if (!isSelectionHooked)
             {
-                doc.ImpliedSelectionChanged += (s, e) =>
+                System.EventHandler podsluch = (s, e) =>
                 {
-                    PromptSelectionResult res = doc.Editor.SelectImplied();
+                    Document aktualnyDoc = Application.DocumentManager.MdiActiveDocument;
+                    if (aktualnyDoc == null) return;
+                    PromptSelectionResult res = aktualnyDoc.Editor.SelectImplied();
                     if (res.Status == PromptStatus.OK && res.Value != null && res.Value.Count > 0)
                     {
-                        OstatnieZaznaczenie = res.Value.GetObjectIds();
+                        AktywneZaznaczenie = res.Value.GetObjectIds();
                     }
-                    // Zauważ: Jeśli wynik jest zerowy (bo np. kliknąłeś w czat), 
-                    // celowo NIE CZYŚCIMY pamięci. Agent zachowuje "ostatnio widziane" obiekty.
                 };
+
+                // 1. Podpinamy pod wszystkie ZAKTUALNIE otwarte rysunki
+                foreach (Document d in Application.DocumentManager)
+                {
+                    d.ImpliedSelectionChanged += podsluch;
+                }
+
+                // 2. Podpinamy pod każdy NOWY rysunek, który utworzysz/otworzysz w przyszłości
+                Application.DocumentManager.DocumentCreated += (s, e) =>
+                {
+                    e.Document.ImpliedSelectionChanged += podsluch;
+                };
+
                 isSelectionHooked = true;
             }
 
@@ -197,12 +230,13 @@ namespace BricsCAD_Agent
                                     else if (tool is ReadTextSampleTool readTool) wynikNarzedzia = readTool.Execute(doc, args);
                                     else wynikNarzedzia = tool.Execute(doc); // Dla wszystkich innych, wywołaj bez args
 
-                                    // GENIALNY TRIK: Jeśli narzędzie zwróciło WYNIK (obserwację), dodajemy to do pamięci Agenta!
+                                    // AUTOMATYCZNA PĘTLA MYŚLOWA: Agent czyta wynik i SAM podejmuje kolejną decyzję!
                                     if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                     {
-                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson($"Zwrócony wynik z narzędzia:\n{wynikNarzedzia}\n\nTeraz, na podstawie tych danych, wykonaj moje wcześniejsze polecenie!") + "\"}");
-                                        // Zwracamy na ekran informację, że Agent przeczytał dane i czeka na potwierdzenie kontynuacji
-                                        return $"[Bielik użył zmysłu]: Przeanalizowałem dane. Kliknij Wyślij (puste pole), abym kontynuował działanie.\n{aiMsg}";
+                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. Jeśli masz już pełną wiedzę by odpowiedzieć na pytanie, UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
+
+                                        // Rekurencja! Agent "w tle" bez wiedzy użytkownika ponownie pyta sam siebie
+                                        return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
 
                                     return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
@@ -521,7 +555,7 @@ namespace BricsCAD_Agent
                 if (znalezioneObiekty.Count > 0)
                 {
                     ed.SetImpliedSelection(znalezioneObiekty.ToArray());
-                    OstatnieZaznaczenie = znalezioneObiekty.ToArray(); // <-- ZAPIS DLA AI
+                    AktywneZaznaczenie = znalezioneObiekty.ToArray(); // <-- ZAPIS DLA AI
                     ed.WriteMessage($"\n[Sukces]: Zaznaczono {znalezioneObiekty.Count} obiekt(ów)!");
                     return znalezioneObiekty.Count;
                 }
@@ -529,7 +563,7 @@ namespace BricsCAD_Agent
                 {
                     ed.WriteMessage("\n[System]: Nie znaleziono obiektów spełniających kryteria.");
                     ed.SetImpliedSelection(new ObjectId[0]);
-                    OstatnieZaznaczenie = new ObjectId[0]; // <-- CZYSZCZENIE PAMIĘCI
+                    AktywneZaznaczenie = new ObjectId[0]; // <-- CZYSZCZENIE PAMIĘCI
                     return 0;
                 }
             }

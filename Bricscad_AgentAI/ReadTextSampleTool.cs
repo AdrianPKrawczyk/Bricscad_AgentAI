@@ -12,7 +12,7 @@ namespace BricsCAD_Agent
 
         public string Execute(Document doc, string jsonArgs)
         {
-            ObjectId[] ids = Komendy.OstatnieZaznaczenie;
+            ObjectId[] ids = Komendy.AktywneZaznaczenie;
             if (ids == null || ids.Length == 0) return "WYNIK: Brak obiektów w pamięci.";
 
             List<string> teksty = new List<string>();

@@ -69,5 +69,10 @@ namespace Bricscad_AgentAI
             txtHistory.SelectionStart = txtHistory.Text.Length;
             txtHistory.ScrollToCaret();
         }
+
+        private void txtHistory_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

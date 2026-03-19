@@ -6,9 +6,7 @@ namespace BricsCAD_Agent
     {
         string ActionTag { get; }
         string Description { get; }
-
-        // Zmiana z void na string!
-        string Execute(Document doc, string args);
+        string Execute(Document doc, string jsonArgs);
         string Execute(Document doc);
     }
 }
