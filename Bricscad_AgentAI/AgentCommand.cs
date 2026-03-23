@@ -61,48 +61,89 @@ namespace BricsCAD_Agent
         new TextEditTool(),
         new ReadTextSampleTool(),
         new AnalyzeSelectionTool(),
-
+        new GetPropertiesTool(),
+        new EditBlockTool(),
         };
 
         private static PaletteSet oknoAgenta = null;
         private static Bricscad_AgentAI.AgentControl interfejsAgenta = null;
 
         private static string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
-                                "Analizuj zadania w tagach <think>.\n\n" +
-                                "MUSISZ odpowiedzieć jednym z 5 tagów:\n" +
-                                "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA.\n" +
-                                "2. [SELECT: {\"EntityType\": \"Klasa\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==|>|<|>=|<=|!=|Contains\", \"Value\": \"wartość\"}]}] - do zaznaczania (JSON bez enterów!).\n" +
-                                "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
-                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, aby odpowiedzieć na pytania użytkownika, ZWŁASZCZA po zebraniu danych narzędziami ANALYZE lub READ_SAMPLE!\n" +
+                                "Analizuj zadania w 5 tagach <think>.\n\n" +
+                                "MUSISZ odpowiedzieć jednym z tagów:\n" +
+                                "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA. \"Pamiętaj, że wszystkie obiekty graficzne (Line, Circle, Text, MText, itp) dziedziczą po klasie bazowej Entity. Zatem każdy obiekt zawsze posiada właściwości: Właściwości: Layer (warstwa), ColorIndex (1-255), Linetype, Transparency (0-90), Visible (True/False), LineWeight\"\n" +
+                                "2. [SELECT: {\"Mode\": \"New|Add|Remove\", \"EntityType\": \"Klasa1, Klasa2\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==\", \"Value\": \"wartość\"}]}] - do zaznaczania. Parametr Mode określa zachowanie: \"New\" (tworzy nowe zaznaczenie, nadpisuje obecne), \"Add\" (dodaje szukane obiekty do tego, co obecnie zaznaczone), \"Remove\" (odejmuje szukane obiekty z obecnego zaznaczenia). Aby zaznaczyć wiele typów naraz, wymieniaj je po przecinku (np. \"DBText, MText\"). JSON bez enterów!\n" + "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
+                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, aby odpowiedzieć na pytania użytkownika, ZWŁASZCZA po zebraniu danych narzędziami ANALYZE, READ_SAMPLE lub GET_PROPERTIES!\n" +
                                 "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
-                                "--- ZASADY LISP (KRYTYCZNE): ---\n" +
-                                "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
-                                "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
+
+
+                                "--- GLOBALNE ZASADY WŁAŚCIWOŚCI CAD (DOTYCZY WSZYSTKICH OBIEKTÓW) ---\n" +
+                                "Zawsze stosuj ten uniwersalny słownik wartości, gdy użytkownik prosi o wyszukanie (SELECT), zmianę lub edycję (np. EDIT_BLOCK). Te właściwości dziedziczy każdy obiekt CAD (Entity). Zwróć szczególną uwagę na to, jak zapisuje się stan 'JakWarstwa' i 'JakBlok' w różnych właściwościach:\n" +
+                                "1. Color (Kolor): Używaj liczb! 256 = JakWarstwa (ByLayer), 0 = JakBlok (ByBlock). Pozostałe to ACI: 1-czerwony, 2-żółty, 3-zielony, 4-cyjan, 5-niebieski, 6-magenta, 7-biały/czarny, 8-ciemnoszary, 9-jasnoszary. Dla formatu RGB użyj stringa, np. \"255,128,0\".\n" +
+                                "2. LineWeight (Grubość linii): Używaj specjalnych liczb! -1 = JakWarstwa (ByLayer), -2 = JakBlok (ByBlock), -3 = Domyślna (Default). Konkretne grubości to setne części milimetra (np. wartość 25 oznacza 0.25 mm, a 30 to 0.30 mm).\n" +
+                                "3. Linetype (Rodzaj linii): Używaj tekstu (string)! Słowa kluczowe to: \"ByLayer\" (JakWarstwa), \"ByBlock\" (JakBlok) oraz \"Continuous\" (Ciągła).\n" +
+                                "4. Material (Materiał) i PlotStyleName (Styl wydruku): Używaj tekstu (string)! Słowa kluczowe to: \"ByLayer\" oraz \"ByBlock\".\n" +
+                                "5. Layer (Warstwa): Wartość tekstowa (string). Domyślna, zerowa warstwa nazywa się po prostu \"0\".\n" +
+                                "6. Transparency (Przezroczystość): Przyjmuje liczby od 0 (pełna widoczność/brak przezroczystości) do 90 (maksymalna przezroczystość).\n\n" +
+
                                 "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
+                                
                                 "Tag: [ACTION:MTEXT_FORMAT]\n" +
                                 "Opis: Zmienia formatowanie MText.\n" +
                                 "Argumenty: {\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko dla HighlightWord),\"Color\": nr_koloru (indeks ACI od 1 do 255, np. 1-czerwony, 2-żółty, 3-zielony, 79-jasnozielony, itd.), \"Bold\": true/false}\n\n" +
+                                
                                 "Tag: [ACTION:MTEXT_EDIT]\n" +
                                 "Opis: Dodaje lub zamienia tekst w MText.\n" +
                                 "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko dla Replace), \"Color\": nr_koloru (np. 6 dla fioletu), \"Underline\": true/false, \"Bold\": true/false, \"Italic\": true/false}\n\n" +
+                                
                                 "Tag: [ACTION:TEXT_EDIT]\n" +
                                 "Opis: Dodaje lub zamienia zawartość zwykłego TEXT (DBText). Nie obsługuje formatowania wewnątrz tekstu.\n" +
                                 "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko Replace), \"Color\": nr_koloru (zmienia kolor całego obiektu)}\n\n" +
-                                "Tag: [ACTION:ANALYZE]\n" +
+                                
+                                "Tag: [ACTION:ANALYZE]\n" + // Agent, używaj dokładnie tego pełnego stringa!
                                 "Opis: Zmysł wzroku Agenta. Użyj tego ZANIM zaczniesz edycję, gdy użytkownik każe Ci edytować 'zaznaczone obiekty', a Ty nie wiesz, czy są to obiekty typu TEXT czy MText. Zwraca podsumowanie tego, co obecnie znajduje się w pamięci zaznaczenia.\n" +
                                 "Argumenty: {}\n\n" +
-                                "Tag: [ACTION:READ_SAMPLE]\n" +
+                               
+                                "Tag: [ACTION:READ_SAMPLE]\n" + // Agent, używaj dokładnie tego pełnego stringa!
                                 "Opis: Zmysł czytania Agenta. Użyj tego BEZWZGLĘDNIE ZANIM użyjesz narzędzi edycji tekstu (zwłaszcza trybu Replace), aby 'przeczytać' zawartość i zrozumieć strukturę zaznaczonych tekstów na rysunku. Pozwala to uniknąć błędów przy podmianie słów.\n" +
                                 "Argumenty: {}\n\n" +
-                                "--- PRZYKŁADY ZACHOWANIA: ---\n" +
+                                
+                                "Tag: [ACTION:GET_PROPERTIES]\n" +
+                                "Opis: Użyj tego narzędzia, gdy użytkownik pyta o konkretne wymiary, długości, promienie, pola powierzchni lub parametry geometryczne już zaznaczonych obiektów.\n" +
+                                "Argumenty: {}\n\n" +
+
+                                "Tag: [ACTION:EDIT_BLOCK]\n" +
+                                "Opis: Edytuje wnętrza zaznaczonych bloków (BlockReference) oraz ich atrybuty. Wszystkie parametry są opcjonalne, ale musisz podać co najmniej jeden do zmiany.\n" +
+                                "Argumenty (wygeneruj poprawny JSON): Dostępne klucze to: \"Color\" (liczba całkowita 0-255, gdzie 0 to ByBlock, 256 to ByLayer, 7 to czarny/biały), \"Layer\" (string nazwa warstwy), \"FilterColor\" (liczba całkowita - podaj jeśli chcesz zmienić tylko obiekty w konkretnym kolorze), \"FindText\" (string do znalezienia), \"ReplaceText\" (string do zamiany). \n" +
+                                "Przykład 1 (tylko kolor): [ACTION:EDIT_BLOCK {\"Color\": 7}]\n" +
+                                "Przykład 2 (tylko czerwone na czarne): [ACTION:EDIT_BLOCK {\"Color\": 7, \"FilterColor\": 1}]\n" +
+                                "UWAGA: Nie pytaj użytkownika o zgodę ani potwierdzenie parametrów! Jeśli użytkownik pisze 'zmień na czarny', po prostu od razu wygeneruj tag działania!\n\n" +
+
                                 "User: Zaznacz linie dłuższe niż 50\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
+
                                 "User: Znajdź linie, które nie zaczynają się w 0,0,0\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n" +
+
                                 "User: Zaznacz teksty z formatowaniem wewnętrznym\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"MText\", \"Conditions\": [{\"Property\": \"Contents\", \"Operator\": \"Contains\", \"Value\": \";\"}]}]\n" +
+
+                                "User: Dodaj do zaznaczenia zielone linie\n" +
+                                "Bielik: [SELECT: {\"Mode\": \"Add\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Color\", \"Operator\": \"==\", \"Value\": 3}]}]\n" +
+
+                                "User: Wyrzuć z zaznaczenia teksty wyższe niż 10\n" +
+                                "Bielik: [SELECT: {\"Mode\": \"Remove\", \"EntityType\": \"DBText\", \"Conditions\": [{\"Property\": \"Height\", \"Operator\": \">\", \"Value\": 10}]}]\n" +
+
                                 "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
                                 "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
+
+                                                                 "--- ZASADY LISP (KRYTYCZNE): ---\n" +
+                                "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
+                                "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
+
+                                 "--- KRYTYCZNE ZASADY BEZPIECZEŃSTWA: ---\n" +
+                                "1. ZAKAZ ZMYŚLANIA ZAZNACZEŃ! Jeśli użytkownik prosi o 'zaznaczenie', 'dodanie do zaznaczenia' lub 'odjęcie', ZAWSZE musisz najpierw wygenerować tag [SELECT: ...]. Nigdy nie odpowiadaj [MSG: Zaznaczono...], jeśli w poprzednim kroku nie użyłeś tagu [SELECT: ...].\n" +
+                                "2. ZAKAZ RYSOWANIA, GDY UŻYTKOWNIK CHCE ZAZNACZYĆ! Słowa 'dodaj do zaznaczenia' (add to selection) to komenda trybu Mode: Add w tagu [SELECT: ...]. NIE UŻYWAJ tagu [LISP:] do rysowania nowych obiektów, chyba że użytkownik wyraźnie napisze 'narysuj' (draw/create)!\n\n" +
                                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
         [CommandMethod("AGENT_UI")]
@@ -162,14 +203,29 @@ namespace BricsCAD_Agent
         }
 
         // Nowy asynchroniczny "mózg" Agenta
+        // Nowy asynchroniczny "mózg" Agenta
+        // =========================================================================================
+        // NOWY ASYNCHRONICZNY MÓZG AGENTA (DLA OKIENKA)
+        // =========================================================================================
         public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc, ObjectId[] przechwyconeZaznaczenie = null)
         {
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
-                historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + new Komendy().SafeJson(systemPrompt) + "\"}");
+                // Odczytujemy jednostkę w tle
+                short insunits = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
+                string unitName = insunits == 4 ? "Milimetry (mm)" : insunits == 5 ? "Centymetry (cm)" : insunits == 6 ? "Metry (m)" : "Inne";
+
+                // Doklejamy informację do promptu
+                string zaktualizowanyPrompt = systemPrompt + $"\n\n[INFO SYSTEMOWE]: Aktualne jednostki otwartego rysunku to: {unitName}. ZAWSZE przeliczaj wymiary podane przez użytkownika na te jednostki przed wygenerowaniem tagu SELECT.";
+
+                historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + new Komendy().SafeJson(zaktualizowanyPrompt) + "\"}");
             }
 
-            historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson(userMsg) + "\"}");
+            // Zapobiega dodawaniu pustych wiadomości przy automatycznej rekurencji (chaining)
+            if (!string.IsNullOrEmpty(userMsg))
+            {
+                historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson(userMsg) + "\"}");
+            }
 
             try
             {
@@ -185,14 +241,37 @@ namespace BricsCAD_Agent
                 {
                     historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + new Komendy().SafeJson(aiMsg) + "\"}");
 
+                    // 1. OBSŁUGA WYSZUKIWANIA W BAZIE (SEARCH)
+                    if (aiMsg.Contains("[SEARCH:"))
+                    {
+                        string szukanaKlasa = aiMsg.Substring(aiMsg.IndexOf("[SEARCH:") + 8).Split(']')[0].Trim().ToLower();
+                        string wynik = "";
+
+                        // Zbieramy wiedzę z obu baz naraz!
+                        if (bazaQuick.ContainsKey(szukanaKlasa))
+                            wynik += "[QUICK INFO]: " + bazaQuick[szukanaKlasa] + "\n";
+
+                        if (bazaFull.ContainsKey(szukanaKlasa))
+                            wynik += "[FULL API]: " + bazaFull[szukanaKlasa];
+
+                        if (string.IsNullOrEmpty(wynik))
+                            wynik = "Brak definicji dla tej klasy.";
+
+                        string odpowiedzSystemu = $"[DOKUMENTACJA]: {wynik}\n\n[SYSTEM]: Otrzymałeś dokumentację. Kontynuuj zadanie używając tagu [SELECT: ] lub odpowiedz użytkownikowi [MSG: ].";
+                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson(odpowiedzSystemu) + "\"}");
+
+                        return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
+                    }
+
+                    // Blokada dokumentu dla operacji modyfikujących CAD
                     using (DocumentLock docLock = doc.LockDocument())
                     {
-                        // --- GENIALNY TRIK CZ. 2: Wstrzykujemy zaznaczenie z powrotem do BricsCADa! ---
                         if (przechwyconeZaznaczenie != null && przechwyconeZaznaczenie.Length > 0)
                         {
                             doc.Editor.SetImpliedSelection(przechwyconeZaznaczenie);
                         }
 
+                        // 2. OBSŁUGA ZAZNACZANIA (SELECT)
                         if (aiMsg.Contains("[SELECT:"))
                         {
                             int start = aiMsg.IndexOf("{", aiMsg.IndexOf("[SELECT:"));
@@ -200,42 +279,49 @@ namespace BricsCAD_Agent
                             if (start != -1 && end > start)
                             {
                                 int zaznaczoneLiczba = new Komendy().WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start + 1));
-                                return $"[Zaznaczono {zaznaczoneLiczba} obiektów]\n{aiMsg}";
+
+                                string sysOdp = $"[SYSTEM]: Pomyślnie zaznaczono {zaznaczoneLiczba} obiekt(ów). Jeśli masz wykonać akcję na zaznaczeniu użyj [ACTION: ], w przeciwnym razie opisz wynik za pomocą [MSG: ].";
+                                historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson(sysOdp) + "\"}");
+
+                                return await ZapytajAgentaAsync("", doc, AktywneZaznaczenie);
                             }
                         }
-                        else if (aiMsg.Contains("[ACTION:"))
+                        // 3. OBSŁUGA NARZĘDZI (ACTION) ORAZ (ANALYZE / READ_SAMPLE)
+                        else if (aiMsg.Contains("[ACTION:") || aiMsg.Contains("[ANALYZE:") || aiMsg.Contains("[READ_SAMPLE:"))
                         {
                             foreach (var tool in new Komendy().tools)
                             {
-                                // GENIALNY TRIK: Usuwamy zamykający nawias z nazwy narzędzia (czyli szukamy "[ACTION:MTEXT_FORMAT" zamiast "[ACTION:MTEXT_FORMAT]")
-                                string bazaTagu = tool.ActionTag.Replace("]", "");
+                                string pelnyTag = tool.ActionTag;
+                                string krotkiTag = tool.ActionTag.Replace("[ACTION:", "[").Replace("]", ":");
 
-                                if (aiMsg.Contains(bazaTagu))
+                                if (aiMsg.Contains(pelnyTag.Replace("]", "")) || aiMsg.Contains(krotkiTag))
                                 {
                                     string args = "";
-                                    int startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(bazaTagu));
-                                    int endArgs = aiMsg.LastIndexOf("}");
+                                    int startArgs = -1;
 
+                                    if (aiMsg.Contains(pelnyTag.Replace("]", "")))
+                                        startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(pelnyTag.Replace("]", "")));
+                                    else if (aiMsg.Contains(krotkiTag))
+                                        startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(krotkiTag));
+
+                                    int endArgs = aiMsg.LastIndexOf("}");
                                     if (startArgs != -1 && endArgs > startArgs)
                                     {
                                         args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
                                     }
 
                                     string wynikNarzedzia = "";
-
                                     if (tool is MTextFormatTool mtextTool) wynikNarzedzia = mtextTool.Execute(doc, args);
                                     else if (tool is MTextEditTool mtextEditTool) wynikNarzedzia = mtextEditTool.Execute(doc, args);
                                     else if (tool is TextEditTool textEditTool) wynikNarzedzia = textEditTool.Execute(doc, args);
                                     else if (tool is AnalyzeSelectionTool analyzeTool) wynikNarzedzia = analyzeTool.Execute(doc, args);
                                     else if (tool is ReadTextSampleTool readTool) wynikNarzedzia = readTool.Execute(doc, args);
-                                    else wynikNarzedzia = tool.Execute(doc); // Dla wszystkich innych, wywołaj bez args
+                                    else wynikNarzedzia = tool.Execute(doc);
 
-                                    // AUTOMATYCZNA PĘTLA MYŚLOWA: Agent czyta wynik i SAM podejmuje kolejną decyzję!
+                                    // Rekursja gdy mamy dane, których potrzebuje model
                                     if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                     {
-                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. Jeśli masz już pełną wiedzę by odpowiedzieć na pytanie, UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
-
-                                        // Rekurencja! Agent "w tle" bez wiedzy użytkownika ponownie pyta sam siebie
+                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + new Komendy().SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
                                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
 
@@ -243,7 +329,7 @@ namespace BricsCAD_Agent
                                 }
                             }
                         }
-                        // Jeśli model wysłał LISP (wymaga wywołania po zwolnieniu blokady)
+                        // 4. OBSŁUGA SKRYPTÓW LISP
                         else if (aiMsg.Contains("[LISP:"))
                         {
                             int start = aiMsg.IndexOf("[LISP:") + 6;
@@ -254,7 +340,7 @@ namespace BricsCAD_Agent
                                 doc.SendStringToExecute(lisp + "\n", true, false, false);
                             }
                         }
-                    } // Tu kończy się blokada dokumentu (Unlock)
+                    }
 
                     return aiMsg;
                 }
@@ -443,31 +529,38 @@ namespace BricsCAD_Agent
         }
 
         // --- SILNIK ZAZNACZANIA ---
+        // --- SILNIK ZAZNACZANIA ---
         private int WykonajInteligentneZaznaczenie(Document doc, string json)
         {
             Editor ed = doc.Editor;
             try
             {
                 string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
-                var warunki = new List<(string Prop, string Op, string Val)>();
 
+                // Nowość: Odczytujemy tryb (jeśli Agent nie poda, domyślnie to "New")
+                string trybStr = "New";
+                Match trybMatch = Regex.Match(json, @"\""Mode\""\s*:\s*\""([^\""]+)\""");
+                if (trybMatch.Success) trybStr = trybMatch.Groups[1].Value;
+
+                var warunki = new List<(string Prop, string Op, string Val)>();
                 MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
                 foreach (Match m in matches)
                 {
                     warunki.Add((m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value.Trim('\"')));
                 }
 
-                if (string.IsNullOrEmpty(entityTypeStr)) return 0; // <-- POPRAWKA: return 0 zamiast return
+                if (string.IsNullOrEmpty(entityTypeStr)) return 0;
 
                 if (entityTypeStr.Equals("Clear", StringComparison.OrdinalIgnoreCase))
                 {
                     ed.SetImpliedSelection(new ObjectId[0]);
+                    AktywneZaznaczenie = new ObjectId[0];
                     ed.WriteMessage("\n[System]: Odznaczono obiekty.");
-                    return 0; // <-- POPRAWKA: return 0 zamiast return
+                    return 0;
                 }
 
                 string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                ed.WriteMessage($"\n[System]: Szukam '{string.Join("/", typyDoSzukania)}' (Warunki: {warunki.Count})...");
+                ed.WriteMessage($"\n[System]: Szukam '{string.Join("/", typyDoSzukania)}' (Tryb: {trybStr}, Warunki: {warunki.Count})...");
 
                 List<ObjectId> znalezioneObiekty = new List<ObjectId>();
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
@@ -503,24 +596,15 @@ namespace BricsCAD_Agent
 
                             string valStr = wartoscObiektu.ToString();
 
-                            // --- TŁUMACZ ZŁOŻONYCH OBIEKTÓW CAD ---
                             if (wartoscObiektu is Teigha.Colors.Transparency transp)
                             {
-                                if (transp.IsByAlpha)
-                                {
-                                    double procent = (255.0 - transp.Alpha) / 255.0 * 100.0;
-                                    valStr = Math.Round(procent).ToString();
-                                }
-                                else
-                                {
-                                    valStr = "0";
-                                }
+                                if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
+                                else valStr = "0";
                             }
                             else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
                             {
                                 valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
                             }
-                            // ----------------------------------------
 
                             bool warunekSpelniony = false;
                             if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
@@ -552,29 +636,54 @@ namespace BricsCAD_Agent
                     tr.Commit();
                 }
 
-                if (znalezioneObiekty.Count > 0)
+                // =========================================================
+                // MAGIA ŁĄCZENIA / ODEJMOWANIA ZAZNACZEŃ
+                // =========================================================
+                List<ObjectId> aktywne = AktywneZaznaczenie != null ? AktywneZaznaczenie.ToList() : new List<ObjectId>();
+                List<ObjectId> koncowe = new List<ObjectId>();
+
+                if (trybStr.Equals("Add", StringComparison.OrdinalIgnoreCase))
                 {
-                    ed.SetImpliedSelection(znalezioneObiekty.ToArray());
-                    AktywneZaznaczenie = znalezioneObiekty.ToArray(); // <-- ZAPIS DLA AI
-                    ed.WriteMessage($"\n[Sukces]: Zaznaczono {znalezioneObiekty.Count} obiekt(ów)!");
-                    return znalezioneObiekty.Count;
+                    koncowe.AddRange(aktywne); // Kopiujemy obecne
+                    foreach (var id in znalezioneObiekty) if (!koncowe.Contains(id)) koncowe.Add(id); // Dodajemy nowe
+                }
+                else if (trybStr.Equals("Remove", StringComparison.OrdinalIgnoreCase))
+                {
+                    koncowe.AddRange(aktywne); // Kopiujemy obecne
+                    foreach (var id in znalezioneObiekty) koncowe.Remove(id); // Usuwamy te, które model odnalazł do usunięcia
+                }
+                else // Domyślnie "New"
+                {
+                    koncowe = znalezioneObiekty; // Nadpisuje całkowicie
+                }
+
+                if (koncowe.Count > 0)
+                {
+                    ed.SetImpliedSelection(koncowe.ToArray());
+                    AktywneZaznaczenie = koncowe.ToArray();
+                    ed.WriteMessage($"\n[Sukces]: Aktywne zaznaczenie: {koncowe.Count} obiekt(ów)!");
+                    return koncowe.Count;
                 }
                 else
                 {
-                    ed.WriteMessage("\n[System]: Nie znaleziono obiektów spełniających kryteria.");
+                    ed.WriteMessage("\n[System]: Wynik zaznaczenia jest pusty.");
                     ed.SetImpliedSelection(new ObjectId[0]);
-                    AktywneZaznaczenie = new ObjectId[0]; // <-- CZYSZCZENIE PAMIĘCI
+                    AktywneZaznaczenie = new ObjectId[0];
                     return 0;
                 }
             }
             catch (System.Exception ex)
             {
                 ed.WriteMessage($"\n[Błąd Zaznaczania C#]: {ex.Message}");
-                return 0; // <-- POPRAWKA: Zabezpieczenie bloku catch (CS0161)
+                return 0;
             }
         }
 
         // --- GŁÓWNA PĘTLA AGENTA ---
+        [CommandMethod("AGENT_START")]
+        // =========================================================================================
+        // STARSZA PĘTLA KONSOLOWA AGENTA (Z NAPRAWIONYM ŁAŃCUCHOWANIEM NARZĘDZI)
+        // =========================================================================================
         [CommandMethod("AGENT_START")]
         public void UruchomAgenta()
         {
@@ -582,8 +691,8 @@ namespace BricsCAD_Agent
             Editor ed = doc.Editor;
             historiaRozmowy.Clear();
             WczytajPamiec(doc);
-            WczytajBazyWiedzy(ed); // Poprawione wywołanie
-                    
+            WczytajBazyWiedzy(ed);
+
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + SafeJson(systemPrompt) + "\"}");
@@ -607,6 +716,7 @@ namespace BricsCAD_Agent
                     historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(userMsg) + "\"}");
                     int licznikWyszukiwan = 0;
                     bool agentPotrzebujeDanych = true;
+
                     while (agentPotrzebujeDanych)
                     {
                         agentPotrzebujeDanych = false;
@@ -618,34 +728,31 @@ namespace BricsCAD_Agent
 
                         if (!string.IsNullOrEmpty(aiMsg))
                         {
-                            // --- LOGIKA SEARCH (Poprawiona) ---
                             if (aiMsg.Contains("[SEARCH:"))
                             {
-                                // 1. NAJPIERW zapisujemy to, co powiedział Agent (żeby nie miał luki w pamięci)
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
-
-                                // 2. Zwiększamy licznik
                                 licznikWyszukiwan++;
-
-                                // 3. Sprawdzamy bezpiecznik
                                 if (licznikWyszukiwan > 2)
                                 {
                                     ed.WriteMessage("\n[System]: Przerwano nieskończoną pętlę wyszukiwania Agenta.");
                                     historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"[SYSTEM]: Przekroczono limit wyszukiwań. ZAKAZ wyszukiwania. Użyj tego co już wiesz lub zapytaj użytkownika przez [MSG].\"}");
-
                                     agentPotrzebujeDanych = true;
-                                    continue; // Przerywamy TEN obieg, Agent wymyśla nową odpowiedź
+                                    continue;
                                 }
 
-                                // 4. Jeśli bezpiecznik nie wybił, normalnie szukamy w bazie
                                 string szukanaKlasa = aiMsg.Substring(aiMsg.IndexOf("[SEARCH:") + 8).Split(']')[0].Trim().ToLower();
                                 string wynik = "";
 
-                                if (bazaQuick.ContainsKey(szukanaKlasa)) wynik = bazaQuick[szukanaKlasa];
-                                else if (bazaFull.ContainsKey(szukanaKlasa)) wynik = bazaFull[szukanaKlasa];
-                                else wynik = "Brak definicji.";
+                                // Zbieramy wiedzę z obu baz naraz!
+                                if (bazaQuick.ContainsKey(szukanaKlasa))
+                                    wynik += "[QUICK INFO]: " + bazaQuick[szukanaKlasa] + "\n";
 
-                                // 5. Odsyłamy wynik z bazy
+                                if (bazaFull.ContainsKey(szukanaKlasa))
+                                    wynik += "[FULL API]: " + bazaFull[szukanaKlasa];
+
+                                if (string.IsNullOrEmpty(wynik))
+                                    wynik = "Brak definicji dla tej klasy.";
+
                                 string odpowiedzSystemu = $"[DOKUMENTACJA]: {wynik}";
                                 historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(odpowiedzSystemu) + "\"}");
                                 agentPotrzebujeDanych = true;
@@ -665,12 +772,9 @@ namespace BricsCAD_Agent
                                     ZapiszPamiec(doc);
                                 }
 
-                                // --- MAGIA ŁAŃCUCHOWANIA ZADAŃ (CHAINING) ---
-                                // Informujemy Agenta o wyniku i zmuszamy go do kontynuowania myślenia!
                                 string sysOdp = $"[SYSTEM]: Pomyślnie zaznaczono {zaznaczoneLiczba} obiekt(ów). Jeśli to koniec zadania, odpowiedz [MSG: Gotowe]. Jeśli miałeś w planach użyć narzędzia [ACTION], wygeneruj je TERAZ.";
                                 historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson(sysOdp) + "\"}");
-
-                                agentPotrzebujeDanych = true; // NIE PRZERYWAMY PĘTLI! Agent działa dalej.
+                                agentPotrzebujeDanych = true;
                             }
                             else if (aiMsg.Contains("[LISP:"))
                             {
@@ -701,41 +805,53 @@ namespace BricsCAD_Agent
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
                                 ZapiszPamiec(doc);
                             }
-                        else if (aiMsg.Contains("[ACTION:"))
-                        {
-                            ed.WriteMessage("\n[Agent AI Używa Narzędzia]: " + aiMsg);
-                            historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
-
-                            // Szukamy odpowiedniego narzędzia na liście
-                            foreach (var tool in tools)
+                            // OBSŁUGA NARZĘDZI W TRYBIE KONSOLOWYM
+                            else if (aiMsg.Contains("[ACTION:") || aiMsg.Contains("[ANALYZE:") || aiMsg.Contains("[READ_SAMPLE:"))
                             {
-                                if (aiMsg.Contains(tool.ActionTag))
-                                {
-                                    // Wyciągamy argumenty JSON (jeśli są)
-                                    string args = "";
-                                    int startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(tool.ActionTag));
-                                    int endArgs = aiMsg.LastIndexOf("}");
-                                    if (startArgs != -1 && endArgs > startArgs)
-                                    {
-                                        args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
-                                    }
+                                ed.WriteMessage("\n[Agent AI Używa Narzędzia]: " + aiMsg);
+                                historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");
 
-                                    // Uruchamiamy narzędzie! (zakładam, że zaktualizowałeś ITool o metodę z dwoma parametrami)
-                                    // Jeśli nie, rzutujemy na nasz konkretny typ:
-                                    if (tool is MTextFormatTool mtextTool)
+                                foreach (var tool in tools)
+                                {
+                                    string pelnyTag = tool.ActionTag;
+                                    string krotkiTag = tool.ActionTag.Replace("[ACTION:", "[").Replace("]", ":");
+
+                                    if (aiMsg.Contains(pelnyTag.Replace("]", "")) || aiMsg.Contains(krotkiTag))
                                     {
-                                        mtextTool.Execute(doc, args);
-                                    }
-                                    else
-                                    {
-                                        tool.Execute(doc);
+                                        string args = "";
+                                        int startArgs = -1;
+
+                                        if (aiMsg.Contains(pelnyTag.Replace("]", "")))
+                                            startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(pelnyTag.Replace("]", "")));
+                                        else if (aiMsg.Contains(krotkiTag))
+                                            startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(krotkiTag));
+
+                                        int endArgs = aiMsg.LastIndexOf("}");
+
+                                        if (startArgs != -1 && endArgs > startArgs)
+                                        {
+                                            args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
+                                        }
+
+                                        string wynikNarzedzia = "";
+                                        if (tool is MTextFormatTool mtextTool) wynikNarzedzia = mtextTool.Execute(doc, args);
+                                        else if (tool is MTextEditTool mtextEditTool) wynikNarzedzia = mtextEditTool.Execute(doc, args);
+                                        else if (tool is TextEditTool textEditTool) wynikNarzedzia = textEditTool.Execute(doc, args);
+                                        else if (tool is AnalyzeSelectionTool analyzeTool) wynikNarzedzia = analyzeTool.Execute(doc, args);
+                                        else if (tool is ReadTextSampleTool readTool) wynikNarzedzia = readTool.Execute(doc, args);
+                                        else wynikNarzedzia = tool.Execute(doc);
+
+                                        if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
+                                        {
+                                            historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
+                                            agentPotrzebujeDanych = true; // Pozwala pętli uruchomić zapytanie do modelu ponownie bez awarii
+                                        }
+                                        break;
                                     }
                                 }
+                                ZapiszPamiec(doc);
                             }
-                            ZapiszPamiec(doc);
-                        }
-
-                        else
+                            else
                             {
                                 ed.WriteMessage("\n[Agent]: " + aiMsg);
                                 historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + SafeJson(aiMsg) + "\"}");

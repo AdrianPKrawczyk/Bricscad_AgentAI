@@ -58,6 +58,8 @@
       <DependentUpon>AgentControl.cs</DependentUpon>
     </Compile>
     <Compile Include="AnalyzeSelectionTool.cs" />
+    <Compile Include="EditBlockTool.cs" />
+    <Compile Include="GetPropertiesTool.cs" />
     <Compile Include="MTextEditTool.cs" />
     <Compile Include="MTextFormatTool.cs" />
     <Compile Include="ITool.cs" />
