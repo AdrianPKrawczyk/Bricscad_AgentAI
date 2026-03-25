@@ -1,1 +1,4 @@
 ﻿{"messages": [{"role": "user", "content": "Zaznacz wszystkie polilinie, którę mają typ linii 'hidden'."}, {"role": "assistant", "content": "[SELECT: {\"Mode\": \"New\", \"EntityType\": \"Polyline\", \"Conditions\": [{\"Property\": \"Linetype\", \"Operator\": \"==\", \"Value\": \"hidden\"}]}]"}]}
+{"messages": [{"role": "user", "content": "Sprawdź włąściwości zaznaczonego elementu."}, {"role": "assistant", "content": "[ACTION:GET_PROPERTIES]"}]}
+{"messages": [{"role": "user", "content": "Sprawdź właściwości elementów, które są zaznaczone na rysunku. "}, {"role": "assistant", "content": "[ACTION:GET_PROPERTIES]"}]}
+{"messages": [{"role": "user", "content": "n"}, {"role": "assistant", "content": "[ACTION:EDIT_BLOCK {\"Color\": 256, \"Layer\": \"0\", \"FilterColor\": 0}]"}]}

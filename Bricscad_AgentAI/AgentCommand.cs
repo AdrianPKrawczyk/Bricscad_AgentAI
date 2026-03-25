@@ -1255,7 +1255,7 @@ namespace BricsCAD_Agent
                 // ==========================================
                 // KREATOR DLA: [ACTION:EDIT_BLOCK]
                 // ==========================================
-                else if (pr.StringResult == "Edit_block")
+                else if (pr.StringResult == "EditBlock")
                 {
                     System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string>();
 
@@ -1281,7 +1281,7 @@ namespace BricsCAD_Agent
                 // ==========================================
                 // KREATOR DLA: [ACTION:GET_PROPERTIES]
                 // ==========================================
-                else if (pr.StringResult == "Get_properties")
+                else if (pr.StringResult == "GetProperties")
                 {
                     finalTag = "[ACTION:GET_PROPERTIES]";
                 }
@@ -1294,7 +1294,9 @@ namespace BricsCAD_Agent
                 pkoExec.Keywords.Add("Nie");
                 pkoExec.Keywords.Default = "Tak";
 
-                if (ed.GetKeywords(pkoExec).StringResult == "Tak")
+                PromptResult prExec = ed.GetKeywords(pkoExec);
+                // Ignorujemy wielkość liter i upewniamy się, że użytkownik nie wcisnął ESC
+                if (prExec.Status == PromptStatus.OK && prExec.StringResult.Equals("Tak", StringComparison.OrdinalIgnoreCase))
                 {
                     WykonywaczTagow(doc, finalTag);
                 }
@@ -1305,7 +1307,8 @@ namespace BricsCAD_Agent
                 pkoSave.Keywords.Add("Nie");
                 pkoSave.Keywords.Default = "Tak";
 
-                if (ed.GetKeywords(pkoSave).StringResult == "Tak")
+                PromptResult prSave = ed.GetKeywords(pkoSave);
+                if (prSave.Status == PromptStatus.OK && prSave.StringResult.Equals("Tak", StringComparison.OrdinalIgnoreCase))
                 {
                     PromptStringOptions psoPrompt = new PromptStringOptions("\nWpisz naturalne polecenie użytkownika (np. Zaznacz wszystkie czerwone linie): ");
                     psoPrompt.AllowSpaces = true;
