@@ -953,6 +953,56 @@ namespace BricsCAD_Agent
             ed.WriteMessage("\n-------------------------------\n");
         }
 
+        [CommandMethod("AGENT_TEST_TAG")]
+        public void TestTag()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            // 1. Prosimy użytkownika o wklejenie tagu w linii poleceń
+            PromptStringOptions pso = new PromptStringOptions("\nWklej surowy tag wygenerowany przez LLM (np. [SELECT: ...]): ");
+            pso.AllowSpaces = true; // Pozwala na spacje wewnątrz JSON-a!
+
+            PromptResult pr = ed.GetString(pso);
+            if (pr.Status != PromptStatus.OK) return;
+
+            string wklejonyTag = pr.StringResult;
+
+            try
+            {
+                // 2. Symulujemy zachowanie głównej pętli Agenta
+                if (wklejonyTag.Contains("[SELECT:"))
+                {
+                    ed.WriteMessage("\n[TEST] Uruchamiam silnik zaznaczania...\n");
+                    int wynik = WykonajInteligentneZaznaczenie(doc, wklejonyTag);
+                    ed.WriteMessage($"\n[TEST ZAKOŃCZONY] Zaznaczono obiektów: {wynik}");
+                }
+                else if (wklejonyTag.Contains("[ACTION:EDIT_BLOCK]"))
+                {
+                    ed.WriteMessage("\n[TEST] Uruchamiam narzędzie EDIT_BLOCK...\n");
+                    EditBlockTool tool = new EditBlockTool();
+                    string wynik = tool.Execute(doc, wklejonyTag);
+                    ed.WriteMessage($"\n[TEST ZAKOŃCZONY] {wynik}");
+                }
+                else if (wklejonyTag.Contains("[ACTION:GET_PROPERTIES]"))
+                {
+                    ed.WriteMessage("\n[TEST] Uruchamiam narzędzie GET_PROPERTIES...\n");
+                    GetPropertiesTool tool = new GetPropertiesTool();
+                    string wynik = tool.Execute(doc, wklejonyTag);
+                    ed.WriteMessage($"\n[TEST ZAKOŃCZONY]\n{wynik}");
+                }
+                else
+                {
+                    ed.WriteMessage("\n[BŁĄD TESTU] Wklejony tekst nie zawiera znanego tagu (SELECT, ACTION:EDIT_BLOCK itp.).");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage($"\n[BŁĄD KRYTYCZNY W TESTOWANYM KODZIE]: {ex.Message}");
+            }
+        }
+
+
         [CommandMethod("AGENT_DEBUG_2")]
         public void DebugTwardeFormatowanie()
         {
@@ -996,6 +1046,334 @@ namespace BricsCAD_Agent
                 }
             }
             ed.WriteMessage("\n-------------------------\n");
+        }
+        // NOWOŚĆ: Flaga UsePickSet sprawia, że komenda nie odznacza obiektów!
+        [CommandMethod("AGENT_BUILD_TAG", CommandFlags.UsePickSet)]
+        public void BuildTagCommand()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            try
+            {
+                // --- NOWOŚĆ: Przechwytywanie ręcznego zaznaczenia z BricsCADa ---
+                // Jeśli użytkownik zaznaczył coś myszką przed wpisaniem komendy, zapisujemy to do pamięci Agenta
+                PromptSelectionResult psr = ed.SelectImplied();
+                if (psr.Status == PromptStatus.OK && psr.Value != null)
+                {
+                    AktywneZaznaczenie = psr.Value.GetObjectIds();
+                    ed.WriteMessage($"\n[System] Przechwycono {AktywneZaznaczenie.Length} zaznaczonych obiektów do pamięci Agenta.");
+                }
+
+                // KROK 1: Wybór głównego narzędzia (usunięto podkreślniki, dodano wielkie litery)
+                PromptKeywordOptions pko = new PromptKeywordOptions("\nWybierz rodzaj tagu do zbudowania [Select/EditBlock/GetProperties]: ");
+                pko.Keywords.Add("Select");
+                pko.Keywords.Add("EditBlock");
+                pko.Keywords.Add("GetProperties");
+                pko.Keywords.Default = "Select";
+
+                PromptResult pr = ed.GetKeywords(pko);
+                if (pr.Status != PromptStatus.OK) return;
+
+                string finalTag = "";
+
+                // ==========================================
+                // KREATOR DLA: [SELECT: ...]
+                // ==========================================
+                if (pr.StringResult == "Select")
+                {
+                    // Wybór trybu zaznaczania
+                    PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nWybierz tryb zaznaczania [New/Add/Remove]: ");
+                    pkoMode.Keywords.Add("New");
+                    pkoMode.Keywords.Add("Add");
+                    pkoMode.Keywords.Add("Remove");
+                    pkoMode.Keywords.Default = "New";
+                    string mode = ed.GetKeywords(pkoMode).StringResult;
+
+                    // ----------------------------------------------------
+                    // DYNAMICZNE WCZYTYWANIE KLAS Z PLIKU TXT
+                    // ----------------------------------------------------
+                    string filePath = @"D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI\BricsCAD_API_Quick.txt";
+                    System.Collections.Generic.Dictionary<string, string> bazyDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        string[] lines = System.IO.File.ReadAllLines(filePath, System.Text.Encoding.UTF8);
+                        foreach (var line in lines)
+                        {
+                            if (string.IsNullOrWhiteSpace(line) || !line.Contains("|")) continue;
+                            string[] parts = line.Split(new[] { '|' }, 2);
+
+                            // Formatyzacja nazwy klasy (np. "line" -> "Line", "dbtext" -> "DBText")
+                            string entName = parts[0].Trim();
+                            if (entName.Equals("dbtext", StringComparison.OrdinalIgnoreCase)) entName = "DBText";
+                            else if (entName.Equals("mtext", StringComparison.OrdinalIgnoreCase)) entName = "MText";
+                            else if (entName.Equals("solid3d", StringComparison.OrdinalIgnoreCase)) entName = "Solid3d";
+                            else entName = char.ToUpper(entName[0]) + entName.Substring(1).ToLower();
+
+                            bazyDict[entName] = parts[1];
+                        }
+                    }
+                    else
+                    {
+                        ed.WriteMessage($"\n[OSTRZEŻENIE] Nie znaleziono pliku bazy w: {filePath}. Używam trybu ręcznego.");
+                    }
+
+                    // Budowanie listy wyboru obiektów (Keywords)
+                    string entType = "";
+                    if (bazyDict.Count > 0)
+                    {
+                        // ZMIANA: Brak nawiasów kwadratowych w tekście! Używamy zwykłych ( )
+                        PromptKeywordOptions pkoEnt = new PromptKeywordOptions("\nWybierz typ obiektu z bazy (ESC by wpisac recznie)");
+
+                        ed.WriteMessage("\n\n--- DOSTĘPNE OBIEKTY W BAZIE WIEDZY ---");
+                        string listaObiektow = "";
+                        foreach (var key in bazyDict.Keys)
+                        {
+                            try
+                            {
+                                // 1. GlobalName (oryginał dla JSON-a np. "Polyline")
+                                // 2. LocalName (skrót = "POLYLINE")
+                                // 3. DisplayName (wygląd = "POLYLINE" - wymusza klikalność całego słowa!)
+                                pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper());
+                                listaObiektow += $"{key}, ";
+                            }
+                            catch { }
+                        }
+                        ed.WriteMessage($"\n{listaObiektow.TrimEnd(',', ' ')}\n---------------------------------------");
+
+                        PromptResult prEnt = ed.GetKeywords(pkoEnt);
+                        if (prEnt.Status == PromptStatus.OK && !string.IsNullOrEmpty(prEnt.StringResult))
+                        {
+                            entType = prEnt.StringResult;
+                        }
+                    }
+
+
+                    // Jeśli użytkownik anulował wybór klikany lub plik nie istnieje, pozwalamy wpisać z palca
+                    if (string.IsNullOrEmpty(entType))
+                    {
+                        PromptStringOptions psoType = new PromptStringOptions("\nPodaj typy obiektów po przecinku (np. Line, Circle): ");
+                        psoType.AllowSpaces = true;
+                        entType = ed.GetString(psoType).StringResult;
+                        if (string.IsNullOrEmpty(entType)) entType = "Entity";
+                    }
+
+                    // ----------------------------------------------------
+                    // DYNAMICZNE WCZYTYWANIE WŁAŚCIWOŚCI Z PLIKU TXT
+                    // ----------------------------------------------------
+                    string prop = "";
+                    System.Collections.Generic.Dictionary<string, string> propertiesMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                    if (bazyDict.Count > 0)
+                    {
+                        string pelnyOpis = "";
+                        if (bazyDict.ContainsKey("Entity")) pelnyOpis += bazyDict["Entity"] + " "; // Zawsze ładujemy bazowe z Entity
+
+                        // Przeszukujemy tylko pierwszą wybraną klasę (jeśli wybrano kilka po przecinku, bierzemy pierwszą)
+                        string glownaKlasa = entType.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                        if (bazyDict.ContainsKey(glownaKlasa) && !glownaKlasa.Equals("Entity", StringComparison.OrdinalIgnoreCase))
+                        {
+                            pelnyOpis += bazyDict[glownaKlasa];
+                        }
+
+                        // REGEX: Wyszukuje schemat: NazwaWlasciwosci (Opis w nawiasie)
+                        // np. "Color (Kolor obiektu od 1 do 255)"
+                        System.Text.RegularExpressions.MatchCollection matches = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
+
+                        foreach (System.Text.RegularExpressions.Match m in matches)
+                        {
+                            propertiesMap[m.Groups[1].Value] = m.Groups[2].Value; // Key: Color, Value: Kolor obiektu...
+                        }
+
+                        if (propertiesMap.Count > 0)
+                        {
+                            // ZMIANA: Brak nawiasów kwadratowych w tekście! Używamy zwykłych ( )
+                            PromptKeywordOptions pkoProp = new PromptKeywordOptions("\nWybierz Wlasciwosc do filtrowania (ENTER by pominac)");
+                            pkoProp.AllowNone = true;
+
+                            ed.WriteMessage($"\n\n--- DOSTĘPNE WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
+                            foreach (var kvp in propertiesMap)
+                            {
+                                ed.WriteMessage($"\n [{kvp.Key}] - {kvp.Value}");
+                                try
+                                {
+                                    // Ta sama logika dla właściwości: cały wyraz staje się wielki i klikalny
+                                    pkoProp.Keywords.Add(kvp.Key, kvp.Key.ToUpper(), kvp.Key.ToUpper());
+                                }
+                                catch { }
+                            }
+                            ed.WriteMessage("\n-------------------------------------------");
+
+                            PromptResult prProp = ed.GetKeywords(pkoProp);
+                            if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult))
+                            {
+                                prop = prProp.StringResult;
+                            }
+                        }
+
+                    }
+
+                    // Jeśli plik nie zadziałał lub nie znaleziono właściwości, wpisujemy z palca
+                    if (string.IsNullOrEmpty(prop) && propertiesMap.Count == 0)
+                    {
+                        PromptStringOptions psoProp = new PromptStringOptions("\nPodaj Właściwość do filtrowania (lub ENTER by pominąć): ");
+                        psoProp.AllowSpaces = false;
+                        prop = ed.GetString(psoProp).StringResult;
+                    }
+
+                    // Budowa reszty warunku (Operator i Wartość)
+                    if (string.IsNullOrEmpty(prop))
+                    {
+                        // JSON bez warunków
+                        finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"EntityType\": \"{entType}\", \"Conditions\": []}}]";
+                    }
+                    else
+                    {
+                        PromptKeywordOptions pkoOp = new PromptKeywordOptions("\nWybierz operator [Rowne/Wieksze/Mniejsze/Zawiera]: ");
+                        pkoOp.Keywords.Add("Rowne"); pkoOp.Keywords.Add("Wieksze");
+                        pkoOp.Keywords.Add("Mniejsze"); pkoOp.Keywords.Add("Zawiera");
+                        pkoOp.Keywords.Default = "Rowne";
+                        string opWord = ed.GetKeywords(pkoOp).StringResult;
+
+                        string opSign = "==";
+                        if (opWord == "Wieksze") opSign = ">";
+                        if (opWord == "Mniejsze") opSign = "<";
+                        if (opWord == "Zawiera") opSign = "Contains";
+
+                        PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj szukaną wartość dla {prop}: ");
+                        psoVal.AllowSpaces = true;
+                        string val = ed.GetString(psoVal).StringResult;
+
+                        // Jeśli wartość nie jest czystą liczbą - owiń w cudzysłów
+                        if (!double.TryParse(val.Replace(",", "."), out _) && val != "true" && val != "false")
+                            val = $"\"{val}\"";
+
+                        finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"EntityType\": \"{entType}\", \"Conditions\": [{{\"Property\": \"{prop}\", \"Operator\": \"{opSign}\", \"Value\": {val}}}]}}]";
+                    }
+                }
+                // ==========================================
+                // KREATOR DLA: [ACTION:EDIT_BLOCK]
+                // ==========================================
+                else if (pr.StringResult == "Edit_block")
+                {
+                    System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string>();
+
+                    string col = ed.GetString(new PromptStringOptions("\nPodaj nowy Kolor (1-255, 0-ByBlock, 256-ByLayer) lub ENTER by pominąć: ")).StringResult;
+                    if (!string.IsNullOrEmpty(col)) argsList.Add($"\"Color\": {col}");
+
+                    string lay = ed.GetString(new PromptStringOptions("\nPodaj nową Warstwę lub ENTER by pominąć: ")).StringResult;
+                    if (!string.IsNullOrEmpty(lay)) argsList.Add($"\"Layer\": \"{lay}\"");
+
+                    string filt = ed.GetString(new PromptStringOptions("\nPodaj FilterColor (tylko obiekty w tym kolorze będą zmienione) lub ENTER by pominąć: ")).StringResult;
+                    if (!string.IsNullOrEmpty(filt)) argsList.Add($"\"FilterColor\": {filt}");
+
+                    string findText = ed.GetString(new PromptStringOptions("\nPodaj Szukany Tekst lub ENTER by pominąć: ")).StringResult;
+                    if (!string.IsNullOrEmpty(findText))
+                    {
+                        string repText = ed.GetString(new PromptStringOptions("\nPodaj Tekst do podmiany: ")).StringResult;
+                        argsList.Add($"\"FindText\": \"{findText}\"");
+                        argsList.Add($"\"ReplaceText\": \"{repText}\"");
+                    }
+
+                    finalTag = $"[ACTION:EDIT_BLOCK {{{string.Join(", ", argsList)}}}]";
+                }
+                // ==========================================
+                // KREATOR DLA: [ACTION:GET_PROPERTIES]
+                // ==========================================
+                else if (pr.StringResult == "Get_properties")
+                {
+                    finalTag = "[ACTION:GET_PROPERTIES]";
+                }
+
+                ed.WriteMessage($"\n\n--- WYGENEROWANY TAG JSON ---\n{finalTag}\n-----------------------------\n");
+
+                // --- TESTOWANIE TAGU ---
+                PromptKeywordOptions pkoExec = new PromptKeywordOptions("\nCzy chcesz od razu przetestować wygenerowany tag na rysunku? [Tak/Nie]: ");
+                pkoExec.Keywords.Add("Tak");
+                pkoExec.Keywords.Add("Nie");
+                pkoExec.Keywords.Default = "Tak";
+
+                if (ed.GetKeywords(pkoExec).StringResult == "Tak")
+                {
+                    WykonywaczTagow(doc, finalTag);
+                }
+
+                // --- ZAPIS DO LOGU TRENINGOWEGO JSONL ---
+                PromptKeywordOptions pkoSave = new PromptKeywordOptions("\nCzy zapisać ten przykład do logu treningowego (JSONL)? [Tak/Nie]: ");
+                pkoSave.Keywords.Add("Tak");
+                pkoSave.Keywords.Add("Nie");
+                pkoSave.Keywords.Default = "Tak";
+
+                if (ed.GetKeywords(pkoSave).StringResult == "Tak")
+                {
+                    PromptStringOptions psoPrompt = new PromptStringOptions("\nWpisz naturalne polecenie użytkownika (np. Zaznacz wszystkie czerwone linie): ");
+                    psoPrompt.AllowSpaces = true;
+                    string userPrompt = ed.GetString(psoPrompt).StringResult;
+
+                    if (!string.IsNullOrWhiteSpace(userPrompt))
+                    {
+                        string logFilePath = @"D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI\Agent_Training_Data.jsonl";
+
+                        // Bezpieczne escapowanie cudzysłowów i ukośników pod format JSON
+                        string safePrompt = userPrompt.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                        string safeTag = finalTag.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+                        // Standardowy format ChatML używany do trenowania modeli
+                        string jsonLine = $"{{\"messages\": [{{\"role\": \"user\", \"content\": \"{safePrompt}\"}}, {{\"role\": \"assistant\", \"content\": \"{safeTag}\"}}]}}\n";
+
+                        try
+                        {
+                            System.IO.File.AppendAllText(logFilePath, jsonLine, System.Text.Encoding.UTF8);
+                            ed.WriteMessage($"\n[SUKCES] Zapisano do bazy treningowej: {logFilePath}");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            ed.WriteMessage($"\n[BŁĄD ZAPISU LOGU]: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        ed.WriteMessage("\n[INFO] Anulowano zapis - polecenie użytkownika nie może być puste.");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage($"\n[BŁĄD KREATORA]: {ex.Message}");
+            }
+        }
+
+        private void WykonywaczTagow(Document doc, string wklejonyTag)
+        {
+            Editor ed = doc.Editor;
+            try
+            {
+                if (wklejonyTag.Contains("[SELECT:"))
+                {
+                    ed.WriteMessage("\n[TEST] Uruchamiam silnik zaznaczania...\n");
+                    int wynik = WykonajInteligentneZaznaczenie(doc, wklejonyTag);
+                    ed.WriteMessage($"\n[TEST ZAKOŃCZONY] Wynik zaznaczenia: {wynik} obiektów.");
+                }
+                else if (wklejonyTag.Contains("[ACTION:EDIT_BLOCK]"))
+                {
+                    ed.WriteMessage("\n[TEST] Uruchamiam narzędzie EDIT_BLOCK...\n");
+                    EditBlockTool tool = new EditBlockTool();
+                    string wynik = tool.Execute(doc, wklejonyTag);
+                    ed.WriteMessage($"\n[TEST ZAKOŃCZONY] {wynik}");
+                }
+                else if (wklejonyTag.Contains("[ACTION:GET_PROPERTIES]"))
+                {
+                    ed.WriteMessage("\n[TEST] Uruchamiam narzędzie GET_PROPERTIES...\n");
+                    GetPropertiesTool tool = new GetPropertiesTool();
+                    string wynik = tool.Execute(doc, wklejonyTag);
+                    ed.WriteMessage($"\n[TEST ZAKOŃCZONY]\n{wynik}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage($"\n[BŁĄD WYKONANIA]: {ex.Message}");
+            }
         }
 
     }
