@@ -400,9 +400,12 @@ namespace BricsCAD_Agent
             bazaQuick.Clear();
             bazaFull.Clear();
 
-            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BricsCAD_Agent");
-            string pathQuick = Path.Combine(folder, "BricsCAD_API_Quick.txt");
-            string pathFull = Path.Combine(folder, "BricsCAD_API_V22.txt");
+            // --- NOWY SPOSÓB: Ścieżka do folderu z wtyczką (DLL) ---
+            string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string folder = System.IO.Path.GetDirectoryName(assemblyPath);
+
+            string pathQuick = System.IO.Path.Combine(folder, "BricsCAD_API_Quick.txt");
+            string pathFull = System.IO.Path.Combine(folder, "BricsCAD_API_V22.txt");
 
             int LoadFile(string path, Dictionary<string, string> dict)
             {
@@ -586,9 +589,40 @@ namespace BricsCAD_Agent
                         foreach (var warunek in warunki)
                         {
                             string rzeczywistaWlasciwosc = warunek.Prop;
-                            if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
+                            bool sprawdzajWizualnie = false;
+
+                            // --- ROZDZIELENIE WŁAŚCIWOŚCI SUROWYCH OD WIZUALNYCH ---
+                            if (rzeczywistaWlasciwosc.Equals("VisualColor", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rzeczywistaWlasciwosc = "ColorIndex";
+                                sprawdzajWizualnie = true;
+                            }
+                            else if (rzeczywistaWlasciwosc.Equals("VisualLinetype", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rzeczywistaWlasciwosc = "Linetype";
+                                sprawdzajWizualnie = true;
+                            }
+                            // NOWOŚĆ: Szerokość linii
+                            else if (rzeczywistaWlasciwosc.Equals("VisualLineWeight", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rzeczywistaWlasciwosc = "LineWeight";
+                                sprawdzajWizualnie = true;
+                            }
+                            // NOWOŚĆ: Przezroczystość
+                            else if (rzeczywistaWlasciwosc.Equals("VisualTransparency", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rzeczywistaWlasciwosc = "Transparency";
+                                sprawdzajWizualnie = true;
+                            }
+                            else if (rzeczywistaWlasciwosc.Equals("Color", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rzeczywistaWlasciwosc = "ColorIndex";
+                            }
+                            // Tłumaczenia dla specyficznych klas
+                            else if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
                             else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
 
+                            // Pobieranie wartości przez refleksję
                             System.Reflection.PropertyInfo propInfo = ent.GetType().GetProperty(rzeczywistaWlasciwosc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
                             if (propInfo == null) { spelniaWszystkie = false; break; }
                             object wartoscObiektu = propInfo.GetValue(ent);
@@ -596,16 +630,69 @@ namespace BricsCAD_Agent
 
                             string valStr = wartoscObiektu.ToString();
 
+                            // --- SPECJALNA OBSŁUGA PRZEZROCZYSTOŚCI ---
                             if (wartoscObiektu is Teigha.Colors.Transparency transp)
                             {
                                 if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
+                                else if (sprawdzajWizualnie && transp.IsByLayer)
+                                {
+                                    try
+                                    {
+                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                        if (ltr != null && ltr.Transparency.IsByAlpha)
+                                            valStr = Math.Round((255.0 - ltr.Transparency.Alpha) / 255.0 * 100.0).ToString();
+                                        else valStr = "0";
+                                    }
+                                    catch { valStr = "0"; }
+                                }
+                                else if (!sprawdzajWizualnie && transp.IsByLayer) valStr = "ByLayer";
                                 else valStr = "0";
                             }
+                            // --- SPECJALNA OBSŁUGA WSPÓŁRZĘDNYCH 3D ---
                             else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
                             {
                                 valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
                             }
 
+                            // --- ROZWIĄZYWANIE "JAK WARSTWA" DLA WŁAŚCIWOŚCI VISUAL ---
+                            if (sprawdzajWizualnie)
+                            {
+                                if (rzeczywistaWlasciwosc == "ColorIndex" && valStr == "256")
+                                {
+                                    try
+                                    {
+                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                        if (ltr != null) valStr = ltr.Color.ColorIndex.ToString();
+                                    }
+                                    catch { }
+                                }
+                                else if (rzeczywistaWlasciwosc.Equals("Linetype", StringComparison.OrdinalIgnoreCase) && valStr.Equals("ByLayer", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    try
+                                    {
+                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                        if (ltr != null)
+                                        {
+                                            LinetypeTableRecord lttr = tr.GetObject(ltr.LinetypeObjectId, OpenMode.ForRead) as LinetypeTableRecord;
+                                            if (lttr != null) valStr = lttr.Name;
+                                        }
+                                    }
+                                    catch { }
+                                }
+                                // NOWOŚĆ: Rozwiązywanie "Jak Warstwa" dla grubości linii
+                                else if (rzeczywistaWlasciwosc.Equals("LineWeight", StringComparison.OrdinalIgnoreCase) && valStr.Equals("ByLayer", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    try
+                                    {
+                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                        if (ltr != null) valStr = ltr.LineWeight.ToString();
+                                    }
+                                    catch { }
+                                }
+                            }
+                            // --------------------------------------------------------
+
+                            // Logika porównywania 
                             bool warunekSpelniony = false;
                             if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
                                 double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))

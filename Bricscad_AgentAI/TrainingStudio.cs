@@ -60,7 +60,9 @@ namespace BricsCAD_Agent
                         string mode = ed.GetKeywords(pkoMode).StringResult;
 
                         // ... (Kod ładujący plik bazy danych BricsCAD_API_Quick.txt zostaje bez zmian) ...
-                        string filePath = @"D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI\BricsCAD_API_Quick.txt";
+                        string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                        string folder = System.IO.Path.GetDirectoryName(assemblyPath);
+                        string filePath = System.IO.Path.Combine(folder, "BricsCAD_API_Quick.txt");
                         System.Collections.Generic.Dictionary<string, string> bazyDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                         if (System.IO.File.Exists(filePath))
@@ -128,11 +130,23 @@ namespace BricsCAD_Agent
                                     PromptKeywordOptions pkoProp = new PromptKeywordOptions($"\nWybierz Wlasciwosc nr {licznikWarunkow} (ENTER by zakonczyc dodawanie warunkow)");
                                     pkoProp.AllowNone = true;
                                     ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
+
+                                    // 1. Ładowanie standardowych właściwości z bazy
                                     foreach (var kvp in propertiesMap)
                                     {
                                         ed.WriteMessage($"\n [{kvp.Key}] - {kvp.Value}");
                                         try { pkoProp.Keywords.Add(kvp.Key, kvp.Key.ToUpper(), kvp.Key.ToUpper()); } catch { }
                                     }
+
+                                    // --- 2. NOWOŚĆ: DODAJEMY WIRTUALNE WŁAŚCIWOŚCI WIZUALNE ---
+                                    ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI WIZUALNE (Z uwzględnieniem 'Jak Warstwa') ---");
+                                    string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency" };
+                                    foreach (string vp in visualProps)
+                                    {
+                                        ed.WriteMessage($"\n [{vp}]");
+                                        try { pkoProp.Keywords.Add(vp, vp.ToUpper(), vp.ToUpper()); } catch { }
+                                    }
+
                                     ed.WriteMessage("\n-------------------------------------------");
                                     PromptResult prProp = ed.GetKeywords(pkoProp);
                                     if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult)) prop = prProp.StringResult;
