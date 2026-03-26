@@ -585,8 +585,9 @@ namespace BricsCAD_Agent
                 List<ObjectId> znalezioneObiekty = new List<ObjectId>();
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
                 {
-                    BlockTable bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
-                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                    // ZMIANA: Używamy CurrentSpaceId zamiast sztywnego ModelSpace!
+                    // Dzięki temu Agent widzi obiekty wewnątrz definicji bloku (gdy jesteś w BEDIT).
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForRead);
                     foreach (ObjectId objId in btr)
                     {
                         Entity ent = tr.GetObject(objId, OpenMode.ForRead) as Entity;
