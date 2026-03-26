@@ -43,12 +43,29 @@ namespace BricsCAD_Agent
 
                     string zawartosc = mtext.Contents;
 
+                    // --- GENIALNY HACK NA BRICSCADA ---
+                    // BricsCAD właściwością .Text brutalnie wymazuje \P sklejając wyrazy.
+                    // Tymczasowo zamieniamy \P na bezpieczny ciąg znaków (dodajemy spacje na wszelki wypadek)
+                    mtext.Contents = zawartosc.Replace("\\P", " @@@NL@@@ ").Replace("\\n", " @@@NL@@@ ");
+
+                    // Teraz CAD czyści kolory, formaty i czcionki, ale nasz znacznik przeżyje!
+                    string wyczyszczonyZrtf = mtext.Text;
+
+                    // Przywracamy obiektowi jego prawdziwy RTF (jest to krytyczne dla trybu HighlightWord)
+                    mtext.Contents = zawartosc;
+
+                    // Wymieniamy znaczniki z powrotem na enter MTextowy (\P)
+                    string czystyTekst = wyczyszczonyZrtf.Replace(" @@@NL@@@ ", "\\P").Replace("@@@NL@@@", "\\P");
+
+                    // ============================================
+
                     if (mode == "HighlightWord" && !string.IsNullOrEmpty(word))
                     {
                         string formatCode = $"\\C{color};";
                         if (bold) formatCode += "\\fArial|b1;";
                         string sformatowaneSlowo = $"{{{formatCode}{word}}}";
 
+                        // Tu korzystamy z oryginalnej zawartosci (RTF), bo szukamy i podmieniamy w locie
                         if (zawartosc.Contains(word))
                         {
                             zawartosc = zawartosc.Replace(word, sformatowaneSlowo);
@@ -62,13 +79,15 @@ namespace BricsCAD_Agent
                         string formatCode = $"\\C{color};";
                         if (bold) formatCode += "\\fArial|b1;";
 
-                        mtext.Contents = $"{{{formatCode}{mtext.Text}}}";
+                        // Używamy naszego uratowanego, czystego tekstu z zachowanymi enterami
+                        mtext.Contents = $"{{{formatCode}{czystyTekst}}}";
                         mtext.RecordGraphicsModified(true);
                         zmodyfikowane++;
                     }
                     else if (mode == "ClearFormatting")
                     {
-                        mtext.Contents = mtext.Text;
+                        // Wrzucamy czysty tekst z uratowanymi enterami
+                        mtext.Contents = czystyTekst;
                         mtext.RecordGraphicsModified(true);
                         zmodyfikowane++;
                     }

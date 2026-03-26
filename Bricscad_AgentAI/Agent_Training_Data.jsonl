@@ -1,4 +1,7 @@
-﻿{"messages": [{"role": "user", "content": "Zaznacz wszystkie polilinie, którę mają typ linii 'hidden'."}, {"role": "assistant", "content": "[SELECT: {\"Mode\": \"New\", \"EntityType\": \"Polyline\", \"Conditions\": [{\"Property\": \"Linetype\", \"Operator\": \"==\", \"Value\": \"hidden\"}]}]"}]}
+{"messages": [{"role": "user", "content": "Zaznacz wszystkie polilinie, którę mają typ linii 'hidden'."}, {"role": "assistant", "content": "[SELECT: {\"Mode\": \"New\", \"EntityType\": \"Polyline\", \"Conditions\": [{\"Property\": \"Linetype\", \"Operator\": \"==\", \"Value\": \"hidden\"}]}]"}]}
 {"messages": [{"role": "user", "content": "Sprawdź włąściwości zaznaczonego elementu."}, {"role": "assistant", "content": "[ACTION:GET_PROPERTIES]"}]}
 {"messages": [{"role": "user", "content": "Sprawdź właściwości elementów, które są zaznaczone na rysunku. "}, {"role": "assistant", "content": "[ACTION:GET_PROPERTIES]"}]}
-{"messages": [{"role": "user", "content": "n"}, {"role": "assistant", "content": "[ACTION:EDIT_BLOCK {\"Color\": 256, \"Layer\": \"0\", \"FilterColor\": 0}]"}]}
+{"messages": [{"role": "user", "content": "Zmień w zaznaczonym bloku, kolor wszystkich elementów na szary, tj. 8. "}, {"role": "assistant", "content": "[ACTION:EDIT_BLOCK {\"Color\": 8}]"}]}
+{"messages": [{"role": "user", "content": "Zmień w zaznaczonym tekscie, wszystkie słowa 'dzieci' na kolor zielony i pogrubiony czyli bold. "}, {"role": "assistant", "content": "[ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"dzieci\", \"Color\": 3, \"Bold\": true}]"}]}
+{"messages": [{"role": "user", "content": "Dodaj do zaznaczonego tekstu typu TEXT słowo na końcu 'ff'."}, {"role": "assistant", "content": "[ACTION:TEXT_EDIT {\"Mode\": \"Append\", \"Text\": \"ff\"}]"}]}
+{"messages": [{"role": "user", "content": "Zmień w zaznaczonym bloku, kolor wszystkich elementów na szary(8). "}, {"role": "assistant", "content": "[ACTION:EDIT_BLOCK {\"Color\": 8}]"}]}
