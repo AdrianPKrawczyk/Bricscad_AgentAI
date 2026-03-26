@@ -38,8 +38,10 @@ namespace BricsCAD_Agent
                 {
                     PromptKeywordOptions pko = new PromptKeywordOptions("\nWybierz tag (ENTER dla Select)");
                     pko.Keywords.Add("Select");
+                    pko.Keywords.Add("SETProps");
                     pko.Keywords.Add("BlockEdit");
-                    pko.Keywords.Add("GetProperties");
+                    pko.Keywords.Add("GetPropsLite"); // <--- Zmiana
+                    pko.Keywords.Add("FULLGETProps"); // <--- Nowa opcja
                     pko.Keywords.Add("FormatMText");
                     pko.Keywords.Add("UpdateMText");
                     pko.Keywords.Add("EditText");
@@ -60,24 +62,38 @@ namespace BricsCAD_Agent
                         string mode = ed.GetKeywords(pkoMode).StringResult;
 
                         // ... (Kod ładujący plik bazy danych BricsCAD_API_Quick.txt zostaje bez zmian) ...
+                        // --- NOWOŚĆ: WYBÓR BAZY API W LOCIE ---
+                        PromptKeywordOptions pkoBaza = new PromptKeywordOptions("\nZ jakiej bazy wiedzy załadować podpowiedzi? [Quick/Full]: ");
+                        pkoBaza.Keywords.Add("Quick");
+                        pkoBaza.Keywords.Add("Full");
+                        pkoBaza.Keywords.Default = "Quick";
+                        string trybBazy = ed.GetKeywords(pkoBaza).StringResult;
+
+                        string nazwaBazy = (trybBazy == "Full") ? "BricsCAD_API_V22.txt" : "BricsCAD_API_Quick.txt";
+
                         string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                        string folder = System.IO.Path.GetDirectoryName(assemblyPath);
-                        string filePath = System.IO.Path.Combine(folder, "BricsCAD_API_Quick.txt");
+                        string folderDir = System.IO.Path.GetDirectoryName(assemblyPath);
+                        string filePath = System.IO.Path.Combine(folderDir, nazwaBazy);
+                        // ----------------------------------------
                         System.Collections.Generic.Dictionary<string, string> bazyDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                         if (System.IO.File.Exists(filePath))
                         {
-                            string[] lines = System.IO.File.ReadAllLines(filePath, System.Text.Encoding.UTF8);
-                            foreach (var line in lines)
+                            string content = System.IO.File.ReadAllText(filePath, System.Text.Encoding.UTF8);
+                            var matchesClasses = System.Text.RegularExpressions.Regex.Matches(content, @"\b([a-zA-Z0-9_]+)\|(.*?)(?=\b[a-zA-Z0-9_]+\||$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                            foreach (System.Text.RegularExpressions.Match m in matchesClasses)
                             {
-                                if (string.IsNullOrWhiteSpace(line) || !line.Contains("|")) continue;
-                                string[] parts = line.Split(new[] { '|' }, 2);
-                                string entName = parts[0].Trim();
+                                string entName = m.Groups[1].Value.Trim();
+                                if (entName.Contains(" ") || entName.Length > 35) continue;
+
                                 if (entName.Equals("dbtext", StringComparison.OrdinalIgnoreCase)) entName = "DBText";
                                 else if (entName.Equals("mtext", StringComparison.OrdinalIgnoreCase)) entName = "MText";
                                 else if (entName.Equals("solid3d", StringComparison.OrdinalIgnoreCase)) entName = "Solid3d";
                                 else entName = char.ToUpper(entName[0]) + entName.Substring(1).ToLower();
-                                bazyDict[entName] = parts[1];
+
+                                // Wczytujemy wszystko jak leci! (Brak warunku hsBialaLista.Contains)
+                                bazyDict[entName] = m.Groups[2].Value.Trim();
                             }
                         }
 
@@ -86,12 +102,41 @@ namespace BricsCAD_Agent
                         {
                             PromptKeywordOptions pkoEnt = new PromptKeywordOptions("\nWybierz typ obiektu z bazy (ESC by wpisac recznie)");
                             ed.WriteMessage("\n\n--- DOSTĘPNE OBIEKTY W BAZIE WIEDZY ---");
-                            string listaObiektow = "";
-                            foreach (var key in bazyDict.Keys)
+
+                            // --- NOWOŚĆ: SORTOWANIE ALFABETYCZNE ---
+                            System.Collections.Generic.List<string> posortowaneKlucze = new System.Collections.Generic.List<string>(bazyDict.Keys);
+                            posortowaneKlucze.Sort(); // C# automatycznie sortuje stringi od A do Z
+                                                      // ---------------------------------------
+
+                            string listaObiektow = "\n";
+                            int kolumna = 0;
+
+                            // Zmieniamy pętlę, by iterowała po POSORTOWANEJ liście
+                            foreach (var key in posortowaneKlucze)
                             {
-                                try { pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper()); listaObiektow += $"{key}, "; } catch { }
+                                try
+                                {
+                                    pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper());
+
+                                    // Magia formatowania: dopełnia spacjami do 26 znaków, żeby zrobić równą tabelę
+                                    listaObiektow += string.Format("{0,-26}", key);
+                                    kolumna++;
+
+                                    // Kiedy mamy 3 elementy w wierszu, przechodzimy do nowej linijki
+                                    if (kolumna >= 3)
+                                    {
+                                        listaObiektow += "\n";
+                                        kolumna = 0;
+                                    }
+                                }
+                                catch { }
                             }
-                            ed.WriteMessage($"\n{listaObiektow.TrimEnd(',', ' ')}\n---------------------------------------");
+
+                            try { pkoEnt.Keywords.Default = "Entity"; } catch { }
+
+                            // Wyświetlamy zbudowaną, posortowaną tabelę
+                            ed.WriteMessage($"\n{listaObiektow}\n---------------------------------------");
+
                             PromptResult prEnt = ed.GetKeywords(pkoEnt);
                             if (prEnt.Status == PromptStatus.OK && !string.IsNullOrEmpty(prEnt.StringResult)) entType = prEnt.StringResult;
                         }
@@ -122,8 +167,28 @@ namespace BricsCAD_Agent
                                 if (bazyDict.ContainsKey(glownaKlasa) && !glownaKlasa.Equals("Entity", StringComparison.OrdinalIgnoreCase))
                                     pelnyOpis += bazyDict[glownaKlasa];
 
-                                System.Text.RegularExpressions.MatchCollection matches = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
-                                foreach (System.Text.RegularExpressions.Match m in matches) propertiesMap[m.Groups[1].Value] = m.Groups[2].Value;
+                                // Jeśli użytkownik wybrał potężną bazę V22
+                                if (nazwaBazy == "BricsCAD_API_V22.txt")
+                                {
+                                    System.Text.RegularExpressions.MatchCollection matchesFull = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"Właściwości \(Properties\):\s*(.*?)(?=\.\s*[A-Z]|\.$|$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                                    foreach (System.Text.RegularExpressions.Match mFull in matchesFull)
+                                    {
+                                        string[] props = mFull.Groups[1].Value.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+                                        foreach (string p in props)
+                                        {
+                                            string cleanProp = p.Trim().Split(new char[] { ' ', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries)[0];
+                                            if (cleanProp.Length > 1 && char.IsUpper(cleanProp[0]))
+                                            {
+                                                propertiesMap[cleanProp] = "V22_API";
+                                            }
+                                        }
+                                    }
+                                }
+                                else // Jeśli to stara, dobra baza Quick z nawiasami
+                                {
+                                    System.Text.RegularExpressions.MatchCollection matchesQuick = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
+                                    foreach (System.Text.RegularExpressions.Match m in matchesQuick) propertiesMap[m.Groups[1].Value] = m.Groups[2].Value;
+                                }
 
                                 if (propertiesMap.Count > 0)
                                 {
@@ -131,14 +196,17 @@ namespace BricsCAD_Agent
                                     pkoProp.AllowNone = true;
                                     ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
 
-                                    // 1. Ładowanie standardowych właściwości z bazy
-                                    foreach (var kvp in propertiesMap)
+                                    // --- NOWOŚĆ: SORTOWANIE WŁAŚCIWOŚCI ---
+                                    System.Collections.Generic.List<string> posortowaneWlasciwosci = new System.Collections.Generic.List<string>(propertiesMap.Keys);
+                                    posortowaneWlasciwosci.Sort();
+
+                                    foreach (var klucz in posortowaneWlasciwosci)
                                     {
-                                        ed.WriteMessage($"\n [{kvp.Key}] - {kvp.Value}");
-                                        try { pkoProp.Keywords.Add(kvp.Key, kvp.Key.ToUpper(), kvp.Key.ToUpper()); } catch { }
+                                        ed.WriteMessage($"\n [{klucz}] - {propertiesMap[klucz]}");
+                                        try { pkoProp.Keywords.Add(klucz, klucz.ToUpper(), klucz.ToUpper()); } catch { }
                                     }
 
-                                    // --- 2. NOWOŚĆ: DODAJEMY WIRTUALNE WŁAŚCIWOŚCI WIZUALNE ---
+                                    // --- 2. DODAJEMY WIRTUALNE WŁAŚCIWOŚCI WIZUALNE ---
                                     ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI WIZUALNE (Z uwzględnieniem 'Jak Warstwa') ---");
                                     string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency" };
                                     foreach (string vp in visualProps)
@@ -198,7 +266,192 @@ namespace BricsCAD_Agent
                         finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"EntityType\": \"{entType}\", \"Conditions\": [{wszystkieWarunkiJson}]}}]";
 
 
-                    }                    // --- [EDIT_BLOCK] ---
+                    }
+
+                    // --- [SET_PROPERTIES] ---
+                    else if (pr.StringResult == "SETProps")
+                    {
+                        // 1. Ładowanie bazy wiedzy 
+                        // --- NOWOŚĆ: WYBÓR BAZY API W LOCIE ---
+                        PromptKeywordOptions pkoBaza = new PromptKeywordOptions("\nZ jakiej bazy wiedzy załadować podpowiedzi? [Quick/Full]: ");
+                        pkoBaza.Keywords.Add("Quick");
+                        pkoBaza.Keywords.Add("Full");
+                        pkoBaza.Keywords.Default = "Quick";
+                        string trybBazy = ed.GetKeywords(pkoBaza).StringResult;
+
+                        string nazwaBazy = (trybBazy == "Full") ? "BricsCAD_API_V22.txt" : "BricsCAD_API_Quick.txt";
+
+                        string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                        string folderDir = System.IO.Path.GetDirectoryName(assemblyPath);
+                        string filePath = System.IO.Path.Combine(folderDir, nazwaBazy);
+                        // ----------------------------------------
+                        System.Collections.Generic.Dictionary<string, string> bazyDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                        if (System.IO.File.Exists(filePath))
+                        {
+                            string content = System.IO.File.ReadAllText(filePath, System.Text.Encoding.UTF8);
+                            var matchesClasses = System.Text.RegularExpressions.Regex.Matches(content, @"\b([a-zA-Z0-9_]+)\|(.*?)(?=\b[a-zA-Z0-9_]+\||$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                            foreach (System.Text.RegularExpressions.Match m in matchesClasses)
+                            {
+                                string entName = m.Groups[1].Value.Trim();
+                                if (entName.Contains(" ") || entName.Length > 35) continue;
+
+                                if (entName.Equals("dbtext", StringComparison.OrdinalIgnoreCase)) entName = "DBText";
+                                else if (entName.Equals("mtext", StringComparison.OrdinalIgnoreCase)) entName = "MText";
+                                else if (entName.Equals("solid3d", StringComparison.OrdinalIgnoreCase)) entName = "Solid3d";
+                                else entName = char.ToUpper(entName[0]) + entName.Substring(1).ToLower();
+
+                                // Wczytujemy wszystko jak leci!
+                                bazyDict[entName] = m.Groups[2].Value.Trim();
+                            }
+                        }
+
+                        // 2. Pętla dodawania modyfikatorów
+                        System.Collections.Generic.List<string> propsList = new System.Collections.Generic.List<string>();
+                        bool dodawajKolejnePropsy = true;
+                        int licznikPropsow = 1;
+
+                        ed.WriteMessage("\n\n--- KREATOR ZMIANY WŁAŚCIWOŚCI ---");
+                        while (dodawajKolejnePropsy)
+                        {
+                            // --- NOWOŚĆ: Pytamy o klasę W KAŻDYM OBROCIE PĘTLI ---
+                            string entType = "Entity";
+                            if (bazyDict.Count > 0)
+                            {
+                                PromptKeywordOptions pkoEnt = new PromptKeywordOptions($"\nZ jakiej klasy API wyświetlić podpowiedzi dla właściwości nr {licznikPropsow}? (ENTER dla Entity, ESC by ZAKOŃCZYĆ)");
+                                pkoEnt.AllowNone = true;
+
+                                ed.WriteMessage("\n\n--- DOSTĘPNE OBIEKTY W BAZIE WIEDZY ---");
+
+                                // --- NOWOŚĆ: SORTOWANIE ALFABETYCZNE ---
+                                System.Collections.Generic.List<string> posortowaneKlucze = new System.Collections.Generic.List<string>(bazyDict.Keys);
+                                posortowaneKlucze.Sort(); // C# automatycznie sortuje stringi od A do Z
+                                                          // ---------------------------------------
+
+                                string listaObiektow = "\n";
+                                int kolumna = 0;
+
+                                // Zmieniamy pętlę, by iterowała po POSORTOWANEJ liście
+                                foreach (var key in posortowaneKlucze)
+                                {
+                                    try
+                                    {
+                                        pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper());
+
+                                        // Magia formatowania: dopełnia spacjami do 26 znaków, żeby zrobić równą tabelę
+                                        listaObiektow += string.Format("{0,-26}", key);
+                                        kolumna++;
+
+                                        // Kiedy mamy 3 elementy w wierszu, przechodzimy do nowej linijki
+                                        if (kolumna >= 3)
+                                        {
+                                            listaObiektow += "\n";
+                                            kolumna = 0;
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                try { pkoEnt.Keywords.Default = "Entity"; } catch { }
+
+                                // Wyświetlamy zbudowaną, posortowaną tabelę
+                                ed.WriteMessage($"\n{listaObiektow}\n---------------------------------------");
+
+                                PromptResult prEnt = ed.GetKeywords(pkoEnt);
+
+                                if (prEnt.Status == PromptStatus.Cancel) break; // Wciśnięto ESC -> kończymy dodawanie
+                                if (prEnt.Status == PromptStatus.OK && !string.IsNullOrEmpty(prEnt.StringResult))
+                                    entType = prEnt.StringResult;
+                            }
+
+                            string propName = "";
+                            System.Collections.Generic.Dictionary<string, string> propertiesMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                            if (bazyDict.Count > 0)
+                            {
+                                string pelnyOpis = "";
+                                if (bazyDict.ContainsKey("Entity")) pelnyOpis += bazyDict["Entity"] + " ";
+                                string glownaKlasa = entType.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                                if (bazyDict.ContainsKey(glownaKlasa) && !glownaKlasa.Equals("Entity", StringComparison.OrdinalIgnoreCase))
+                                    pelnyOpis += bazyDict[glownaKlasa];
+
+                                // Jeśli użytkownik wybrał potężną bazę V22
+                                if (nazwaBazy == "BricsCAD_API_V22.txt")
+                                {
+                                    System.Text.RegularExpressions.MatchCollection matchesFull = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"Właściwości \(Properties\):\s*(.*?)(?=\.\s*[A-Z]|\.$|$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                                    foreach (System.Text.RegularExpressions.Match mFull in matchesFull)
+                                    {
+                                        string[] props = mFull.Groups[1].Value.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+                                        foreach (string p in props)
+                                        {
+                                            string cleanProp = p.Trim().Split(new char[] { ' ', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries)[0];
+                                            if (cleanProp.Length > 1 && char.IsUpper(cleanProp[0]))
+                                            {
+                                                propertiesMap[cleanProp] = "V22_API";
+                                            }
+                                        }
+                                    }
+                                }
+                                else // Jeśli to stara, dobra baza Quick z nawiasami
+                                {
+                                    System.Text.RegularExpressions.MatchCollection matchesQuick = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
+                                    foreach (System.Text.RegularExpressions.Match m in matchesQuick) propertiesMap[m.Groups[1].Value] = m.Groups[2].Value;
+                                }
+
+                                if (propertiesMap.Count > 0)
+                                {
+                                    PromptKeywordOptions pkoProp = new PromptKeywordOptions($"\nWybierz Wlasciwosc nr {licznikPropsow} (ENTER by zakonczyc dodawanie)");
+                                    pkoProp.AllowNone = true;
+                                    ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
+
+                                    // --- NOWOŚĆ: SORTOWANIE WŁAŚCIWOŚCI ---
+                                    System.Collections.Generic.List<string> posortowaneWlasciwosci = new System.Collections.Generic.List<string>(propertiesMap.Keys);
+                                    posortowaneWlasciwosci.Sort();
+
+                                    foreach (var klucz in posortowaneWlasciwosci)
+                                    {
+                                        // UWAGA: Ukrywamy opcje "Visual", bo nie można nadpisać wirtualnej właściwości!
+                                        if (klucz.StartsWith("Visual", StringComparison.OrdinalIgnoreCase)) continue;
+
+                                        ed.WriteMessage($"\n [{klucz}] - {propertiesMap[klucz]}");
+                                        try { pkoProp.Keywords.Add(klucz, klucz.ToUpper(), klucz.ToUpper()); } catch { }
+                                    }
+
+                                    ed.WriteMessage("\n-------------------------------------------");
+                                    PromptResult prProp = ed.GetKeywords(pkoProp);
+                                    if (prProp.Status == PromptStatus.Cancel) break; // ESC w drugim kroku też kończy
+                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult)) propName = prProp.StringResult;
+                                }
+                            }
+
+                            if (string.IsNullOrEmpty(propName) && propertiesMap.Count == 0)
+                            {
+                                PromptStringOptions psoName = new PromptStringOptions($"\nPodaj nazwę właściwości nr {licznikPropsow} (np. Layer, Color) lub ENTER by zakończyć: ");
+                                psoName.AllowSpaces = false;
+                                propName = ed.GetString(psoName).StringResult;
+                            }
+
+                            if (string.IsNullOrEmpty(propName)) break; // Pusty wpis = koniec dodawania
+
+                            PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj NOWĄ wartość dla [{propName}]: ");
+                            psoVal.AllowSpaces = true;
+                            string valStr = ed.GetString(psoVal).StringResult;
+
+                            if (!double.TryParse(valStr.Replace(",", "."), out _) && valStr.ToLower() != "true" && valStr.ToLower() != "false") valStr = $"\"{valStr}\"";
+
+                            propsList.Add($"{{\"Property\": \"{propName}\", \"Value\": {valStr}}}");
+                            licznikPropsow++;
+                        }
+
+                        if (propsList.Count > 0)
+                        {
+                            string polaczonePropsy = string.Join(", ", propsList);
+                            finalTag = $"[ACTION:SET_PROPERTIES {{\"Properties\": [{polaczonePropsy}]}}]";
+                        }
+                    }
+
+                    // --- [EDIT_BLOCK] ---
                     else if (pr.StringResult == "BlockEdit")
                     {
                         System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string>();
@@ -216,8 +469,13 @@ namespace BricsCAD_Agent
                         }
                         finalTag = $"[ACTION:EDIT_BLOCK {{{string.Join(", ", argsList)}}}]";
                     }
-                    // --- [GET_PROPERTIES] ---
-                    else if (pr.StringResult == "GetProperties")
+                    // --- [GET_PROPERTIES_LITE] ---
+                    else if (pr.StringResult == "GetPropsLite")
+                    {
+                        finalTag = "[ACTION:GET_PROPERTIES_LITE]";
+                    }
+                    // --- [GET_PROPERTIES FULL] ---
+                    else if (pr.StringResult == "FULLGETProps")
                     {
                         finalTag = "[ACTION:GET_PROPERTIES]";
                     }
@@ -456,12 +714,24 @@ namespace BricsCAD_Agent
                     int wynik = Komendy.WykonajInteligentneZaznaczenie(doc, wklejonyTag);
                     return $"Pomyślnie zaznaczono {wynik} obiekt(ów).";
                 }
+                                
+                else if (wklejonyTag.Contains("[ACTION:SET_PROPERTIES"))
+                {
+                    SetPropertiesTool tool = new SetPropertiesTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 else if (wklejonyTag.Contains("[ACTION:EDIT_BLOCK"))
                 {
                     EditBlockTool tool = new EditBlockTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
-                else if (wklejonyTag.Contains("[ACTION:GET_PROPERTIES"))
+                else if (wklejonyTag.Contains("[ACTION:GET_PROPERTIES_LITE]"))
+                {
+                    GetPropertiesToolLite tool = new GetPropertiesToolLite();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+                else if (wklejonyTag.Contains("[ACTION:GET_PROPERTIES]"))
                 {
                     GetPropertiesTool tool = new GetPropertiesTool();
                     return tool.Execute(doc, wklejonyTag);

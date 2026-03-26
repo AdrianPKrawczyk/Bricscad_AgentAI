@@ -1,70 +1,89 @@
 ﻿using Bricscad.ApplicationServices;
-using BricsCAD_Agent;
 using System;
+using System.Reflection;
+using System.Text;
 using Teigha.DatabaseServices;
+using Teigha.Geometry;
 
-public class GetPropertiesTool : ITool
+namespace BricsCAD_Agent
 {
-    public string ActionTag => "[ACTION:GET_PROPERTIES]";
-    public string Description => "Pobiera dokładne właściwości geometryczne (np. długość, promień, pole powierzchni) z zaznaczonych obiektów.";
-
-    public string Execute(Document doc, string args = "")
+    public class GetPropertiesTool : ITool
     {
-        ObjectId[] zaznaczenie = Komendy.AktywneZaznaczenie;
-        if (zaznaczenie == null || zaznaczenie.Length == 0)
-            return "WYNIK: Brak zaznaczonych obiektów. Użyj najpierw tagu SELECT.";
+        public string ActionTag => "[ACTION:GET_PROPERTIES]";
 
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine($"WYNIK: Pobrano właściwości dla {zaznaczenie.Length} zaznaczonych obiektów:");
+        public string Description =>
+            "Odczytuje i zwraca wszystkie dostępne właściwości zaznaczonych obiektów (wersja FULL). Nie wymaga argumentów.";
 
-        int limit = Math.Min(zaznaczenie.Length, 15); // Ograniczamy do 15, żeby nie przepalić pamięci LLM
-
-        using (Transaction tr = doc.TransactionManager.StartTransaction())
+        public string Execute(Document doc, string jsonArgs)
         {
-            for (int i = 0; i < limit; i++)
+            ObjectId[] ids = Komendy.AktywneZaznaczenie;
+            if (ids == null || ids.Length == 0) return "[Błąd]: Nie mam w pamięci żadnych obiektów! Użyj najpierw tagu SELECT.";
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("--- WŁAŚCIWOŚCI ZAZNACZONYCH OBIEKTÓW ---");
+
+            // Zabezpieczenie przed zapchaniem pamięci - jeśli ktoś zaznaczy 1000 linii, zbadamy tylko pierwsze 5 sztuk
+            int limitSkanowania = Math.Min(ids.Length, 5);
+
+            using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
-                Entity ent = tr.GetObject(zaznaczenie[i], OpenMode.ForRead) as Entity;
-                if (ent == null) continue;
+                for (int i = 0; i < limitSkanowania; i++)
+                {
+                    Entity ent = tr.GetObject(ids[i], OpenMode.ForRead) as Entity;
+                    if (ent == null) continue;
 
-                // Tłumaczenie przezroczystości z obiektu CAD na czytelne liczby
-                string transpStr = "0";
-                if (ent.Transparency.IsByAlpha) transpStr = Math.Round((255.0 - ent.Transparency.Alpha) / 255.0 * 100.0).ToString();
-                else if (ent.Transparency.IsByBlock) transpStr = "ByBlock";
-                else if (ent.Transparency.IsByLayer) transpStr = "ByLayer";
+                    sb.AppendLine($"\n[{i + 1}] KLASA: {ent.GetType().Name} (Handle: {ent.Handle})");
 
-                // Właściwości bazowe (wspólne dla każdego Entity)
-                sb.AppendLine($"- Obiekt {i + 1} [{ent.GetType().Name}]: Layer: {ent.Layer}, Color: {ent.ColorIndex}, Linetype: {ent.Linetype}, LineWeight: {ent.LineWeight}, Transp: {transpStr}");
+                    // Magia Refleksji: pobieramy WSZYSTKIE publiczne właściwości tego obiektu
+                    PropertyInfo[] properties = ent.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-                // Właściwości specyficzne dla danego typu
-                if (ent is Line line)
-                    sb.AppendLine($"  -> Length: {Math.Round(line.Length, 3)}, StartPt: {FormatPt(line.StartPoint)}, EndPt: {FormatPt(line.EndPoint)}");
-                else if (ent is Polyline pline)
-                    sb.AppendLine($"  -> Length: {Math.Round(pline.Length, 3)}, Area: {Math.Round(pline.Area, 3)}, Closed: {pline.Closed}, Elevation: {Math.Round(pline.Elevation, 3)}");
-                else if (ent is Circle circle)
-                    sb.AppendLine($"  -> Radius: {Math.Round(circle.Radius, 3)}, Area: {Math.Round(circle.Area, 3)}, Center: {FormatPt(circle.Center)}");
-                else if (ent is Arc arc)
-                    sb.AppendLine($"  -> Radius: {Math.Round(arc.Radius, 3)}, Length: {Math.Round(arc.Length, 3)}, Center: {FormatPt(arc.Center)}");
-                else if (ent is DBText txt)
-                    sb.AppendLine($"  -> Text: \"{txt.TextString}\", Height: {Math.Round(txt.Height, 3)}, Style: {txt.TextStyleName}");
-                else if (ent is MText mtxt)
-                    sb.AppendLine($"  -> Text: \"{mtxt.Text}\", Height: {Math.Round(mtxt.TextHeight, 3)}, Style: {mtxt.TextStyleName}");
-                else if (ent is Dimension dim)
-                    sb.AppendLine($"  -> Measurement: {Math.Round(dim.Measurement, 3)}, DimText: \"{dim.DimensionText}\", Style: {dim.DimensionStyleName}");
-                else if (ent is BlockReference br)
-                    sb.AppendLine($"  -> BlockName: {br.Name}, Position: {FormatPt(br.Position)}, Rotation: {Math.Round(br.Rotation, 3)}");
-                else if (ent is Hatch hatch)
-                    sb.AppendLine($"  -> Pattern: {hatch.PatternName}, Scale: {Math.Round(hatch.PatternScale, 3)}, Area: {Math.Round(hatch.Area, 3)}");
+                    // Sortujemy je alfabetycznie (konsekwencja UX)
+                    Array.Sort(properties, (x, y) => string.Compare(x.Name, y.Name));
+
+                    foreach (PropertyInfo prop in properties)
+                    {
+                        if (!prop.CanRead) continue;
+
+                        try
+                        {
+                            Type pt = prop.PropertyType;
+
+                            // FILTR BEZPIECZEŃSTWA: Wyciągamy tylko czytelne dla LLMa dane
+                            if (pt.IsPrimitive || pt.IsEnum || pt == typeof(string) ||
+                                pt == typeof(Point3d) || pt == typeof(Vector3d) ||
+                                pt.Name.Contains("Color") || pt.Name.Contains("LineWeight"))
+                            {
+                                object val = prop.GetValue(ent, null);
+                                if (val != null)
+                                {
+                                    // Sprytne formatowanie punktów 3D
+                                    if (val is Point3d p3d)
+                                        sb.AppendLine($"  - {prop.Name}: ({Math.Round(p3d.X, 3)}, {Math.Round(p3d.Y, 3)}, {Math.Round(p3d.Z, 3)})");
+                                    else if (val is Vector3d v3d)
+                                        sb.AppendLine($"  - {prop.Name}: [{Math.Round(v3d.X, 3)}, {Math.Round(v3d.Y, 3)}, {Math.Round(v3d.Z, 3)}]");
+                                    else
+                                        sb.AppendLine($"  - {prop.Name}: {val.ToString()}");
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Ciche ignorowanie właściwości, które rzucają błędem 
+                            // (np. gdy dany obiekt nie wspiera danej cechy mimo jej posiadania)
+                        }
+                    }
+                }
+                tr.Commit();
             }
-            tr.Commit();
+
+            if (ids.Length > 5)
+            {
+                sb.AppendLine($"\n... oraz {ids.Length - 5} innych obiektów (odczyt ograniczony do 5 pierwszych, by nie zapchać pamięci).");
+            }
+
+            return sb.ToString();
         }
 
-        if (zaznaczenie.Length > limit)
-            sb.AppendLine($"... i {zaznaczenie.Length - limit} innych ukrytych obiektów.");
-
-        return sb.ToString();
+        public string Execute(Document doc) { return Execute(doc, ""); }
     }
-
-    public string Execute(Document doc) => Execute(doc, "");
-
-    private string FormatPt(Teigha.Geometry.Point3d pt) => $"({Math.Round(pt.X, 2)}, {Math.Round(pt.Y, 2)}, {Math.Round(pt.Z, 2)})";
 }

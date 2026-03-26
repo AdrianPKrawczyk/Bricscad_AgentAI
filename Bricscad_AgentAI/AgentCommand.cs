@@ -62,8 +62,10 @@ namespace BricsCAD_Agent
         new TextEditTool(),
         new ReadTextSampleTool(),
         new AnalyzeSelectionTool(),
-        new GetPropertiesTool(),
+        new GetPropertiesToolLite(), // <--- WERSJA LEKKA
+        new GetPropertiesTool(),     // <--- WERSJA PEŁNA (REFLEKSJA)
         new EditBlockTool(),
+        new SetPropertiesTool(),
         };
 
         private static PaletteSet oknoAgenta = null;
@@ -109,9 +111,13 @@ namespace BricsCAD_Agent
                                 "Opis: Zmysł czytania Agenta. Użyj tego BEZWZGLĘDNIE ZANIM użyjesz narzędzi edycji tekstu (zwłaszcza trybu Replace), aby 'przeczytać' zawartość i zrozumieć strukturę zaznaczonych tekstów na rysunku. Pozwala to uniknąć błędów przy podmianie słów.\n" +
                                 "Argumenty: {}\n\n" +
 
+                                "Tag: [ACTION:GET_PROPERTIES_LITE]\n" +
+                                "Opis: Szybki skan podstawowych właściwości zaznaczonych obiektów (np. Kolor, Warstwa, Rodzaj Linii). Używaj tego domyślnie, aby oszczędzać pamięć.\n" +
+                                "Argumenty: Brak.\n\n" +
+
                                 "Tag: [ACTION:GET_PROPERTIES]\n" +
-                                "Opis: Użyj tego narzędzia, gdy użytkownik pyta o konkretne wymiary, długości, promienie, pola powierzchni lub parametry geometryczne już zaznaczonych obiektów.\n" +
-                                "Argumenty: {}\n\n" +
+                                "Opis: Głęboki skan wykorzystujący Refleksję. Zwraca absolutnie wszystkie dostępne właściwości dla maksymalnie 5 zaznaczonych obiektów. Używaj tylko wtedy, gdy potrzebujesz sprawdzić zaawansowane parametry geometryczne lub specyficzne ustawienia, których nie zwróciło narzędzie LITE.\n" +
+                                "Argumenty: Brak.\n\n" +
 
                                 "Tag: [ACTION:EDIT_BLOCK]\n" +
                                 "Opis: Edytuje wnętrza zaznaczonych bloków (BlockReference) oraz ich atrybuty. Wszystkie parametry są opcjonalne, ale musisz podać co najmniej jeden do zmiany.\n" +
@@ -119,6 +125,10 @@ namespace BricsCAD_Agent
                                 "Przykład 1 (tylko kolor): [ACTION:EDIT_BLOCK {\"Color\": 7}]\n" +
                                 "Przykład 2 (tylko czerwone na czarne): [ACTION:EDIT_BLOCK {\"Color\": 7, \"FilterColor\": 1}]\n" +
                                 "UWAGA: Nie pytaj użytkownika o zgodę ani potwierdzenie parametrów! Jeśli użytkownik pisze 'zmień na czarny', po prostu od razu wygeneruj tag działania!\n\n" +
+
+                                "Tag: [ACTION:SET_PROPERTIES]\n" +
+                                "Opis: Uniwersalne narzędzie do zmiany właściwości zaznaczonych obiektów (np. Koloru, Warstwy, Rodzaju Linii, Skali, itp.).\n" +
+                                "Argumenty: Zbuduj JSON z listą \"Properties\". Przykład: [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Instalacje\"}, {\"Property\": \"Color\", \"Value\": 256}]}]\n\n" +
 
                                 "User: Zaznacz linie dłuższe niż 50\n" +
                                 "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
@@ -412,16 +422,23 @@ namespace BricsCAD_Agent
                 if (!File.Exists(path)) return 0;
                 try
                 {
-                    string content = File.ReadAllText(path);
-                    // NOWY REGEX: Łapie klucz przed '|' i całą resztę aż do następnego klucza
-                    var matches = Regex.Matches(content, @"([^|\r\n]+)\|(.*?)(?=(?:[^|\r\n]+\||$))",
-                                  RegexOptions.Singleline | RegexOptions.IgnoreCase);
+                    string content = File.ReadAllText(path, Encoding.UTF8);
+                    var matches = Regex.Matches(content, @"\b([a-zA-Z0-9_]+)\|(.*?)(?=\b[a-zA-Z0-9_]+\||$)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+                    // BIAŁA LISTA najpopularniejszych klas graficznych chroniąca Agenta przed przeładowaniem
+                    string[] bLista = { "Entity", "Line", "Polyline", "Polyline2d", "Polyline3d", "Arc", "Circle", "Ellipse", "Spline", "DBPoint", "Xline", "Ray", "Hatch", "Region", "Wipeout", "MText", "DBText", "Dimension", "AlignedDimension", "RotatedDimension", "RadialDimension", "DiametricDimension", "ArcDimension", "LineAngularDimension2", "Point3AngularDimension", "Leader", "MLeader", "Solid3d", "Surface", "Solid", "Trace", "PolyFaceMesh", "PolygonMesh", "Face", "BlockReference" };
+                    var hsBialaLista = new HashSet<string>(bLista, StringComparer.OrdinalIgnoreCase);
 
                     foreach (Match m in matches)
                     {
                         string klucz = m.Groups[1].Value.Trim().ToLower();
-                        string wartosc = m.Groups[2].Value.Trim();
-                        dict[klucz] = wartosc;
+                        if (klucz.Contains(" ") || klucz.Length > 35) continue;
+
+                        if (hsBialaLista.Contains(klucz))
+                        {
+                            string wartosc = m.Groups[2].Value.Trim();
+                            dict[klucz] = wartosc;
+                        }
                     }
                     return dict.Count;
                 }

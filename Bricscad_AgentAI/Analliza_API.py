@@ -1,0 +1,45 @@
+import re
+import os
+
+# Nazwa Twojego pliku do sprawdzenia
+file_path = "BricsCAD_API_V22 — 3000.txt"
+
+def sprawdz_baze():
+    if not os.path.exists(file_path):
+        print(f"BŁĄD: Nie znaleziono pliku '{file_path}' w obecnym folderze.")
+        return
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Wyrażenie regularne szukające słów przed znakiem '|'
+        # Szuka: granica słowa -> ciąg znaków alfanumerycznych -> znak '|'
+        pattern = re.compile(r'\b([a-zA-Z0-9_]+)\|')
+        
+        # Znajdź wszystkie dopasowania
+        raw_matches = pattern.findall(content)
+
+        # Filtrujemy śmieci (tak jak w C#: brak spacji i krótka nazwa)
+        valid_classes = []
+        for match in raw_matches:
+            match_clean = match.strip()
+            if " " not in match_clean and len(match_clean) < 35:
+                valid_classes.append(match_clean.capitalize())
+
+        # Usuwamy ewentualne duplikaty, zachowując kolejność
+        unique_classes = list(dict.fromkeys(valid_classes))
+
+        print(f"\n--- WYNIK ANALIZY PLIKU: {file_path} ---")
+        print(f"Całkowita liczba znalezionych klas: {len(unique_classes)}")
+        print("-" * 45)
+        
+        # Wyświetlamy w kolumnach dla czytelności
+        for i, cls in enumerate(unique_classes, 1):
+            print(f"{i:03d}. {cls}")
+            
+    except Exception as e:
+        print(f"Wystąpił błąd podczas czytania pliku: {e}")
+
+if __name__ == "__main__":
+    sprawdz_baze()
