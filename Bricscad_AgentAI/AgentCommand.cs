@@ -617,7 +617,11 @@ namespace BricsCAD_Agent
                             Entity zaznaczonyEnt = tr.GetObject(id, OpenMode.ForRead) as Entity;
                             if (zaznaczonyEnt is BlockReference br)
                             {
-                                blokiDoPrzeszukania.Add(br.BlockTableRecord);
+                                // Zapobiega sprawdzaniu dwa razy tej samej definicji bloku (duplikatom)
+                                if (!blokiDoPrzeszukania.Contains(br.BlockTableRecord))
+                                {
+                                    blokiDoPrzeszukania.Add(br.BlockTableRecord);
+                                }
                             }
                         }
 
@@ -842,7 +846,7 @@ namespace BricsCAD_Agent
                             }
                             if (spelniaWszystkie) znalezioneObiekty.Add(objId);
                         }
-                        tr.Commit();
+                        
                     }
 
                     // =========================================================
@@ -868,9 +872,23 @@ namespace BricsCAD_Agent
 
                     if (koncowe.Count > 0)
                     {
-                        ed.SetImpliedSelection(koncowe.ToArray());
+                        // 1. Zabezpieczenie przez ewentualnymi duplikatami po łączeniu list
+                        koncowe = koncowe.Distinct().ToList();
+
+                        // 2. Podświetlamy obiekty na ekranie TYLKO jeśli nie są wewnątrz bloku!
+                        if (!scopeStr.Equals("Blocks", StringComparison.OrdinalIgnoreCase))
+                        {
+                            try { ed.SetImpliedSelection(koncowe.ToArray()); }
+                            catch { } // Ciche ignorowanie, jeśli CAD zabroni podświetlić jakiś ukryty obiekt
+                        }
+                        else
+                        {
+                            ed.WriteMessage("\n[Info]: Zapisano obiekty z wnętrza bloków do pamięci Agenta (brak podświetlenia na ekranie).");
+                        }
+
+                        // 3. Niezależnie od błędu graficznego, ZAPISUJEMY obiekty w pamięci C# do dalszej edycji!
                         AktywneZaznaczenie = koncowe.ToArray();
-                        ed.WriteMessage($"\n[Sukces]: Aktywne zaznaczenie: {koncowe.Count} obiekt(ów)!");
+                        ed.WriteMessage($"\n[Sukces]: Aktywne zaznaczenie w pamięci: {koncowe.Count} obiekt(ów)!");
                         return koncowe.Count;
                     }
                     else
@@ -878,6 +896,9 @@ namespace BricsCAD_Agent
                         ed.WriteMessage("\n[System]: Wynik zaznaczenia jest pusty.");
                         ed.SetImpliedSelection(new ObjectId[0]);
                         AktywneZaznaczenie = new ObjectId[0];
+
+                        tr.Commit();
+
                         return 0;
                     }
                 }
