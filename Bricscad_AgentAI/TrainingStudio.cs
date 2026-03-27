@@ -40,6 +40,7 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("Select");
                     pko.Keywords.Add("SETProps");
                     pko.Keywords.Add("BlockEdit");
+                    pko.Keywords.Add("ListBlocks");
                     pko.Keywords.Add("GetPropsLite"); // <--- Zmiana
                     pko.Keywords.Add("FULLGETProps"); // <--- Nowa opcja
                     pko.Keywords.Add("FormatMText");
@@ -551,6 +552,13 @@ namespace BricsCAD_Agent
                     {
                         finalTag = "[ACTION:GET_PROPERTIES]";
                     }
+
+                    // --- [LIST_BLOCKS] ---
+                    else if (pr.StringResult == "ListBlocks")
+                    {
+                        finalTag = "[ACTION:LIST_BLOCKS]";
+                    }
+
                     // --- [MTEXT_FORMAT] ---
                     else if (pr.StringResult == "FormatMText")
                     {
@@ -808,6 +816,13 @@ namespace BricsCAD_Agent
                     GetPropertiesTool tool = new GetPropertiesTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
+
+                else if (wklejonyTag.Contains("[ACTION:LIST_BLOCKS]"))
+                {
+                    ListBlocksTool tool = new ListBlocksTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 else if (wklejonyTag.Contains("[ACTION:MTEXT_FORMAT"))
                 {
                     MTextFormatTool tool = new MTextFormatTool();

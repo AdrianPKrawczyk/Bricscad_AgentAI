@@ -6,13 +6,19 @@ using Bricscad.ApplicationServices;
 
 namespace BricsCAD_Agent
 {
-    // NOWOŚĆ: Dopisek ": ITool"
     public class ListBlocksTool : ITool
     {
-        // NOWOŚĆ: Zwróć uwagę na argumenty. Muszą być dokładnie takie jak w innych narzędziach (np. dodany string jsonArgs)
-        public string Execute(string jsonArgs, Document doc, List<ObjectId> aktywneZaznaczenie)
+        // 1. Wymagane właściwości z interfejsu (to dzięki nim AgentCommand sam rozpoznaje to narzędzie!)
+        public string ActionTag => "[ACTION:LIST_BLOCKS]";
+        public string Description => "Zwraca listę wszystkich unikalnych (niepowtarzających się) nazw bloków z aktualnego zaznaczenia. Nie wymaga argumentów JSON.";
+
+        // 2. Główna metoda Execute
+        public string Execute(Document doc, string jsonArgs)
         {
-            if (aktywneZaznaczenie == null || aktywneZaznaczenie.Count == 0)
+            // Pobieramy zaznaczenie z pamięci globalnej Agenta, dokładnie tak jak w AnalyzeSelectionTool
+            ObjectId[] ids = Komendy.AktywneZaznaczenie;
+
+            if (ids == null || ids.Length == 0)
             {
                 return "WYNIK: Brak zaznaczonych obiektów.";
             }
@@ -21,12 +27,12 @@ namespace BricsCAD_Agent
 
             using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in aktywneZaznaczenie)
+                foreach (ObjectId id in ids)
                 {
                     Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                     if (ent is BlockReference blkRef)
                     {
-                        // Chroni przed nazwami bloków dynamicznych (*U...)
+                        // Chroni przed ukrytymi nazwami bloków dynamicznych
                         BlockTableRecord btr = tr.GetObject(blkRef.DynamicBlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
 
                         if (btr != null)
@@ -53,5 +59,8 @@ namespace BricsCAD_Agent
 
             return $"WYNIK: Znaleziono unikalne bloki ({posortowane.Count}): {lista}";
         }
+
+        // 3. Druga wymagana metoda z interfejsu (przekierowuje do głównej z pustym JSON-em)
+        public string Execute(Document doc) => Execute(doc, "");
     }
 }
