@@ -64,11 +64,13 @@
     <Compile Include="EditBlockTool.cs" />
     <Compile Include="GetPropertiesTool.cs" />
     <Compile Include="GetPropertiesToolLite.cs" />
+    <Compile Include="ListBlocksTool.cs" />
     <Compile Include="MTextEditTool.cs" />
     <Compile Include="MTextFormatTool.cs" />
     <Compile Include="ITool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReadTextSampleTool.cs" />
+    <Compile Include="RpnCalculator.cs" />
     <Compile Include="SetPropertiesTool.cs" />
     <Compile Include="TextEditTool.cs" />
     <Compile Include="TrainingStudio.cs" />

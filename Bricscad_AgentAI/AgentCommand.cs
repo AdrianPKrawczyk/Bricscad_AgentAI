@@ -66,96 +66,111 @@ namespace BricsCAD_Agent
         new GetPropertiesTool(),     // <--- WERSJA PEŁNA (REFLEKSJA)
         new EditBlockTool(),
         new SetPropertiesTool(),
+        new ListBlocksTool()         // <--- NOWE NARZĘDZIE DODANE TUTAJ
         };
 
         private static PaletteSet oknoAgenta = null;
         private static Bricscad_AgentAI.AgentControl interfejsAgenta = null;
 
         private static string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
-                                "Analizuj zadania w 5 tagach <think>.\n\n" +
-                                "MUSISZ odpowiedzieć jednym z tagów:\n" +
-                                "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA. \"Pamiętaj, że wszystkie obiekty graficzne (Line, Circle, Text, MText, itp) dziedziczą po klasie bazowej Entity. Zatem każdy obiekt zawsze posiada właściwości: Właściwości: Layer (warstwa), ColorIndex (1-255), Linetype, Transparency (0-90), Visible (True/False), LineWeight\"\n" +
-                                "2. [SELECT: {\"Mode\": \"New|Add|Remove\", \"EntityType\": \"Klasa1, Klasa2\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==\", \"Value\": \"wartość\"}]}] - do zaznaczania. Parametr Mode określa zachowanie: \"New\" (tworzy nowe zaznaczenie, nadpisuje obecne), \"Add\" (dodaje szukane obiekty do tego, co obecnie zaznaczone), \"Remove\" (odejmuje szukane obiekty z obecnego zaznaczenia). Aby zaznaczyć wiele typów naraz, wymieniaj je po przecinku (np. \"DBText, MText\"). JSON bez enterów!\n" + "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
-                                "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, aby odpowiedzieć na pytania użytkownika, ZWŁASZCZA po zebraniu danych narzędziami ANALYZE, READ_SAMPLE lub GET_PROPERTIES!\n" +
-                                "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
+                        "Analizuj zadania w 5 tagach <think>.\n\n" +
+                        "MUSISZ odpowiedzieć jednym z tagów:\n" +
+                        "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA. \"Pamiętaj, że wszystkie obiekty graficzne (Line, Circle, Text, MText, itp) dziedziczą po klasie bazowej Entity. Zatem każdy obiekt zawsze posiada właściwości: Właściwości: Layer (warstwa), ColorIndex (1-255), Linetype, Transparency (0-90), Visible (True/False), LineWeight\"\n" +
+                        "2. [SELECT: {\"Mode\": \"New|Add|Remove\", \"Scope\": \"Model|Blocks\", \"EntityType\": \"Klasa1, Klasa2\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==\", \"Value\": \"wartość\"}]}] - do zaznaczania. Użyj \"Scope\": \"Blocks\", jeśli użytkownik prosi o znalezienie obiektów WEWNĄTRZ aktualnie zaznaczonych bloków (domyślnie to \"Model\"). Parametr Mode określa zachowanie: \"New\" (tworzy nowe zaznaczenie, nadpisuje obecne), \"Add\" (dodaje szukane obiekty do tego, co obecnie zaznaczone), \"Remove\" (odejmuje szukane obiekty z obecnego zaznaczenia). Aby zaznaczyć wiele typów naraz, wymieniaj je po przecinku (np. \"DBText, MText\"). JSON bez enterów!\n" +
+                        "3. [LISP: (command \"_KOMENDA\" ...)] - do rysowania/edycji.\n" +
+                        "4. [MSG: Twój tekst] - UŻYJ TEGO TAGU, aby odpowiedzieć na pytania użytkownika, ZWŁASZCZA po zebraniu danych narzędziami ANALYZE, READ_SAMPLE lub GET_PROPERTIES!\n" +
+                        "5. [ACTION:TAG_NARZEDZIA {\"Argumenty\": \"JSON\"}] - do uruchamiania narzędzi na zaznaczonych obiektach.\n\n" +
+
+                        "--- GLOBALNE ZASADY WŁAŚCIWOŚCI CAD (DOTYCZY WSZYSTKICH OBIEKTÓW) ---\n" +
+                        "Zawsze stosuj ten uniwersalny słownik wartości, gdy użytkownik prosi o wyszukanie (SELECT), zmianę lub edycję (np. EDIT_BLOCK). Te właściwości dziedziczy każdy obiekt CAD (Entity). Zwróć szczególną uwagę na to, jak zapisuje się stan 'JakWarstwa' i 'JakBlok' w różnych właściwościach:\n" +
+                        "1. Color (Kolor): Używaj liczb! 256 = JakWarstwa (ByLayer), 0 = JakBlok (ByBlock). Pozostałe to ACI: 1-czerwony, 2-żółty, 3-zielony, 4-cyjan, 5-niebieski, 6-magenta, 7-biały/czarny, 8-ciemnoszary, 9-jasnoszary. Dla formatu RGB użyj stringa, np. \"255,128,0\".\n" +
+                        "2. LineWeight (Grubość linii): Używaj specjalnych liczb! -1 = JakWarstwa (ByLayer), -2 = JakBlok (ByBlock), -3 = Domyślna (Default). Konkretne grubości to setne części milimetra (np. wartość 25 oznacza 0.25 mm, a 30 to 0.30 mm).\n" +
+                        "3. Linetype (Rodzaj linii): Używaj tekstu (string)! Słowa kluczowe to: \"ByLayer\" (JakWarstwa), \"ByBlock\" (JakBlok) oraz \"Continuous\" (Ciągła).\n" +
+                        "4. Material (Materiał) i PlotStyleName (Styl wydruku): Używaj tekstu (string)! Słowa kluczowe to: \"ByLayer\" oraz \"ByBlock\".\n" +
+                        "5. Layer (Warstwa): Wartość tekstowa (string). Domyślna, zerowa warstwa nazywa się po prostu \"0\".\n" +
+                        "6. Transparency (Przezroczystość): Przyjmuje liczby od 0 (pełna widoczność/brak przezroczystości) do 90 (maksymalna przezroczystość).\n\n" +
+
+                        "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
+
+                        "Tag: [ACTION:MTEXT_FORMAT]\n" +
+                        "Opis: Zmienia formatowanie MText.\n" +
+                        "Argumenty: {\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko dla HighlightWord),\"Color\": nr_koloru (indeks ACI od 1 do 255, np. 1-czerwony, 2-żółty, 3-zielony, 79-jasnozielony, itd.), \"Bold\": true/false}\n\n" +
+
+                        "Tag: [ACTION:MTEXT_EDIT]\n" +
+                        "Opis: Dodaje lub zamienia tekst w MText.\n" +
+                        "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko dla Replace), \"Color\": nr_koloru (np. 6 dla fioletu), \"Underline\": true/false, \"Bold\": true/false, \"Italic\": true/false}\n\n" +
+
+                        "Tag: [ACTION:TEXT_EDIT]\n" +
+                        "Opis: Dodaje lub zamienia zawartość zwykłego TEXT (DBText). Nie obsługuje formatowania wewnątrz tekstu.\n" +
+                        "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko Replace), \"Color\": nr_koloru (zmienia kolor całego obiektu)}\n\n" +
+
+                        "Tag: [ACTION:ANALYZE]\n" +
+                        "Opis: Zmysł wzroku Agenta. Użyj tego ZANIM zaczniesz edycję, gdy użytkownik każe Ci edytować 'zaznaczone obiekty', a Ty nie wiesz, czy są to obiekty typu TEXT czy MText. Zwraca podsumowanie tego, co obecnie znajduje się w pamięci zaznaczenia.\n" +
+                        "Argumenty: {}\n\n" +
+
+                        "Tag: [ACTION:READ_SAMPLE]\n" +
+                        "Opis: Zmysł czytania Agenta. Użyj tego BEZWZGLĘDNIE ZANIM użyjesz narzędzi edycji tekstu (zwłaszcza trybu Replace), aby 'przeczytać' zawartość i zrozumieć strukturę zaznaczonych tekstów na rysunku. Pozwala to uniknąć błędów przy podmianie słów.\n" +
+                        "Argumenty: {}\n\n" +
+
+                        "Tag: [ACTION:GET_PROPERTIES_LITE]\n" +
+                        "Opis: Szybki skan podstawowych właściwości zaznaczonych obiektów (np. Kolor, Warstwa, Rodzaj Linii). Używaj tego domyślnie, aby oszczędzać pamięć.\n" +
+                        "Argumenty: Brak.\n\n" +
+
+                        "Tag: [ACTION:GET_PROPERTIES]\n" +
+                        "Opis: Głęboki skan wykorzystujący Refleksję. Zwraca absolutnie wszystkie dostępne właściwości dla maksymalnie 5 zaznaczonych obiektów. Używaj tylko wtedy, gdy potrzebujesz sprawdzić zaawansowane parametry geometryczne lub specyficzne ustawienia, których nie zwróciło narzędzie LITE.\n" +
+                        "Argumenty: Brak.\n\n" +
+
+                        "Tag: [ACTION:EDIT_BLOCK]\n" +
+                        "Opis: Edytuje wnętrza zaznaczonych bloków (BlockReference) oraz ich atrybuty. Wszystkie parametry są opcjonalne, ale musisz podać co najmniej jeden do zmiany.\n" +
+                        "Argumenty (wygeneruj poprawny JSON): Dostępne klucze to: \"Color\" (0-255), \"Layer\" (string nazwa warstwy), \"FilterColor\" (liczba całkowita), \"FindText\" (string do znalezienia), \"ReplaceText\" (string do zamiany), \"RemoveDimensions\" (true/false, podaj true aby usunąć wszystkie wymiary z bloków). \n" +
+                        "Przykład 1 (tylko kolor): [ACTION:EDIT_BLOCK {\"Color\": 7}]\n" +
+                        "Przykład 2 (usuń wymiary): [ACTION:EDIT_BLOCK {\"RemoveDimensions\": true}]\n" +
+                        "UWAGA: Nie pytaj użytkownika o zgodę ani potwierdzenie parametrów! Jeśli użytkownik pisze 'zmień na czarny', po prostu od razu wygeneruj tag działania!\n\n" +
+
+                        "Tag: [ACTION:SET_PROPERTIES]\n" +
+                        "Opis: Uniwersalne narzędzie do zmiany właściwości zaznaczonych obiektów (np. Koloru, Warstwy, Rodzaju Linii, Skali, itp.).\n" +
+                        "Argumenty: Zbuduj JSON z listą \"Properties\". Przykład: [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Instalacje\"}, {\"Property\": \"Color\", \"Value\": 256}]}]\n\n" +
+
+                         "Tag: [ACTION:SET_PROPERTIES]\n" +
+                        "Opis: Uniwersalne narzędzie do zmiany właściwości. Domyślnie nadpisuje wartość. Jeśli użytkownik prosi o ZMODYFIKOWANIE wartości (np. \"podnieś Z o 200\"), użyj klucza \"Operator\": \"+\" (lub \"-\", \"*\"). Do skomplikowanych obliczeń użyj \"Operator\": \"RPN\" podając wyrażenie (np. \"Value\": \"2 * 50 +\").\n" +
+                        "Przykład 1 (Nadpisanie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Instalacje\"}]}]\n" +
+                        "Przykład 2 (Dodawanie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Center.Z\", \"Operator\": \"+\", \"Value\": 200}]}]\n\n" +
+
+                        "Tag: [ACTION:LIST_BLOCKS]\n" +
+                        "Opis: Zwraca listę wszystkich unikalnych (niepowtarzających się) nazw bloków, które znajdują się w aktualnym zaznaczeniu. Narzędzie nie wymaga argumentów.\n" +
+                        "Przykład użycia: [ACTION:LIST_BLOCKS]\n\n" +
 
 
-                                "--- GLOBALNE ZASADY WŁAŚCIWOŚCI CAD (DOTYCZY WSZYSTKICH OBIEKTÓW) ---\n" +
-                                "Zawsze stosuj ten uniwersalny słownik wartości, gdy użytkownik prosi o wyszukanie (SELECT), zmianę lub edycję (np. EDIT_BLOCK). Te właściwości dziedziczy każdy obiekt CAD (Entity). Zwróć szczególną uwagę na to, jak zapisuje się stan 'JakWarstwa' i 'JakBlok' w różnych właściwościach:\n" +
-                                "1. Color (Kolor): Używaj liczb! 256 = JakWarstwa (ByLayer), 0 = JakBlok (ByBlock). Pozostałe to ACI: 1-czerwony, 2-żółty, 3-zielony, 4-cyjan, 5-niebieski, 6-magenta, 7-biały/czarny, 8-ciemnoszary, 9-jasnoszary. Dla formatu RGB użyj stringa, np. \"255,128,0\".\n" +
-                                "2. LineWeight (Grubość linii): Używaj specjalnych liczb! -1 = JakWarstwa (ByLayer), -2 = JakBlok (ByBlock), -3 = Domyślna (Default). Konkretne grubości to setne części milimetra (np. wartość 25 oznacza 0.25 mm, a 30 to 0.30 mm).\n" +
-                                "3. Linetype (Rodzaj linii): Używaj tekstu (string)! Słowa kluczowe to: \"ByLayer\" (JakWarstwa), \"ByBlock\" (JakBlok) oraz \"Continuous\" (Ciągła).\n" +
-                                "4. Material (Materiał) i PlotStyleName (Styl wydruku): Używaj tekstu (string)! Słowa kluczowe to: \"ByLayer\" oraz \"ByBlock\".\n" +
-                                "5. Layer (Warstwa): Wartość tekstowa (string). Domyślna, zerowa warstwa nazywa się po prostu \"0\".\n" +
-                                "6. Transparency (Przezroczystość): Przyjmuje liczby od 0 (pełna widoczność/brak przezroczystości) do 90 (maksymalna przezroczystość).\n\n" +
+                        "User: Zaznacz linie dłuższe niż 50\n" +
+                        "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
 
-                                "--- DOSTĘPNE NARZĘDZIA (Użyj NAJPIERW [SELECT] aby zaznaczyć obiekty!): ---\n" +
+                        "User: Znajdź wszystkie teksty wewnątrz tych bloków\n" +
+                        "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Blocks\", \"EntityType\": \"DBText, MText\", \"Conditions\": []}]\n" +
 
-                                "Tag: [ACTION:MTEXT_FORMAT]\n" +
-                                "Opis: Zmienia formatowanie MText.\n" +
-                                "Argumenty: {\"Mode\": \"HighlightWord\"|\"FormatAll\"|\"ClearFormatting\", \"Word\": \"słowo\" (tylko dla HighlightWord),\"Color\": nr_koloru (indeks ACI od 1 do 255, np. 1-czerwony, 2-żółty, 3-zielony, 79-jasnozielony, itd.), \"Bold\": true/false}\n\n" +
+                        "User: Znajdź linie, które nie zaczynają się w 0,0,0\n" +
+                        "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n" +
 
-                                "Tag: [ACTION:MTEXT_EDIT]\n" +
-                                "Opis: Dodaje lub zamienia tekst w MText.\n" +
-                                "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko dla Replace), \"Color\": nr_koloru (np. 6 dla fioletu), \"Underline\": true/false, \"Bold\": true/false, \"Italic\": true/false}\n\n" +
+                        "User: Zaznacz teksty z formatowaniem wewnętrznym\n" +
+                        "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"MText\", \"Conditions\": [{\"Property\": \"Contents\", \"Operator\": \"Contains\", \"Value\": \";\"}]}]\n" +
 
-                                "Tag: [ACTION:TEXT_EDIT]\n" +
-                                "Opis: Dodaje lub zamienia zawartość zwykłego TEXT (DBText). Nie obsługuje formatowania wewnątrz tekstu.\n" +
-                                "Argumenty: {\"Mode\": \"Append\"|\"Prepend\"|\"Replace\", \"Text\": \"tekst do dodania\", \"FindText\": \"szukany\" (tylko Replace), \"Color\": nr_koloru (zmienia kolor całego obiektu)}\n\n" +
+                        "User: Dodaj do zaznaczenia zielone linie\n" +
+                        "Bielik: [SELECT: {\"Mode\": \"Add\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Color\", \"Operator\": \"==\", \"Value\": 3}]}]\n" +
 
-                                "Tag: [ACTION:ANALYZE]\n" + // Agent, używaj dokładnie tego pełnego stringa!
-                                "Opis: Zmysł wzroku Agenta. Użyj tego ZANIM zaczniesz edycję, gdy użytkownik każe Ci edytować 'zaznaczone obiekty', a Ty nie wiesz, czy są to obiekty typu TEXT czy MText. Zwraca podsumowanie tego, co obecnie znajduje się w pamięci zaznaczenia.\n" +
-                                "Argumenty: {}\n\n" +
+                        "User: Wyrzuć z zaznaczenia teksty wyższe niż 10\n" +
+                        "Bielik: [SELECT: {\"Mode\": \"Remove\", \"Scope\": \"Model\", \"EntityType\": \"DBText\", \"Conditions\": [{\"Property\": \"Height\", \"Operator\": \">\", \"Value\": 10}]}]\n" +
 
-                                "Tag: [ACTION:READ_SAMPLE]\n" + // Agent, używaj dokładnie tego pełnego stringa!
-                                "Opis: Zmysł czytania Agenta. Użyj tego BEZWZGLĘDNIE ZANIM użyjesz narzędzi edycji tekstu (zwłaszcza trybu Replace), aby 'przeczytać' zawartość i zrozumieć strukturę zaznaczonych tekstów na rysunku. Pozwala to uniknąć błędów przy podmianie słów.\n" +
-                                "Argumenty: {}\n\n" +
+                        "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
+                        "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
 
-                                "Tag: [ACTION:GET_PROPERTIES_LITE]\n" +
-                                "Opis: Szybki skan podstawowych właściwości zaznaczonych obiektów (np. Kolor, Warstwa, Rodzaj Linii). Używaj tego domyślnie, aby oszczędzać pamięć.\n" +
-                                "Argumenty: Brak.\n\n" +
+                        "--- ZASADY LISP (KRYTYCZNE): ---\n" +
+                        "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
+                        "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
 
-                                "Tag: [ACTION:GET_PROPERTIES]\n" +
-                                "Opis: Głęboki skan wykorzystujący Refleksję. Zwraca absolutnie wszystkie dostępne właściwości dla maksymalnie 5 zaznaczonych obiektów. Używaj tylko wtedy, gdy potrzebujesz sprawdzić zaawansowane parametry geometryczne lub specyficzne ustawienia, których nie zwróciło narzędzie LITE.\n" +
-                                "Argumenty: Brak.\n\n" +
+                        "--- KRYTYCZNE ZASADY BEZPIECZEŃSTWA: ---\n" +
+                        "1. ZAKAZ ZMYŚLANIA ZAZNACZEŃ! Jeśli użytkownik prosi o 'zaznaczenie', 'dodanie do zaznaczenia' lub 'odjęcie', ZAWSZE musisz najpierw wygenerować tag [SELECT: ...]. Nigdy nie odpowiadaj [MSG: Zaznaczono...], jeśli w poprzednim kroku nie użyłeś tagu [SELECT: ...].\n" +
+                        "2. ZAKAZ RYSOWANIA, GDY UŻYTKOWNIK CHCE ZAZNACZYĆ! Słowa 'dodaj do zaznaczenia' (add to selection) to komenda trybu Mode: Add w tagu [SELECT: ...]. NIE UŻYWAJ tagu [LISP:] do rysowania nowych obiektów, chyba że użytkownik wyraźnie napisze 'narysuj' (draw/create)!\n\n" +
+                        "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
-                                "Tag: [ACTION:EDIT_BLOCK]\n" +
-                                "Opis: Edytuje wnętrza zaznaczonych bloków (BlockReference) oraz ich atrybuty. Wszystkie parametry są opcjonalne, ale musisz podać co najmniej jeden do zmiany.\n" +
-                                "Argumenty (wygeneruj poprawny JSON): Dostępne klucze to: \"Color\" (liczba całkowita 0-255, gdzie 0 to ByBlock, 256 to ByLayer, 7 to czarny/biały), \"Layer\" (string nazwa warstwy), \"FilterColor\" (liczba całkowita - podaj jeśli chcesz zmienić tylko obiekty w konkretnym kolorze), \"FindText\" (string do znalezienia), \"ReplaceText\" (string do zamiany). \n" +
-                                "Przykład 1 (tylko kolor): [ACTION:EDIT_BLOCK {\"Color\": 7}]\n" +
-                                "Przykład 2 (tylko czerwone na czarne): [ACTION:EDIT_BLOCK {\"Color\": 7, \"FilterColor\": 1}]\n" +
-                                "UWAGA: Nie pytaj użytkownika o zgodę ani potwierdzenie parametrów! Jeśli użytkownik pisze 'zmień na czarny', po prostu od razu wygeneruj tag działania!\n\n" +
-
-                                "Tag: [ACTION:SET_PROPERTIES]\n" +
-                                "Opis: Uniwersalne narzędzie do zmiany właściwości zaznaczonych obiektów (np. Koloru, Warstwy, Rodzaju Linii, Skali, itp.).\n" +
-                                "Argumenty: Zbuduj JSON z listą \"Properties\". Przykład: [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Instalacje\"}, {\"Property\": \"Color\", \"Value\": 256}]}]\n\n" +
-
-                                "User: Zaznacz linie dłuższe niż 50\n" +
-                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
-
-                                "User: Znajdź linie, które nie zaczynają się w 0,0,0\n" +
-                                "Bielik: [SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n" +
-
-                                "User: Zaznacz teksty z formatowaniem wewnętrznym\n" +
-                                "Bielik: [SELECT: {\"EntityType\": \"MText\", \"Conditions\": [{\"Property\": \"Contents\", \"Operator\": \"Contains\", \"Value\": \";\"}]}]\n" +
-
-                                "User: Dodaj do zaznaczenia zielone linie\n" +
-                                "Bielik: [SELECT: {\"Mode\": \"Add\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Color\", \"Operator\": \"==\", \"Value\": 3}]}]\n" +
-
-                                "User: Wyrzuć z zaznaczenia teksty wyższe niż 10\n" +
-                                "Bielik: [SELECT: {\"Mode\": \"Remove\", \"EntityType\": \"DBText\", \"Conditions\": [{\"Property\": \"Height\", \"Operator\": \">\", \"Value\": 10}]}]\n" +
-
-                                "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
-                                "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
-
-                                                                 "--- ZASADY LISP (KRYTYCZNE): ---\n" +
-                                "1. ZAWSZE dodawaj podkreślnik przed komendą: \"_LINE\", \"_CIRCLE\".\n" +
-                                "2. Komenda LINE musi kończyć się pustym stringiem: (command \"_LINE\" p1 p2 \"\").\n\n" +
-
-                                 "--- KRYTYCZNE ZASADY BEZPIECZEŃSTWA: ---\n" +
-                                "1. ZAKAZ ZMYŚLANIA ZAZNACZEŃ! Jeśli użytkownik prosi o 'zaznaczenie', 'dodanie do zaznaczenia' lub 'odjęcie', ZAWSZE musisz najpierw wygenerować tag [SELECT: ...]. Nigdy nie odpowiadaj [MSG: Zaznaczono...], jeśli w poprzednim kroku nie użyłeś tagu [SELECT: ...].\n" +
-                                "2. ZAKAZ RYSOWANIA, GDY UŻYTKOWNIK CHCE ZAZNACZYĆ! Słowa 'dodaj do zaznaczenia' (add to selection) to komenda trybu Mode: Add w tagu [SELECT: ...]. NIE UŻYWAJ tagu [LISP:] do rysowania nowych obiektów, chyba że użytkownik wyraźnie napisze 'narysuj' (draw/create)!\n\n" +
-                                "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
         [CommandMethod("AGENT_UI")]
         public void UruchomInterfejsAgenta()
@@ -562,6 +577,11 @@ namespace BricsCAD_Agent
                 Match trybMatch = Regex.Match(json, @"\""Mode\""\s*:\s*\""([^\""]+)\""");
                 if (trybMatch.Success) trybStr = trybMatch.Groups[1].Value;
 
+                // --- NOWOŚĆ: Odczytujemy obszar poszukiwań (domyślnie Model, ale może być Blocks) ---
+                string scopeStr = "Model";
+                Match scopeMatch = Regex.Match(json, @"\""Scope\""\s*:\s*\""([^\""]+)\""");
+                if (scopeMatch.Success) scopeStr = scopeMatch.Groups[1].Value;
+
                 var warunki = new List<(string Prop, string Op, string Val)>();
                 MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
                 foreach (Match m in matches)
@@ -580,201 +600,286 @@ namespace BricsCAD_Agent
                 }
 
                 string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                ed.WriteMessage($"\n[System]: Szukam '{string.Join("/", typyDoSzukania)}' (Tryb: {trybStr}, Warunki: {warunki.Count})...");
+                // Mała modyfikacja loga, żeby pokazywał też obszar (Model czy Bloki)
+                ed.WriteMessage($"\n[System]: Szukam '{string.Join("/", typyDoSzukania)}' (Tryb: {trybStr}, Obszar: {scopeStr}, Warunki: {warunki.Count})...");
 
                 List<ObjectId> znalezioneObiekty = new List<ObjectId>();
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
                 {
-                    // ZMIANA: Używamy CurrentSpaceId zamiast sztywnego ModelSpace!
-                    // Dzięki temu Agent widzi obiekty wewnątrz definicji bloku (gdy jesteś w BEDIT).
-                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForRead);
-                    foreach (ObjectId objId in btr)
+                    // --- NOWOŚĆ: Lista miejsc (obszarów/bloków), które będziemy przeszukiwać ---
+                    List<ObjectId> blokiDoPrzeszukania = new List<ObjectId>();
+
+                    if (scopeStr.Equals("Blocks", StringComparison.OrdinalIgnoreCase) && AktywneZaznaczenie != null && AktywneZaznaczenie.Length > 0)
                     {
-                        Entity ent = tr.GetObject(objId, OpenMode.ForRead) as Entity;
-                        if (ent == null) continue;
-                        string nazwaTypuEnt = ent.GetType().Name;
-                        bool typPasuje = false;
-                        foreach (var t in typyDoSzukania)
+                        // Agent poprosił o szukanie WEWNĄTRZ aktualnie zaznaczonych bloków
+                        foreach (ObjectId id in AktywneZaznaczenie)
                         {
-                            string szukanyTyp = t.Trim();
-                            if (szukanyTyp.Equals("Text", StringComparison.OrdinalIgnoreCase) && ent is DBText) { typPasuje = true; break; }
-                            if (szukanyTyp.Equals("Dimension", StringComparison.OrdinalIgnoreCase) && ent is Dimension) { typPasuje = true; break; }
-                            if (nazwaTypuEnt.Equals(szukanyTyp, StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
+                            Entity zaznaczonyEnt = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                            if (zaznaczonyEnt is BlockReference br)
+                            {
+                                blokiDoPrzeszukania.Add(br.BlockTableRecord);
+                            }
                         }
-                        if (!typPasuje) continue;
 
-                        bool spelniaWszystkie = true;
-                        foreach (var warunek in warunki)
+                        if (blokiDoPrzeszukania.Count == 0)
                         {
-                            string rzeczywistaWlasciwosc = warunek.Prop;
-                            bool sprawdzajWizualnie = false;
-
-                            // --- ROZDZIELENIE WŁAŚCIWOŚCI SUROWYCH OD WIZUALNYCH ---
-                            if (rzeczywistaWlasciwosc.Equals("VisualColor", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rzeczywistaWlasciwosc = "ColorIndex";
-                                sprawdzajWizualnie = true;
-                            }
-                            else if (rzeczywistaWlasciwosc.Equals("VisualLinetype", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rzeczywistaWlasciwosc = "Linetype";
-                                sprawdzajWizualnie = true;
-                            }
-                            // NOWOŚĆ: Szerokość linii
-                            else if (rzeczywistaWlasciwosc.Equals("VisualLineWeight", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rzeczywistaWlasciwosc = "LineWeight";
-                                sprawdzajWizualnie = true;
-                            }
-                            // NOWOŚĆ: Przezroczystość
-                            else if (rzeczywistaWlasciwosc.Equals("VisualTransparency", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rzeczywistaWlasciwosc = "Transparency";
-                                sprawdzajWizualnie = true;
-                            }
-                            else if (rzeczywistaWlasciwosc.Equals("Color", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rzeczywistaWlasciwosc = "ColorIndex";
-                            }
-                            // Tłumaczenia dla specyficznych klas
-                            else if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
-                            else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
-
-                            // Pobieranie wartości przez refleksję
-                            System.Reflection.PropertyInfo propInfo = ent.GetType().GetProperty(rzeczywistaWlasciwosc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
-                            if (propInfo == null) { spelniaWszystkie = false; break; }
-                            object wartoscObiektu = propInfo.GetValue(ent);
-                            if (wartoscObiektu == null) { spelniaWszystkie = false; break; }
-
-                            string valStr = wartoscObiektu.ToString();
-
-                            // --- SPECJALNA OBSŁUGA PRZEZROCZYSTOŚCI ---
-                            if (wartoscObiektu is Teigha.Colors.Transparency transp)
-                            {
-                                if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
-                                else if (sprawdzajWizualnie && transp.IsByLayer)
-                                {
-                                    try
-                                    {
-                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                        if (ltr != null && ltr.Transparency.IsByAlpha)
-                                            valStr = Math.Round((255.0 - ltr.Transparency.Alpha) / 255.0 * 100.0).ToString();
-                                        else valStr = "0";
-                                    }
-                                    catch { valStr = "0"; }
-                                }
-                                else if (!sprawdzajWizualnie && transp.IsByLayer) valStr = "ByLayer";
-                                else valStr = "0";
-                            }
-                            // --- SPECJALNA OBSŁUGA WSPÓŁRZĘDNYCH 3D ---
-                            else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
-                            {
-                                valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
-                            }
-
-                            // --- ROZWIĄZYWANIE "JAK WARSTWA" DLA WŁAŚCIWOŚCI VISUAL ---
-                            if (sprawdzajWizualnie)
-                            {
-                                if (rzeczywistaWlasciwosc == "ColorIndex" && valStr == "256")
-                                {
-                                    try
-                                    {
-                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                        if (ltr != null) valStr = ltr.Color.ColorIndex.ToString();
-                                    }
-                                    catch { }
-                                }
-                                else if (rzeczywistaWlasciwosc.Equals("Linetype", StringComparison.OrdinalIgnoreCase) && valStr.Equals("ByLayer", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    try
-                                    {
-                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                        if (ltr != null)
-                                        {
-                                            LinetypeTableRecord lttr = tr.GetObject(ltr.LinetypeObjectId, OpenMode.ForRead) as LinetypeTableRecord;
-                                            if (lttr != null) valStr = lttr.Name;
-                                        }
-                                    }
-                                    catch { }
-                                }
-                                // NOWOŚĆ: Rozwiązywanie "Jak Warstwa" dla grubości linii
-                                else if (rzeczywistaWlasciwosc.Equals("LineWeight", StringComparison.OrdinalIgnoreCase) && valStr.Equals("ByLayer", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    try
-                                    {
-                                        LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                        if (ltr != null) valStr = ltr.LineWeight.ToString();
-                                    }
-                                    catch { }
-                                }
-                            }
-                            // --------------------------------------------------------
-
-                            // Logika porównywania 
-                            bool warunekSpelniony = false;
-                            if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
-                                double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))
-                            {
-                                switch (warunek.Op)
-                                {
-                                    case "==": warunekSpelniony = Math.Abs(valNum - warNum) < 0.0001; break;
-                                    case "!=": warunekSpelniony = Math.Abs(valNum - warNum) >= 0.0001; break;
-                                    case ">": warunekSpelniony = valNum > warNum; break;
-                                    case "<": warunekSpelniony = valNum < warNum; break;
-                                    case ">=": warunekSpelniony = valNum >= warNum; break;
-                                    case "<=": warunekSpelniony = valNum <= warNum; break;
-                                }
-                            }
-                            else
-                            {
-                                switch (warunek.Op.ToLower())
-                                {
-                                    case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
-                                    case "!=": warunekSpelniony = !valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
-                                    case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
-                                }
-                            }
-                            if (!warunekSpelniony) { spelniaWszystkie = false; break; }
+                            ed.WriteMessage("\n[Uwaga]: Brak zaznaczonych bloków, by szukać wewnątrz nich.");
                         }
-                        if (spelniaWszystkie) znalezioneObiekty.Add(objId);
                     }
-                    tr.Commit();
-                }
+                    else
+                    {
+                        // Domyślnie szukamy po prostu w otwartym aktualnie oknie (Model/Arkusz/BEDIT)
+                        blokiDoPrzeszukania.Add(doc.Database.CurrentSpaceId);
+                    }
 
-                // =========================================================
-                // MAGIA ŁĄCZENIA / ODEJMOWANIA ZAZNACZEŃ
-                // =========================================================
-                List<ObjectId> aktywne = AktywneZaznaczenie != null ? AktywneZaznaczenie.ToList() : new List<ObjectId>();
-                List<ObjectId> koncowe = new List<ObjectId>();
+                    // --- NOWOŚĆ: Główna pętla iterująca po wszystkich wybranych obszarach ---
+                    foreach (ObjectId spaceId in blokiDoPrzeszukania)
+                    {
+                        BlockTableRecord btr = (BlockTableRecord)tr.GetObject(spaceId, OpenMode.ForRead);
 
-                if (trybStr.Equals("Add", StringComparison.OrdinalIgnoreCase))
-                {
-                    koncowe.AddRange(aktywne); // Kopiujemy obecne
-                    foreach (var id in znalezioneObiekty) if (!koncowe.Contains(id)) koncowe.Add(id); // Dodajemy nowe
-                }
-                else if (trybStr.Equals("Remove", StringComparison.OrdinalIgnoreCase))
-                {
-                    koncowe.AddRange(aktywne); // Kopiujemy obecne
-                    foreach (var id in znalezioneObiekty) koncowe.Remove(id); // Usuwamy te, które model odnalazł do usunięcia
-                }
-                else // Domyślnie "New"
-                {
-                    koncowe = znalezioneObiekty; // Nadpisuje całkowicie
-                }
+                        // Oryginalna pętla przeglądająca obiekty
+                        foreach (ObjectId objId in btr)
+                        {
+                            Entity ent = tr.GetObject(objId, OpenMode.ForRead) as Entity;
+                            if (ent == null) continue;
 
-                if (koncowe.Count > 0)
-                {
-                    ed.SetImpliedSelection(koncowe.ToArray());
-                    AktywneZaznaczenie = koncowe.ToArray();
-                    ed.WriteMessage($"\n[Sukces]: Aktywne zaznaczenie: {koncowe.Count} obiekt(ów)!");
-                    return koncowe.Count;
-                }
-                else
-                {
-                    ed.WriteMessage("\n[System]: Wynik zaznaczenia jest pusty.");
-                    ed.SetImpliedSelection(new ObjectId[0]);
-                    AktywneZaznaczenie = new ObjectId[0];
-                    return 0;
+                            string nazwaTypuEnt = ent.GetType().Name;
+                            bool typPasuje = false;
+
+                            foreach (var t in typyDoSzukania)
+                            {
+                                string szukanyTyp = t.Trim();
+
+                                // --- NOWOŚĆ: Jeśli Agent szuka "Entity", przepuść absolutnie każdy obiekt graficzny! ---
+                                if (szukanyTyp.Equals("Entity", StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
+
+                                if (szukanyTyp.Equals("Text", StringComparison.OrdinalIgnoreCase) && ent is DBText) { typPasuje = true; break; }
+                                if (szukanyTyp.Equals("Dimension", StringComparison.OrdinalIgnoreCase) && ent is Dimension) { typPasuje = true; break; }
+                                if (nazwaTypuEnt.Equals(szukanyTyp, StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
+                            }
+                            if (!typPasuje) continue;
+
+                            bool spelniaWszystkie = true;
+                            foreach (var warunek in warunki)
+                            {
+                                string rzeczywistaWlasciwosc = warunek.Prop;
+                                bool sprawdzajWizualnie = false;
+
+                                // --- ROZDZIELENIE WŁAŚCIWOŚCI SUROWYCH OD WIZUALNYCH ---
+                                if (rzeczywistaWlasciwosc.Equals("VisualColor", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    rzeczywistaWlasciwosc = "ColorIndex";
+                                    sprawdzajWizualnie = true;
+                                }
+                                else if (rzeczywistaWlasciwosc.Equals("VisualLinetype", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    rzeczywistaWlasciwosc = "Linetype";
+                                    sprawdzajWizualnie = true;
+                                }
+                                // NOWOŚĆ: Szerokość linii
+                                else if (rzeczywistaWlasciwosc.Equals("VisualLineWeight", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    rzeczywistaWlasciwosc = "LineWeight";
+                                    sprawdzajWizualnie = true;
+                                }
+                                // NOWOŚĆ: Przezroczystość
+                                else if (rzeczywistaWlasciwosc.Equals("VisualTransparency", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    rzeczywistaWlasciwosc = "Transparency";
+                                    sprawdzajWizualnie = true;
+                                }
+                                else if (rzeczywistaWlasciwosc.Equals("Color", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    rzeczywistaWlasciwosc = "ColorIndex";
+                                }
+                                // Tłumaczenia dla specyficznych klas
+                                else if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
+                                else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
+
+                                // --- NOWOŚĆ: Pobieranie wartości przez refleksję z obsługą zagnieżdżeń (np. Center.Z) ---
+                                string[] zagniezdzenia = rzeczywistaWlasciwosc.Split('.');
+                                object wartoscObiektu = ent;
+                                System.Reflection.PropertyInfo propInfo = null;
+
+                                foreach (string czesc in zagniezdzenia)
+                                {
+                                    if (wartoscObiektu == null) break;
+                                    propInfo = wartoscObiektu.GetType().GetProperty(czesc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+
+                                    if (propInfo != null)
+                                    {
+                                        wartoscObiektu = propInfo.GetValue(wartoscObiektu);
+                                    }
+                                    else
+                                    {
+                                        wartoscObiektu = null;
+                                        break;
+                                    }
+                                }
+
+                                if (wartoscObiektu == null) { spelniaWszystkie = false; break; }
+
+                                string valStr = wartoscObiektu.ToString();
+
+                                // --- SPECJALNA OBSŁUGA PRZEZROCZYSTOŚCI ---
+                                if (wartoscObiektu is Teigha.Colors.Transparency transp)
+                                {
+                                    if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
+                                    else if (sprawdzajWizualnie && transp.IsByLayer)
+                                    {
+                                        try
+                                        {
+                                            LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                            if (ltr != null && ltr.Transparency.IsByAlpha)
+                                                valStr = Math.Round((255.0 - ltr.Transparency.Alpha) / 255.0 * 100.0).ToString();
+                                            else valStr = "0";
+                                        }
+                                        catch { valStr = "0"; }
+                                    }
+                                    else if (!sprawdzajWizualnie && transp.IsByLayer) valStr = "ByLayer";
+                                    else if (!sprawdzajWizualnie && transp.IsByBlock) valStr = "ByBlock"; // <--- NOWOŚĆ: dodano brakującą obsługę ByBlock
+                                    else valStr = "0";
+                                }
+
+                                // --- SPECJALNA OBSŁUGA WŁAŚCIWOŚCI OPISOWEJ (ANNOTATIVE) ---
+                                else if (wartoscObiektu is Teigha.DatabaseServices.AnnotativeStates annState)
+                                {
+                                    if (annState == Teigha.DatabaseServices.AnnotativeStates.True) valStr = "True";
+                                    else valStr = "False"; // Złapie zarówno .False jak i ewentualne .NotApplicable
+                                }
+                                // Na wszelki wypadek, gdyby jakaś inna właściwość była czystym boolem:
+                                else if (wartoscObiektu is bool bVal)
+                                {
+                                    valStr = bVal ? "True" : "False";
+                                }
+                                // --- SPECJALNA OBSŁUGA WSPÓŁRZĘDNYCH 3D ---
+                                else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
+                                {
+                                    valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
+                                }
+
+                                // --- SPECJALNA OBSŁUGA GRUBOŚCI LINII (LineWeight) ---
+                                else if (wartoscObiektu is Teigha.DatabaseServices.LineWeight lw)
+                                {
+                                    // Zmiana: Musimy mapować ByLayer i ByBlock na liczby (-1, -2), bo tak uczy się LLM z promptu!
+                                    if (lw == Teigha.DatabaseServices.LineWeight.ByLayer) valStr = "-1";
+                                    else if (lw == Teigha.DatabaseServices.LineWeight.ByBlock) valStr = "-2";
+                                    else if (lw == Teigha.DatabaseServices.LineWeight.ByLineWeightDefault) valStr = "-3";
+                                    else valStr = ((int)lw).ToString();
+
+                                    // Jeśli LLM użył VisualLineWeight i obiekt ma przypisane "Jak warstwa"
+                                    if (sprawdzajWizualnie && lw == Teigha.DatabaseServices.LineWeight.ByLayer)
+                                    {
+                                        try
+                                        {
+                                            LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                            if (ltr != null)
+                                            {
+                                                if (ltr.LineWeight == Teigha.DatabaseServices.LineWeight.ByLineWeightDefault) valStr = "-3";
+                                                else if (ltr.LineWeight == Teigha.DatabaseServices.LineWeight.ByLayer) valStr = "-1"; // Na wypadek błędu bazy
+                                                else valStr = ((int)ltr.LineWeight).ToString();
+                                            }
+                                        }
+                                        catch { valStr = "-3"; }
+                                    }
+                                }
+
+
+                                // --- ROZWIĄZYWANIE "JAK WARSTWA" DLA WŁAŚCIWOŚCI VISUAL ---
+                                if (sprawdzajWizualnie)
+                                {
+                                    if (rzeczywistaWlasciwosc == "ColorIndex" && valStr == "256")
+                                    {
+                                        try
+                                        {
+                                            LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                            if (ltr != null) valStr = ltr.Color.ColorIndex.ToString();
+                                        }
+                                        catch { }
+                                    }
+                                    else if (rzeczywistaWlasciwosc.Equals("Linetype", StringComparison.OrdinalIgnoreCase) && valStr.Equals("ByLayer", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        try
+                                        {
+                                            LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
+                                            if (ltr != null)
+                                            {
+                                                LinetypeTableRecord lttr = tr.GetObject(ltr.LinetypeObjectId, OpenMode.ForRead) as LinetypeTableRecord;
+                                                if (lttr != null) valStr = lttr.Name;
+                                            }
+                                        }
+                                        catch { }
+                                    }
+                       
+                                }
+                                // --------------------------------------------------------
+
+                                // Logika porównywania 
+                                bool warunekSpelniony = false;
+                                if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
+                                    double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))
+                                {
+                                    switch (warunek.Op)
+                                    {
+                                        case "==": warunekSpelniony = Math.Abs(valNum - warNum) < 0.0001; break;
+                                        case "!=": warunekSpelniony = Math.Abs(valNum - warNum) >= 0.0001; break;
+                                        case ">": warunekSpelniony = valNum > warNum; break;
+                                        case "<": warunekSpelniony = valNum < warNum; break;
+                                        case ">=": warunekSpelniony = valNum >= warNum; break;
+                                        case "<=": warunekSpelniony = valNum <= warNum; break;
+                                    }
+                                }
+                                else
+                                {
+                                    switch (warunek.Op.ToLower())
+                                    {
+                                        case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
+                                        case "!=": warunekSpelniony = !valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
+                                        case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
+                                    }
+                                }
+                                if (!warunekSpelniony) { spelniaWszystkie = false; break; }
+                            }
+                            if (spelniaWszystkie) znalezioneObiekty.Add(objId);
+                        }
+                        tr.Commit();
+                    }
+
+                    // =========================================================
+                    // MAGIA ŁĄCZENIA / ODEJMOWANIA ZAZNACZEŃ
+                    // =========================================================
+                    List<ObjectId> aktywne = AktywneZaznaczenie != null ? AktywneZaznaczenie.ToList() : new List<ObjectId>();
+                    List<ObjectId> koncowe = new List<ObjectId>();
+
+                    if (trybStr.Equals("Add", StringComparison.OrdinalIgnoreCase))
+                    {
+                        koncowe.AddRange(aktywne); // Kopiujemy obecne
+                        foreach (var id in znalezioneObiekty) if (!koncowe.Contains(id)) koncowe.Add(id); // Dodajemy nowe
+                    }
+                    else if (trybStr.Equals("Remove", StringComparison.OrdinalIgnoreCase))
+                    {
+                        koncowe.AddRange(aktywne); // Kopiujemy obecne
+                        foreach (var id in znalezioneObiekty) koncowe.Remove(id); // Usuwamy te, które model odnalazł do usunięcia
+                    }
+                    else // Domyślnie "New"
+                    {
+                        koncowe = znalezioneObiekty; // Nadpisuje całkowicie
+                    }
+
+                    if (koncowe.Count > 0)
+                    {
+                        ed.SetImpliedSelection(koncowe.ToArray());
+                        AktywneZaznaczenie = koncowe.ToArray();
+                        ed.WriteMessage($"\n[Sukces]: Aktywne zaznaczenie: {koncowe.Count} obiekt(ów)!");
+                        return koncowe.Count;
+                    }
+                    else
+                    {
+                        ed.WriteMessage("\n[System]: Wynik zaznaczenia jest pusty.");
+                        ed.SetImpliedSelection(new ObjectId[0]);
+                        AktywneZaznaczenie = new ObjectId[0];
+                        return 0;
+                    }
                 }
             }
             catch (System.Exception ex)

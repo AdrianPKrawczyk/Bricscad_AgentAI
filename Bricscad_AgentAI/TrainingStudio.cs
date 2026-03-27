@@ -61,6 +61,13 @@ namespace BricsCAD_Agent
                         pkoMode.Keywords.Default = "New";
                         string mode = ed.GetKeywords(pkoMode).StringResult;
 
+                        // --- NOWOŚĆ: Pytanie o obszar wyszukiwania (Scope) ---
+                        PromptKeywordOptions pkoScope = new PromptKeywordOptions("\nWybierz obszar wyszukiwania (Scope) [Model/Blocks]: ");
+                        pkoScope.Keywords.Add("Model");
+                        pkoScope.Keywords.Add("Blocks");
+                        pkoScope.Keywords.Default = "Model";
+                        string scope = ed.GetKeywords(pkoScope).StringResult;
+
                         // ... (Kod ładujący plik bazy danych BricsCAD_API_Quick.txt zostaje bez zmian) ...
                         // --- NOWOŚĆ: WYBÓR BAZY API W LOCIE ---
                         PromptKeywordOptions pkoBaza = new PromptKeywordOptions("\nZ jakiej bazy wiedzy załadować podpowiedzi? [Quick/Full]: ");
@@ -215,9 +222,26 @@ namespace BricsCAD_Agent
                                         try { pkoProp.Keywords.Add(vp, vp.ToUpper(), vp.ToUpper()); } catch { }
                                     }
 
+                                    // --- NOWOŚĆ: Dodajemy opcję wpisania własnej właściwości z kropką ---
+                                    ed.WriteMessage($"\n\n [WLASNA] - Wpisz ręcznie (np. z kropką Center.Z)");
+                                    try { pkoProp.Keywords.Add("WLASNA", "WLASNA", "WLASNA"); } catch { }
+
                                     ed.WriteMessage("\n-------------------------------------------");
                                     PromptResult prProp = ed.GetKeywords(pkoProp);
-                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult)) prop = prProp.StringResult;
+
+                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult))
+                                    {
+                                        if (prProp.StringResult == "WLASNA")
+                                        {
+                                            PromptStringOptions psoWlasna = new PromptStringOptions($"\nWpisz ręcznie nazwę właściwości (np. Center.Z): ");
+                                            psoWlasna.AllowSpaces = false;
+                                            prop = ed.GetString(psoWlasna).StringResult;
+                                        }
+                                        else
+                                        {
+                                            prop = prProp.StringResult;
+                                        }
+                                    }
                                 }
                             }
 
@@ -235,12 +259,22 @@ namespace BricsCAD_Agent
                                 break;
                             }
 
-                            PromptKeywordOptions pkoOp = new PromptKeywordOptions("\nWybierz operator [Rowne/Wieksze/Mniejsze/Zawiera]: ");
-                            pkoOp.Keywords.Add("Rowne"); pkoOp.Keywords.Add("Wieksze"); pkoOp.Keywords.Add("Mniejsze"); pkoOp.Keywords.Add("Zawiera");
+                            // --- NOWOŚĆ: Dodany operator "Nierowne" ---
+                            PromptKeywordOptions pkoOp = new PromptKeywordOptions("\nWybierz operator [Rowne/Nierowne/Wieksze/Mniejsze/Zawiera]: ");
+                            pkoOp.Keywords.Add("Rowne"); 
+                            pkoOp.Keywords.Add("Nierowne"); 
+                            pkoOp.Keywords.Add("Wieksze"); 
+                            pkoOp.Keywords.Add("Mniejsze"); 
+                            pkoOp.Keywords.Add("Zawiera");
                             pkoOp.Keywords.Default = "Rowne";
+                            
                             string opWord = ed.GetKeywords(pkoOp).StringResult;
                             string opSign = "==";
-                            if (opWord == "Wieksze") opSign = ">"; if (opWord == "Mniejsze") opSign = "<"; if (opWord == "Zawiera") opSign = "Contains";
+                            
+                            if (opWord == "Nierowne") opSign = "!=";
+                            if (opWord == "Wieksze") opSign = ">"; 
+                            if (opWord == "Mniejsze") opSign = "<"; 
+                            if (opWord == "Zawiera") opSign = "Contains";
 
                             PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj szukaną wartość dla {prop}: ");
                             psoVal.AllowSpaces = true;
@@ -263,8 +297,7 @@ namespace BricsCAD_Agent
 
                         // Składamy wszystkie warunki po przecinku w jedną dużą tablicę JSON
                         string wszystkieWarunkiJson = string.Join(", ", warunkiList);
-                        finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"EntityType\": \"{entType}\", \"Conditions\": [{wszystkieWarunkiJson}]}}]";
-
+                        finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"Scope\": \"{scope}\", \"EntityType\": \"{entType}\", \"Conditions\": [{wszystkieWarunkiJson}]}}]";
 
                     }
 
@@ -418,10 +451,27 @@ namespace BricsCAD_Agent
                                         try { pkoProp.Keywords.Add(klucz, klucz.ToUpper(), klucz.ToUpper()); } catch { }
                                     }
 
+                                    // --- NOWOŚĆ: Dodajemy opcję wpisania własnej właściwości z kropką ---
+                                    ed.WriteMessage($"\n\n [WLASNA] - Wpisz ręcznie (np. z kropką Position.Z)");
+                                    try { pkoProp.Keywords.Add("WLASNA", "WLASNA", "WLASNA"); } catch { }
+
                                     ed.WriteMessage("\n-------------------------------------------");
                                     PromptResult prProp = ed.GetKeywords(pkoProp);
+
                                     if (prProp.Status == PromptStatus.Cancel) break; // ESC w drugim kroku też kończy
-                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult)) propName = prProp.StringResult;
+                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult))
+                                    {
+                                        if (prProp.StringResult == "WLASNA")
+                                        {
+                                            PromptStringOptions psoWlasna = new PromptStringOptions($"\nWpisz ręcznie nazwę właściwości (np. Position.Z): ");
+                                            psoWlasna.AllowSpaces = false;
+                                            propName = ed.GetString(psoWlasna).StringResult;
+                                        }
+                                        else
+                                        {
+                                            propName = prProp.StringResult;
+                                        }
+                                    }
                                 }
                             }
 
@@ -434,13 +484,24 @@ namespace BricsCAD_Agent
 
                             if (string.IsNullOrEmpty(propName)) break; // Pusty wpis = koniec dodawania
 
-                            PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj NOWĄ wartość dla [{propName}]: ");
+                            PromptKeywordOptions pkoOp = new PromptKeywordOptions($"\nWybierz Działanie dla {propName} [Zmien/Dodaj/Odejmij/Pomnoz/RPN]: ");
+                            pkoOp.Keywords.Add("Zmien"); pkoOp.Keywords.Add("Dodaj"); pkoOp.Keywords.Add("Odejmij"); pkoOp.Keywords.Add("Pomnoz"); pkoOp.Keywords.Add("RPN");
+                            pkoOp.Keywords.Default = "Zmien";
+                            string opWord = ed.GetKeywords(pkoOp).StringResult;
+
+                            string opSign = "=";
+                            if (opWord == "Dodaj") opSign = "+"; if (opWord == "Odejmij") opSign = "-"; if (opWord == "Pomnoz") opSign = "*"; if (opWord == "RPN") opSign = "RPN";
+
+                            string promptText = opSign == "RPN" ? $"\nPodaj wyrażenie RPN (Obecna wartość jest na dnie stosu! Np: 2 * 50 +): " : $"\nPodaj wartość dla [{propName}]: ";
+                            PromptStringOptions psoVal = new PromptStringOptions(promptText);
                             psoVal.AllowSpaces = true;
                             string valStr = ed.GetString(psoVal).StringResult;
 
-                            if (!double.TryParse(valStr.Replace(",", "."), out _) && valStr.ToLower() != "true" && valStr.ToLower() != "false") valStr = $"\"{valStr}\"";
+                            if (opSign != "RPN" && !double.TryParse(valStr.Replace(",", "."), out _) && valStr.ToLower() != "true" && valStr.ToLower() != "false") valStr = $"\"{valStr}\"";
+                            else if (opSign == "RPN") valStr = $"\"{valStr}\""; // RPN musi być jako string w JSON
 
-                            propsList.Add($"{{\"Property\": \"{propName}\", \"Value\": {valStr}}}");
+                            if (opSign == "=") propsList.Add($"{{\"Property\": \"{propName}\", \"Value\": {valStr}}}");
+                            else propsList.Add($"{{\"Property\": \"{propName}\", \"Operator\": \"{opSign}\", \"Value\": {valStr}}}");
                             licznikPropsow++;
                         }
 
@@ -466,7 +527,18 @@ namespace BricsCAD_Agent
                         {
                             string repText = ed.GetString(new PromptStringOptions("\nPodaj Tekst do podmiany, na które chcesz zamienić znaleziony tekst.: ")).StringResult;
                             argsList.Add($"\"FindText\": \"{findText}\""); argsList.Add($"\"ReplaceText\": \"{repText}\"");
+
                         }
+                        // --- NOWOŚĆ: Pytanie o usuwanie wymiarów ---
+                        PromptKeywordOptions pkoRemoveDim = new PromptKeywordOptions("\nCzy usunąć wszystkie wymiary (Dimension) z wnętrza bloku? [Tak/Nie]: ");
+                        pkoRemoveDim.Keywords.Add("Tak");
+                        pkoRemoveDim.Keywords.Add("Nie");
+                        pkoRemoveDim.Keywords.Default = "Nie";
+                        if (ed.GetKeywords(pkoRemoveDim).StringResult == "Tak")
+                        {
+                            argsList.Add("\"RemoveDimensions\": true");
+                        }
+
                         finalTag = $"[ACTION:EDIT_BLOCK {{{string.Join(", ", argsList)}}}]";
                     }
                     // --- [GET_PROPERTIES_LITE] ---

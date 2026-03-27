@@ -34,9 +34,14 @@ public class EditBlockTool : ITool
 
         System.Text.RegularExpressions.Match matchReplaceText = System.Text.RegularExpressions.Regex.Match(args, @"\""ReplaceText\""\s*:\s*\""([^\""]*)\""");
         if (matchReplaceText.Success) replaceText = matchReplaceText.Groups[1].Value;
-        
-        if (targetColor == null && targetLayer == null && findText == null)
-            return "WYNIK: Błąd. Podaj co chcesz zmienić (np. Color, Layer, FindText i ReplaceText).";
+
+        // --- NOWOŚĆ: Parsowanie parametru usuwania wymiarów ---
+        System.Text.RegularExpressions.Match matchRemoveDim = System.Text.RegularExpressions.Regex.Match(args, @"\""RemoveDimensions\""\s*:\s*(true|false)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        bool removeDimensions = matchRemoveDim.Success && matchRemoveDim.Groups[1].Value.ToLower() == "true";
+
+        // Zaktualizowany warunek zabezpieczający
+        if (targetColor == null && targetLayer == null && findText == null && !removeDimensions)
+            return "WYNIK: Błąd. Podaj co chcesz zmienić (np. Color, Layer, FindText, ReplaceText lub RemoveDimensions).";
 
         System.Collections.Generic.HashSet<ObjectId> przetworzoneBloki = new System.Collections.Generic.HashSet<ObjectId>();
         int zmienioneObiektyWewnetrzne = 0;
@@ -79,7 +84,7 @@ public class EditBlockTool : ITool
                         }
 
                         // 2. Edycja definicji geometrii i tekstów na stałe w bloku (REKURENCJA)
-                        PrzetworzBlokRekurencyjnie(br.BlockTableRecord, tr, targetColor, targetLayer, filterColor, findText, replaceText, przetworzoneBloki, ref zmienioneObiektyWewnetrzne);
+                        PrzetworzBlokRekurencyjnie(br.BlockTableRecord, tr, targetColor, targetLayer, filterColor, findText, replaceText, removeDimensions, przetworzoneBloki, ref zmienioneObiektyWewnetrzne);
                     }
                 }
                 tr.Commit();
@@ -103,7 +108,7 @@ public class EditBlockTool : ITool
 
     public string Execute(Document doc) => Execute(doc, "");
 
-    private void PrzetworzBlokRekurencyjnie(ObjectId btrId, Transaction tr, int? targetColor, string targetLayer, int? filterColor, string findText, string replaceText, System.Collections.Generic.HashSet<ObjectId> przetworzoneBloki, ref int zmienioneObiektyWewnetrzne)
+    private void PrzetworzBlokRekurencyjnie(ObjectId btrId, Transaction tr, int? targetColor, string targetLayer, int? filterColor, string findText, string replaceText, bool removeDimensions, System.Collections.Generic.HashSet<ObjectId> przetworzoneBloki, ref int zmienioneObiektyWewnetrzne)
     {
         if (przetworzoneBloki.Contains(btrId)) return;
         BlockTableRecord btr = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
@@ -117,6 +122,15 @@ public class EditBlockTool : ITool
             Entity innerEnt = tr.GetObject(innerId, OpenMode.ForRead) as Entity;
             if (innerEnt != null)
             {
+                // --- NOWOŚĆ: USUWANIE WYMIARÓW ---
+                if (removeDimensions && innerEnt is Dimension)
+                {
+                    innerEnt.UpgradeOpen();
+                    innerEnt.Erase(); // Fizyczne usunięcie wymiaru z bloku
+                    zmienioneObiektyWewnetrzne++;
+                    continue; // Pomiń dalszą edycję tego obiektu, bo już go nie ma
+                }
+
                 // Sprawdzamy filtr koloru (np. tylko czerwone obiekty wewnątrz bloku)
                 if (filterColor.HasValue && innerEnt.ColorIndex != filterColor.Value) continue;
 
@@ -153,7 +167,8 @@ public class EditBlockTool : ITool
                 // Incepcja - blok w bloku
                 if (innerEnt is BlockReference nestedBr)
                 {
-                    PrzetworzBlokRekurencyjnie(nestedBr.BlockTableRecord, tr, targetColor, targetLayer, filterColor, findText, replaceText, przetworzoneBloki, ref zmienioneObiektyWewnetrzne);
+                    // Tutaj również musimy przekazać removeDimensions!
+                    PrzetworzBlokRekurencyjnie(nestedBr.BlockTableRecord, tr, targetColor, targetLayer, filterColor, findText, replaceText, removeDimensions, przetworzoneBloki, ref zmienioneObiektyWewnetrzne);
                 }
             }
         }
