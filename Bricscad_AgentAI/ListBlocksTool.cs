@@ -32,17 +32,27 @@ namespace BricsCAD_Agent
                     Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
                     if (ent is BlockReference blkRef)
                     {
-                        // Chroni przed ukrytymi nazwami bloków dynamicznych
-                        BlockTableRecord btr = tr.GetObject(blkRef.DynamicBlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                        // Domyślnie bierzemy zwykłą nazwę
+                        string nazwaBloku = blkRef.Name;
 
-                        if (btr != null)
+                        try
                         {
-                            unikalneNazwy.Add(btr.Name);
+                            // Pobieramy ID definicji bloku dynamicznego
+                            ObjectId dynId = blkRef.DynamicBlockTableRecord;
+
+                            // UPEWNIAMY SIĘ, że ID nie jest puste (chroni przed eNullObjectId)
+                            if (dynId != ObjectId.Null)
+                            {
+                                BlockTableRecord btr = tr.GetObject(dynId, OpenMode.ForRead) as BlockTableRecord;
+                                if (btr != null && !string.IsNullOrEmpty(btr.Name))
+                                {
+                                    nazwaBloku = btr.Name; // Nadpisujemy prawdziwą nazwą, jeśli to blok dynamiczny
+                                }
+                            }
                         }
-                        else
-                        {
-                            unikalneNazwy.Add(blkRef.Name);
-                        }
+                        catch { } // Jeśli cokolwiek pójdzie nie tak z API, program i tak ma już domyślną nazwę
+
+                        unikalneNazwy.Add(nazwaBloku);
                     }
                 }
                 tr.Commit();
