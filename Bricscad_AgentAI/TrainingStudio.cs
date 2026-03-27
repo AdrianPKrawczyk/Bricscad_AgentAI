@@ -41,11 +41,13 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("SETProps");
                     pko.Keywords.Add("BlockEdit");
                     pko.Keywords.Add("ListBlocks");
-                    pko.Keywords.Add("GetPropsLite"); // <--- Zmiana
-                    pko.Keywords.Add("FULLGETProps"); // <--- Nowa opcja
+                    pko.Keywords.Add("GetPropsLite");
+                    pko.Keywords.Add("FULLGETProps"); 
                     pko.Keywords.Add("FormatMText");
                     pko.Keywords.Add("UpdateMText");
                     pko.Keywords.Add("EditText");
+                    pko.Keywords.Add("ModifyGeom");
+                    pko.Keywords.Add("ReadProp");
                     pko.Keywords.Default = "Select";
 
                     PromptResult pr = ed.GetKeywords(pko);
@@ -301,6 +303,57 @@ namespace BricsCAD_Agent
                         finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"Scope\": \"{scope}\", \"EntityType\": \"{entType}\", \"Conditions\": [{wszystkieWarunkiJson}]}}]";
 
                     }
+
+                    // --- [READ_PROPERTY] ---
+                    else if (pr.StringResult == "ReadProp")
+                    {
+                        PromptStringOptions psoProp = new PromptStringOptions("\nPodaj nazwę właściwości do odczytania (np. Center, Radius, StartPoint): ");
+                        psoProp.AllowSpaces = false;
+                        string prop = ed.GetString(psoProp).StringResult;
+
+                        finalTag = $"[ACTION:READ_PROPERTY {{\"Property\": \"{prop}\"}}]";
+                    }
+
+
+                    // --- [MODIFY GEOMETRY] ---
+                    else if (pr.StringResult == "ModifyGeom")
+                    {
+                        PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nWybierz tryb edycji [Erase/Move/Copy/Rotate/Scale]: ");
+                        pkoMode.Keywords.Add("Erase"); pkoMode.Keywords.Add("Move"); pkoMode.Keywords.Add("Copy");
+                        pkoMode.Keywords.Add("Rotate"); pkoMode.Keywords.Add("Scale");
+                        pkoMode.Keywords.Default = "Move";
+                        string mode = ed.GetKeywords(pkoMode).StringResult;
+
+                        System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string> { $"\"Mode\": \"{mode}\"" };
+
+                        if (mode == "Move" || mode == "Copy")
+                        {
+                            PromptStringOptions psoVec = new PromptStringOptions($"\nPodaj Wektor przesunięcia (X,Y,Z) dla {mode}: ");
+                            psoVec.AllowSpaces = false;
+                            string vec = ed.GetString(psoVec).StringResult;
+                            argsList.Add($"\"Vector\": \"({vec})\"");
+                        }
+                        else if (mode == "Rotate" || mode == "Scale")
+                        {
+                            PromptStringOptions psoBase = new PromptStringOptions("\nPodaj Punkt Bazowy (X,Y,Z): ");
+                            psoBase.AllowSpaces = false;
+                            argsList.Add($"\"BasePoint\": \"({ed.GetString(psoBase).StringResult})\"");
+
+                            if (mode == "Rotate")
+                            {
+                                PromptStringOptions psoAngle = new PromptStringOptions("\nPodaj kąt obrotu (w stopniach): ");
+                                argsList.Add($"\"Angle\": {ed.GetString(psoAngle).StringResult.Replace(",", ".")}");
+                            }
+                            else if (mode == "Scale")
+                            {
+                                PromptStringOptions psoScale = new PromptStringOptions("\nPodaj mnożnik Skali (np. 0.5 lub 2): ");
+                                argsList.Add($"\"Factor\": {ed.GetString(psoScale).StringResult.Replace(",", ".")}");
+                            }
+                        }
+
+                        finalTag = $"[ACTION:MODIFY_GEOMETRY {{{string.Join(", ", argsList)}}}]";
+                    }
+
 
                     // --- [SET_PROPERTIES] ---
                     else if (pr.StringResult == "SETProps")
@@ -801,6 +854,12 @@ namespace BricsCAD_Agent
                     return tool.Execute(doc, wklejonyTag);
                 }
 
+                else if (wklejonyTag.Contains("[ACTION:READ_PROPERTY"))
+                {
+                    ReadPropertyTool tool = new ReadPropertyTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 else if (wklejonyTag.Contains("[ACTION:EDIT_BLOCK"))
                 {
                     EditBlockTool tool = new EditBlockTool();
@@ -833,6 +892,13 @@ namespace BricsCAD_Agent
                     MTextEditTool tool = new MTextEditTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
+
+                else if (wklejonyTag.Contains("[ACTION:MODIFY_GEOMETRY"))
+                {
+                    ModifyGeometryTool tool = new ModifyGeometryTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 else if (wklejonyTag.Contains("[ACTION:TEXT_EDIT"))
                 {
                     TextEditTool tool = new TextEditTool();

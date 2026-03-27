@@ -62,11 +62,14 @@ namespace BricsCAD_Agent
         new TextEditTool(),
         new ReadTextSampleTool(),
         new AnalyzeSelectionTool(),
-        new GetPropertiesToolLite(), // <--- WERSJA LEKKA
-        new GetPropertiesTool(),     // <--- WERSJA PEŁNA (REFLEKSJA)
+        new GetPropertiesToolLite(),
+        new GetPropertiesTool(),     
         new EditBlockTool(),
         new SetPropertiesTool(),
-        new ListBlocksTool()         // <--- NOWE NARZĘDZIE DODANE TUTAJ
+        new ModifyGeometryTool(),
+        new ReadPropertyTool(),
+        new ListBlocksTool()         
+
         };
 
         private static PaletteSet oknoAgenta = null;
@@ -140,6 +143,19 @@ namespace BricsCAD_Agent
                         "Opis: Zwraca listę wszystkich unikalnych (niepowtarzających się) nazw bloków, które znajdują się w aktualnym zaznaczeniu. Narzędzie nie wymaga argumentów.\n" +
                         "Przykład użycia: [ACTION:LIST_BLOCKS]\n\n" +
 
+                        "Tag: [ACTION:MODIFY_GEOMETRY]\n" +
+                        "Opis: Fizyczna edycja kształtu i położenia zaznaczonych obiektów (Usuwanie, Przesuwanie, Kopiowanie, Obracanie, Skalowanie). Wymaga parametrów w JSON!\n" +
+                        "Tryby (Mode) i ich wymagane argumenty:\n" +
+                        " - \"Erase\" (Kasuje obiekty z rysunku): [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Erase\"}]\n" +
+                        " - \"Move\" (Przesuwa o wektor przesunięcia): [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Move\", \"Vector\": \"(dX,dY,dZ)\"}]\n" +
+                        " - \"Copy\" (Kopiuje obiekty przesuwając o wektor): [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Copy\", \"Vector\": \"(100,0,0)\"}]\n" +
+                        " - \"Rotate\" (Obraca wokół punktu BasePoint o kąt Angle w stopniach): [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Rotate\", \"BasePoint\": \"(0,0,0)\", \"Angle\": 90}]\n" +
+                        " - \"Scale\" (Skaluje z punktu bazowego o współczynnik Factor): [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Scale\", \"BasePoint\": \"(0,0,0)\", \"Factor\": 0.5}]\n\n" +
+
+
+                        "Tag: [ACTION:READ_PROPERTY]\n" +
+                        "Opis: Zwraca konkretną, pojedynczą właściwość z zaznaczonych obiektów (np. współrzędne środka, promień, długość). Użyj tego, gdy potrzebujesz wyciągnąć precyzyjne dane (np. punkt 'Center'), aby użyć ich w kolejnych krokach jako punktów bazowych.\n" +
+                        "Argumenty: [ACTION:READ_PROPERTY {\"Property\": \"Center\"}]\n\n" +
 
                         "User: Zaznacz linie dłuższe niż 50\n" +
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
