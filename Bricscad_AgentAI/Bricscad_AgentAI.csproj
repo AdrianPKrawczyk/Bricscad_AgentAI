@@ -66,6 +66,7 @@
     <Compile Include="GetPropertiesTool.cs" />
     <Compile Include="GetPropertiesToolLite.cs" />
     <Compile Include="ListBlocksTool.cs" />
+    <Compile Include="ListUniqueTool.cs" />
     <Compile Include="ModifyGeometryTool.cs" />
     <Compile Include="MTextEditTool.cs" />
     <Compile Include="MTextFormatTool.cs" />

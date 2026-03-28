@@ -42,12 +42,13 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("BlockEdit");
                     pko.Keywords.Add("ListBlocks");
                     pko.Keywords.Add("GetPropsLite");
+                    pko.Keywords.Add("ReadProp");
+                    pko.Keywords.Add("LISTUnique");
                     pko.Keywords.Add("FULLGETProps"); 
                     pko.Keywords.Add("FormatMText");
                     pko.Keywords.Add("UpdateMText");
                     pko.Keywords.Add("EditText");
                     pko.Keywords.Add("ModifyGeom");
-                    pko.Keywords.Add("ReadProp");
                     pko.Keywords.Add("AnnoScale");
                     pko.Keywords.Add("READScales");
                     pko.Keywords.Add("REMOVEScale");    
@@ -794,7 +795,37 @@ namespace BricsCAD_Agent
 
                         finalTag = $"[ACTION:READ_ANNO_SCALES {{\"Mode\": \"{mode}\"}}]";
                     }
-                        
+
+                    // --- [LIST_UNIQUE] ---
+                    else if (pr.StringResult.Equals("LISTUnique", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PromptKeywordOptions pkoTarget = new PromptKeywordOptions("\nWybierz cel analizy (Target) [Class/Property]: ");
+                        pkoTarget.Keywords.Add("Class");
+                        pkoTarget.Keywords.Add("Property");
+                        pkoTarget.Keywords.Default = "Class";
+                        string target = ed.GetKeywords(pkoTarget).StringResult;
+
+                        PromptKeywordOptions pkoScope = new PromptKeywordOptions("\nWybierz zakres przeszukiwania (Scope) [Selection/Model/Blocks]: ");
+                        pkoScope.Keywords.Add("Selection");
+                        pkoScope.Keywords.Add("Model");
+                        pkoScope.Keywords.Add("Blocks");
+                        pkoScope.Keywords.Default = "Selection";
+                        string scope = ed.GetKeywords(pkoScope).StringResult;
+
+                        if (target == "Property")
+                        {
+                            PromptStringOptions psoProp = new PromptStringOptions("\nPodaj nazwę właściwości do zgrupowania (np. Name, Layer, Color): ");
+                            psoProp.AllowSpaces = false;
+                            string prop = ed.GetString(psoProp).StringResult;
+                            finalTag = $"[ACTION:LIST_UNIQUE {{\"Target\": \"Property\", \"Scope\": \"{scope}\", \"Property\": \"{prop}\"}}]";
+                        }
+                        else
+                        {
+                            finalTag = $"[ACTION:LIST_UNIQUE {{\"Target\": \"Class\", \"Scope\": \"{scope}\"}}]";
+                        }
+                    }
+
+
                     // --- [REMOVE_ANNO_SCALE] ---
                     else if (pr.StringResult.Equals("REMOVEScale", StringComparison.OrdinalIgnoreCase) || pr.StringResult == "RemoveScale")
                     {
@@ -1101,6 +1132,12 @@ namespace BricsCAD_Agent
                 else if (wklejonyTag.Contains("[ACTION:LIST_BLOCKS]"))
                 {
                     ListBlocksTool tool = new ListBlocksTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:LIST_UNIQUE"))
+                {
+                    ListUniqueTool tool = new ListUniqueTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
 

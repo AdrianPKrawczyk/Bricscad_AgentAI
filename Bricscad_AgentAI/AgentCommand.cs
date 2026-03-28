@@ -71,6 +71,7 @@ namespace BricsCAD_Agent
         new AddAnnoScaleTool(),
         new ReadAnnoScalesTool(),
         new RemoveAnnoScaleTool(),
+        new ListUniqueTool(),
         new ListBlocksTool()         
 
         };
@@ -172,6 +173,13 @@ namespace BricsCAD_Agent
                         "Opis: Odczytuje skale opisowe przypisane do zaznaczonych obiektów.\n" +
                         "Tryby: {\"Mode\": \"Summary\"} (krótkie podsumowanie dla LLM) lub {\"Mode\": \"Detailed\"} (lista każdego obiektu z osobna).\n" +
                         "Przykłady: [ACTION:READ_ANNO_SCALES {\"Mode\": \"Summary\"}]\n\n" +
+
+                        "Tag: [ACTION:LIST_UNIQUE]\n" +
+                        "Opis: Agreguje i zwraca listę unikalnych klas API (np. by sprawdzić, jakie obiekty są na rysunku) lub unikalnych wartości konkretnej właściwości (np. lista wszystkich nazw warstw, nazw bloków).\n" +
+                        "Argument 'Target': \"Class\" (zwraca typy) lub \"Property\" (zwraca wartości).\n" +
+                        "Argument 'Scope': \"Selection\" (domyślnie), \"Model\" (cały rysunek) lub \"Blocks\" (wnętrza wszystkich bloków).\n" +
+                        "Przykład 1 (Klasy w modelu): [ACTION:LIST_UNIQUE {\"Target\": \"Class\", \"Scope\": \"Model\"}]\n" +
+                        "Przykład 2 (Nazwy warstw w zaznaczeniu): [ACTION:LIST_UNIQUE {\"Target\": \"Property\", \"Scope\": \"Selection\", \"Property\": \"Layer\"}]\n\n" +
 
                         "User: Zaznacz linie dłuższe niż 50\n" +
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
