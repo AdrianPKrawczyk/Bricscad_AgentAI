@@ -296,7 +296,12 @@ namespace BricsCAD_Agent
                                 // --- MAGIA NR 2: Pytanie o Wartość danej Właściwości ---
                                 if (opWord == "AskUser")
                                 {
-                                    string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz wartość dla '{prop}':\", \"FetchTarget\": \"Property\", \"FetchScope\": \"{scope}\", \"FetchProperty\": \"{prop}\"}}]";
+                                    PromptKeywordOptions pkoMulti = new PromptKeywordOptions("\nCzy wybór ma być wielokrotny (Checkboxy)? [Tak/Nie]: ");
+                                    pkoMulti.Keywords.Add("Tak"); pkoMulti.Keywords.Add("Nie"); pkoMulti.Keywords.Default = "Nie";
+                                    bool isMulti = ed.GetKeywords(pkoMulti).StringResult == "Tak";
+
+                                    string multiParam = isMulti ? ", \"MultiSelect\": true" : "";
+                                    string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz wartość dla '{prop}':\", \"FetchTarget\": \"Property\", \"FetchScope\": \"{scope}\", \"FetchProperty\": \"{prop}\"{multiParam}}}]";
 
                                     ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE KROKU POŚREDNIEGO (Myślenie Agenta) ---");
                                     string wynikUC = WykonywaczTagow(doc, ucTag);
@@ -309,19 +314,27 @@ namespace BricsCAD_Agent
                                         break;
                                     }
 
-                                    // Wstrzykujemy pomocniczy tag wyboru do pamięci Agenta
                                     historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
                                     string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [SELECT: ].";
                                     historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
 
-                                    // Automatyczne podpięcie odpowiedzi z okienka jako warunku dla SELECT!
                                     string val = "";
                                     int lastColonActual = wynikUC.LastIndexOf(':');
                                     if (lastColonActual != -1) val = wynikUC.Substring(lastColonActual + 1).Trim();
 
-                                    if (!double.TryParse(val.Replace(",", "."), out _) && val.ToLower() != "true" && val.ToLower() != "false") val = $"\"{val}\"";
+                                    // Jeśli wybrano multiSelect, zmieniamy operator na "IN" i zostawiamy CSV w jednym cudzysłowie!
+                                    string multiOpSign = isMulti ? "IN" : "==";
 
-                                    warunkiList.Add($"{{\"Property\": \"{prop}\", \"Operator\": \"==\", \"Value\": {val}}}");
+                                    if (isMulti)
+                                    {
+                                        val = $"\"{val}\"";
+                                    }
+                                    else
+                                    {
+                                        if (!double.TryParse(val.Replace(",", "."), out _) && val.ToLower() != "true" && val.ToLower() != "false") val = $"\"{val}\"";
+                                    }
+
+                                    warunkiList.Add($"{{\"Property\": \"{prop}\", \"Operator\": \"{multiOpSign}\", \"Value\": {val}}}");
                                     licznikWarunkow++;
 
                                     PromptKeywordOptions pkoJeszcze = new PromptKeywordOptions("\nCzy chcesz dodać KOLEJNY warunek (logika AND)? [Tak/Nie]: ");
@@ -329,7 +342,7 @@ namespace BricsCAD_Agent
                                     pkoJeszcze.Keywords.Default = "Nie";
                                     if (ed.GetKeywords(pkoJeszcze).StringResult != "Tak") dodawajKolejneWarunki = false;
 
-                                    continue; // Przeskakuje resztę tego obiegu pętli i idzie dalej
+                                    continue;
                                 }
 
                                 string opSign = "==";
@@ -881,18 +894,26 @@ namespace BricsCAD_Agent
                         }
                     }
 
-                    // --- [USER_CHOICE] (Zadawanie pytań) ---
-                    else if (pr.StringResult.Equals("ASKUser", StringComparison.OrdinalIgnoreCase))
+                    // --- [USER_CHOICE] (Główne menu) ---
+                    else if (pr.StringResult.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
                     {
                         PromptStringOptions psoQ = new PromptStringOptions("\nPodaj treść pytania dla użytkownika (np. Którą warstwę zaktualizować?): ");
                         psoQ.AllowSpaces = true;
                         string question = ed.GetString(psoQ).StringResult;
+
+                        // --- NOWOŚĆ: Pytanie o tryb wielokrotnego wyboru ---
+                        PromptKeywordOptions pkoMulti = new PromptKeywordOptions("\nCzy wybór ma być wielokrotny (Checkboxy)? [Tak/Nie]: ");
+                        pkoMulti.Keywords.Add("Tak"); pkoMulti.Keywords.Add("Nie"); pkoMulti.Keywords.Default = "Nie";
+                        bool isMulti = ed.GetKeywords(pkoMulti).StringResult == "Tak";
+                        string multiParam = isMulti ? ", \"MultiSelect\": true" : "";
 
                         PromptKeywordOptions pkoMethod = new PromptKeywordOptions("\nJak chcesz wprowadzić opcje? [Recznie/Pobierz_z_rysunku]: ");
                         pkoMethod.Keywords.Add("Recznie");
                         pkoMethod.Keywords.Add("Pobierz_z_rysunku");
                         pkoMethod.Keywords.Default = "Pobierz_z_rysunku";
                         string method = ed.GetKeywords(pkoMethod).StringResult;
+
+                        System.Collections.Generic.List<string> optionsList = new System.Collections.Generic.List<string>();
 
                         if (method == "Pobierz_z_rysunku")
                         {
@@ -912,16 +933,18 @@ namespace BricsCAD_Agent
                                 psoProp.AllowSpaces = false;
                                 prop = ed.GetString(psoProp).StringResult;
 
-                                finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"FetchTarget\": \"Property\", \"FetchScope\": \"{scope}\", \"FetchProperty\": \"{prop}\"}}]";
+                                // Wstrzykujemy multiParam do tagu FetchProperty
+                                finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"FetchTarget\": \"Property\", \"FetchScope\": \"{scope}\", \"FetchProperty\": \"{prop}\"{multiParam}}}]";
                             }
                             else
                             {
-                                finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"FetchTarget\": \"Class\", \"FetchScope\": \"{scope}\"}}]";
+                                // Wstrzykujemy multiParam do tagu FetchClass
+                                finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"FetchTarget\": \"Class\", \"FetchScope\": \"{scope}\"{multiParam}}}]";
                             }
                         }
                         else
                         {
-                            System.Collections.Generic.List<string> optionsList = new System.Collections.Generic.List<string>();
+                            // Stary kod - Ręczne wpisywanie lub wklejanie listy
                             bool addingOptions = true;
                             int optCount = 1;
                             ed.WriteMessage("\n[INFO]: Możesz wpisywać opcje pojedynczo LUB wkleić całą listę po przecinku!");
@@ -958,8 +981,10 @@ namespace BricsCAD_Agent
                                     }
                                 }
                             }
+
+                            // Wstrzykujemy multiParam do klasycznego tagu z tablicą Options
                             string arrayString = string.Join(", ", optionsList);
-                            finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"Options\": [{arrayString}]}}]";
+                            finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"Options\": [{arrayString}]{multiParam}}}]";
                         }
                     }
 

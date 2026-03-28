@@ -12,32 +12,40 @@ namespace BricsCAD_Agent
     public class UserChoiceTool : ITool
     {
         public string ActionTag => "[ACTION:USER_CHOICE]";
-        public string Description => "Wyświetla użytkownikowi okno wyboru. Opcje mogą być podane w tagu lub automatycznie pobrane z rysunku.";
+        public string Description => "Wyświetla interaktywne okno wyboru (pojedyncze lub Checkboxy - wielokrotne).";
 
         private const string RegistryPath = @"Software\BricsCADAgentAI\Settings";
 
         public string Execute(Document doc, string jsonArgs)
         {
-            // 1. Wyciąganie pytania
-            string question = "Wybierz jedną z opcji:";
-            Match mQuestion = Regex.Match(jsonArgs, @"\""Question\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            // --- PANCERNE CZYSZCZENIE JSON-a ---
+            // Zdejmujemy wszelkie backslashe narzucone przez format JSONL w DB Managerze
+            string cleanArgs = jsonArgs.Replace("\\\"", "\"").Replace("\\n", "\n");
+
+            string question = "Wybierz opcje:";
+            Match mQuestion = Regex.Match(cleanArgs, @"""Question""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
             if (mQuestion.Success) question = mQuestion.Groups[1].Value;
+
+            // --- KULOODPORNE WYKRYWANIE MULTISELECT ---
+            bool multiSelect = false;
+            // Dopuszcza spacje, true w cudzysłowach, brak cudzysłowów, duże/małe litery
+            if (Regex.IsMatch(cleanArgs, @"""MultiSelect""\s*:\s*(true|""true"")", RegexOptions.IgnoreCase))
+            {
+                multiSelect = true;
+            }
 
             List<string> options = new List<string>();
 
-            // 2A. Sprawdzamy, czy Agent chce automatycznie pobrać listę z rysunku (MOCNE ULEPSZENIE)
-            Match mFetchTarget = Regex.Match(jsonArgs, @"\""FetchTarget\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            Match mFetchTarget = Regex.Match(cleanArgs, @"""FetchTarget""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
             if (mFetchTarget.Success)
             {
                 string target = mFetchTarget.Groups[1].Value;
-
-                Match mFetchScope = Regex.Match(jsonArgs, @"\""FetchScope\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+                Match mFetchScope = Regex.Match(cleanArgs, @"""FetchScope""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
                 string scope = mFetchScope.Success ? mFetchScope.Groups[1].Value : "Selection";
 
-                Match mFetchProp = Regex.Match(jsonArgs, @"\""FetchProperty\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+                Match mFetchProp = Regex.Match(cleanArgs, @"""FetchProperty""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
                 string prop = mFetchProp.Success ? mFetchProp.Groups[1].Value : "";
 
-                // Uruchamiamy ListUniqueTool "w tle"
                 ListUniqueTool luTool = new ListUniqueTool();
                 string jsonArgsLu = target.Equals("Property", StringComparison.OrdinalIgnoreCase)
                     ? $"[ACTION:LIST_UNIQUE {{\"Target\": \"Property\", \"Scope\": \"{scope}\", \"Property\": \"{prop}\"}}]"
@@ -52,42 +60,33 @@ namespace BricsCAD_Agent
                     string[] elementy = wartosciCsv.Split(new string[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
                     foreach (string el in elementy) options.Add(el.Trim());
                 }
-                else
-                {
-                    return $"WYNIK: BŁĄD - Nie udało się automatycznie wygenerować listy. Narzędzie zwróciło: {wynikListUnique}";
-                }
+                else return $"WYNIK: BŁĄD - Nie udało się pobrać listy: {wynikListUnique}";
             }
-            // 2B. Jeśli Agent sam podał listę opcji w tablicy (stara metoda)
             else
             {
-                Match mOptionsArray = Regex.Match(jsonArgs, @"\""Options\""\s*:\s*\[(.*?)\]", RegexOptions.IgnoreCase);
+                Match mOptionsArray = Regex.Match(cleanArgs, @"""Options""\s*:\s*\[(.*?)\]", RegexOptions.IgnoreCase);
                 if (mOptionsArray.Success)
                 {
                     string arrayContent = mOptionsArray.Groups[1].Value;
-                    MatchCollection optionMatches = Regex.Matches(arrayContent, @"\""([^\""]+)\""");
+                    MatchCollection optionMatches = Regex.Matches(arrayContent, @"""([^""]+)""");
                     foreach (Match m in optionMatches) options.Add(m.Groups[1].Value);
                 }
             }
 
-            if (options.Count == 0) return "WYNIK: BŁĄD - Nie podano żadnych opcji ani parametrów Fetch.";
+            if (options.Count == 0) return "WYNIK: BŁĄD - Brak opcji do wyświetlenia.";
 
             string selectedOption = "";
 
-            // 3. Budowa interaktywnego okna dialogowego (WinForms)
             using (Form prompt = new Form())
             {
-                int defaultWidth = 900;
-                int defaultHeight = 1250;
+                int defaultWidth = 900, defaultHeight = 1250;
                 LoadWindowSizeFromRegistry(out defaultWidth, out defaultHeight, defaultWidth, defaultHeight);
 
-                prompt.Width = defaultWidth;
-                prompt.Height = defaultHeight;
+                prompt.Width = defaultWidth; prompt.Height = defaultHeight;
                 prompt.FormBorderStyle = FormBorderStyle.Sizable;
-                prompt.Text = "Decyzja Agenta AI";
+                prompt.Text = multiSelect ? "Decyzja Agenta AI (Wielokrotny Wybór)" : "Decyzja Agenta AI";
                 prompt.StartPosition = FormStartPosition.CenterScreen;
                 prompt.KeyPreview = true;
-                prompt.MaximizeBox = true;
-                prompt.MinimizeBox = false;
 
                 Label textLabel = new Label()
                 {
@@ -99,53 +98,102 @@ namespace BricsCAD_Agent
                     Font = new Font("Segoe UI", 11, FontStyle.Bold),
                     Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
                 };
+                prompt.Controls.Add(textLabel);
 
-                ListBox listBox = new ListBox()
+                Control listControl;
+                if (multiSelect)
                 {
-                    Left = 15,
-                    Top = 65,
-                    Width = 850,
-                    Height = 1000,
-                    Font = new Font("Segoe UI", 10),
-                    Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-                };
+                    CheckedListBox clb = new CheckedListBox()
+                    {
+                        Left = 15,
+                        Top = 65,
+                        Width = 850,
+                        Height = 1000,
+                        Font = new Font("Segoe UI", 10),
+                        CheckOnClick = true,
+                        Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+                    };
+                    foreach (var opt in options) clb.Items.Add(opt);
+                    listControl = clb;
 
-                foreach (var opt in options) listBox.Items.Add(opt);
-                if (listBox.Items.Count > 0) listBox.SelectedIndex = 0;
+                    CheckBox selectAllCheck = new CheckBox()
+                    {
+                        Text = "Zaznacz / Odznacz wszystkie",
+                        Left = 15,
+                        Top = 1105,
+                        Width = 250,
+                        Height = 30,
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                        Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+                    };
+
+                    selectAllCheck.CheckedChanged += (s, e) =>
+                    {
+                        for (int i = 0; i < clb.Items.Count; i++)
+                        {
+                            clb.SetItemChecked(i, selectAllCheck.Checked);
+                        }
+                    };
+
+                    prompt.Controls.Add(selectAllCheck);
+                }
+                else
+                {
+                    ListBox lb = new ListBox()
+                    {
+                        Left = 15,
+                        Top = 65,
+                        Width = 850,
+                        Height = 1000,
+                        Font = new Font("Segoe UI", 10),
+                        Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+                    };
+                    foreach (var opt in options) lb.Items.Add(opt);
+                    if (lb.Items.Count > 0) lb.SelectedIndex = 0;
+                    lb.DoubleClick += (s, e) => { prompt.DialogResult = DialogResult.OK; prompt.Close(); };
+                    listControl = lb;
+                }
+                prompt.Controls.Add(listControl);
 
                 Button confirmation = new Button()
                 {
-                    Text = "Zatwierdź wybór (ENTER)",
+                    Text = "Zatwierdź (ENTER)",
                     Left = 650,
                     Width = 200,
                     Height = 40,
                     Top = 1100,
                     DialogResult = DialogResult.OK,
-                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 9),
                     Anchor = AnchorStyles.Bottom | AnchorStyles.Right
                 };
-
-                prompt.Controls.Add(textLabel);
-                prompt.Controls.Add(listBox);
                 prompt.Controls.Add(confirmation);
                 prompt.AcceptButton = confirmation;
-
-                listBox.DoubleClick += (s, e) => { prompt.DialogResult = DialogResult.OK; prompt.Close(); };
 
                 DialogResult dialogResult = Bricscad.ApplicationServices.Application.ShowModalDialog(prompt);
                 SaveWindowSizeToRegistry(prompt.Width, prompt.Height);
 
-                if (dialogResult == DialogResult.OK && listBox.SelectedItem != null)
+                if (dialogResult == DialogResult.OK)
                 {
-                    selectedOption = listBox.SelectedItem.ToString();
+                    if (multiSelect)
+                    {
+                        var clb = (CheckedListBox)listControl;
+                        List<string> selected = new List<string>();
+                        foreach (var item in clb.CheckedItems) selected.Add(item.ToString());
+
+                        if (selected.Count == 0) return "WYNIK: Użytkownik anulował (nie zaznaczono żadnej opcji).";
+                        selectedOption = string.Join(", ", selected);
+                    }
+                    else
+                    {
+                        var lb = (ListBox)listControl;
+                        if (lb.SelectedItem != null) selectedOption = lb.SelectedItem.ToString();
+                        else return "WYNIK: Użytkownik anulował (ESC).";
+                    }
                 }
-                else
-                {
-                    return "WYNIK: Użytkownik anulował wybór (ESC lub zamknięcie okna).";
-                }
+                else return "WYNIK: Użytkownik anulował wybór (ESC lub zamknięcie okna).";
             }
 
-            return $"WYNIK: Użytkownik wybrał opcję: {selectedOption}";
+            return $"WYNIK: Użytkownik wybrał opcje: {selectedOption}";
         }
 
         public string Execute(Document doc) => Execute(doc, "");
@@ -153,36 +201,12 @@ namespace BricsCAD_Agent
         private void LoadWindowSizeFromRegistry(out int width, out int height, int defW, int defH)
         {
             width = defW; height = defH;
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegistryPath))
-                {
-                    if (key != null)
-                    {
-                        object wValue = key.GetValue("WindowWidth");
-                        object hValue = key.GetValue("WindowHeight");
-                        if (wValue != null && int.TryParse(wValue.ToString(), out int storedW)) width = Math.Max(storedW, 300);
-                        if (hValue != null && int.TryParse(hValue.ToString(), out int storedH)) height = Math.Max(storedH, 200);
-                    }
-                }
-            }
-            catch { }
+            try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(RegistryPath)) { if (k != null) { object w = k.GetValue("WindowWidth"); object h = k.GetValue("WindowHeight"); if (w != null && int.TryParse(w.ToString(), out int sw)) width = Math.Max(sw, 300); if (h != null && int.TryParse(h.ToString(), out int sh)) height = Math.Max(sh, 200); } } } catch { }
         }
 
         private void SaveWindowSizeToRegistry(int width, int height)
         {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryPath))
-                {
-                    if (key != null)
-                    {
-                        key.SetValue("WindowWidth", width, RegistryValueKind.DWord);
-                        key.SetValue("WindowHeight", height, RegistryValueKind.DWord);
-                    }
-                }
-            }
-            catch { }
+            try { using (RegistryKey k = Registry.CurrentUser.CreateSubKey(RegistryPath)) { if (k != null) { k.SetValue("WindowWidth", width, RegistryValueKind.DWord); k.SetValue("WindowHeight", height, RegistryValueKind.DWord); } } } catch { }
         }
     }
 }

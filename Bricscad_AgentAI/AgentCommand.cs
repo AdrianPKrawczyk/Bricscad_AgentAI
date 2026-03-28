@@ -913,6 +913,19 @@ namespace BricsCAD_Agent
                                         case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
                                         case "!=": warunekSpelniony = !valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
                                         case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
+
+                                        // --- NOWOŚĆ: Obsługa operatora IN dla Checkboxów (wielokrotny wybór) ---
+                                        case "in":
+                                            string[] mozliweWartosci = warunek.Val.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                            foreach (string mw in mozliweWartosci)
+                                            {
+                                                if (valStr.Equals(mw.Trim(), StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    warunekSpelniony = true;
+                                                    break; // Znaleziono dopasowanie, przerywamy sprawdzanie pozostałych opcji z Checkboxów
+                                                }
+                                            }
+                                            break;
                                     }
                                 }
                                 if (!warunekSpelniony) { spelniaWszystkie = false; break; }
