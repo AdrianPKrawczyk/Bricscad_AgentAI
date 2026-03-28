@@ -334,6 +334,28 @@ namespace BricsCAD_Agent
                 {
                     historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + Komendy.SafeJson(aiMsg) + "\"}");
 
+                    // =======================================================================
+                    // --- 🛡️ NIEWIDZIALNA TARCZA: SPRAWDZAMY SKŁADNIĘ ZANIM DOTKNIEMY CADA ---
+                    // =======================================================================
+                    if (aiMsg.Contains("[ACTION:") || aiMsg.Contains("[SELECT:"))
+                    {
+                        List<string> syntaxErrors = TagValidator.ValidateSequence(aiMsg);
+                        if (syntaxErrors.Count > 0)
+                        {
+                            doc.Editor.WriteMessage($"\n[Tarcza AI]: Zablokowano wadliwy tag. Wymuszam samonaprawę w tle...");
+
+                            string systemFeedback = $"[SYSTEM] Twój wygenerowany tag zawiera błędy. Nie został wykonany:\n" +
+                                                    $"{string.Join("\n", syntaxErrors)}\n" +
+                                                    $"Przeanalizuj swój błąd, upewnij się, że używasz właściwych nazw parametrów i wygeneruj CAŁKOWICIE NOWY, poprawny tag.";
+
+                            historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(systemFeedback) + "\"}");
+
+                            // Wymuszamy samonaprawę (odpalamy zapytanie do API jeszcze raz z wytkniętym błędem)
+                            return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
+                        }
+                    }
+                    // =======================================================================
+
                     // 1. OBSŁUGA WYSZUKIWANIA W BAZIE (SEARCH)
                     if (aiMsg.Contains("[SEARCH:"))
                     {
