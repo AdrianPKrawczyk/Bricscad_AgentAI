@@ -62,7 +62,6 @@ namespace BricsCAD_Agent
                     string finalTag = "";
 
                     // --- [SELECT] ---
-                    // --- [SELECT] ---
                     if (pr.StringResult == "Select")
                     {
                         PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nWybierz tryb zaznaczania [New/Add/Remove]: ");
@@ -70,27 +69,24 @@ namespace BricsCAD_Agent
                         pkoMode.Keywords.Default = "New";
                         string mode = ed.GetKeywords(pkoMode).StringResult;
 
-                        // --- NOWOŚĆ: Pytanie o obszar wyszukiwania (Scope) ---
                         PromptKeywordOptions pkoScope = new PromptKeywordOptions("\nWybierz obszar wyszukiwania (Scope) [Model/Blocks]: ");
                         pkoScope.Keywords.Add("Model");
                         pkoScope.Keywords.Add("Blocks");
                         pkoScope.Keywords.Default = "Model";
                         string scope = ed.GetKeywords(pkoScope).StringResult;
 
-                        // ... (Kod ładujący plik bazy danych BricsCAD_API_Quick.txt zostaje bez zmian) ...
-                        // --- NOWOŚĆ: WYBÓR BAZY API W LOCIE ---
-                        PromptKeywordOptions pkoBaza = new PromptKeywordOptions("\nZ jakiej bazy wiedzy załadować podpowiedzi? [Quick/Full]: ");
+                        PromptKeywordOptions pkoBaza = new PromptKeywordOptions("\nZ jakiej bazy wiedzy załadować podpowiedzi? [Quick/Full/AskUser]: ");
                         pkoBaza.Keywords.Add("Quick");
                         pkoBaza.Keywords.Add("Full");
+                        pkoBaza.Keywords.Add("AskUser");
                         pkoBaza.Keywords.Default = "Quick";
                         string trybBazy = ed.GetKeywords(pkoBaza).StringResult;
 
+                        // Wczytywanie słownika zawsze (nawet dla AskUser), żeby był dostępny w późniejszej pętli Właściwości
                         string nazwaBazy = (trybBazy == "Full") ? "BricsCAD_API_V22.txt" : "BricsCAD_API_Quick.txt";
-
                         string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                         string folderDir = System.IO.Path.GetDirectoryName(assemblyPath);
                         string filePath = System.IO.Path.Combine(folderDir, nazwaBazy);
-                        // ----------------------------------------
                         System.Collections.Generic.Dictionary<string, string> bazyDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                         if (System.IO.File.Exists(filePath))
@@ -108,206 +104,264 @@ namespace BricsCAD_Agent
                                 else if (entName.Equals("solid3d", StringComparison.OrdinalIgnoreCase)) entName = "Solid3d";
                                 else entName = char.ToUpper(entName[0]) + entName.Substring(1).ToLower();
 
-                                // Wczytujemy wszystko jak leci! (Brak warunku hsBialaLista.Contains)
                                 bazyDict[entName] = m.Groups[2].Value.Trim();
                             }
                         }
 
                         string entType = "";
-                        if (bazyDict.Count > 0)
+                        bool abortSelect = false;
+
+                        // --- MAGIA NR 1: Pytanie o Klasę Obiektu ---
+                        if (trybBazy == "AskUser")
                         {
-                            PromptKeywordOptions pkoEnt = new PromptKeywordOptions("\nWybierz typ obiektu z bazy (ESC by wpisac recznie)");
-                            ed.WriteMessage("\n\n--- DOSTĘPNE OBIEKTY W BAZIE WIEDZY ---");
+                            string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz typ obiektu (Klasę) z listy:\", \"FetchTarget\": \"Class\", \"FetchScope\": \"{scope}\"}}]";
 
-                            // --- NOWOŚĆ: SORTOWANIE ALFABETYCZNE ---
-                            System.Collections.Generic.List<string> posortowaneKlucze = new System.Collections.Generic.List<string>(bazyDict.Keys);
-                            posortowaneKlucze.Sort(); // C# automatycznie sortuje stringi od A do Z
-                                                      // ---------------------------------------
+                            ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE KROKU POŚREDNIEGO (Myślenie Agenta) ---");
+                            string wynikUC = WykonywaczTagow(doc, ucTag);
+                            ed.WriteMessage($"\n[WYNIK]: {wynikUC}\n");
 
-                            string listaObiektow = "\n";
-                            int kolumna = 0;
-
-                            // Zmieniamy pętlę, by iterowała po POSORTOWANEJ liście
-                            foreach (var key in posortowaneKlucze)
+                            if (wynikUC.Contains("anulował"))
                             {
-                                try
-                                {
-                                    pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper());
-
-                                    // Magia formatowania: dopełnia spacjami do 26 znaków, żeby zrobić równą tabelę
-                                    listaObiektow += string.Format("{0,-26}", key);
-                                    kolumna++;
-
-                                    // Kiedy mamy 3 elementy w wierszu, przechodzimy do nowej linijki
-                                    if (kolumna >= 3)
-                                    {
-                                        listaObiektow += "\n";
-                                        kolumna = 0;
-                                    }
-                                }
-                                catch { }
+                                abortSelect = true;
+                                finalTag = "ABORT";
                             }
+                            else
+                            {
+                                // Wstrzykiwanie kroków do pamięci treningowej "w locie"
+                                historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
+                                string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [SELECT: ].";
+                                historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
 
-                            try { pkoEnt.Keywords.Default = "Entity"; } catch { }
-
-                            // Wyświetlamy zbudowaną, posortowaną tabelę
-                            ed.WriteMessage($"\n{listaObiektow}\n---------------------------------------");
-
-                            PromptResult prEnt = ed.GetKeywords(pkoEnt);
-                            if (prEnt.Status == PromptStatus.OK && !string.IsNullOrEmpty(prEnt.StringResult)) entType = prEnt.StringResult;
+                                // Wyciągnięcie odpowiedzi i przypisanie do zmiennej entType
+                                int lastColonActual = wynikUC.LastIndexOf(':');
+                                if (lastColonActual != -1) entType = wynikUC.Substring(lastColonActual + 1).Trim();
+                            }
                         }
-
-                        if (string.IsNullOrEmpty(entType))
+                        else
                         {
-                            PromptStringOptions psoType = new PromptStringOptions("\nPodaj typy obiektów po przecinku (np. Line, Circle): ");
-                            psoType.AllowSpaces = true;
-                            entType = ed.GetString(psoType).StringResult;
-                            if (string.IsNullOrEmpty(entType)) entType = "Entity";
-                        }
-
-                        // --- NOWOŚĆ: PĘTLA ZBIERAJĄCA WIELE WARUNKÓW (LOGIKA AND) ---
-                        System.Collections.Generic.List<string> warunkiList = new System.Collections.Generic.List<string>();
-                        bool dodawajKolejneWarunki = true;
-                        int licznikWarunkow = 1;
-
-                        while (dodawajKolejneWarunki)
-                        {
-                            string prop = "";
-                            System.Collections.Generic.Dictionary<string, string> propertiesMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
                             if (bazyDict.Count > 0)
                             {
-                                string pelnyOpis = "";
-                                if (bazyDict.ContainsKey("Entity")) pelnyOpis += bazyDict["Entity"] + " ";
-                                string glownaKlasa = entType.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)[0];
-                                if (bazyDict.ContainsKey(glownaKlasa) && !glownaKlasa.Equals("Entity", StringComparison.OrdinalIgnoreCase))
-                                    pelnyOpis += bazyDict[glownaKlasa];
+                                PromptKeywordOptions pkoEnt = new PromptKeywordOptions("\nWybierz typ obiektu z bazy (ESC by wpisac recznie)");
+                                ed.WriteMessage("\n\n--- DOSTĘPNE OBIEKTY W BAZIE WIEDZY ---");
 
-                                // Jeśli użytkownik wybrał potężną bazę V22
-                                if (nazwaBazy == "BricsCAD_API_V22.txt")
+                                System.Collections.Generic.List<string> posortowaneKlucze = new System.Collections.Generic.List<string>(bazyDict.Keys);
+                                posortowaneKlucze.Sort();
+
+                                string listaObiektow = "\n";
+                                int kolumna = 0;
+
+                                foreach (var key in posortowaneKlucze)
                                 {
-                                    System.Text.RegularExpressions.MatchCollection matchesFull = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"Właściwości \(Properties\):\s*(.*?)(?=\.\s*[A-Z]|\.$|$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                                    foreach (System.Text.RegularExpressions.Match mFull in matchesFull)
+                                    try
                                     {
-                                        string[] props = mFull.Groups[1].Value.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
-                                        foreach (string p in props)
+                                        pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper());
+                                        listaObiektow += string.Format("{0,-26}", key);
+                                        kolumna++;
+                                        if (kolumna >= 3)
                                         {
-                                            string cleanProp = p.Trim().Split(new char[] { ' ', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries)[0];
-                                            if (cleanProp.Length > 1 && char.IsUpper(cleanProp[0]))
+                                            listaObiektow += "\n";
+                                            kolumna = 0;
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                try { pkoEnt.Keywords.Default = "Entity"; } catch { }
+
+                                ed.WriteMessage($"\n{listaObiektow}\n---------------------------------------");
+
+                                PromptResult prEnt = ed.GetKeywords(pkoEnt);
+                                if (prEnt.Status == PromptStatus.OK && !string.IsNullOrEmpty(prEnt.StringResult)) entType = prEnt.StringResult;
+                            }
+
+                            if (string.IsNullOrEmpty(entType))
+                            {
+                                PromptStringOptions psoType = new PromptStringOptions("\nPodaj typy obiektów po przecinku (np. Line, Circle): ");
+                                psoType.AllowSpaces = true;
+                                entType = ed.GetString(psoType).StringResult;
+                                if (string.IsNullOrEmpty(entType)) entType = "Entity";
+                            }
+                        }
+
+                        if (!abortSelect)
+                        {
+                            System.Collections.Generic.List<string> warunkiList = new System.Collections.Generic.List<string>();
+                            bool dodawajKolejneWarunki = true;
+                            int licznikWarunkow = 1;
+
+                            while (dodawajKolejneWarunki)
+                            {
+                                string prop = "";
+                                System.Collections.Generic.Dictionary<string, string> propertiesMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                                if (bazyDict.Count > 0)
+                                {
+                                    string pelnyOpis = "";
+                                    if (bazyDict.ContainsKey("Entity")) pelnyOpis += bazyDict["Entity"] + " ";
+                                    string glownaKlasa = entType.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                                    if (bazyDict.ContainsKey(glownaKlasa) && !glownaKlasa.Equals("Entity", StringComparison.OrdinalIgnoreCase))
+                                        pelnyOpis += bazyDict[glownaKlasa];
+
+                                    if (nazwaBazy == "BricsCAD_API_V22.txt")
+                                    {
+                                        System.Text.RegularExpressions.MatchCollection matchesFull = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"Właściwości \(Properties\):\s*(.*?)(?=\.\s*[A-Z]|\.$|$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                                        foreach (System.Text.RegularExpressions.Match mFull in matchesFull)
+                                        {
+                                            string[] props = mFull.Groups[1].Value.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+                                            foreach (string p in props)
                                             {
-                                                propertiesMap[cleanProp] = "V22_API";
+                                                string cleanProp = p.Trim().Split(new char[] { ' ', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries)[0];
+                                                if (cleanProp.Length > 1 && char.IsUpper(cleanProp[0]))
+                                                {
+                                                    propertiesMap[cleanProp] = "V22_API";
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        System.Text.RegularExpressions.MatchCollection matchesQuick = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
+                                        foreach (System.Text.RegularExpressions.Match m in matchesQuick) propertiesMap[m.Groups[1].Value] = m.Groups[2].Value;
+                                    }
+
+                                    if (propertiesMap.Count > 0)
+                                    {
+                                        PromptKeywordOptions pkoProp = new PromptKeywordOptions($"\nWybierz Wlasciwosc nr {licznikWarunkow} (ENTER by zakonczyc dodawanie warunkow)");
+                                        pkoProp.AllowNone = true;
+                                        ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
+
+                                        System.Collections.Generic.List<string> posortowaneWlasciwosci = new System.Collections.Generic.List<string>(propertiesMap.Keys);
+                                        posortowaneWlasciwosci.Sort();
+
+                                        foreach (var klucz in posortowaneWlasciwosci)
+                                        {
+                                            ed.WriteMessage($"\n [{klucz}] - {propertiesMap[klucz]}");
+                                            try { pkoProp.Keywords.Add(klucz, klucz.ToUpper(), klucz.ToUpper()); } catch { }
+                                        }
+
+                                        ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI WIZUALNE (Z uwzględnieniem 'Jak Warstwa') ---");
+                                        string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency" };
+                                        foreach (string vp in visualProps)
+                                        {
+                                            ed.WriteMessage($"\n [{vp}]");
+                                            try { pkoProp.Keywords.Add(vp, vp.ToUpper(), vp.ToUpper()); } catch { }
+                                        }
+
+                                        ed.WriteMessage($"\n\n [WLASNA] - Wpisz ręcznie (np. z kropką Center.Z)");
+                                        try { pkoProp.Keywords.Add("WLASNA", "WLASNA", "WLASNA"); } catch { }
+
+                                        ed.WriteMessage("\n-------------------------------------------");
+                                        PromptResult prProp = ed.GetKeywords(pkoProp);
+
+                                        if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult))
+                                        {
+                                            if (prProp.StringResult == "WLASNA")
+                                            {
+                                                PromptStringOptions psoWlasna = new PromptStringOptions($"\nWpisz ręcznie nazwę właściwości (np. Layer): ");
+                                                psoWlasna.AllowSpaces = false;
+                                                prop = ed.GetString(psoWlasna).StringResult;
+                                            }
+                                            else
+                                            {
+                                                prop = prProp.StringResult;
                                             }
                                         }
                                     }
                                 }
-                                else // Jeśli to stara, dobra baza Quick z nawiasami
+
+                                if (string.IsNullOrEmpty(prop) && propertiesMap.Count == 0)
                                 {
-                                    System.Text.RegularExpressions.MatchCollection matchesQuick = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
-                                    foreach (System.Text.RegularExpressions.Match m in matchesQuick) propertiesMap[m.Groups[1].Value] = m.Groups[2].Value;
+                                    PromptStringOptions psoProp = new PromptStringOptions($"\nPodaj Właściwość nr {licznikWarunkow} (lub ENTER by zakonczyc warunki): ");
+                                    psoProp.AllowSpaces = false;
+                                    prop = ed.GetString(psoProp).StringResult;
                                 }
 
-                                if (propertiesMap.Count > 0)
+                                if (string.IsNullOrEmpty(prop))
                                 {
-                                    PromptKeywordOptions pkoProp = new PromptKeywordOptions($"\nWybierz Wlasciwosc nr {licznikWarunkow} (ENTER by zakonczyc dodawanie warunkow)");
-                                    pkoProp.AllowNone = true;
-                                    ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
+                                    dodawajKolejneWarunki = false;
+                                    break;
+                                }
 
-                                    // --- NOWOŚĆ: SORTOWANIE WŁAŚCIWOŚCI ---
-                                    System.Collections.Generic.List<string> posortowaneWlasciwosci = new System.Collections.Generic.List<string>(propertiesMap.Keys);
-                                    posortowaneWlasciwosci.Sort();
+                                PromptKeywordOptions pkoOp = new PromptKeywordOptions("\nWybierz operator [Rowne/Nierowne/Wieksze/Mniejsze/Zawiera/AskUser]: ");
+                                pkoOp.Keywords.Add("Rowne");
+                                pkoOp.Keywords.Add("Nierowne");
+                                pkoOp.Keywords.Add("Wieksze");
+                                pkoOp.Keywords.Add("Mniejsze");
+                                pkoOp.Keywords.Add("Zawiera");
+                                pkoOp.Keywords.Add("AskUser");
+                                pkoOp.Keywords.Default = "Rowne";
 
-                                    foreach (var klucz in posortowaneWlasciwosci)
+                                string opWord = ed.GetKeywords(pkoOp).StringResult;
+
+                                // --- MAGIA NR 2: Pytanie o Wartość danej Właściwości ---
+                                if (opWord == "AskUser")
+                                {
+                                    string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz wartość dla '{prop}':\", \"FetchTarget\": \"Property\", \"FetchScope\": \"{scope}\", \"FetchProperty\": \"{prop}\"}}]";
+
+                                    ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE KROKU POŚREDNIEGO (Myślenie Agenta) ---");
+                                    string wynikUC = WykonywaczTagow(doc, ucTag);
+                                    ed.WriteMessage($"\n[WYNIK]: {wynikUC}\n");
+
+                                    if (wynikUC.Contains("anulował"))
                                     {
-                                        ed.WriteMessage($"\n [{klucz}] - {propertiesMap[klucz]}");
-                                        try { pkoProp.Keywords.Add(klucz, klucz.ToUpper(), klucz.ToUpper()); } catch { }
+                                        abortSelect = true;
+                                        finalTag = "ABORT";
+                                        break;
                                     }
 
-                                    // --- 2. DODAJEMY WIRTUALNE WŁAŚCIWOŚCI WIZUALNE ---
-                                    ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI WIZUALNE (Z uwzględnieniem 'Jak Warstwa') ---");
-                                    string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency" };
-                                    foreach (string vp in visualProps)
-                                    {
-                                        ed.WriteMessage($"\n [{vp}]");
-                                        try { pkoProp.Keywords.Add(vp, vp.ToUpper(), vp.ToUpper()); } catch { }
-                                    }
+                                    // Wstrzykujemy pomocniczy tag wyboru do pamięci Agenta
+                                    historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
+                                    string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [SELECT: ].";
+                                    historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
 
-                                    // --- NOWOŚĆ: Dodajemy opcję wpisania własnej właściwości z kropką ---
-                                    ed.WriteMessage($"\n\n [WLASNA] - Wpisz ręcznie (np. z kropką Center.Z)");
-                                    try { pkoProp.Keywords.Add("WLASNA", "WLASNA", "WLASNA"); } catch { }
+                                    // Automatyczne podpięcie odpowiedzi z okienka jako warunku dla SELECT!
+                                    string val = "";
+                                    int lastColonActual = wynikUC.LastIndexOf(':');
+                                    if (lastColonActual != -1) val = wynikUC.Substring(lastColonActual + 1).Trim();
 
-                                    ed.WriteMessage("\n-------------------------------------------");
-                                    PromptResult prProp = ed.GetKeywords(pkoProp);
+                                    if (!double.TryParse(val.Replace(",", "."), out _) && val.ToLower() != "true" && val.ToLower() != "false") val = $"\"{val}\"";
 
-                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult))
-                                    {
-                                        if (prProp.StringResult == "WLASNA")
-                                        {
-                                            PromptStringOptions psoWlasna = new PromptStringOptions($"\nWpisz ręcznie nazwę właściwości (np. Center.Z): ");
-                                            psoWlasna.AllowSpaces = false;
-                                            prop = ed.GetString(psoWlasna).StringResult;
-                                        }
-                                        else
-                                        {
-                                            prop = prProp.StringResult;
-                                        }
-                                    }
+                                    warunkiList.Add($"{{\"Property\": \"{prop}\", \"Operator\": \"==\", \"Value\": {val}}}");
+                                    licznikWarunkow++;
+
+                                    PromptKeywordOptions pkoJeszcze = new PromptKeywordOptions("\nCzy chcesz dodać KOLEJNY warunek (logika AND)? [Tak/Nie]: ");
+                                    pkoJeszcze.Keywords.Add("Tak"); pkoJeszcze.Keywords.Add("Nie");
+                                    pkoJeszcze.Keywords.Default = "Nie";
+                                    if (ed.GetKeywords(pkoJeszcze).StringResult != "Tak") dodawajKolejneWarunki = false;
+
+                                    continue; // Przeskakuje resztę tego obiegu pętli i idzie dalej
+                                }
+
+                                string opSign = "==";
+                                if (opWord == "Nierowne") opSign = "!=";
+                                if (opWord == "Wieksze") opSign = ">";
+                                if (opWord == "Mniejsze") opSign = "<";
+                                if (opWord == "Zawiera") opSign = "Contains";
+
+                                PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj szukaną wartość dla {prop}: ");
+                                psoVal.AllowSpaces = true;
+                                string valNormal = ed.GetString(psoVal).StringResult;
+                                if (!double.TryParse(valNormal.Replace(",", "."), out _) && valNormal.ToLower() != "true" && valNormal.ToLower() != "false") valNormal = $"\"{valNormal}\"";
+
+                                warunkiList.Add($"{{\"Property\": \"{prop}\", \"Operator\": \"{opSign}\", \"Value\": {valNormal}}}");
+                                licznikWarunkow++;
+
+                                PromptKeywordOptions pkoJeszcze2 = new PromptKeywordOptions("\nCzy chcesz dodać KOLEJNY warunek (logika AND)? [Tak/Nie]: ");
+                                pkoJeszcze2.Keywords.Add("Tak"); pkoJeszcze2.Keywords.Add("Nie");
+                                pkoJeszcze2.Keywords.Default = "Nie";
+                                if (ed.GetKeywords(pkoJeszcze2).StringResult != "Tak")
+                                {
+                                    dodawajKolejneWarunki = false;
                                 }
                             }
 
-                            if (string.IsNullOrEmpty(prop) && propertiesMap.Count == 0)
+                            // Złożenie finałowego Tagu SELECT, dziedziczącego wszystkie decyzje z okienek
+                            if (!abortSelect && string.IsNullOrEmpty(finalTag))
                             {
-                                PromptStringOptions psoProp = new PromptStringOptions($"\nPodaj Właściwość nr {licznikWarunkow} (lub ENTER by zakonczyc warunki): ");
-                                psoProp.AllowSpaces = false;
-                                prop = ed.GetString(psoProp).StringResult;
-                            }
-
-                            // Jeśli wciśnięto ENTER (brak właściwości), przerywamy pętlę
-                            if (string.IsNullOrEmpty(prop))
-                            {
-                                dodawajKolejneWarunki = false;
-                                break;
-                            }
-
-                            // --- NOWOŚĆ: Dodany operator "Nierowne" ---
-                            PromptKeywordOptions pkoOp = new PromptKeywordOptions("\nWybierz operator [Rowne/Nierowne/Wieksze/Mniejsze/Zawiera]: ");
-                            pkoOp.Keywords.Add("Rowne"); 
-                            pkoOp.Keywords.Add("Nierowne"); 
-                            pkoOp.Keywords.Add("Wieksze"); 
-                            pkoOp.Keywords.Add("Mniejsze"); 
-                            pkoOp.Keywords.Add("Zawiera");
-                            pkoOp.Keywords.Default = "Rowne";
-                            
-                            string opWord = ed.GetKeywords(pkoOp).StringResult;
-                            string opSign = "==";
-                            
-                            if (opWord == "Nierowne") opSign = "!=";
-                            if (opWord == "Wieksze") opSign = ">"; 
-                            if (opWord == "Mniejsze") opSign = "<"; 
-                            if (opWord == "Zawiera") opSign = "Contains";
-
-                            PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj szukaną wartość dla {prop}: ");
-                            psoVal.AllowSpaces = true;
-                            string val = ed.GetString(psoVal).StringResult;
-                            if (!double.TryParse(val.Replace(",", "."), out _) && val != "true" && val != "false") val = $"\"{val}\"";
-
-                            // Zapisujemy ten pojedynczy warunek do listy
-                            warunkiList.Add($"{{\"Property\": \"{prop}\", \"Operator\": \"{opSign}\", \"Value\": {val}}}");
-                            licznikWarunkow++;
-
-                            // Pytamy czy chcemy dodać logiczne AND (kolejny warunek)
-                            PromptKeywordOptions pkoJeszcze = new PromptKeywordOptions("\nCzy chcesz dodać KOLEJNY warunek (logika AND)? [Tak/Nie]: ");
-                            pkoJeszcze.Keywords.Add("Tak"); pkoJeszcze.Keywords.Add("Nie");
-                            pkoJeszcze.Keywords.Default = "Nie";
-                            if (ed.GetKeywords(pkoJeszcze).StringResult != "Tak")
-                            {
-                                dodawajKolejneWarunki = false;
+                                string wszystkieWarunkiJson = string.Join(", ", warunkiList);
+                                finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"Scope\": \"{scope}\", \"EntityType\": \"{entType}\", \"Conditions\": [{wszystkieWarunkiJson}]}}]";
                             }
                         }
-
-                        // Składamy wszystkie warunki po przecinku w jedną dużą tablicę JSON
-                        string wszystkieWarunkiJson = string.Join(", ", warunkiList);
-                        finalTag = $"[SELECT: {{\"Mode\": \"{mode}\", \"Scope\": \"{scope}\", \"EntityType\": \"{entType}\", \"Conditions\": [{wszystkieWarunkiJson}]}}]";
-
                     }
 
                     // --- [READ_PROPERTY] ---
@@ -1047,6 +1101,11 @@ namespace BricsCAD_Agent
                         finalTag = $"[ACTION:{actionName} {{{string.Join(", ", argsList)}}}]";
                     }
 
+                    if (finalTag == "ABORT")
+                    {
+                        ed.WriteMessage("\n[System] Operacja anulowana. Wracam do wyboru tagu.");
+                        continue;
+                    }
                     // === WSTRZYKIWANIE WEWNĘTRZNEGO KOMENTARZA AGENTA ===
                     if (!string.IsNullOrEmpty(finalTag))
                     {
