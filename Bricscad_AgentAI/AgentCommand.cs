@@ -68,6 +68,9 @@ namespace BricsCAD_Agent
         new SetPropertiesTool(),
         new ModifyGeometryTool(),
         new ReadPropertyTool(),
+        new AddAnnoScaleTool(),
+        new ReadAnnoScalesTool(),
+        new RemoveAnnoScaleTool(),
         new ListBlocksTool()         
 
         };
@@ -156,6 +159,19 @@ namespace BricsCAD_Agent
                         "Tag: [ACTION:READ_PROPERTY]\n" +
                         "Opis: Zwraca konkretną, pojedynczą właściwość z zaznaczonych obiektów (np. współrzędne środka, promień, długość). Użyj tego, gdy potrzebujesz wyciągnąć precyzyjne dane (np. punkt 'Center'), aby użyć ich w kolejnych krokach jako punktów bazowych.\n" +
                         "Argumenty: [ACTION:READ_PROPERTY {\"Property\": \"Center\"}]\n\n" +
+
+                        "Tag: [ACTION:ADD_ANNO_SCALE]\n" +
+                        "Opis: Narzędzie służące do włączania właściwości opisowej (Annotative) i jednoczesnego przypisywania konkretnej skali (np. 1:50 lub 1:100) do zaznaczonych wymiarów, tekstów i bloków.\n" +
+                        "Argumenty: [ACTION:ADD_ANNO_SCALE {\"Scale\": \"1:50\"}]\n\n" +
+
+                       "Tag: [ACTION:READ_ANNO_SCALES]\n" +
+                        "Opis: Odczytuje wszystkie skale opisowe (Annotative Scales) przypisane do zaznaczonych obiektów. Użyj przed modyfikacją, by sprawdzić jakie skale mają obiekty.\n" +
+                        "Argumenty: Brak.\n\n" +
+
+                        "Tag: [ACTION:READ_ANNO_SCALES]\n" +
+                        "Opis: Odczytuje skale opisowe przypisane do zaznaczonych obiektów.\n" +
+                        "Tryby: {\"Mode\": \"Summary\"} (krótkie podsumowanie dla LLM) lub {\"Mode\": \"Detailed\"} (lista każdego obiektu z osobna).\n" +
+                        "Przykłady: [ACTION:READ_ANNO_SCALES {\"Mode\": \"Summary\"}]\n\n" +
 
                         "User: Zaznacz linie dłuższe niż 50\n" +
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
@@ -627,16 +643,34 @@ namespace BricsCAD_Agent
 
                     if (scopeStr.Equals("Blocks", StringComparison.OrdinalIgnoreCase) && AktywneZaznaczenie != null && AktywneZaznaczenie.Length > 0)
                     {
-                        // Agent poprosił o szukanie WEWNĄTRZ aktualnie zaznaczonych bloków
+                        // 1. Zbieramy pierwsze, najwyższe warstwy bloków z zaznaczenia
                         foreach (ObjectId id in AktywneZaznaczenie)
                         {
                             Entity zaznaczonyEnt = tr.GetObject(id, OpenMode.ForRead) as Entity;
                             if (zaznaczonyEnt is BlockReference br)
                             {
-                                // Zapobiega sprawdzaniu dwa razy tej samej definicji bloku (duplikatom)
                                 if (!blokiDoPrzeszukania.Contains(br.BlockTableRecord))
                                 {
                                     blokiDoPrzeszukania.Add(br.BlockTableRecord);
+                                }
+                            }
+                        }
+
+                        // 2. NOWOŚĆ: Przeszukiwanie "w głąb" (rekurencja pętlowa).
+                        // Pętla iteruje po liście, która sama rośnie, jeśli znajdzie kolejne bloki!
+                        for (int i = 0; i < blokiDoPrzeszukania.Count; i++)
+                        {
+                            BlockTableRecord wewnetrznyBtr = (BlockTableRecord)tr.GetObject(blokiDoPrzeszukania[i], OpenMode.ForRead);
+                            foreach (ObjectId wewnetrzneId in wewnetrznyBtr)
+                            {
+                                Entity wewnEnt = tr.GetObject(wewnetrzneId, OpenMode.ForRead) as Entity;
+                                if (wewnEnt is BlockReference zagniezdzonyBr)
+                                {
+                                    // Jeśli znajdujemy blok w bloku, dorzucamy jego definicję do końca naszej listy!
+                                    if (!blokiDoPrzeszukania.Contains(zagniezdzonyBr.BlockTableRecord))
+                                    {
+                                        blokiDoPrzeszukania.Add(zagniezdzonyBr.BlockTableRecord);
+                                    }
                                 }
                             }
                         }

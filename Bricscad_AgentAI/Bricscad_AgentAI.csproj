@@ -50,6 +50,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddAnnoScaleTool.cs" />
     <Compile Include="AgentCommand.cs" />
     <Compile Include="AgentControl.cs">
       <SubType>UserControl</SubType>
@@ -70,8 +71,10 @@
     <Compile Include="MTextFormatTool.cs" />
     <Compile Include="ITool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReadAnnoScalesTool.cs" />
     <Compile Include="ReadPropertyTool.cs" />
     <Compile Include="ReadTextSampleTool.cs" />
+    <Compile Include="RemoveAnnoScaleTool.cs" />
     <Compile Include="RpnCalculator.cs" />
     <Compile Include="SetPropertiesTool.cs" />
     <Compile Include="TextEditTool.cs" />

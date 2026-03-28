@@ -48,6 +48,9 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("EditText");
                     pko.Keywords.Add("ModifyGeom");
                     pko.Keywords.Add("ReadProp");
+                    pko.Keywords.Add("AnnoScale");
+                    pko.Keywords.Add("READScales");
+                    pko.Keywords.Add("REMOVEScale");    
                     pko.Keywords.Default = "Select";
 
                     PromptResult pr = ed.GetKeywords(pko);
@@ -307,11 +310,169 @@ namespace BricsCAD_Agent
                     // --- [READ_PROPERTY] ---
                     else if (pr.StringResult == "ReadProp")
                     {
-                        PromptStringOptions psoProp = new PromptStringOptions("\nPodaj nazwę właściwości do odczytania (np. Center, Radius, StartPoint): ");
-                        psoProp.AllowSpaces = false;
-                        string prop = ed.GetString(psoProp).StringResult;
+                        // 1. Ładowanie bazy wiedzy 
+                        PromptKeywordOptions pkoBaza = new PromptKeywordOptions("\nZ jakiej bazy wiedzy załadować podpowiedzi? [Quick/Full]: ");
+                        pkoBaza.Keywords.Add("Quick");
+                        pkoBaza.Keywords.Add("Full");
+                        pkoBaza.Keywords.Default = "Quick";
+                        string trybBazy = ed.GetKeywords(pkoBaza).StringResult;
 
-                        finalTag = $"[ACTION:READ_PROPERTY {{\"Property\": \"{prop}\"}}]";
+                        string nazwaBazy = (trybBazy == "Full") ? "BricsCAD_API_V22.txt" : "BricsCAD_API_Quick.txt";
+
+                        string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                        string folderDir = System.IO.Path.GetDirectoryName(assemblyPath);
+                        string filePath = System.IO.Path.Combine(folderDir, nazwaBazy);
+                        System.Collections.Generic.Dictionary<string, string> bazyDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                        if (System.IO.File.Exists(filePath))
+                        {
+                            string content = System.IO.File.ReadAllText(filePath, System.Text.Encoding.UTF8);
+                            var matchesClasses = System.Text.RegularExpressions.Regex.Matches(content, @"\b([a-zA-Z0-9_]+)\|(.*?)(?=\b[a-zA-Z0-9_]+\||$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                            foreach (System.Text.RegularExpressions.Match m in matchesClasses)
+                            {
+                                string entName = m.Groups[1].Value.Trim();
+                                if (entName.Contains(" ") || entName.Length > 35) continue;
+
+                                if (entName.Equals("dbtext", StringComparison.OrdinalIgnoreCase)) entName = "DBText";
+                                else if (entName.Equals("mtext", StringComparison.OrdinalIgnoreCase)) entName = "MText";
+                                else if (entName.Equals("solid3d", StringComparison.OrdinalIgnoreCase)) entName = "Solid3d";
+                                else entName = char.ToUpper(entName[0]) + entName.Substring(1).ToLower();
+
+                                bazyDict[entName] = m.Groups[2].Value.Trim();
+                            }
+                        }
+
+                        string entType = "Entity";
+                        bool anulowano = false;
+                        if (bazyDict.Count > 0)
+                        {
+                            PromptKeywordOptions pkoEnt = new PromptKeywordOptions($"\nZ jakiej klasy API wyświetlić podpowiedzi dla właściwości? (ENTER dla Entity, ESC by ZAKOŃCZYĆ)");
+                            pkoEnt.AllowNone = true;
+
+                            ed.WriteMessage("\n\n--- DOSTĘPNE OBIEKTY W BAZIE WIEDZY ---");
+                            System.Collections.Generic.List<string> posortowaneKlucze = new System.Collections.Generic.List<string>(bazyDict.Keys);
+                            posortowaneKlucze.Sort();
+
+                            string listaObiektow = "\n";
+                            int kolumna = 0;
+
+                            foreach (var key in posortowaneKlucze)
+                            {
+                                try
+                                {
+                                    pkoEnt.Keywords.Add(key, key.ToUpper(), key.ToUpper());
+                                    listaObiektow += string.Format("{0,-26}", key);
+                                    kolumna++;
+                                    if (kolumna >= 3)
+                                    {
+                                        listaObiektow += "\n";
+                                        kolumna = 0;
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            try { pkoEnt.Keywords.Default = "Entity"; } catch { }
+                            ed.WriteMessage($"\n{listaObiektow}\n---------------------------------------");
+
+                            PromptResult prEnt = ed.GetKeywords(pkoEnt);
+
+                            if (prEnt.Status == PromptStatus.Cancel) anulowano = true;
+                            if (prEnt.Status == PromptStatus.OK && !string.IsNullOrEmpty(prEnt.StringResult))
+                                entType = prEnt.StringResult;
+                        }
+
+                        if (!anulowano)
+                        {
+                            string propName = "";
+                            System.Collections.Generic.Dictionary<string, string> propertiesMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                            if (bazyDict.Count > 0)
+                            {
+                                string pelnyOpis = "";
+                                if (bazyDict.ContainsKey("Entity")) pelnyOpis += bazyDict["Entity"] + " ";
+                                string glownaKlasa = entType.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                                if (bazyDict.ContainsKey(glownaKlasa) && !glownaKlasa.Equals("Entity", StringComparison.OrdinalIgnoreCase))
+                                    pelnyOpis += bazyDict[glownaKlasa];
+
+                                if (nazwaBazy == "BricsCAD_API_V22.txt")
+                                {
+                                    System.Text.RegularExpressions.MatchCollection matchesFull = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"Właściwości \(Properties\):\s*(.*?)(?=\.\s*[A-Z]|\.$|$)", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                                    foreach (System.Text.RegularExpressions.Match mFull in matchesFull)
+                                    {
+                                        string[] props = mFull.Groups[1].Value.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+                                        foreach (string p in props)
+                                        {
+                                            string cleanProp = p.Trim().Split(new char[] { ' ', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries)[0];
+                                            if (cleanProp.Length > 1 && char.IsUpper(cleanProp[0]))
+                                            {
+                                                propertiesMap[cleanProp] = "V22_API";
+                                            }
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    System.Text.RegularExpressions.MatchCollection matchesQuick = System.Text.RegularExpressions.Regex.Matches(pelnyOpis, @"\b([A-Z][A-Za-z0-9_]+)\s*\(([^)]+)\)");
+                                    foreach (System.Text.RegularExpressions.Match m in matchesQuick) propertiesMap[m.Groups[1].Value] = m.Groups[2].Value;
+                                }
+
+                                if (propertiesMap.Count > 0)
+                                {
+                                    PromptKeywordOptions pkoProp = new PromptKeywordOptions($"\nWybierz Wlasciwosc do odczytania (ENTER by zakonczyc)");
+                                    pkoProp.AllowNone = true;
+                                    ed.WriteMessage($"\n\n--- WŁAŚCIWOŚCI DLA: {glownaKlasa.ToUpper()} ---");
+
+                                    System.Collections.Generic.List<string> posortowaneWlasciwosci = new System.Collections.Generic.List<string>(propertiesMap.Keys);
+                                    posortowaneWlasciwosci.Sort();
+
+                                    foreach (var klucz in posortowaneWlasciwosci)
+                                    {
+                                        // Dla ReadProp celowo ukrywamy "wirtualne" właściwości Visual (są dobre do SELECT, ale nie do odczytu twardej geometrii)
+                                        if (klucz.StartsWith("Visual", StringComparison.OrdinalIgnoreCase)) continue;
+                                        ed.WriteMessage($"\n [{klucz}] - {propertiesMap[klucz]}");
+                                        try { pkoProp.Keywords.Add(klucz, klucz.ToUpper(), klucz.ToUpper()); } catch { }
+                                    }
+
+                                    ed.WriteMessage($"\n\n [WLASNA] - Wpisz ręcznie (np. z kropką Center.Z)");
+                                    try { pkoProp.Keywords.Add("WLASNA", "WLASNA", "WLASNA"); } catch { }
+
+                                    ed.WriteMessage("\n-------------------------------------------");
+                                    PromptResult prProp = ed.GetKeywords(pkoProp);
+
+                                    if (prProp.Status == PromptStatus.Cancel) anulowano = true;
+                                    if (prProp.Status == PromptStatus.OK && !string.IsNullOrEmpty(prProp.StringResult))
+                                    {
+                                        if (prProp.StringResult == "WLASNA")
+                                        {
+                                            PromptStringOptions psoWlasna = new PromptStringOptions($"\nWpisz ręcznie nazwę właściwości (np. Position.Z): ");
+                                            psoWlasna.AllowSpaces = false;
+                                            propName = ed.GetString(psoWlasna).StringResult;
+                                        }
+                                        else
+                                        {
+                                            propName = prProp.StringResult;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!anulowano)
+                            {
+                                if (string.IsNullOrEmpty(propName) && propertiesMap.Count == 0)
+                                {
+                                    PromptStringOptions psoName = new PromptStringOptions($"\nPodaj nazwę właściwości do odczytu (np. Layer, Center) lub ENTER by zakończyć: ");
+                                    psoName.AllowSpaces = false;
+                                    propName = ed.GetString(psoName).StringResult;
+                                }
+
+                                if (!string.IsNullOrEmpty(propName))
+                                {
+                                    finalTag = $"[ACTION:READ_PROPERTY {{\"Property\": \"{propName}\"}}]";
+                                }
+                            }
+                        }
                     }
 
 
@@ -611,6 +772,50 @@ namespace BricsCAD_Agent
                     {
                         finalTag = "[ACTION:LIST_BLOCKS]";
                     }
+                    
+                    // --- [ADD_ANNO_SCALE] ---
+                    else if (pr.StringResult == "AnnoScale")
+                    {
+                        PromptStringOptions psoScale = new PromptStringOptions("\nPodaj dokładną nazwę skali do dodania (np. 1:50, 1:100): ");
+                        psoScale.AllowSpaces = true;
+                        string scale = ed.GetString(psoScale).StringResult;
+
+                        finalTag = $"[ACTION:ADD_ANNO_SCALE {{\"Scale\": \"{scale}\"}}]";
+                    }
+
+                    // --- [READ_ANNO_SCALES] ---
+                    else if (pr.StringResult.Equals("READScales", StringComparison.OrdinalIgnoreCase) || pr.StringResult == "ReadScales")
+                    {
+                        PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nWybierz tryb odczytu [Summary/Detailed]: ");
+                        pkoMode.Keywords.Add("Summary");
+                        pkoMode.Keywords.Add("Detailed");
+                        pkoMode.Keywords.Default = "Summary";
+                        string mode = ed.GetKeywords(pkoMode).StringResult;
+
+                        finalTag = $"[ACTION:READ_ANNO_SCALES {{\"Mode\": \"{mode}\"}}]";
+                    }
+                        
+                    // --- [REMOVE_ANNO_SCALE] ---
+                    else if (pr.StringResult.Equals("REMOVEScale", StringComparison.OrdinalIgnoreCase) || pr.StringResult == "RemoveScale")
+                    {
+                        PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nCo chcesz zrobić? [UsunKonkretna/WylaczCalkowicie]: ");
+                        pkoMode.Keywords.Add("UsunKonkretna");
+                        pkoMode.Keywords.Add("WylaczCalkowicie");
+                        pkoMode.Keywords.Default = "UsunKonkretna";
+                        string mode = ed.GetKeywords(pkoMode).StringResult;
+
+                        if (mode == "WylaczCalkowicie")
+                        {
+                            finalTag = "[ACTION:REMOVE_ANNO_SCALE {\"Mode\": \"RemoveAll\"}]";
+                        }
+                        else
+                        {
+                            PromptStringOptions psoScale = new PromptStringOptions("\nPodaj dokładną nazwę skali do usunięcia (np. 1:50): ");
+                            psoScale.AllowSpaces = true;
+                            string scale = ed.GetString(psoScale).StringResult;
+                            finalTag = $"[ACTION:REMOVE_ANNO_SCALE {{\"Scale\": \"{scale}\"}}]";
+                        }
+                    }
 
                     // --- [MTEXT_FORMAT] ---
                     else if (pr.StringResult == "FormatMText")
@@ -851,6 +1056,23 @@ namespace BricsCAD_Agent
                 else if (wklejonyTag.Contains("[ACTION:SET_PROPERTIES"))
                 {
                     SetPropertiesTool tool = new SetPropertiesTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:ADD_ANNO_SCALE"))
+                {
+                    AddAnnoScaleTool tool = new AddAnnoScaleTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:READ_ANNO_SCALES"))
+                {
+                    ReadAnnoScalesTool tool = new ReadAnnoScalesTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+                else if (wklejonyTag.Contains("[ACTION:REMOVE_ANNO_SCALE"))
+                {
+                    RemoveAnnoScaleTool tool = new RemoveAnnoScaleTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
 
