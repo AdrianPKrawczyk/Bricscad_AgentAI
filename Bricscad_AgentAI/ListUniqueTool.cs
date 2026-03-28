@@ -10,7 +10,7 @@ namespace BricsCAD_Agent
     public class ListUniqueTool : ITool
     {
         public string ActionTag => "[ACTION:LIST_UNIQUE]";
-        public string Description => "Zwraca listę unikalnych klas (typów) lub unikalnych wartości właściwości dla danego zakresu (Selection/Model/Blocks).";
+        public string Description => "Zwraca listę unikalnych klas lub właściwości (Selection/Model/Blocks/Database).";
 
         public string Execute(Document doc, string jsonArgs)
         {
@@ -34,7 +34,6 @@ namespace BricsCAD_Agent
 
             using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
-                // Lokalna funkcja do przetwarzania pojedynczego obiektu
                 void ProcessEntity(Entity ent)
                 {
                     przeanalizowano++;
@@ -44,7 +43,6 @@ namespace BricsCAD_Agent
                     }
                     else if (target.Equals("Property", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Bezpieczna obsługa nazw bloków (omija eNullObjectId)
                         if (propName.Equals("Name", StringComparison.OrdinalIgnoreCase) && ent is BlockReference blkRef)
                         {
                             ObjectId defId = blkRef.DynamicBlockTableRecord != ObjectId.Null ? blkRef.DynamicBlockTableRecord : blkRef.BlockTableRecord;
@@ -54,7 +52,6 @@ namespace BricsCAD_Agent
                             return;
                         }
 
-                        // Refleksja do odczytu dowolnej innej właściwości (np. Layer, Color, Center.Z)
                         string[] zagniezdzenia = propName.Split('.');
                         object wartoscObiektu = ent;
                         System.Reflection.PropertyInfo propInfo = null;
@@ -80,7 +77,6 @@ namespace BricsCAD_Agent
                     }
                 }
 
-                // --- ROZDZIELANIE ZAKRESU SZUKANIA (SCOPE) ---
                 if (scope.Equals("Selection", StringComparison.OrdinalIgnoreCase))
                 {
                     ObjectId[] ids = Komendy.AktywneZaznaczenie;
@@ -108,7 +104,7 @@ namespace BricsCAD_Agent
                         try
                         {
                             BlockTableRecord btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-                            if (!btr.IsLayout && !btr.IsAnonymous) // Tylko wnętrza prawdziwych bloków
+                            if (!btr.IsLayout && !btr.IsAnonymous)
                             {
                                 foreach (ObjectId id in btr)
                                 {
@@ -119,16 +115,46 @@ namespace BricsCAD_Agent
                         catch { }
                     }
                 }
+                // --- NOWOŚĆ: Przeszukiwanie Tablic Systemowych ---
+                else if (scope.Equals("Database", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (target.Equals("Property", StringComparison.OrdinalIgnoreCase) && propName.Equals("Layer", StringComparison.OrdinalIgnoreCase))
+                    {
+                        LayerTable lt = (LayerTable)tr.GetObject(doc.Database.LayerTableId, OpenMode.ForRead);
+                        foreach (ObjectId ltrId in lt)
+                        {
+                            LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(ltrId, OpenMode.ForRead);
+                            unikalneWartosci.Add(ltr.Name);
+                            przeanalizowano++;
+                        }
+                    }
+                    else if (target.Equals("Property", StringComparison.OrdinalIgnoreCase) && propName.Equals("Name", StringComparison.OrdinalIgnoreCase))
+                    {
+                        BlockTable bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
+                        foreach (ObjectId btrId in bt)
+                        {
+                            BlockTableRecord btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
+                            if (!btr.IsLayout && !btr.IsAnonymous)
+                            {
+                                unikalneWartosci.Add(btr.Name);
+                                przeanalizowano++;
+                            }
+                        }
+                    }
+                }
 
                 tr.Commit();
             }
 
-            if (unikalneWartosci.Count == 0) return $"WYNIK: Przeanalizowano {przeanalizowano} obiektów, ale nie znaleziono żadnych wartości.";
+            if (unikalneWartosci.Count == 0) return $"WYNIK: Przeanalizowano {przeanalizowano} elementów, ale nie znaleziono żadnych wartości.";
 
             List<string> posortowane = unikalneWartosci.ToList();
             posortowane.Sort();
 
-            string scopePl = scope.Equals("Selection", StringComparison.OrdinalIgnoreCase) ? "zaznaczeniu" : (scope.Equals("Model", StringComparison.OrdinalIgnoreCase) ? "modelu" : "definicjach bloków");
+            string scopePl = scope.Equals("Selection", StringComparison.OrdinalIgnoreCase) ? "zaznaczeniu" :
+                             (scope.Equals("Model", StringComparison.OrdinalIgnoreCase) ? "modelu" :
+                             (scope.Equals("Database", StringComparison.OrdinalIgnoreCase) ? "bazie danych (wszystkie zdefiniowane)" : "definicjach bloków"));
+
             string targetName = target.Equals("Class", StringComparison.OrdinalIgnoreCase) ? "klas (typów)" : $"właściwości '{propName}'";
             return $"WYNIK: W {scopePl} znaleziono unikalnych {targetName} ({posortowane.Count}): {string.Join(", ", posortowane)}";
         }

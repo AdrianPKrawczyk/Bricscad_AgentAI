@@ -67,6 +67,7 @@
     <Compile Include="GetPropertiesToolLite.cs" />
     <Compile Include="ListBlocksTool.cs" />
     <Compile Include="ListUniqueTool.cs" />
+    <Compile Include="ManageLayersTool.cs" />
     <Compile Include="ModifyGeometryTool.cs" />
     <Compile Include="MTextEditTool.cs" />
     <Compile Include="MTextFormatTool.cs" />
@@ -77,6 +78,7 @@
     <Compile Include="ReadTextSampleTool.cs" />
     <Compile Include="RemoveAnnoScaleTool.cs" />
     <Compile Include="RpnCalculator.cs" />
+    <Compile Include="SearchLayersTool.cs" />
     <Compile Include="SetPropertiesTool.cs" />
     <Compile Include="TextEditTool.cs" />
     <Compile Include="TrainingStudio.cs" />

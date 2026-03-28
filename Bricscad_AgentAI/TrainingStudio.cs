@@ -54,6 +54,8 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("REMOVEScale");
                     pko.Keywords.Add("ASKUser");
                     pko.Keywords.Add("USERInput");
+                    pko.Keywords.Add("MANAGELayers");
+                    pko.Keywords.Add("SEARCHLayers");
                     pko.Keywords.Default = "Select";
 
                     PromptResult pr = ed.GetKeywords(pko);
@@ -1064,6 +1066,7 @@ namespace BricsCAD_Agent
 
                         finalTag = $"[ACTION:MTEXT_FORMAT {{{string.Join(", ", argsList)}}}]";
                     }
+                    
                     // --- [TEXT EDIT TOOLS] ---
                     else if (pr.StringResult == "UpdateMText" || pr.StringResult == "EditText")
                     {
@@ -1124,6 +1127,283 @@ namespace BricsCAD_Agent
                             }
                         }
                         finalTag = $"[ACTION:{actionName} {{{string.Join(", ", argsList)}}}]";
+                    }
+
+                    // --- [SEARCH_LAYERS] ---
+                    else if (pr.StringResult.Equals("SEARCHLayers", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ed.WriteMessage("\n\n--- DOSTĘPNE METODY WYSZUKIWANIA ---");
+                        ed.WriteMessage("\n [CONTAINS]   - Zawiera (szukany tekst jest gdziekolwiek w nazwie)");
+                        ed.WriteMessage("\n [STARTSWITH] - Zaczyna się od (szukany tekst jest na samym początku)");
+                        ed.WriteMessage("\n [ENDSWITH]   - Kończy się na (szukany tekst jest na samym końcu)");
+                        ed.WriteMessage("\n [EQUALS]     - Równe (dokładnie taka sama nazwa)");
+                        ed.WriteMessage("\n------------------------------------");
+
+                        PromptKeywordOptions pkoCond = new PromptKeywordOptions("\nWybierz warunek filtrowania [CONTAINS/STARTSWITH/ENDSWITH/EQUALS]: ");
+                        pkoCond.Keywords.Add("CONTAINS", "CONTAINS", "CONTAINS");
+                        pkoCond.Keywords.Add("STARTSWITH", "STARTSWITH", "STARTSWITH");
+                        pkoCond.Keywords.Add("ENDSWITH", "ENDSWITH", "ENDSWITH");
+                        pkoCond.Keywords.Add("EQUALS", "EQUALS", "EQUALS");
+                        pkoCond.Keywords.Default = "CONTAINS";
+
+                        string condition = ed.GetKeywords(pkoCond).StringResult;
+
+                        // Formatyzujemy ładnie dla JSONa (np. "Contains")
+                        if (condition == "CONTAINS") condition = "Contains";
+                        else if (condition == "STARTSWITH") condition = "StartsWith";
+                        else if (condition == "ENDSWITH") condition = "EndsWith";
+                        else if (condition == "EQUALS") condition = "Equals";
+
+                        PromptStringOptions psoVal = new PromptStringOptions($"\nPodaj szukany ciąg znaków (np. kanalizacja): ");
+                        psoVal.AllowSpaces = true;
+                        string val = ed.GetString(psoVal).StringResult;
+
+                        finalTag = $"[ACTION:SEARCH_LAYERS {{\"Condition\": \"{condition}\", \"Value\": \"{val}\"}}]";
+                    }
+
+                    // --- [MANAGE_LAYERS] ---
+                    else if (pr.StringResult.Equals("ManageLayers", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Używamy Wielkich Liter dla perfekcyjnego linkowania!
+                        PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nWybierz tryb operacji na warstwach [CREATE/MODIFY/DELETE/MERGE/PURGE]: ");
+                        pkoMode.Keywords.Add("CREATE"); pkoMode.Keywords.Add("MODIFY");
+                        pkoMode.Keywords.Add("DELETE"); pkoMode.Keywords.Add("MERGE"); pkoMode.Keywords.Add("PURGE");
+                        pkoMode.Keywords.Default = "MODIFY";
+                        string mode = ed.GetKeywords(pkoMode).StringResult;
+
+                        // Przywracamy ładny Capitalize dla JSONa
+                        string modeJson = char.ToUpper(mode[0]) + mode.Substring(1).ToLower();
+
+                        if (mode == "PURGE")
+                        {
+                            finalTag = $"[ACTION:MANAGE_LAYERS {{\"Mode\": \"Purge\"}}]";
+                        }
+                        else if (mode == "DELETE" || mode == "MERGE")
+                        {
+                            PromptKeywordOptions pkoSrc = new PromptKeywordOptions("\nJak wskazać warstwy ŹRÓDŁOWE? [Wpisz/AskUser]: ");
+                            pkoSrc.Keywords.Add("Wpisz"); pkoSrc.Keywords.Add("AskUser");
+                            pkoSrc.Keywords.Default = "AskUser";
+                            string srcMode = ed.GetKeywords(pkoSrc).StringResult;
+
+                            string srcJsonArray = "";
+                            bool abort = false;
+
+                            if (srcMode == "AskUser")
+                            {
+                                string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz warstwy do operacji:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Database\", \"FetchProperty\": \"Layer\", \"MultiSelect\": true}}]"; ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE KROKU (Myślenie Agenta) ---");
+                                string wynikUC = WykonywaczTagow(doc, ucTag);
+
+                                if (wynikUC.Contains("anulował")) { abort = true; finalTag = "ABORT"; }
+                                else
+                                {
+                                    historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
+                                    string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [ACTION:MANAGE_LAYERS ].";
+                                    historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
+
+                                    string val = "";
+                                    int lastColonActual = wynikUC.LastIndexOf(':');
+                                    if (lastColonActual != -1) val = wynikUC.Substring(lastColonActual + 1).Trim();
+
+                                    string[] elements = val.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                    System.Collections.Generic.List<string> quotes = new System.Collections.Generic.List<string>();
+                                    foreach (string el in elements) quotes.Add($"\"{el.Trim()}\"");
+                                    srcJsonArray = string.Join(", ", quotes);
+                                }
+                            }
+                            else
+                            {
+                                PromptStringOptions psoSrc = new PromptStringOptions("\nPodaj nazwy warstw po przecinku: ");
+                                psoSrc.AllowSpaces = true;
+                                string srcLayers = ed.GetString(psoSrc).StringResult;
+                                string[] elements = srcLayers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                System.Collections.Generic.List<string> quotes = new System.Collections.Generic.List<string>();
+                                foreach (string el in elements) quotes.Add($"\"{el.Trim()}\"");
+                                srcJsonArray = string.Join(", ", quotes);
+                            }
+
+                            if (!abort)
+                            {
+                                if (mode == "MERGE")
+                                {
+                                    PromptKeywordOptions pkoTarget = new PromptKeywordOptions("\nWarstwa DOCELOWA [Nowa/Istniejaca/AskUser]: ");
+                                    pkoTarget.Keywords.Add("Nowa"); pkoTarget.Keywords.Add("Istniejaca"); pkoTarget.Keywords.Add("AskUser");
+                                    pkoTarget.Keywords.Default = "AskUser";
+                                    string targetMode = ed.GetKeywords(pkoTarget).StringResult;
+
+                                    string targetLayer = "";
+
+                                    if (targetMode == "AskUser")
+                                    {
+                                        string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz istniejącą warstwę docelową:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Database\", \"FetchProperty\": \"Layer\"}}]"; string wynikUC = WykonywaczTagow(doc, ucTag);
+                                        if (wynikUC.Contains("anulował")) { finalTag = "ABORT"; }
+                                        else
+                                        {
+                                            historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
+                                            string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [ACTION:MANAGE_LAYERS ].";
+                                            historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
+
+                                            int lastColonActual = wynikUC.LastIndexOf(':');
+                                            if (lastColonActual != -1) targetLayer = wynikUC.Substring(lastColonActual + 1).Trim();
+                                        }
+                                    }
+                                    else if (targetMode == "Nowa")
+                                    {
+                                        PromptStringOptions psoTarget = new PromptStringOptions("\nPodaj nazwę CAŁKIEM NOWEJ warstwy: ");
+                                        targetLayer = ed.GetString(psoTarget).StringResult;
+                                    }
+                                    else
+                                    {
+                                        PromptStringOptions psoTarget = new PromptStringOptions("\nWpisz nazwę ISTNIEJĄCEJ warstwy: ");
+                                        targetLayer = ed.GetString(psoTarget).StringResult;
+                                    }
+
+                                    if (finalTag != "ABORT")
+                                        finalTag = $"[ACTION:MANAGE_LAYERS {{\"Mode\": \"Merge\", \"SourceLayers\": [{srcJsonArray}], \"TargetLayer\": \"{targetLayer}\"}}]";
+                                }
+                                else
+                                {
+                                    finalTag = $"[ACTION:MANAGE_LAYERS {{\"Mode\": \"Delete\", \"SourceLayers\": [{srcJsonArray}]}}]";
+                                }
+                            }
+                        }
+                        else // CREATE / MODIFY
+                        {
+                            string layerName = "";
+                            bool abort = false;
+
+                            if (mode == "MODIFY")
+                            {
+                                PromptKeywordOptions pkoLayer = new PromptKeywordOptions("\nJak wskazać warstwy do modyfikacji? [Wpisz/AskUser]: ");
+                                pkoLayer.Keywords.Add("Wpisz"); pkoLayer.Keywords.Add("AskUser");
+                                pkoLayer.Keywords.Default = "AskUser";
+                                if (ed.GetKeywords(pkoLayer).StringResult == "AskUser")
+                                {
+                                    // Uruchamiamy Checkboxy dla trybu Modify!
+                                    string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz warstwy do modyfikacji:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Database\", \"FetchProperty\": \"Layer\", \"MultiSelect\": true}}]";
+                                    string wynikUC = WykonywaczTagow(doc, ucTag);
+                                    if (wynikUC.Contains("anulował")) { abort = true; finalTag = "ABORT"; }
+                                    else
+                                    {
+                                        historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
+                                        string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [ACTION:MANAGE_LAYERS ].";
+                                        historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
+
+                                        int lastColonActual = wynikUC.LastIndexOf(':');
+                                        if (lastColonActual != -1) layerName = wynikUC.Substring(lastColonActual + 1).Trim();
+                                    }
+                                }
+                                else
+                                {
+                                    // --- NAPRAWA: Zezwolenie na spacje w nazwach warstw! ---
+                                    PromptStringOptions psoMod = new PromptStringOptions("\nPodaj nazwę warstwy (możesz oddzielić przecinkami): ");
+                                    psoMod.AllowSpaces = true;
+                                    layerName = ed.GetString(psoMod).StringResult;
+                                }
+                            }
+                            else // CREATE
+                            {
+                                PromptKeywordOptions pkoLayerC = new PromptKeywordOptions("\nJak podać nazwę nowej warstwy? [Wpisz/UserInput]: ");
+                                pkoLayerC.Keywords.Add("Wpisz"); pkoLayerC.Keywords.Add("UserInput");
+                                pkoLayerC.Keywords.Default = "UserInput";
+
+                                if (ed.GetKeywords(pkoLayerC).StringResult == "UserInput")
+                                {
+                                    string uiTag = $"[ACTION:USER_INPUT {{\"Type\": \"String\", \"Prompt\": \"Podaj nazwę dla nowej warstwy:\"}}]";
+                                    ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE ZAPYTANIA DO UŻYTKOWNIKA ---");
+                                    string wynikUI = WykonywaczTagow(doc, uiTag);
+
+                                    if (wynikUI.Contains("anulował")) { abort = true; finalTag = "ABORT"; }
+                                    else
+                                    {
+                                        historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(uiTag)}\"}}");
+                                        string sysFeedback = $"Oto dane z narzędzia:\n{wynikUI}\n\nKontynuuj zadanie. UŻYJ TAGU [ACTION:MANAGE_LAYERS ].";
+                                        historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
+
+                                        int lastColonActual = wynikUI.LastIndexOf(':');
+                                        if (lastColonActual != -1) layerName = wynikUI.Substring(lastColonActual + 1).Trim();
+                                    }
+                                }
+                                else
+                                {
+                                    // --- NAPRAWA: Zezwolenie na spacje w nazwach nowej warstwy! ---
+                                    PromptStringOptions psoCre = new PromptStringOptions("\nPodaj nazwę NOWEJ warstwy: ");
+                                    psoCre.AllowSpaces = true;
+                                    layerName = ed.GetString(psoCre).StringResult;
+                                }
+                            }
+
+                            if (!abort)
+                            {
+                                System.Collections.Generic.List<string> props = new System.Collections.Generic.List<string>();
+                                props.Add($"\"Mode\": \"{modeJson}\"");
+                                props.Add($"\"Layer\": \"{layerName}\"");
+
+                                bool selectingProps = true;
+                                while (selectingProps)
+                                {
+                                    PromptKeywordOptions pkoProp = new PromptKeywordOptions("\nWybierz właściwość do ustawienia ");
+                                    pkoProp.Keywords.Add("Kolor", "Kolor", "Kolor");
+                                    pkoProp.Keywords.Add("Grubosc", "Grubosc", "Grubosc");
+                                    pkoProp.Keywords.Add("RodzajLinii", "RodzajLinii", "RodzajLinii");
+                                    pkoProp.Keywords.Add("Przezroczystosc", "Przezroczystosc", "Przezroczystosc");
+                                    pkoProp.Keywords.Add("OnOff", "OnOff", "OnOff");
+                                    pkoProp.Keywords.Add("Zamrozenie", "Zamrozenie", "Zamrozenie");
+                                    pkoProp.Keywords.Add("Blokada", "Blokada", "Blokada");
+                                    pkoProp.Keywords.Add("Nazwa", "Nazwa", "Nazwa");
+                                    pkoProp.Keywords.Add("Zakoncz", "Zakoncz", "Zakoncz");
+                                    pkoProp.Keywords.Default = "Zakoncz";
+
+                                    string propChoice = ed.GetKeywords(pkoProp).StringResult;
+
+                                    if (propChoice == "Zakoncz" || string.IsNullOrEmpty(propChoice)) { selectingProps = false; break; }
+
+                                    if (propChoice == "Kolor")
+                                    {
+                                        string c = ed.GetString(new PromptStringOptions("\nPodaj kolor (0-255): ")).StringResult;
+                                        if (!string.IsNullOrEmpty(c)) props.Add($"\"Color\": {c}");
+                                    }
+                                    else if (propChoice == "Grubosc")
+                                    {
+                                        string lw = ed.GetString(new PromptStringOptions("\nGrubość linii (np. 25 dla 0.25mm, -3 domyślna): ")).StringResult;
+                                        if (!string.IsNullOrEmpty(lw)) props.Add($"\"LineWeight\": {lw}");
+                                    }
+                                    else if (propChoice == "RodzajLinii")
+                                    {
+                                        string lt = ed.GetString(new PromptStringOptions("\nRodzaj linii (np. Continuous, Dashed): ")).StringResult;
+                                        if (!string.IsNullOrEmpty(lt)) props.Add($"\"Linetype\": \"{lt}\"");
+                                    }
+                                    else if (propChoice == "Przezroczystosc")
+                                    {
+                                        string tr = ed.GetString(new PromptStringOptions("\nPrzezroczystość (0-90): ")).StringResult;
+                                        if (!string.IsNullOrEmpty(tr)) props.Add($"\"Transparency\": {tr}");
+                                    }
+                                    else if (propChoice == "OnOff")
+                                    {
+                                        string off = ed.GetKeywords(new PromptKeywordOptions("\nWyłączona (IsOff)? [True/False]: ", "True False")).StringResult;
+                                        if (!string.IsNullOrEmpty(off)) props.Add($"\"IsOff\": {off.ToLower()}");
+                                    }
+                                    else if (propChoice == "Zamrozenie")
+                                    {
+                                        string fr = ed.GetKeywords(new PromptKeywordOptions("\nZamrożona (IsFrozen)? [True/False]: ", "True False")).StringResult;
+                                        if (!string.IsNullOrEmpty(fr)) props.Add($"\"IsFrozen\": {fr.ToLower()}");
+                                    }
+                                    else if (propChoice == "Blokada")
+                                    {
+                                        string lo = ed.GetKeywords(new PromptKeywordOptions("\nZablokowana (IsLocked)? [True/False]: ", "True False")).StringResult;
+                                        if (!string.IsNullOrEmpty(lo)) props.Add($"\"IsLocked\": {lo.ToLower()}");
+                                    }
+                                    else if (propChoice == "Nazwa")
+                                    {
+                                        PromptStringOptions psoName = new PromptStringOptions("\nNowa nazwa warstwy: ");
+                                        psoName.AllowSpaces = true;
+                                        string nn = ed.GetString(psoName).StringResult;
+                                        if (!string.IsNullOrEmpty(nn)) props.Add($"\"NewName\": \"{nn}\"");
+                                    }
+                                }
+
+                                finalTag = $"[ACTION:MANAGE_LAYERS {{{string.Join(", ", props)}}}]";
+                            }
+                        }
                     }
 
                     if (finalTag == "ABORT")
@@ -1377,6 +1657,19 @@ namespace BricsCAD_Agent
                     TextEditTool tool = new TextEditTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
+
+                else if (wklejonyTag.Contains("[ACTION:MANAGE_LAYERS"))
+                {
+                    ManageLayersTool tool = new ManageLayersTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:SEARCH_LAYERS"))
+                {
+                    SearchLayersTool tool = new SearchLayersTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 return "Brak rozpoznanego tagu narzędzia w wygenerowanym stringu.";
             }
             catch (System.Exception ex)

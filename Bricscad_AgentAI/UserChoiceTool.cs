@@ -12,23 +12,19 @@ namespace BricsCAD_Agent
     public class UserChoiceTool : ITool
     {
         public string ActionTag => "[ACTION:USER_CHOICE]";
-        public string Description => "Wyświetla interaktywne okno wyboru (pojedyncze lub Checkboxy - wielokrotne).";
+        public string Description => "Wyświetla interaktywne okno wyboru (pojedyncze lub Checkboxy - wielokrotne) z obsługą wyszukiwania.";
 
         private const string RegistryPath = @"Software\BricsCADAgentAI\Settings";
 
         public string Execute(Document doc, string jsonArgs)
         {
-            // --- PANCERNE CZYSZCZENIE JSON-a ---
-            // Zdejmujemy wszelkie backslashe narzucone przez format JSONL w DB Managerze
             string cleanArgs = jsonArgs.Replace("\\\"", "\"").Replace("\\n", "\n");
 
             string question = "Wybierz opcje:";
             Match mQuestion = Regex.Match(cleanArgs, @"""Question""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
             if (mQuestion.Success) question = mQuestion.Groups[1].Value;
 
-            // --- KULOODPORNE WYKRYWANIE MULTISELECT ---
             bool multiSelect = false;
-            // Dopuszcza spacje, true w cudzysłowach, brak cudzysłowów, duże/małe litery
             if (Regex.IsMatch(cleanArgs, @"""MultiSelect""\s*:\s*(true|""true"")", RegexOptions.IgnoreCase))
             {
                 multiSelect = true;
@@ -88,39 +84,92 @@ namespace BricsCAD_Agent
                 prompt.StartPosition = FormStartPosition.CenterScreen;
                 prompt.KeyPreview = true;
 
+                // 1. Etykieta z pytaniem
                 Label textLabel = new Label()
                 {
                     Left = 15,
                     Top = 15,
                     Width = 850,
-                    Height = 40,
+                    Height = 30,
                     Text = question,
                     Font = new Font("Segoe UI", 11, FontStyle.Bold),
                     Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
                 };
                 prompt.Controls.Add(textLabel);
 
-                Control listControl;
+                // 2. NOWOŚĆ: Pasek Wyszukiwania (Filtrowania)
+                Label searchLabel = new Label()
+                {
+                    Left = 15,
+                    Top = 55,
+                    Width = 70,
+                    Height = 25,
+                    Text = "Filtruj:",
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    TextAlign = ContentAlignment.MiddleLeft
+                };
+                prompt.Controls.Add(searchLabel);
+
+                TextBox txtSearch = new TextBox()
+                {
+                    Left = 85,
+                    Top = 55,
+                    Width = 780,
+                    Font = new Font("Segoe UI", 10),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                };
+                prompt.Controls.Add(txtSearch);
+
+                // 3. Kontrolka Listy
+                Control listControl = null;
+
+                // Słownik do zapamiętywania zaznaczeń (nawet tych ukrytych przez filtr!)
+                Dictionary<string, bool> checkStates = new Dictionary<string, bool>();
+                if (multiSelect) foreach (var opt in options) checkStates[opt] = false;
+
                 if (multiSelect)
                 {
                     CheckedListBox clb = new CheckedListBox()
                     {
                         Left = 15,
-                        Top = 65,
+                        Top = 90,
                         Width = 850,
-                        Height = 1000,
+                        Height = 980,
                         Font = new Font("Segoe UI", 10),
                         CheckOnClick = true,
                         Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
                     };
-                    foreach (var opt in options) clb.Items.Add(opt);
                     listControl = clb;
+
+                    // Handler aktualizujący pamięć po kliknięciu
+                    ItemCheckEventHandler checkHandler = (s, e) => {
+                        string item = clb.Items[e.Index].ToString();
+                        checkStates[item] = (e.NewValue == CheckState.Checked);
+                    };
+
+                    // Funkcja ładująca/filtrująca listę
+                    Action populateMulti = () => {
+                        clb.ItemCheck -= checkHandler; // Odpinamy na czas ładowania, żeby nie nadpisać pamięci!
+                        clb.Items.Clear();
+                        string filter = txtSearch.Text.ToLower();
+                        foreach (var opt in options)
+                        {
+                            if (string.IsNullOrEmpty(filter) || opt.ToLower().Contains(filter))
+                            {
+                                clb.Items.Add(opt, checkStates[opt]); // Przywracamy zapamiętany stan
+                            }
+                        }
+                        clb.ItemCheck += checkHandler;
+                    };
+
+                    populateMulti(); // Pierwsze załadowanie
+                    txtSearch.TextChanged += (s, e) => populateMulti(); // Reakcja na wpisywanie
 
                     CheckBox selectAllCheck = new CheckBox()
                     {
-                        Text = "Zaznacz / Odznacz wszystkie",
+                        Text = "Zaznacz / Odznacz widoczne",
                         Left = 15,
-                        Top = 1105,
+                        Top = 1085,
                         Width = 250,
                         Height = 30,
                         Font = new Font("Segoe UI", 10, FontStyle.Bold),
@@ -129,6 +178,7 @@ namespace BricsCAD_Agent
 
                     selectAllCheck.CheckedChanged += (s, e) =>
                     {
+                        // Zaznacza tylko to, co aktualnie widać na ekranie (przefiltrowane)
                         for (int i = 0; i < clb.Items.Count; i++)
                         {
                             clb.SetItemChecked(i, selectAllCheck.Checked);
@@ -142,17 +192,33 @@ namespace BricsCAD_Agent
                     ListBox lb = new ListBox()
                     {
                         Left = 15,
-                        Top = 65,
+                        Top = 90,
                         Width = 850,
                         Height = 1000,
                         Font = new Font("Segoe UI", 10),
                         Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
                     };
-                    foreach (var opt in options) lb.Items.Add(opt);
-                    if (lb.Items.Count > 0) lb.SelectedIndex = 0;
-                    lb.DoubleClick += (s, e) => { prompt.DialogResult = DialogResult.OK; prompt.Close(); };
                     listControl = lb;
+
+                    Action populateSingle = () => {
+                        lb.Items.Clear();
+                        string filter = txtSearch.Text.ToLower();
+                        foreach (var opt in options)
+                        {
+                            if (string.IsNullOrEmpty(filter) || opt.ToLower().Contains(filter))
+                            {
+                                lb.Items.Add(opt);
+                            }
+                        }
+                        if (lb.Items.Count > 0) lb.SelectedIndex = 0;
+                    };
+
+                    populateSingle();
+                    txtSearch.TextChanged += (s, e) => populateSingle();
+
+                    lb.DoubleClick += (s, e) => { prompt.DialogResult = DialogResult.OK; prompt.Close(); };
                 }
+
                 prompt.Controls.Add(listControl);
 
                 Button confirmation = new Button()
@@ -169,6 +235,9 @@ namespace BricsCAD_Agent
                 prompt.Controls.Add(confirmation);
                 prompt.AcceptButton = confirmation;
 
+                // Aktywacja pola tekstowego od razu po otwarciu okna
+                prompt.Shown += (s, e) => { txtSearch.Focus(); };
+
                 DialogResult dialogResult = Bricscad.ApplicationServices.Application.ShowModalDialog(prompt);
                 SaveWindowSizeToRegistry(prompt.Width, prompt.Height);
 
@@ -176,9 +245,12 @@ namespace BricsCAD_Agent
                 {
                     if (multiSelect)
                     {
-                        var clb = (CheckedListBox)listControl;
+                        // Pobieramy dane z GŁÓWNEGO SŁOWNIKA PAMIĘCI, a nie tylko z widocznej listy
                         List<string> selected = new List<string>();
-                        foreach (var item in clb.CheckedItems) selected.Add(item.ToString());
+                        foreach (var kvp in checkStates)
+                        {
+                            if (kvp.Value) selected.Add(kvp.Key);
+                        }
 
                         if (selected.Count == 0) return "WYNIK: Użytkownik anulował (nie zaznaczono żadnej opcji).";
                         selectedOption = string.Join(", ", selected);

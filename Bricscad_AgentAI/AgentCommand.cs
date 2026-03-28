@@ -74,7 +74,9 @@ namespace BricsCAD_Agent
         new ListUniqueTool(),
         new ListBlocksTool(),
         new UserInputTool(),
-        new UserChoiceTool()
+        new UserChoiceTool(),
+        new ManageLayersTool(),
+        new SearchLayersTool(),
 
         };
 
@@ -179,8 +181,7 @@ namespace BricsCAD_Agent
                         "Tag: [ACTION:LIST_UNIQUE]\n" +
                         "Opis: Agreguje i zwraca listę unikalnych klas API (np. by sprawdzić, jakie obiekty są na rysunku) lub unikalnych wartości konkretnej właściwości (np. lista wszystkich nazw warstw, nazw bloków).\n" +
                         "Argument 'Target': \"Class\" (zwraca typy) lub \"Property\" (zwraca wartości).\n" +
-                        "Argument 'Scope': \"Selection\" (domyślnie), \"Model\" (cały rysunek) lub \"Blocks\" (wnętrza wszystkich bloków).\n" +
-                        "Przykład 1 (Klasy w modelu): [ACTION:LIST_UNIQUE {\"Target\": \"Class\", \"Scope\": \"Model\"}]\n" +
+                        "Argument 'Scope': \"Selection\" (domyślnie), \"Model\" (tylko obiekty w modelu), \"Blocks\" (wnętrza wszystkich bloków) lub \"Database\" (skanuje tablice systemowe - wyszukuje WSZYSTKIE warstwy lub nazwy bloków, nawet te nieużywane i puste).\n" + "Przykład 1 (Klasy w modelu): [ACTION:LIST_UNIQUE {\"Target\": \"Class\", \"Scope\": \"Model\"}]\n" +
                         "Przykład 2 (Nazwy warstw w zaznaczeniu): [ACTION:LIST_UNIQUE {\"Target\": \"Property\", \"Scope\": \"Selection\", \"Property\": \"Layer\"}]\n\n" +
 
                         "Tag: [ACTION:USER_CHOICE]\n" +
@@ -194,9 +195,20 @@ namespace BricsCAD_Agent
                         "Przykład: [ACTION:USER_INPUT {\"Type\": \"Point\", \"Prompt\": \"Wskaż środek obrotu\"}]\n\n" +
                         "WAŻNE - MYŚLENIE WEWNĘTRZNE: Do *każdego* tagu [ACTION] lub [SELECT] możesz opcjonalnie dodać parametr \"Comment\", aby zapisać w nim swój tok rozumowania, dlaczego podejmujesz daną akcję. Np. [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Erase\", \"Comment\": \"Usuwam to, bo użytkownik prosił o czyszczenie\"}].\n\n" +
 
-
-
-                        "User: Zaznacz linie dłuższe niż 50\n" +
+                        "Tag: [ACTION:SEARCH_LAYERS]\n" +
+                        "Opis: Automatyczna wyszukiwarka warstw. Używaj tego ZANIM użyjesz MANAGE_LAYERS, gdy użytkownik prosi o operacje na warstwach po słowie kluczowym.\n" +
+                        "Dostępne klucze Condition:\n" +
+                        "- 'Contains' (tekst jest gdziekolwiek w nazwie)\n" +
+                        "- 'StartsWith' (nazwa zaczyna się od tego tekstu, np. prefiksy)\n" +
+                        "- 'EndsWith' (nazwa kończy się na ten tekst, np. sufiksy)\n" +
+                        "- 'Equals' (dokładne dopasowanie 1:1)\n" +
+                        "Przykład: [ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"kanalizacja\"}]\n\n" +
+                        
+                        "Tag: [ACTION:SEARCH_LAYERS]\n" +
+                        "Opis: Automatyczna wyszukiwarka warstw. Używaj tego ZANIM użyjesz MANAGE_LAYERS, gdy użytkownik prosi o modyfikację/usunięcie warstw po słowie kluczowym (bez wyświetlania mu okienka).\n" +
+                        "Dostępne klucze: Condition (Contains/StartsWith/EndsWith/Equals), Value.\n" +
+                        "Przykład: [ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"kanalizacja\"}]\n\n" +
+                        
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
 
                         "User: Znajdź wszystkie teksty wewnątrz tych bloków\n" +
