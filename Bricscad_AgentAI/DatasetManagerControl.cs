@@ -22,9 +22,12 @@ namespace BricsCAD_Agent
         private List<string> datasetLines = new List<string>();
         private string currentFilePath = "";
 
+        // --- NOWOŚĆ: Zbiór pamiętający indeksy wpisów z błędami ---
+        private HashSet<int> invalidEntries = new HashSet<int>();
+
         // Zmienne ustawień
         private bool isDarkMode = true;
-        private bool isFormattedView = true; // Domyślnie formatowanie włączone
+        private bool isFormattedView = true;
 
         // Przyciski do interakcji
         private Button btnThemeToggle;
@@ -52,7 +55,6 @@ namespace BricsCAD_Agent
             this.Dock = DockStyle.Fill;
             this.Font = new Font("Segoe UI", 9f);
 
-            // 1. Główne menu na samej górze (Zawsze widoczne, nie wchodzi do SplitContainera!)
             FlowLayoutPanel panTopMenu = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 35, Padding = new Padding(2), WrapContents = false };
 
             Button btnLoad = new Button { Text = "Wczytaj JSONL", Width = 100, Height = 28 };
@@ -60,6 +62,10 @@ namespace BricsCAD_Agent
 
             Button btnRefresh = new Button { Text = "Odśwież", Width = 70, Height = 28 };
             btnRefresh.Click += BtnRefresh_Click;
+
+            // --- NOWOŚĆ: Przycisk globalnego sprawdzania bazy ---
+            Button btnValidateAll = new Button { Text = "Sprawdź Całą Bazę", Width = 130, Height = 28, BackColor = Color.Khaki };
+            btnValidateAll.Click += BtnValidateAll_Click;
 
             btnThemeToggle = new Button { Text = isDarkMode ? "Motyw: Ciemny" : "Motyw: Jasny", Width = 110, Height = 28 };
             btnThemeToggle.Click += BtnThemeToggle_Click;
@@ -75,21 +81,27 @@ namespace BricsCAD_Agent
 
             panTopMenu.Controls.Add(btnLoad);
             panTopMenu.Controls.Add(btnSaveFile);
-            panTopMenu.Controls.Add(new Label { Width = 10 }); // Odstęp
+            panTopMenu.Controls.Add(new Label { Width = 10 });
             panTopMenu.Controls.Add(btnRefresh);
+            panTopMenu.Controls.Add(btnValidateAll); // Dodany do paska
             panTopMenu.Controls.Add(btnThemeToggle);
             panTopMenu.Controls.Add(btnFormatToggle);
             panTopMenu.Controls.Add(btnViewToggle);
 
-            // 2. Kontener dzielący resztę okna na Listę i Edytor
             split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 150 };
 
-            // --- Panel 1 (Tylko Lista - to ona będzie ukrywana) ---
-            listEntries = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
+            // --- NOWOŚĆ: Ręczne rysowanie ListBoxa (OwnerDraw), aby móc kolorować pojedyncze wpisy! ---
+            listEntries = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                IntegralHeight = false,
+                DrawMode = DrawMode.OwnerDrawFixed,
+                ItemHeight = 28
+            };
+            listEntries.DrawItem += ListEntries_DrawItem;
             listEntries.SelectedIndexChanged += ListEntries_SelectedIndexChanged;
             split.Panel1.Controls.Add(listEntries);
 
-            // --- Panel 2 (Edytor i Dolne Menu) ---
             Panel panBottom = new Panel { Dock = DockStyle.Fill };
 
             txtContent = new RichTextBox
@@ -115,6 +127,7 @@ namespace BricsCAD_Agent
             btnDelete.Click += BtnDelete_Click;
 
             panBottomMenu.Controls.Add(btnTest);
+            panBottomMenu.Controls.Add(btnValidateTags);
             panBottomMenu.Controls.Add(btnDelete);
             panBottomMenu.Controls.Add(btnUpdate);
 
@@ -125,11 +138,8 @@ namespace BricsCAD_Agent
             panBottom.Controls.Add(lblStatus);
             split.Panel2.Controls.Add(panBottom);
 
-            // 3. Dodawanie głównych sekcji do kontrolki (kolejność ma znaczenie dla Dockingu!)
-            this.Controls.Add(split); // Najpierw kontener
-            this.Controls.Add(panTopMenu); // Potem menu na samą górę
-
-
+            this.Controls.Add(split);
+            this.Controls.Add(panTopMenu);
         }
 
         // =========================================================
@@ -143,6 +153,7 @@ namespace BricsCAD_Agent
             SaveSettingsToRegistry();
             ApplyThemeColorsToTextBox();
             ApplySyntaxHighlighting();
+            listEntries.Invalidate(); // Odśwież tło listy
         }
 
         private void BtnFormatToggle_Click(object sender, EventArgs e)
@@ -151,7 +162,6 @@ namespace BricsCAD_Agent
             btnFormatToggle.Text = isFormattedView ? "Formatuj: Wł" : "Formatuj: Wył";
             SaveSettingsToRegistry();
 
-            // Przeładuj aktualnie otwartą linię do edytora w nowym formacie
             if (listEntries.SelectedIndex >= 0) LoadLineToEditor(listEntries.SelectedIndex);
         }
 
@@ -167,11 +177,21 @@ namespace BricsCAD_Agent
             {
                 txtContent.BackColor = Color.FromArgb(30, 30, 30);
                 txtContent.ForeColor = Color.FromArgb(212, 212, 212);
+                if (listEntries != null)
+                {
+                    listEntries.BackColor = Color.FromArgb(45, 45, 48);
+                    listEntries.ForeColor = Color.FromArgb(212, 212, 212);
+                }
             }
             else
             {
                 txtContent.BackColor = Color.White;
                 txtContent.ForeColor = Color.Black;
+                if (listEntries != null)
+                {
+                    listEntries.BackColor = Color.White;
+                    listEntries.ForeColor = Color.Black;
+                }
             }
         }
 
@@ -244,6 +264,7 @@ namespace BricsCAD_Agent
         private void LoadDataFromFile()
         {
             datasetLines = new List<string>(File.ReadAllLines(currentFilePath));
+            invalidEntries.Clear(); // Przy nowym pliku czyścimy błędy
             RefreshList();
         }
 
@@ -262,8 +283,53 @@ namespace BricsCAD_Agent
             else txtContent.Clear();
         }
 
+        // --- NOWOŚĆ: Logika rysowania elementów listy (Kolorowanie na czerwono) ---
+        private void ListEntries_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= listEntries.Items.Count) return;
+
+            bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            bool isInvalid = invalidEntries.Contains(e.Index);
+
+            Color backColor;
+            Color foreColor;
+
+            if (isSelected)
+            {
+                backColor = isDarkMode ? Color.FromArgb(0, 122, 204) : SystemColors.Highlight;
+                foreColor = Color.White;
+            }
+            else if (isInvalid)
+            {
+                // Kolor czerwony dla błędnego tagu!
+                backColor = Color.FromArgb(220, 53, 69);
+                foreColor = Color.White;
+            }
+            else
+            {
+                backColor = listEntries.BackColor;
+                foreColor = listEntries.ForeColor;
+            }
+
+            using (SolidBrush bgBrush = new SolidBrush(backColor))
+            {
+                e.Graphics.FillRectangle(bgBrush, e.Bounds);
+            }
+
+            using (SolidBrush textBrush = new SolidBrush(foreColor))
+            {
+                // Używamy StringFormat do idealnego wyśrodkowania tekstu w pionie, niezależnie od DPI ekranu!
+                using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
+                {
+                    Rectangle textRect = new Rectangle(e.Bounds.Left + 5, e.Bounds.Top, e.Bounds.Width - 10, e.Bounds.Height);
+                    e.Graphics.DrawString(listEntries.Items[e.Index].ToString(), e.Font, textBrush, textRect, sf);
+                }
+            }
+            e.DrawFocusRectangle();
+        }
+
         // =========================================================
-        // PARSOWANIE JSON: FORMATOWANIE I KOMPRESJA (MINIFY)
+        // PARSOWANIE JSON I KOLOROWANIE
         // =========================================================
 
         private bool IsQuoteEscaped(string text, int quoteIndex)
@@ -274,7 +340,6 @@ namespace BricsCAD_Agent
                 if (text[i] == '\\') slashCount++;
                 else break;
             }
-            // Zwraca prawde, jesli liczba backslashy jest nieparzysta (czyli znak ucieczki chroni cudzyslow)
             return slashCount % 2 != 0;
         }
 
@@ -293,41 +358,21 @@ namespace BricsCAD_Agent
                 {
                     if (c == '{' || c == '[')
                     {
-                        sb.Append(c);
-                        sb.Append("\r\n");
-                        indent++;
-                        sb.Append(new string(' ', indent * 3)); // Wcięcie na 3 spacje - czytelne i nierozwleczone
+                        sb.Append(c); sb.Append("\r\n"); indent++; sb.Append(new string(' ', indent * 3));
                     }
                     else if (c == '}' || c == ']')
                     {
-                        sb.Append("\r\n");
-                        indent--;
-                        sb.Append(new string(' ', indent * 3));
-                        sb.Append(c);
+                        sb.Append("\r\n"); indent--; sb.Append(new string(' ', indent * 3)); sb.Append(c);
                     }
                     else if (c == ',')
                     {
-                        sb.Append(c);
-                        sb.Append("\r\n");
-                        sb.Append(new string(' ', indent * 3));
+                        sb.Append(c); sb.Append("\r\n"); sb.Append(new string(' ', indent * 3));
                     }
-                    else if (c == ':')
-                    {
-                        sb.Append(c);
-                        sb.Append(" ");
-                    }
-                    else if (char.IsWhiteSpace(c)) { /* Ignorujemy zewnętrzne białe znaki */ }
-                    else
-                    {
-                        sb.Append(c);
-                    }
+                    else if (c == ':') { sb.Append(c); sb.Append(" "); }
+                    else if (!char.IsWhiteSpace(c)) sb.Append(c);
                 }
-                else
-                {
-                    sb.Append(c);
-                }
+                else sb.Append(c);
             }
-            // Na koniec podmieniamy wirtualne znaki nowej linii w stringach na prawdziwe dla wygody edycji
             return sb.ToString().Replace("\\n", "\r\n");
         }
 
@@ -343,12 +388,10 @@ namespace BricsCAD_Agent
 
                 if (!inString)
                 {
-                    // Poza stringami usuwamy wszystkie białe znaki, w tym zbudowane wcięcia!
                     if (!char.IsWhiteSpace(c)) sb.Append(c);
                 }
                 else
                 {
-                    // Wewnątrz stringa zamieniamy fizyczne wcisnięcie ENTER z powrotem na "\n" dla formatu JSONL
                     if (c == '\r') continue;
                     if (c == '\n') sb.Append("\\n");
                     else sb.Append(c);
@@ -361,16 +404,8 @@ namespace BricsCAD_Agent
         {
             isFormatting = true;
             string linia = datasetLines[index];
-
-            if (isFormattedView)
-            {
-                txtContent.Text = FormatJsonLikeCode(linia);
-            }
-            else
-            {
-                txtContent.Text = linia.Replace("\\n", "\r\n");
-            }
-
+            if (isFormattedView) txtContent.Text = FormatJsonLikeCode(linia);
+            else txtContent.Text = linia.Replace("\\n", "\r\n");
             isFormatting = false;
             ApplySyntaxHighlighting();
         }
@@ -382,10 +417,6 @@ namespace BricsCAD_Agent
                 LoadLineToEditor(listEntries.SelectedIndex);
             }
         }
-
-        // =========================================================
-        // KOLOROWANIE SKŁADNI (SYNTAX HIGHLIGHTING)
-        // =========================================================
 
         private bool isFormatting = false;
 
@@ -444,25 +475,26 @@ namespace BricsCAD_Agent
                 txtContent.SelectionStart = m.Index;
                 txtContent.SelectionLength = m.Length;
                 txtContent.SelectionColor = color;
-                if (style != FontStyle.Regular)
-                    txtContent.SelectionFont = new Font("Consolas", 11f, style);
+                if (style != FontStyle.Regular) txtContent.SelectionFont = new Font("Consolas", 11f, style);
             }
         }
 
         // =========================================================
-        // AKCJE I TESTOWANIE
+        // AKCJE I WALIDACJA
         // =========================================================
 
         private void BtnUpdate_Click(object sender, EventArgs e)
         {
             if (listEntries.SelectedIndex >= 0)
             {
-                // Magia: zawsze formatuje wpis w dół do bezpiecznej linii JSONL!
                 string minified = MinifyJsonAndEscape(txtContent.Text);
                 datasetLines[listEntries.SelectedIndex] = minified;
                 lblStatus.Text = "Zaktualizowano wpis w pamięci (Pamiętaj o zapisie do pliku!).";
 
-                // Odśwież widok na liście (nie ruszając aktualnego indeksu okna)
+                // --- NOWOŚĆ: Po zatwierdzeniu zmian, sprawdź, czy usunąć czerwony kolor ---
+                if (TagValidator.ValidateSequence(minified).Count == 0) invalidEntries.Remove(listEntries.SelectedIndex);
+                else invalidEntries.Add(listEntries.SelectedIndex);
+
                 int tempIdx = listEntries.SelectedIndex;
                 isFormatting = true;
                 RefreshList();
@@ -475,7 +507,18 @@ namespace BricsCAD_Agent
         {
             if (listEntries.SelectedIndex >= 0)
             {
-                datasetLines.RemoveAt(listEntries.SelectedIndex);
+                int deletedIdx = listEntries.SelectedIndex;
+                datasetLines.RemoveAt(deletedIdx);
+
+                // --- NOWOŚĆ: Przesuwanie czerwonych oznaczeń po usunięciu wpisu ---
+                HashSet<int> newInvalids = new HashSet<int>();
+                foreach (int idx in invalidEntries)
+                {
+                    if (idx < deletedIdx) newInvalids.Add(idx);
+                    else if (idx > deletedIdx) newInvalids.Add(idx - 1);
+                }
+                invalidEntries = newInvalids;
+
                 RefreshList();
                 lblStatus.Text = "Usunięto wpis z pamięci.";
             }
@@ -496,21 +539,55 @@ namespace BricsCAD_Agent
         {
             if (string.IsNullOrWhiteSpace(txtContent.Text)) return;
 
-            // Wywołujemy Linter
             List<string> errs = TagValidator.ValidateSequence(txtContent.Text);
 
             if (errs.Count == 0)
             {
+                if (listEntries.SelectedIndex >= 0) { invalidEntries.Remove(listEntries.SelectedIndex); listEntries.Invalidate(); }
                 MessageBox.Show("Świetnie! Składnia jest poprawna, a wszystkie klasy i właściwości istnieją w bazie API.", "Sprawdzenie Tagów", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 lblStatus.Text = "Walidator: Składnia poprawna.";
             }
             else
             {
+                if (listEntries.SelectedIndex >= 0) { invalidEntries.Add(listEntries.SelectedIndex); listEntries.Invalidate(); }
                 string msg = "Znaleziono potencjalne błędy lub halucynacje LLM:\n\n" + string.Join("\n", errs);
                 MessageBox.Show(msg, "Błędy w Składni", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 lblStatus.Text = $"Walidator: Znaleziono {errs.Count} problemów.";
             }
         }
+
+        // --- NOWOŚĆ: Globalne sprawdzenie całego pliku JSONL ---
+        private void BtnValidateAll_Click(object sender, EventArgs e)
+        {
+            if (datasetLines.Count == 0) return;
+
+            invalidEntries.Clear();
+            int errorCount = 0;
+
+            for (int i = 0; i < datasetLines.Count; i++)
+            {
+                var errors = TagValidator.ValidateSequence(datasetLines[i]);
+                if (errors.Count > 0)
+                {
+                    invalidEntries.Add(i);
+                    errorCount += errors.Count;
+                }
+            }
+
+            listEntries.Invalidate(); // Odrysowuje wszystkie pozycje z nowymi kolorami!
+
+            if (invalidEntries.Count == 0)
+            {
+                MessageBox.Show("Świetnie! Cała baza (plik JSONL) jest w 100% poprawna. Brak halucynacji i błędów składni.", "Globalne Sprawdzenie", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                lblStatus.Text = "Walidacja globalna: Składnia w całej bazie poprawna.";
+            }
+            else
+            {
+                MessageBox.Show($"Znaleziono błędy w {invalidEntries.Count} wpisach (łącznie {errorCount} problemów).\n\nBłędne pozycje zostały podświetlone na CZERWONO na liście po lewej stronie.", "Błędy w Bazie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lblStatus.Text = $"Walidacja globalna: Znaleziono błędy w {invalidEntries.Count} wpisach.";
+            }
+        }
+
         private void BtnTest_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtContent.Text)) return;
@@ -566,11 +643,9 @@ namespace BricsCAD_Agent
 
                     if (tagDoWykonania.Contains("[ACTION: ]") || tagDoWykonania.Replace(" ", "") == "[ACTION:]") continue;
 
-                    // --- NAPRAWA: Oczyszczanie tagu z backslashy przed kompilacją ---
                     string czystyTag = tagDoWykonania.Replace("\\\"", "\"").Replace("\\n", "\n");
 
                     wykonaneKroki++;
-                    // Wyświetlamy i testujemy już oczyszczoną wersję!
                     ed.WriteMessage($"\n[Krok {wykonaneKroki} Wykonuję]: {czystyTag}");
 
                     try

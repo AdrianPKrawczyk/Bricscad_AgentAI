@@ -12,7 +12,7 @@ namespace BricsCAD_Agent
         // Ładowanie bazy wiedzy do pamięci
         public static void LoadApiCache()
         {
-            if (apiCache != null) return;
+            if (apiCache != null && apiCache.Count > 0) return;
             apiCache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
             string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
@@ -69,7 +69,14 @@ namespace BricsCAD_Agent
             LoadApiCache();
             List<string> errors = new List<string>();
 
-            // 1. Walidacja globalna nawiasów (najczęstszy błąd uciętego tagu)
+            // --- NOWOŚĆ: Zabezpieczenie przed brakiem plików API ---
+            if (apiCache.Count == 0)
+            {
+                errors.Add("[BŁĄD KRYTYCZNY] Nie udało się załadować bazy wiedzy API! Upewnij się, że pliki BricsCAD_API_Quick.txt oraz BricsCAD_API_V22.txt znajdują się w folderze wtyczki.");
+                return errors; // Przerywamy sprawdzanie, żeby nie rzucać fałszywych halucynacji
+            }
+
+            // 1. Walidacja globalna nawiasów
             int openSquare = text.Split('[').Length - 1;
             int closeSquare = text.Split(']').Length - 1;
             int openCurly = text.Split('{').Length - 1;
@@ -81,8 +88,8 @@ namespace BricsCAD_Agent
             // Oczyszczamy tekst do łatwiejszego przetwarzania JSONa
             string cleanText = text.Replace("\\\"", "\"").Replace("\\n", "\n");
 
-            // 2. Walidacja narzędzia SELECT
-            var selectMatches = Regex.Matches(cleanText, @"\[SELECT:\s*(\{.*?\})\]", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            // 2. Walidacja narzędzia SELECT (Dodano \s* przed \] dla bezpieczeństwa spacji)
+            var selectMatches = Regex.Matches(cleanText, @"\[SELECT:\s*(\{.*?\})\s*\]", RegexOptions.Singleline | RegexOptions.IgnoreCase);
             foreach (Match m in selectMatches)
             {
                 string json = m.Groups[1].Value;
@@ -91,13 +98,11 @@ namespace BricsCAD_Agent
                 Match mEnt = Regex.Match(json, @"""EntityType""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
                 if (mEnt.Success) entType = mEnt.Groups[1].Value;
 
-                // Sprawdzanie halucynacji Klasy
                 if (!apiCache.ContainsKey(entType) && !entType.Equals("Entity", StringComparison.OrdinalIgnoreCase))
                 {
                     errors.Add($"[HALUCYNACJA - SELECT] Nieznana klasa obiektu: '{entType}'.");
                 }
 
-                // Sprawdzanie halucynacji Właściwości w Conditions
                 var mCond = Regex.Match(json, @"""Conditions""\s*:\s*\[(.*?)\]", RegexOptions.Singleline | RegexOptions.IgnoreCase);
                 if (mCond.Success)
                 {
@@ -109,8 +114,8 @@ namespace BricsCAD_Agent
                 }
             }
 
-            // 3. Walidacja Narzędzi Akcji (ACTION)
-            var actionMatches = Regex.Matches(cleanText, @"\[ACTION:([A-Z_]+)\s*(\{.*?\})\]", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            // 3. Walidacja Narzędzi Akcji (ACTION) (Dodano \s* przed \])
+            var actionMatches = Regex.Matches(cleanText, @"\[ACTION:([A-Z_]+)\s*(\{.*?\})\s*\]", RegexOptions.Singleline | RegexOptions.IgnoreCase);
             foreach (Match m in actionMatches)
             {
                 string actionName = m.Groups[1].Value.ToUpper();
@@ -148,6 +153,22 @@ namespace BricsCAD_Agent
                         if (pm.Success) CheckProperty("Entity", pm.Groups[1].Value, $"[{actionName}]", errors);
                     }
                 }
+                // --- NOWOŚĆ: Walidacja dla nowego narzędzia zarządzania warstwami ---
+                else if (actionName == "MANAGE_LAYERS")
+                {
+                    var keysMatches = Regex.Matches(json, @"""([^""]+)""\s*:");
+                    string[] validLayerKeys = { "Mode", "Layer", "Layers", "NewName", "Color", "LineWeight", "Linetype", "Transparency", "IsOff", "IsFrozen", "IsLocked", "SourceLayers", "TargetLayer" };
+                    HashSet<string> validKeys = new HashSet<string>(validLayerKeys, StringComparer.OrdinalIgnoreCase);
+
+                    foreach (Match km in keysMatches)
+                    {
+                        string key = km.Groups[1].Value;
+                        if (!validKeys.Contains(key))
+                        {
+                            errors.Add($"[{actionName}] Nieznany parametr (Narzędzie tego nie obsługuje): '{key}'.");
+                        }
+                    }
+                }
             }
 
             return errors;
@@ -155,7 +176,6 @@ namespace BricsCAD_Agent
 
         private static void CheckProperty(string entType, string prop, string context, List<string> errors)
         {
-            // Ignorujemy właściwości wizualne dopisywane przez nas globalnie i te zagnieżdżone w kropce (np. Center.X)
             string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency" };
             foreach (string vp in visualProps) if (prop.Equals(vp, StringComparison.OrdinalIgnoreCase)) return;
             if (prop.Contains(".")) return;
@@ -165,7 +185,6 @@ namespace BricsCAD_Agent
             else if (apiCache.ContainsKey("Entity") && apiCache["Entity"].Contains(prop)) found = true;
             else
             {
-                // Szukamy globalnie we wszystkich klasach API, bo LLM czasem nie podaje klasy bezpośrednio w SET_PROPERTIES
                 foreach (var kvp in apiCache)
                 {
                     if (kvp.Value.Contains(prop)) { found = true; break; }
