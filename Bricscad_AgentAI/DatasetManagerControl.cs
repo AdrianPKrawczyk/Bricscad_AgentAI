@@ -106,6 +106,9 @@ namespace BricsCAD_Agent
             Panel panBottomMenu = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(5) };
             Button btnTest = new Button { Text = "TESTUJ TAGI", Dock = DockStyle.Left, Width = 120, BackColor = Color.LightSkyBlue };
             btnTest.Click += BtnTest_Click;
+            Button btnValidateTags = new Button { Text = "Sprawdź Składnię", Dock = DockStyle.Left, Width = 120, BackColor = Color.Khaki };
+            btnValidateTags.Click += BtnValidateTags_Click;
+
             Button btnUpdate = new Button { Text = "Zatwierdź Zmiany", Dock = DockStyle.Right, Width = 130 };
             btnUpdate.Click += BtnUpdate_Click;
             Button btnDelete = new Button { Text = "Usuń z Listy", Dock = DockStyle.Right, Width = 100, BackColor = Color.LightCoral };
@@ -125,6 +128,8 @@ namespace BricsCAD_Agent
             // 3. Dodawanie głównych sekcji do kontrolki (kolejność ma znaczenie dla Dockingu!)
             this.Controls.Add(split); // Najpierw kontener
             this.Controls.Add(panTopMenu); // Potem menu na samą górę
+
+
         }
 
         // =========================================================
@@ -487,6 +492,25 @@ namespace BricsCAD_Agent
             catch (Exception ex) { MessageBox.Show("Błąd zapisu: " + ex.Message); }
         }
 
+        private void BtnValidateTags_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtContent.Text)) return;
+
+            // Wywołujemy Linter
+            List<string> errs = TagValidator.ValidateSequence(txtContent.Text);
+
+            if (errs.Count == 0)
+            {
+                MessageBox.Show("Świetnie! Składnia jest poprawna, a wszystkie klasy i właściwości istnieją w bazie API.", "Sprawdzenie Tagów", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                lblStatus.Text = "Walidator: Składnia poprawna.";
+            }
+            else
+            {
+                string msg = "Znaleziono potencjalne błędy lub halucynacje LLM:\n\n" + string.Join("\n", errs);
+                MessageBox.Show(msg, "Błędy w Składni", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lblStatus.Text = $"Walidator: Znaleziono {errs.Count} problemów.";
+            }
+        }
         private void BtnTest_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtContent.Text)) return;

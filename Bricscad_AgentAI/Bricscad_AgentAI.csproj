@@ -80,6 +80,7 @@
     <Compile Include="RpnCalculator.cs" />
     <Compile Include="SearchLayersTool.cs" />
     <Compile Include="SetPropertiesTool.cs" />
+    <Compile Include="TagValidator.cs" />
     <Compile Include="TextEditTool.cs" />
     <Compile Include="TrainingStudio.cs" />
     <Compile Include="UserChoiceTool.cs" />
