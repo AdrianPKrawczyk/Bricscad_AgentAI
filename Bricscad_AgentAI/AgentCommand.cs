@@ -72,7 +72,9 @@ namespace BricsCAD_Agent
         new ReadAnnoScalesTool(),
         new RemoveAnnoScaleTool(),
         new ListUniqueTool(),
-        new ListBlocksTool()         
+        new ListBlocksTool(),
+        new UserInputTool(),
+        new UserChoiceTool()
 
         };
 
@@ -180,6 +182,17 @@ namespace BricsCAD_Agent
                         "Argument 'Scope': \"Selection\" (domyślnie), \"Model\" (cały rysunek) lub \"Blocks\" (wnętrza wszystkich bloków).\n" +
                         "Przykład 1 (Klasy w modelu): [ACTION:LIST_UNIQUE {\"Target\": \"Class\", \"Scope\": \"Model\"}]\n" +
                         "Przykład 2 (Nazwy warstw w zaznaczeniu): [ACTION:LIST_UNIQUE {\"Target\": \"Property\", \"Scope\": \"Selection\", \"Property\": \"Layer\"}]\n\n" +
+
+                        "Tag: [ACTION:USER_CHOICE]\n" +
+                        "Opis: Wyświetla użytkownikowi na ekranie interaktywną listę jednokrotnego wyboru. Używaj tego, gdy odkryjesz kilka możliwości (np. narzędziem LIST_UNIQUE) i potrzebujesz decyzji człowieka, na których dokładnie elementach masz operować.\n" +
+                        "Argumenty: [ACTION:USER_CHOICE {\"Question\": \"Na której warstwie zmienić kolor?\", \"Options\": [\"Wymiar0\", \"Wymiar1\", \"Wszystkie\"]}]\n\n" +
+
+                        "Tag: [ACTION:USER_INPUT]\n" +
+                        "Opis: Prosi użytkownika o wpisanie zwykłego tekstu lub fizyczne wskazanie punktów na rysunku (np. by pobrać współrzędne do przesunięcia).\n" +
+                        "Argument 'Type': \"String\" (tekst), \"Point\" (jeden punkt) lub \"Points\" (wiele punktów).\n" +
+                        "Przykład: [ACTION:USER_INPUT {\"Type\": \"Point\", \"Prompt\": \"Wskaż środek obrotu\"}]\n\n" +
+                        "WAŻNE - MYŚLENIE WEWNĘTRZNE: Do *każdego* tagu [ACTION] lub [SELECT] możesz opcjonalnie dodać parametr \"Comment\", aby zapisać w nim swój tok rozumowania, dlaczego podejmujesz daną akcję. Np. [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Erase\", \"Comment\": \"Usuwam to, bo użytkownik prosił o czyszczenie\"}].\n\n" +
+
 
                         "User: Zaznacz linie dłuższe niż 50\n" +
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +

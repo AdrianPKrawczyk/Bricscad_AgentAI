@@ -80,6 +80,8 @@
     <Compile Include="SetPropertiesTool.cs" />
     <Compile Include="TextEditTool.cs" />
     <Compile Include="TrainingStudio.cs" />
+    <Compile Include="UserChoiceTool.cs" />
+    <Compile Include="UserInputTool.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AgentControl.resx">

@@ -51,7 +51,9 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("ModifyGeom");
                     pko.Keywords.Add("AnnoScale");
                     pko.Keywords.Add("READScales");
-                    pko.Keywords.Add("REMOVEScale");    
+                    pko.Keywords.Add("REMOVEScale");
+                    pko.Keywords.Add("ASKUser");
+                    pko.Keywords.Add("USERInput");
                     pko.Keywords.Default = "Select";
 
                     PromptResult pr = ed.GetKeywords(pko);
@@ -825,6 +827,75 @@ namespace BricsCAD_Agent
                         }
                     }
 
+                    // --- [USER_CHOICE] ---
+                    else if (pr.StringResult.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PromptStringOptions psoQ = new PromptStringOptions("\nPodaj treść pytania dla użytkownika (np. Którą warstwę zaktualizować?): ");
+                        psoQ.AllowSpaces = true;
+                        string question = ed.GetString(psoQ).StringResult;
+
+                        System.Collections.Generic.List<string> optionsList = new System.Collections.Generic.List<string>();
+                        bool addingOptions = true;
+                        int optCount = 1;
+
+                        // Informacja dla Ciebie w konsoli
+                        ed.WriteMessage("\n[INFO]: Możesz wpisywać opcje pojedynczo LUB wkleić całą listę po przecinku (np. skopiowaną z wyniku LIST_UNIQUE)!");
+
+                        while (addingOptions)
+                        {
+                            PromptStringOptions psoOpt = new PromptStringOptions($"\nPodaj opcję nr {optCount} (lub wklej listę, ENTER by zakończyć): ");
+                            psoOpt.AllowSpaces = true;
+                            string opt = ed.GetString(psoOpt).StringResult;
+
+                            if (string.IsNullOrEmpty(opt))
+                            {
+                                addingOptions = false;
+                            }
+                            else
+                            {
+                                // MAGIA: Jeśli wklejony tekst zawiera przecinki, program automatycznie go podzieli!
+                                if (opt.Contains(","))
+                                {
+                                    // Rozbijamy po przecinku i usuwamy puste elementy
+                                    string[] elementy = opt.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                                    foreach (string el in elementy)
+                                    {
+                                        string czystyEl = el.Trim(); // Usuwa spacje na początku i końcu (np. po przecinku)
+                                        if (!string.IsNullOrEmpty(czystyEl))
+                                        {
+                                            optionsList.Add($"\"{czystyEl}\"");
+                                            optCount++;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Klasyczne wpisanie pojedynczej opcji
+                                    optionsList.Add($"\"{opt.Trim()}\"");
+                                    optCount++;
+                                }
+                            }
+                        }
+
+                        string arrayString = string.Join(", ", optionsList);
+                        finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"Options\": [{arrayString}]}}]";
+                    }
+
+                    // --- [USER_INPUT] ---
+                    else if (pr.StringResult.Equals("USERInput", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PromptKeywordOptions pkoType = new PromptKeywordOptions("\nWybierz typ pobieranych danych [String/Point/Points]: ");
+                        pkoType.Keywords.Add("String"); pkoType.Keywords.Add("Point"); pkoType.Keywords.Add("Points");
+                        pkoType.Keywords.Default = "String";
+                        string type = ed.GetKeywords(pkoType).StringResult;
+
+                        PromptStringOptions psoPrompt = new PromptStringOptions("\nPodaj treść prośby do użytkownika (np. Wskaż nowy środek): ");
+                        psoPrompt.AllowSpaces = true;
+                        string promptMsg = ed.GetString(psoPrompt).StringResult;
+
+                        finalTag = $"[ACTION:USER_INPUT {{\"Type\": \"{type}\", \"Prompt\": \"{promptMsg}\"}}]";
+                    }
 
                     // --- [REMOVE_ANNO_SCALE] ---
                     else if (pr.StringResult.Equals("REMOVEScale", StringComparison.OrdinalIgnoreCase) || pr.StringResult == "RemoveScale")
@@ -947,6 +1018,26 @@ namespace BricsCAD_Agent
                             }
                         }
                         finalTag = $"[ACTION:{actionName} {{{string.Join(", ", argsList)}}}]";
+                    }
+
+                    // === WSTRZYKIWANIE WEWNĘTRZNEGO KOMENTARZA AGENTA ===
+                    if (!string.IsNullOrEmpty(finalTag))
+                    {
+                        PromptKeywordOptions pkoCmt = new PromptKeywordOptions("\nCzy dodać wewn. Komentarz (Myśl Agenta) do tego tagu? [Tak/Nie]: ");
+                        pkoCmt.Keywords.Add("Tak"); pkoCmt.Keywords.Add("Nie"); pkoCmt.Keywords.Default = "Nie";
+                        if (ed.GetKeywords(pkoCmt).StringResult == "Tak")
+                        {
+                            PromptStringOptions psoCmt = new PromptStringOptions("\nWpisz komentarz (np. Pytam o punkt, by móc przesunąć element): ");
+                            psoCmt.AllowSpaces = true;
+                            string cmt = ed.GetString(psoCmt).StringResult;
+
+                            // Wyszukuje ostatni znak zamykający JSON-a w wygenerowanym tagu i "wpycha" tam komentarz
+                            int lastBrace = finalTag.LastIndexOf('}');
+                            if (lastBrace != -1)
+                            {
+                                finalTag = finalTag.Insert(lastBrace, $", \"Comment\": \"{cmt}\"");
+                            }
+                        }
                     }
 
                     ed.WriteMessage($"\n\n--- WYGENEROWANY TAG JSON ---\n{finalTag}\n-----------------------------\n");
@@ -1113,6 +1204,12 @@ namespace BricsCAD_Agent
                     return tool.Execute(doc, wklejonyTag);
                 }
 
+                else if (wklejonyTag.Contains("[ACTION:USER_CHOICE"))
+                {
+                    UserChoiceTool tool = new UserChoiceTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 else if (wklejonyTag.Contains("[ACTION:EDIT_BLOCK"))
                 {
                     EditBlockTool tool = new EditBlockTool();
@@ -1155,6 +1252,12 @@ namespace BricsCAD_Agent
                 else if (wklejonyTag.Contains("[ACTION:MODIFY_GEOMETRY"))
                 {
                     ModifyGeometryTool tool = new ModifyGeometryTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:USER_INPUT"))
+                {
+                    UserInputTool tool = new UserInputTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
 
