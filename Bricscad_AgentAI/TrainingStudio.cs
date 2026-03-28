@@ -779,9 +779,23 @@ namespace BricsCAD_Agent
                             string opSign = "=";
                             if (opWord == "Dodaj") opSign = "+"; if (opWord == "Odejmij") opSign = "-"; if (opWord == "Pomnoz") opSign = "*"; if (opWord == "RPN") opSign = "RPN";
 
+                            // --- DODANA ŚCIĄGA RPN ---
+                            if (opSign == "RPN")
+                            {
+                                ed.WriteMessage("\n\n--- ŚCIĄGA KALKULATORA RPN (G50) ---");
+                                ed.WriteMessage("\n [STOS]   SWAP (zamień), DUP (kopiuj), DROP (usuń)");
+                                ed.WriteMessage("\n [TEKST]  CONCAT (Łączy dwa elementy w jeden. (np. 'A' 'B' CONCAT -> 'AB'), REPLACE (Zamienia fragment tekstu. Wymaga 3 elementów: [Tekst_główny, Co_szukać, Na_co_zamienić]. (np. 'Woda' 'Nowa' REPLACE, SUBSTR (Wycina tekst. Wymaga 3 elementów: [Tekst_główny, Indeks_startu, Długość)");
+                                ed.WriteMessage("\n [TEKST]  UPPER/LOWER (wielkość), TRIM (Usuwa przypadkowe spacje na początku i końcu tekstu.), LEN (Zwraca liczbę znaków w tekście)");
+                                ed.WriteMessage("\n [TEKST]  FIND (Szuka fragmentu i zwraca jego pozycję (liczbę). Jeśli nie znajdzie, zwraca -1), SPLIT (Dzieli tekst po separatorze i wyciąga konkretny kawałek. Wymaga 3 elementów: [Tekst, Separator, Indeks]. (np. dla nazwy A_B_C, komenda '_' 1 SPLIT zwróci B)");
+                                ed.WriteMessage("\n [MATEMA] +, -, *, /, ^, SQRT, SIN, COS, ROUND");
+                                ed.WriteMessage("\n UWAGA: Własne teksty wpisuj w apostrofach, np. 'prefiks_' !");
+                                ed.WriteMessage("\n------------------------------------\n");
+                            }
+                            // -------------------------
+
                             string promptText = opSign == "RPN" ? $"\nPodaj wyrażenie RPN (Obecna wartość jest na dnie stosu! Np: 2 * 50 +): " : $"\nPodaj wartość dla [{propName}]: ";
                             PromptStringOptions psoVal = new PromptStringOptions(promptText);
-                            psoVal.AllowSpaces = true;
+                            psoVal.AllowSpaces = true; // Konieczne dla wyrażeń RPN!
                             string valStr = ed.GetString(psoVal).StringResult;
 
                             if (opSign != "RPN" && !double.TryParse(valStr.Replace(",", "."), out _) && valStr.ToLower() != "true" && valStr.ToLower() != "false") valStr = $"\"{valStr}\"";

@@ -140,7 +140,16 @@ namespace BricsCAD_Agent
 
                         "Tag: [ACTION:SET_PROPERTIES]\n" +
                         "Opis: Uniwersalne narzędzie do zmiany właściwości zaznaczonych obiektów (np. Koloru, Warstwy, Rodzaju Linii, Skali, itp.).\n" +
-                        "Argumenty: Zbuduj JSON z listą \"Properties\". Przykład: [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Instalacje\"}, {\"Property\": \"Color\", \"Value\": 256}]}]\n\n" +
+                        "Tryby działania (Operator):\n" +
+                        "- Brak klucza \"Operator\" -> Nadpisanie na sztywno: {\"Property\": \"Color\", \"Value\": 1}\n" +
+                        "- \"Operator\": \"+\" (lub -, *, /) -> Prosta matematyka dodana do obecnej wartości np. podniesienie Z o 100: {\"Property\": \"Center.Z\", \"Operator\": \"+\", \"Value\": 100}\n" +
+                        "- \"Operator\": \"RPN\" -> Zaawansowany kalkulator stosowy do Matematyki oraz Tekstów (Styl G50). Dotychczasowa wartość zawsze leży na dnie stosu.\n" +
+                        "   * Dostępne operatory: +, -, *, /, ^, SQRT, SIN, COS, ROUND, SWAP, DUP, DROP.\n" +
+                        "   * Dostępne tekstowe: CONCAT, REPLACE, SUBSTR, UPPER, LOWER, TRIM, FIND, SPLIT, LEN.\n" +
+                        "   * Uwaga: Jeśli wartość jest tekstem, zamknij ją w apostrofach, np. 'nowy_tekst'!\n" +
+                        "Przykład 1 (Dodaj prefiks do warstwy): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'PRX_' SWAP CONCAT\"}]}]\n" +
+                        "Przykład 2 (Zamień słowo w nazwie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'Stare' 'Nowe' REPLACE\"}]}]\n" +
+                        "Przykład 3 (Utnij tekst przed '_' ): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'_' 0 SPLIT\"}]}]\n\n" +
 
                          "Tag: [ACTION:SET_PROPERTIES]\n" +
                         "Opis: Uniwersalne narzędzie do zmiany właściwości. Domyślnie nadpisuje wartość. Jeśli użytkownik prosi o ZMODYFIKOWANIE wartości (np. \"podnieś Z o 200\"), użyj klucza \"Operator\": \"+\" (lub \"-\", \"*\"). Do skomplikowanych obliczeń użyj \"Operator\": \"RPN\" podając wyrażenie (np. \"Value\": \"2 * 50 +\").\n" +
@@ -208,7 +217,7 @@ namespace BricsCAD_Agent
                         "Opis: Automatyczna wyszukiwarka warstw. Używaj tego ZANIM użyjesz MANAGE_LAYERS, gdy użytkownik prosi o modyfikację/usunięcie warstw po słowie kluczowym (bez wyświetlania mu okienka).\n" +
                         "Dostępne klucze: Condition (Contains/StartsWith/EndsWith/Equals), Value.\n" +
                         "Przykład: [ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"kanalizacja\"}]\n\n" +
-                        
+
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
 
                         "User: Znajdź wszystkie teksty wewnątrz tych bloków\n" +
