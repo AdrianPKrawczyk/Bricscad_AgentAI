@@ -542,12 +542,16 @@ namespace BricsCAD_Agent
 
                     if (tagDoWykonania.Contains("[ACTION: ]") || tagDoWykonania.Replace(" ", "") == "[ACTION:]") continue;
 
+                    // --- NAPRAWA: Oczyszczanie tagu z backslashy przed kompilacją ---
+                    string czystyTag = tagDoWykonania.Replace("\\\"", "\"").Replace("\\n", "\n");
+
                     wykonaneKroki++;
-                    ed.WriteMessage($"\n[Krok {wykonaneKroki} Wykonuję]: {tagDoWykonania}");
+                    // Wyświetlamy i testujemy już oczyszczoną wersję!
+                    ed.WriteMessage($"\n[Krok {wykonaneKroki} Wykonuję]: {czystyTag}");
 
                     try
                     {
-                        string wynik = TrainingStudio.WykonywaczTagow(doc, tagDoWykonania);
+                        string wynik = TrainingStudio.WykonywaczTagow(doc, czystyTag);
                         ed.WriteMessage($"\n[Wynik]: {wynik}");
 
                         if (wynik.StartsWith("WYNIK: Użytkownik") && !wynik.Contains("anulował"))

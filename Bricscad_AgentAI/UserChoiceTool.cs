@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Bricscad.ApplicationServices;
 using Teigha.DatabaseServices;
-// NOWE: Potrzebujemy tych przestrzeni do zapamiętywania rozmiaru w rejestrze
 using System.Drawing;
 using Microsoft.Win32;
 
@@ -13,9 +12,8 @@ namespace BricsCAD_Agent
     public class UserChoiceTool : ITool
     {
         public string ActionTag => "[ACTION:USER_CHOICE]";
-        public string Description => "Wyświetla użytkownikowi interaktywne okno z pytaniem i listą opcji do wyboru. Zapamiętuje rozmiar.";
+        public string Description => "Wyświetla użytkownikowi okno wyboru. Opcje mogą być podane w tagu lub automatycznie pobrane z rysunku.";
 
-        // Ścieżka w rejestrze do zapamiętywania ustawień (BricsCAD Agent AI / Settings)
         private const string RegistryPath = @"Software\BricsCADAgentAI\Settings";
 
         public string Execute(Document doc, string jsonArgs)
@@ -25,41 +23,70 @@ namespace BricsCAD_Agent
             Match mQuestion = Regex.Match(jsonArgs, @"\""Question\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
             if (mQuestion.Success) question = mQuestion.Groups[1].Value;
 
-            // 2. Wyciąganie tablicy opcji
             List<string> options = new List<string>();
-            Match mOptionsArray = Regex.Match(jsonArgs, @"\""Options\""\s*:\s*\[(.*?)\]", RegexOptions.IgnoreCase);
-            if (mOptionsArray.Success)
+
+            // 2A. Sprawdzamy, czy Agent chce automatycznie pobrać listę z rysunku (MOCNE ULEPSZENIE)
+            Match mFetchTarget = Regex.Match(jsonArgs, @"\""FetchTarget\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            if (mFetchTarget.Success)
             {
-                string arrayContent = mOptionsArray.Groups[1].Value;
-                MatchCollection optionMatches = Regex.Matches(arrayContent, @"\""([^\""]+)\""");
-                foreach (Match m in optionMatches) options.Add(m.Groups[1].Value);
+                string target = mFetchTarget.Groups[1].Value;
+
+                Match mFetchScope = Regex.Match(jsonArgs, @"\""FetchScope\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+                string scope = mFetchScope.Success ? mFetchScope.Groups[1].Value : "Selection";
+
+                Match mFetchProp = Regex.Match(jsonArgs, @"\""FetchProperty\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+                string prop = mFetchProp.Success ? mFetchProp.Groups[1].Value : "";
+
+                // Uruchamiamy ListUniqueTool "w tle"
+                ListUniqueTool luTool = new ListUniqueTool();
+                string jsonArgsLu = target.Equals("Property", StringComparison.OrdinalIgnoreCase)
+                    ? $"[ACTION:LIST_UNIQUE {{\"Target\": \"Property\", \"Scope\": \"{scope}\", \"Property\": \"{prop}\"}}]"
+                    : $"[ACTION:LIST_UNIQUE {{\"Target\": \"Class\", \"Scope\": \"{scope}\"}}]";
+
+                string wynikListUnique = luTool.Execute(doc, jsonArgsLu);
+
+                int dwukropekIdx = wynikListUnique.LastIndexOf("): ");
+                if (dwukropekIdx != -1 && !wynikListUnique.Contains("nie znaleziono żadnych"))
+                {
+                    string wartosciCsv = wynikListUnique.Substring(dwukropekIdx + 3);
+                    string[] elementy = wartosciCsv.Split(new string[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string el in elementy) options.Add(el.Trim());
+                }
+                else
+                {
+                    return $"WYNIK: BŁĄD - Nie udało się automatycznie wygenerować listy. Narzędzie zwróciło: {wynikListUnique}";
+                }
+            }
+            // 2B. Jeśli Agent sam podał listę opcji w tablicy (stara metoda)
+            else
+            {
+                Match mOptionsArray = Regex.Match(jsonArgs, @"\""Options\""\s*:\s*\[(.*?)\]", RegexOptions.IgnoreCase);
+                if (mOptionsArray.Success)
+                {
+                    string arrayContent = mOptionsArray.Groups[1].Value;
+                    MatchCollection optionMatches = Regex.Matches(arrayContent, @"\""([^\""]+)\""");
+                    foreach (Match m in optionMatches) options.Add(m.Groups[1].Value);
+                }
             }
 
-            if (options.Count == 0) return "WYNIK: BŁĄD - Nie podano żadnych opcji w kluczu 'Options'.";
+            if (options.Count == 0) return "WYNIK: BŁĄD - Nie podano żadnych opcji ani parametrów Fetch.";
 
             string selectedOption = "";
 
             // 3. Budowa interaktywnego okna dialogowego (WinForms)
             using (Form prompt = new Form())
             {
-                // NOWE: Domyślny rozmiar (zgodnie z propozycją: Wx2, Hx5 od starego 450x250)
-                // W: 900, H: 1250. To zapewni dobrą widoczność dla długich list.
                 int defaultWidth = 900;
                 int defaultHeight = 1250;
-
-                // NOWE: Ładujemy zapisany rozmiar z rejestru (fallback do domyślnego jeśli brak wpisu)
                 LoadWindowSizeFromRegistry(out defaultWidth, out defaultHeight, defaultWidth, defaultHeight);
 
                 prompt.Width = defaultWidth;
                 prompt.Height = defaultHeight;
-
-                // NOWE: Zmieniamy na Sizable, aby użytkownik mógł chwytać za rogi!
                 prompt.FormBorderStyle = FormBorderStyle.Sizable;
-
                 prompt.Text = "Decyzja Agenta AI";
                 prompt.StartPosition = FormStartPosition.CenterScreen;
                 prompt.KeyPreview = true;
-                prompt.MaximizeBox = true; // Pozwalamy na maksymalizację
+                prompt.MaximizeBox = true;
                 prompt.MinimizeBox = false;
 
                 Label textLabel = new Label()
@@ -70,7 +97,6 @@ namespace BricsCAD_Agent
                     Height = 40,
                     Text = question,
                     Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                    // NOWE: Kotwiczenie, by Label rozciągał się wraz z oknem
                     Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
                 };
 
@@ -81,7 +107,6 @@ namespace BricsCAD_Agent
                     Width = 850,
                     Height = 1000,
                     Font = new Font("Segoe UI", 10),
-                    // NOWE: Kotwiczenie, by Lista rozciągała się we wszystkie strony
                     Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
                 };
 
@@ -97,7 +122,6 @@ namespace BricsCAD_Agent
                     Top = 1100,
                     DialogResult = DialogResult.OK,
                     Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                    // NOWE: Kotwiczenie do prawego-dolnego rogu
                     Anchor = AnchorStyles.Bottom | AnchorStyles.Right
                 };
 
@@ -106,13 +130,9 @@ namespace BricsCAD_Agent
                 prompt.Controls.Add(confirmation);
                 prompt.AcceptButton = confirmation;
 
-                // Podwójne kliknięcie myszką na liście też zatwierdza
                 listBox.DoubleClick += (s, e) => { prompt.DialogResult = DialogResult.OK; prompt.Close(); };
 
-                // Wywołanie okna w sposób bezpieczny dla BricsCADa
                 DialogResult dialogResult = Bricscad.ApplicationServices.Application.ShowModalDialog(prompt);
-
-                // NOWE: Bez względu na decyzję (OK czy Anuluj), ZAPISUJEMY rozmiar okna przed jego zniszczeniem!
                 SaveWindowSizeToRegistry(prompt.Width, prompt.Height);
 
                 if (dialogResult == DialogResult.OK && listBox.SelectedItem != null)
@@ -130,15 +150,9 @@ namespace BricsCAD_Agent
 
         public string Execute(Document doc) => Execute(doc, "");
 
-        // =========================================================
-        // NOWE: Funkcje pomocnicze do obsługi Rejestru Windows
-        // =========================================================
-
         private void LoadWindowSizeFromRegistry(out int width, out int height, int defW, int defH)
         {
-            width = defW;
-            height = defH;
-
+            width = defW; height = defH;
             try
             {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegistryPath))
@@ -147,43 +161,28 @@ namespace BricsCAD_Agent
                     {
                         object wValue = key.GetValue("WindowWidth");
                         object hValue = key.GetValue("WindowHeight");
-
-                        if (wValue != null && int.TryParse(wValue.ToString(), out int storedW))
-                        {
-                            // Upewniamy się, że rozmiar nie jest absurdalnie mały
-                            width = Math.Max(storedW, 300);
-                        }
-
-                        if (hValue != null && int.TryParse(hValue.ToString(), out int storedH))
-                        {
-                            height = Math.Max(storedH, 200);
-                        }
+                        if (wValue != null && int.TryParse(wValue.ToString(), out int storedW)) width = Math.Max(storedW, 300);
+                        if (hValue != null && int.TryParse(hValue.ToString(), out int storedH)) height = Math.Max(storedH, 200);
                     }
                 }
             }
-            catch { } // Ciche ignorowanie błędu, użyje domyślnych
+            catch { }
         }
 
         private void SaveWindowSizeToRegistry(int width, int height)
         {
             try
             {
-                // Tworzymy klucz (jeśli nie istnieje) z uprawnieniami do zapisu
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryPath))
                 {
                     if (key != null)
                     {
-                        // Zapisujemy wartości DWORD (integer)
                         key.SetValue("WindowWidth", width, RegistryValueKind.DWord);
                         key.SetValue("WindowHeight", height, RegistryValueKind.DWord);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                // Informujemy użytkownika w konsoli, jeśli z powodu uprawnień systemowych nie można zapisać ustawień
-                Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n[Uwaga]: Nie udało się zapisać rozmiaru okna w Rejestrze ({ex.Message}).");
-            }
+            catch { }
         }
     }
 }

@@ -184,14 +184,16 @@ namespace BricsCAD_Agent
                         "Przykład 2 (Nazwy warstw w zaznaczeniu): [ACTION:LIST_UNIQUE {\"Target\": \"Property\", \"Scope\": \"Selection\", \"Property\": \"Layer\"}]\n\n" +
 
                         "Tag: [ACTION:USER_CHOICE]\n" +
-                        "Opis: Wyświetla użytkownikowi na ekranie interaktywną listę jednokrotnego wyboru. Używaj tego, gdy odkryjesz kilka możliwości (np. narzędziem LIST_UNIQUE) i potrzebujesz decyzji człowieka, na których dokładnie elementach masz operować.\n" +
-                        "Argumenty: [ACTION:USER_CHOICE {\"Question\": \"Na której warstwie zmienić kolor?\", \"Options\": [\"Wymiar0\", \"Wymiar1\", \"Wszystkie\"]}]\n\n" +
+                        "Opis: Wyświetla interaktywną listę jednokrotnego wyboru. Możesz podać własne opcje, LUB automatycznie poprosić C# o pobranie unikalnych wartości prosto z rysunku (zalecane, oszczędza tokeny).\n" +
+                        "Przykład 1 (Własne opcje): [ACTION:USER_CHOICE {\"Question\": \"Czy usunąć?\", \"Options\": [\"Tak\", \"Nie\"]}]\n" +
+                        "Przykład 2 (Auto-pobieranie z rysunku): [ACTION:USER_CHOICE {\"Question\": \"Wybierz warstwę:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Model\", \"FetchProperty\": \"Layer\"}]\n\n" +
 
                         "Tag: [ACTION:USER_INPUT]\n" +
                         "Opis: Prosi użytkownika o wpisanie zwykłego tekstu lub fizyczne wskazanie punktów na rysunku (np. by pobrać współrzędne do przesunięcia).\n" +
                         "Argument 'Type': \"String\" (tekst), \"Point\" (jeden punkt) lub \"Points\" (wiele punktów).\n" +
                         "Przykład: [ACTION:USER_INPUT {\"Type\": \"Point\", \"Prompt\": \"Wskaż środek obrotu\"}]\n\n" +
                         "WAŻNE - MYŚLENIE WEWNĘTRZNE: Do *każdego* tagu [ACTION] lub [SELECT] możesz opcjonalnie dodać parametr \"Comment\", aby zapisać w nim swój tok rozumowania, dlaczego podejmujesz daną akcję. Np. [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Erase\", \"Comment\": \"Usuwam to, bo użytkownik prosił o czyszczenie\"}].\n\n" +
+
 
 
                         "User: Zaznacz linie dłuższe niż 50\n" +

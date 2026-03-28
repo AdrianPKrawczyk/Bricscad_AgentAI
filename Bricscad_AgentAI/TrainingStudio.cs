@@ -827,59 +827,86 @@ namespace BricsCAD_Agent
                         }
                     }
 
-                    // --- [USER_CHOICE] ---
-                    else if (pr.StringResult.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
+                    // --- [USER_CHOICE] (Zadawanie pytań) ---
+                    else if (pr.StringResult.Equals("ASKUser", StringComparison.OrdinalIgnoreCase))
                     {
                         PromptStringOptions psoQ = new PromptStringOptions("\nPodaj treść pytania dla użytkownika (np. Którą warstwę zaktualizować?): ");
                         psoQ.AllowSpaces = true;
                         string question = ed.GetString(psoQ).StringResult;
 
-                        System.Collections.Generic.List<string> optionsList = new System.Collections.Generic.List<string>();
-                        bool addingOptions = true;
-                        int optCount = 1;
+                        PromptKeywordOptions pkoMethod = new PromptKeywordOptions("\nJak chcesz wprowadzić opcje? [Recznie/Pobierz_z_rysunku]: ");
+                        pkoMethod.Keywords.Add("Recznie");
+                        pkoMethod.Keywords.Add("Pobierz_z_rysunku");
+                        pkoMethod.Keywords.Default = "Pobierz_z_rysunku";
+                        string method = ed.GetKeywords(pkoMethod).StringResult;
 
-                        // Informacja dla Ciebie w konsoli
-                        ed.WriteMessage("\n[INFO]: Możesz wpisywać opcje pojedynczo LUB wkleić całą listę po przecinku (np. skopiowaną z wyniku LIST_UNIQUE)!");
-
-                        while (addingOptions)
+                        if (method == "Pobierz_z_rysunku")
                         {
-                            PromptStringOptions psoOpt = new PromptStringOptions($"\nPodaj opcję nr {optCount} (lub wklej listę, ENTER by zakończyć): ");
-                            psoOpt.AllowSpaces = true;
-                            string opt = ed.GetString(psoOpt).StringResult;
+                            PromptKeywordOptions pkoTarget = new PromptKeywordOptions("\nWybierz cel analizy (Target) [Class/Property]: ");
+                            pkoTarget.Keywords.Add("Class"); pkoTarget.Keywords.Add("Property"); pkoTarget.Keywords.Default = "Class";
+                            string target = ed.GetKeywords(pkoTarget).StringResult;
 
-                            if (string.IsNullOrEmpty(opt))
+                            PromptKeywordOptions pkoScope = new PromptKeywordOptions("\nWybierz zakres przeszukiwania (Scope) [Selection/Model/Blocks]: ");
+                            pkoScope.Keywords.Add("Selection"); pkoScope.Keywords.Add("Model"); pkoScope.Keywords.Add("Blocks");
+                            pkoScope.Keywords.Default = "Selection";
+                            string scope = ed.GetKeywords(pkoScope).StringResult;
+
+                            string prop = "";
+                            if (target == "Property")
                             {
-                                addingOptions = false;
+                                PromptStringOptions psoProp = new PromptStringOptions("\nPodaj nazwę właściwości do pobrania (np. Name, Layer, Color): ");
+                                psoProp.AllowSpaces = false;
+                                prop = ed.GetString(psoProp).StringResult;
+
+                                finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"FetchTarget\": \"Property\", \"FetchScope\": \"{scope}\", \"FetchProperty\": \"{prop}\"}}]";
                             }
                             else
                             {
-                                // MAGIA: Jeśli wklejony tekst zawiera przecinki, program automatycznie go podzieli!
-                                if (opt.Contains(","))
-                                {
-                                    // Rozbijamy po przecinku i usuwamy puste elementy
-                                    string[] elementy = opt.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"FetchTarget\": \"Class\", \"FetchScope\": \"{scope}\"}}]";
+                            }
+                        }
+                        else
+                        {
+                            System.Collections.Generic.List<string> optionsList = new System.Collections.Generic.List<string>();
+                            bool addingOptions = true;
+                            int optCount = 1;
+                            ed.WriteMessage("\n[INFO]: Możesz wpisywać opcje pojedynczo LUB wkleić całą listę po przecinku!");
 
-                                    foreach (string el in elementy)
-                                    {
-                                        string czystyEl = el.Trim(); // Usuwa spacje na początku i końcu (np. po przecinku)
-                                        if (!string.IsNullOrEmpty(czystyEl))
-                                        {
-                                            optionsList.Add($"\"{czystyEl}\"");
-                                            optCount++;
-                                        }
-                                    }
+                            while (addingOptions)
+                            {
+                                PromptStringOptions psoOpt = new PromptStringOptions($"\nPodaj opcję nr {optCount} (lub wklej listę, ENTER by zakończyć): ");
+                                psoOpt.AllowSpaces = true;
+                                string opt = ed.GetString(psoOpt).StringResult;
+
+                                if (string.IsNullOrEmpty(opt))
+                                {
+                                    addingOptions = false;
                                 }
                                 else
                                 {
-                                    // Klasyczne wpisanie pojedynczej opcji
-                                    optionsList.Add($"\"{opt.Trim()}\"");
-                                    optCount++;
+                                    if (opt.Contains(","))
+                                    {
+                                        string[] elementy = opt.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        foreach (string el in elementy)
+                                        {
+                                            string czystyEl = el.Trim();
+                                            if (!string.IsNullOrEmpty(czystyEl))
+                                            {
+                                                optionsList.Add($"\"{czystyEl}\"");
+                                                optCount++;
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        optionsList.Add($"\"{opt.Trim()}\"");
+                                        optCount++;
+                                    }
                                 }
                             }
+                            string arrayString = string.Join(", ", optionsList);
+                            finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"Options\": [{arrayString}]}}]";
                         }
-
-                        string arrayString = string.Join(", ", optionsList);
-                        finalTag = $"[ACTION:USER_CHOICE {{\"Question\": \"{question}\", \"Options\": [{arrayString}]}}]";
                     }
 
                     // --- [USER_INPUT] ---
