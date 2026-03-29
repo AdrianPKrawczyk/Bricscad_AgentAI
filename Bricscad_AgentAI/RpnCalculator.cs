@@ -106,6 +106,51 @@ namespace BricsCAD_Agent
                             }
 
                         // ==========================================
+                        // OPERACJE LOGICZNE I WARUNKOWE (IF/ELSE)
+                        // ==========================================
+                        case "==":
+                        case "=":
+                            {
+                                string b = GetString(stack.Pop());
+                                string a = GetString(stack.Pop());
+                                // Zwracamy 1 (Prawda) lub 0 (Fałsz)
+                                stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0);
+                                break;
+                            }
+                        case "!=":
+                            {
+                                string b = GetString(stack.Pop());
+                                string a = GetString(stack.Pop());
+                                stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0);
+                                break;
+                            }
+                        case ">":
+                            {
+                                double b = GetNum(stack.Pop());
+                                double a = GetNum(stack.Pop());
+                                stack.Push(a > b ? 1.0 : 0.0);
+                                break;
+                            }
+                        case "<":
+                            {
+                                double b = GetNum(stack.Pop());
+                                double a = GetNum(stack.Pop());
+                                stack.Push(a < b ? 1.0 : 0.0);
+                                break;
+                            }
+                        case "IFTE":
+                            // Oczekuje na stosie: [Warunek, Wartość_Gdy_Prawda, Wartość_Gdy_Fałsz] -> IFTE
+                            {
+                                object falseVal = stack.Pop();
+                                object trueVal = stack.Pop();
+                                double cond = GetNum(stack.Pop()); // Pobiera 1 lub 0 z poprzedniego działania
+
+                                if (cond != 0) stack.Push(trueVal); // Jeśli Prawda
+                                else stack.Push(falseVal);          // Jeśli Fałsz
+                                break;
+                            }
+
+                        // ==========================================
                         // ZAAWANSOWANE OPERACJE TEKSTOWE
                         // ==========================================
                         case "CONCAT":

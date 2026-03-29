@@ -145,11 +145,13 @@ namespace BricsCAD_Agent
                         "- \"Operator\": \"+\" (lub -, *, /) -> Prosta matematyka dodana do obecnej wartości np. podniesienie Z o 100: {\"Property\": \"Center.Z\", \"Operator\": \"+\", \"Value\": 100}\n" +
                         "- \"Operator\": \"RPN\" -> Zaawansowany kalkulator stosowy do Matematyki oraz Tekstów (Styl G50). Dotychczasowa wartość zawsze leży na dnie stosu.\n" +
                         "   * Dostępne operatory: +, -, *, /, ^, SQRT, SIN, COS, ROUND, SWAP, DUP, DROP.\n" +
+                        "   * Warunkowe: ==, !=, >, < oraz IFTE (Oczekuje na stosie: [Warunek Prawda Falsz IFTE]). Zwracają 1 dla prawdy, 0 dla fałszu.\n" +
                         "   * Dostępne tekstowe: CONCAT, REPLACE, SUBSTR, UPPER, LOWER, TRIM, FIND, SPLIT, LEN.\n" +
                         "   * Uwaga: Jeśli wartość jest tekstem, zamknij ją w apostrofach, np. 'nowy_tekst'!\n" +
                         "Przykład 1 (Dodaj prefiks do warstwy): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'PRX_' SWAP CONCAT\"}]}]\n" +
                         "Przykład 2 (Zamień słowo w nazwie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'Stare' 'Nowe' REPLACE\"}]}]\n" +
                         "Przykład 3 (Utnij tekst przed '_' ): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'_' 0 SPLIT\"}]}]\n\n" +
+                        "Przykład 4 (Jeśli warstwa to '0', zmień na 'Defpoints', inaczej zostaw): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"DUP '0' == 'Defpoints' SWAP IFTE\"}]}]\n\n" +
 
                          "Tag: [ACTION:SET_PROPERTIES]\n" +
                         "Opis: Uniwersalne narzędzie do zmiany właściwości. Domyślnie nadpisuje wartość. Jeśli użytkownik prosi o ZMODYFIKOWANIE wartości (np. \"podnieś Z o 200\"), użyj klucza \"Operator\": \"+\" (lub \"-\", \"*\"). Do skomplikowanych obliczeń użyj \"Operator\": \"RPN\" podając wyrażenie (np. \"Value\": \"2 * 50 +\").\n" +

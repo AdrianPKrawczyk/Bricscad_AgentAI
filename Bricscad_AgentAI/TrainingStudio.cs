@@ -788,6 +788,8 @@ namespace BricsCAD_Agent
                                 ed.WriteMessage("\n [TEKST]  UPPER/LOWER (wielkość), TRIM (Usuwa przypadkowe spacje na początku i końcu tekstu.), LEN (Zwraca liczbę znaków w tekście)");
                                 ed.WriteMessage("\n [TEKST]  FIND (Szuka fragmentu i zwraca jego pozycję (liczbę). Jeśli nie znajdzie, zwraca -1), SPLIT (Dzieli tekst po separatorze i wyciąga konkretny kawałek. Wymaga 3 elementów: [Tekst, Separator, Indeks]. (np. dla nazwy A_B_C, komenda '_' 1 SPLIT zwróci B)");
                                 ed.WriteMessage("\n [MATEMA] +, -, *, /, ^, SQRT, SIN, COS, ROUND");
+                                ed.WriteMessage("\n [LOGIKA] ==, !=, >, < (Zwracają 1 lub 0)");
+                                ed.WriteMessage("\n [WARUNEK] IFTE (Stos musi wyglądać tak: [Warunek] [Gdy_Prawda] [Gdy_Fałsz] IFTE)");
                                 ed.WriteMessage("\n UWAGA: Własne teksty wpisuj w apostrofach, np. 'prefiks_' !");
                                 ed.WriteMessage("\n------------------------------------\n");
                             }

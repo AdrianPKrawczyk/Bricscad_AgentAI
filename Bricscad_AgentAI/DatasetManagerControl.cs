@@ -121,6 +121,14 @@ namespace BricsCAD_Agent
             Button btnValidateTags = new Button { Text = "Sprawdź Składnię", Dock = DockStyle.Left, Width = 120, BackColor = Color.Khaki };
             btnValidateTags.Click += BtnValidateTags_Click;
 
+            // --- NOWE PRZYCISKI ---
+            Button btnAddEmpty = new Button { Text = "Dodaj Pusty", Dock = DockStyle.Left, Width = 100, BackColor = Color.LightGreen };
+            btnAddEmpty.Click += BtnAddEmpty_Click;
+
+            Button btnClone = new Button { Text = "Klonuj Wpis", Dock = DockStyle.Left, Width = 100, BackColor = Color.Plum };
+            btnClone.Click += BtnClone_Click;
+            // ----------------------
+
             Button btnUpdate = new Button { Text = "Zatwierdź Zmiany", Dock = DockStyle.Right, Width = 130 };
             btnUpdate.Click += BtnUpdate_Click;
             Button btnDelete = new Button { Text = "Usuń z Listy", Dock = DockStyle.Right, Width = 100, BackColor = Color.LightCoral };
@@ -128,6 +136,8 @@ namespace BricsCAD_Agent
 
             panBottomMenu.Controls.Add(btnTest);
             panBottomMenu.Controls.Add(btnValidateTags);
+            panBottomMenu.Controls.Add(btnAddEmpty); // Dodany do panelu
+            panBottomMenu.Controls.Add(btnClone);
             panBottomMenu.Controls.Add(btnDelete);
             panBottomMenu.Controls.Add(btnUpdate);
 
@@ -327,6 +337,62 @@ namespace BricsCAD_Agent
             }
             e.DrawFocusRectangle();
         }
+
+        // =========================================================
+        // NOWE FUNKCJE: DODAWANIE I KLONOWANIE
+        // =========================================================
+        private void BtnAddEmpty_Click(object sender, EventArgs e)
+        {
+            // Generujemy czysty, poprawny szablon JSONL dla jednej interakcji
+            string emptyTemplate = "{\"messages\": [{\"role\": \"user\", \"content\": \"Wpisz polecenie użytkownika...\"}, {\"role\": \"assistant\", \"content\": \"[ACTION:TWOJ_TAG_TUTAJ]\"}]}";
+
+            datasetLines.Add(emptyTemplate);
+
+            RefreshList();
+
+            // Przewijamy listę na sam dół i zaznaczamy nowy wpis
+            listEntries.SelectedIndex = datasetLines.Count - 1;
+            lblStatus.Text = "Dodano nowy, pusty wpis na końcu listy. Pamiętaj o zapisie!";
+            txtContent.Focus(); // Kursor od razu ląduje w polu tekstowym
+        }
+
+        private void BtnClone_Click(object sender, EventArgs e)
+        {
+            if (listEntries.SelectedIndex >= 0)
+            {
+                int currentIdx = listEntries.SelectedIndex;
+                string clonedLine = datasetLines[currentIdx];
+
+                int newIdx = currentIdx + 1;
+
+                // Wstawiamy sklonowany wpis dokładnie POD zaznaczonym elementem
+                datasetLines.Insert(newIdx, clonedLine);
+
+                // --- INTELIGENTNE PRZESUWANIE KOLORÓW (BŁĘDÓW) ---
+                // Ponieważ wcisnęliśmy nowy element w środek listy, musimy przesunąć
+                // indeksy ewentualnych czerwonych podświetleń błędów, żeby się nie rozjechały!
+                HashSet<int> newInvalids = new HashSet<int>();
+                foreach (int idx in invalidEntries)
+                {
+                    if (idx < newIdx) newInvalids.Add(idx);
+                    else newInvalids.Add(idx + 1); // Przesuwamy w dół wszystko, co jest pod spodem
+                }
+
+                // Jeśli klonowaliśmy wpis, który JUŻ MIEŁ błąd, klon też musi świecić na czerwono
+                if (invalidEntries.Contains(currentIdx)) newInvalids.Add(newIdx);
+
+                invalidEntries = newInvalids;
+
+                RefreshList();
+                listEntries.SelectedIndex = newIdx; // Program automatycznie przeskakuje na klona
+                lblStatus.Text = "Pomyślnie sklonowano wpis.";
+            }
+            else
+            {
+                MessageBox.Show("Najpierw zaznacz wpis na liście po lewej stronie, aby móc go sklonować.", "Brak zaznaczenia", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
 
         // =========================================================
         // PARSOWANIE JSON I KOLOROWANIE
