@@ -70,6 +70,7 @@
     <Compile Include="InsertBlockTool.cs" />
     <Compile Include="ListBlocksTool.cs" />
     <Compile Include="ListUniqueTool.cs" />
+    <Compile Include="MacroManager.cs" />
     <Compile Include="ManageLayersTool.cs" />
     <Compile Include="ModifyGeometryTool.cs" />
     <Compile Include="MTextEditTool.cs" />
@@ -88,6 +89,9 @@
     <Compile Include="TrainingStudio.cs" />
     <Compile Include="UserChoiceTool.cs" />
     <Compile Include="UserInputTool.cs" />
+    <Compile Include="UserMacroControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AgentControl.resx">

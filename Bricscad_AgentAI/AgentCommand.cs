@@ -325,6 +325,7 @@ namespace BricsCAD_Agent
 
                 // Dodajemy interfejs do palety
                 oknoAgenta.Add("Czat z AI", interfejsAgenta);
+                
             }
 
             // Pokazujemy paletę na ekranie
@@ -670,6 +671,96 @@ namespace BricsCAD_Agent
                 return sb.ToString();
             }
             catch { return "Błąd parsowania odpowiedzi."; }
+        }
+
+        [CommandMethod("AGENT_MACROS")]
+        public void PokazMakraUzytkownika()
+        {
+            UruchomInterfejsAgenta(); // Wywoła paletę
+                                      // Przełączamy od razu na zakładkę "Moje Makra" (indeks 1, jeśli "Czat z AI" to 0)
+            oknoAgenta.Activate(1);
+        }
+
+        [CommandMethod("AGENT_SAVE_MACRO")]
+        public void ZapiszTagJakoMakro()
+        {
+            Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            // 1. Zamiast prosić w pasku poleceń, używamy okienka WinForms odpornego na znaki ENTER (Nowe linie)
+            string resTag = PokazOkienkoWprowadzania("Wklej cały wygenerowany tag lub sekwencję (np. [SELECT:...]):", "Wprowadź kod Makra", true);
+            if (string.IsNullOrWhiteSpace(resTag)) return;
+
+            string resName = PokazOkienkoWprowadzania("Podaj przyjazną nazwę, pod którą makro pojawi się na liście:", "Nazwa Makra", false);
+            if (string.IsNullOrWhiteSpace(resName)) return;
+
+            // 2. Zapytanie w CADzie tylko o cel zapisu (proste kliknięcie)
+            PromptKeywordOptions pko = new PromptKeywordOptions("\nGdzie zapisać to makro? [Globalnie/Rysunek]: ");
+            pko.Keywords.Add("Globalnie");
+            pko.Keywords.Add("Rysunek");
+            pko.Keywords.Default = "Globalnie";
+
+            var resScope = ed.GetKeywords(pko);
+            if (resScope.Status != PromptStatus.OK) return;
+
+            string path = "";
+            if (resScope.StringResult == "Globalnie")
+            {
+                path = MacroManager.GlobalMacrosPath;
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+            }
+            else
+            {
+                path = MacroManager.GetLocalMacrosPath(doc);
+                if (string.IsNullOrEmpty(path))
+                {
+                    ed.WriteMessage("\nBŁĄD: Musisz najpierw zapisać ten rysunek (DWG) na dysku, aby używać makr lokalnych!");
+                    return;
+                }
+            }
+
+            MacroManager.SaveMacro(path, resName, resTag);
+            ed.WriteMessage($"\n[SUKCES] Makro '{resName}' zapisane w: {System.IO.Path.GetFileName(path)}!");
+        }
+
+        // Metoda pomocnicza dla Agenta - Bezpieczne wprowadzanie danych
+        private string PokazOkienkoWprowadzania(string zacheta, string tytul, bool wielolinijkowe)
+        {
+            using (System.Windows.Forms.Form form = new System.Windows.Forms.Form())
+            {
+                form.Text = tytul;
+                form.Width = 500;
+                form.Height = wielolinijkowe ? 300 : 150;
+                form.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+                form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false;
+                form.MinimizeBox = false;
+
+                System.Windows.Forms.Label lbl = new System.Windows.Forms.Label() { Left = 10, Top = 10, Width = 460, Text = zacheta };
+                System.Windows.Forms.TextBox txt = new System.Windows.Forms.TextBox() { Left = 10, Top = 35, Width = 460 };
+
+                if (wielolinijkowe)
+                {
+                    txt.Multiline = true;
+                    txt.Height = 170;
+                    txt.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+                }
+
+                System.Windows.Forms.Button btnOk = new System.Windows.Forms.Button() { Text = "Zatwierdź", Left = 300, Width = 85, DialogResult = System.Windows.Forms.DialogResult.OK };
+                btnOk.Top = wielolinijkowe ? 220 : 70;
+                System.Windows.Forms.Button btnCancel = new System.Windows.Forms.Button() { Text = "Anuluj", Left = 390, Width = 80, DialogResult = System.Windows.Forms.DialogResult.Cancel };
+                btnCancel.Top = btnOk.Top;
+
+                form.Controls.Add(lbl);
+                form.Controls.Add(txt);
+                form.Controls.Add(btnOk);
+                form.Controls.Add(btnCancel);
+                form.AcceptButton = wielolinijkowe ? null : btnOk;
+                form.CancelButton = btnCancel;
+
+                if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK) return txt.Text;
+                return null;
+            }
         }
 
         [CommandMethod("AGENT_MODELS")]

@@ -225,6 +225,12 @@ namespace Bricscad_AgentAI
             tabControl.TabPages.Add(tabDbManager);
             tabControl.TabPages.Add(tabSettings);
 
+            // --- NOWA ZAKŁADKA: MOJE MAKRA ---
+            TabPage tabMakra = new TabPage("💻 Moje Makra");
+            tabMakra.Controls.Add(new BricsCAD_Agent.UserMacroControl());
+            tabControl.TabPages.Add(tabMakra);
+            // ---------------------------------
+
             this.Controls.Add(tabControl);
         }
 
