@@ -9,7 +9,7 @@ namespace BricsCAD_Agent
     public class ReadPropertyTool : ITool
     {
         public string ActionTag => "[ACTION:READ_PROPERTY]";
-        public string Description => "Odczytuje konkretną pojedynczą właściwość (np. Center, Radius) z zaznaczonych obiektów.";
+        public string Description => "Odczytuje konkretną pojedynczą właściwość (np. Center, Radius) z zaznaczonych obiektów. Obsługuje też wirtualny 'MidPoint'.";
 
         public string Execute(Document doc, string jsonArgs)
         {
@@ -22,7 +22,7 @@ namespace BricsCAD_Agent
 
             if (string.IsNullOrEmpty(propName)) return "WYNIK: Nie podano nazwy właściwości (Property) do odczytania w tagu JSON.";
 
-            // --- SEKCJA PAMIĘCI (Zadeklarowana tylko RAZ) ---
+            // --- SEKCJA PAMIĘCI ---
             string saveAs = "";
             Match mSave = Regex.Match(jsonArgs, @"\""SaveAs\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
             if (mSave.Success) saveAs = mSave.Groups[1].Value;
@@ -40,24 +40,41 @@ namespace BricsCAD_Agent
 
                     try
                     {
-                        // Obsługa zagnieżdżeń (np. Center.X)
-                        string[] zagniezdzenia = propName.Split('.');
-                        object wartoscObiektu = ent;
-                        System.Reflection.PropertyInfo propInfo = null;
+                        object wartoscObiektu = null;
 
-                        foreach (string czesc in zagniezdzenia)
+                        // --- ROZWIĄZANIE 1: WIRTUALNA WŁAŚCIWOŚĆ MIDPOINT ---
+                        // Działa dla Line, Polyline, Arc, Spline (klasa bazowa Curve)
+                        if (propName.Equals("MidPoint", StringComparison.OrdinalIgnoreCase) && ent is Curve curve)
                         {
-                            if (wartoscObiektu == null) break;
-                            propInfo = wartoscObiektu.GetType().GetProperty(czesc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
-
-                            if (propInfo != null)
+                            try
                             {
-                                wartoscObiektu = propInfo.GetValue(wartoscObiektu);
+                                // Oblicza połowę odległości całej krzywej i znajduje ten punkt w przestrzeni
+                                double dist = curve.GetDistanceAtParameter(curve.EndParam) / 2.0;
+                                wartoscObiektu = curve.GetPointAtDist(dist);
                             }
-                            else
+                            catch { }
+                        }
+                        else
+                        {
+                            // Tradycyjna obsługa przez refleksję i zagnieżdżenia
+                            string[] zagniezdzenia = propName.Split('.');
+                            wartoscObiektu = ent;
+                            System.Reflection.PropertyInfo propInfo = null;
+
+                            foreach (string czesc in zagniezdzenia)
                             {
-                                wartoscObiektu = null;
-                                break;
+                                if (wartoscObiektu == null) break;
+                                propInfo = wartoscObiektu.GetType().GetProperty(czesc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+
+                                if (propInfo != null)
+                                {
+                                    wartoscObiektu = propInfo.GetValue(wartoscObiektu);
+                                }
+                                else
+                                {
+                                    wartoscObiektu = null;
+                                    break;
+                                }
                             }
                         }
 
@@ -65,13 +82,18 @@ namespace BricsCAD_Agent
                         {
                             string valStr = wartoscObiektu.ToString();
 
-                            // Ładne formatowanie dla punktów 3D z wymuszeniem kropki dziesiętnej!
+                            // --- ROZWIĄZANIE 2: WYMUSZANIE KROPKI DZIESIĘTNEJ (Formatowanie ułamków) ---
                             if (wartoscObiektu is Teigha.Geometry.Point3d pt)
                             {
                                 string x = pt.X.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
                                 string y = pt.Y.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
                                 string z = pt.Z.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
                                 valStr = $"({x},{y},{z})";
+                            }
+                            else if (wartoscObiektu is double dbl)
+                            {
+                                // To naprawia błędy z MTextem i przecinkami np. 164690,35 na 164690.35
+                                valStr = dbl.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
                             }
                             else if (wartoscObiektu is Teigha.Colors.Color col)
                             {

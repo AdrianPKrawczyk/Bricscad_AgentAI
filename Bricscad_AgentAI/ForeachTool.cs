@@ -8,39 +8,56 @@ namespace BricsCAD_Agent
     public class ForeachTool : ITool
     {
         public string ActionTag => "[ACTION:FOREACH]";
-        public string Description => "Wykonuje akcję dla każdego elementu z listy (rozdzielonej | lub , ).";
+        public string Description => "Iteruje po listach (np. @Pkt, @Dlugosci). Używaj $ITEM1, $ITEM2, $INDEX.";
 
         public string Execute(Document doc, string jsonArgs)
         {
             string cleanArgs = jsonArgs.Replace("\\\"", "\"");
-
             string rawIter = Regex.Match(cleanArgs, @"\""Iterable\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
-            string iterableString = AgentMemory.InjectVariables(rawIter);
 
-            // POPRAWKA: Rozdzielamy po | LUB po przecinku, o ile nie jest on wewnątrz nawiasów punktu
-            // Uproszczona wersja: dzielimy po " | " lub "), ("
-            string[] elementy = iterableString.Split(new[] { " | ", "), (" }, StringSplitOptions.RemoveEmptyEntries);
+            // Dzielimy po przecinku, aby obsłużyć wiele list z pamięci
+            string[] iterNames = rawIter.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            List<string[]> arrays = new List<string[]>();
 
-            // Jeśli split po "), (" zadziałał, musimy naprawić nawiasy
-            for (int i = 0; i < elementy.Length; i++)
+            foreach (var name in iterNames)
             {
-                if (!elementy[i].StartsWith("(")) elementy[i] = "(" + elementy[i];
-                if (!elementy[i].EndsWith(")")) elementy[i] = elementy[i] + ")";
+                string resolved = AgentMemory.InjectVariables(name.Trim());
+                string[] elements = resolved.Split(new[] { " | ", "), (" }, StringSplitOptions.RemoveEmptyEntries);
+
+                for (int i = 0; i < elements.Length; i++)
+                {
+                    elements[i] = elements[i].Trim();
+                    if (elements[i].Contains(",") && !elements[i].StartsWith("(")) elements[i] = "(" + elements[i];
+                    if (elements[i].Contains(",") && !elements[i].EndsWith(")")) elements[i] = elements[i] + ")";
+                }
+                arrays.Add(elements);
             }
 
             string actionName = Regex.Match(cleanArgs, @"\""Action\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
             string templateArgs = Regex.Match(cleanArgs, @"\""TemplateArgs\""\s*:\s*\{(.*?)\}", RegexOptions.Singleline).Groups[1].Value;
 
-            for (int i = 0; i < elementy.Length; i++)
+            int maxLen = arrays[0].Length;
+            for (int i = 0; i < maxLen; i++)
             {
-                string taskArgs = templateArgs.Replace("$ITEM", elementy[i].Trim())
-                                              .Replace("$INDEX", (i + 1).ToString());
+                string taskArgs = templateArgs.Replace("$INDEX", (i + 1).ToString());
+
+                if (arrays.Count == 1)
+                {
+                    taskArgs = taskArgs.Replace("$ITEM1", arrays[0][i]).Replace("$ITEM", arrays[0][i]);
+                }
+                else
+                {
+                    for (int a = 0; a < arrays.Count; a++)
+                    {
+                        if (i < arrays[a].Length) taskArgs = taskArgs.Replace($"$ITEM{a + 1}", arrays[a][i]);
+                    }
+                }
 
                 taskArgs = AgentMemory.InjectVariables(taskArgs);
                 TrainingStudio.WykonywaczTagow(doc, $"[ACTION:{actionName.ToUpper()} {{{taskArgs}}}]");
             }
-            return $"WYNIK FOREACH: Wykonano {elementy.Length} cykli.";
+            return $"WYNIK FOREACH: Wykonano {maxLen} cykli.";
         }
         public string Execute(Document doc) => Execute(doc, "");
     }
-}   
+}

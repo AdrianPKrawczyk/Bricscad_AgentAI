@@ -58,6 +58,7 @@ namespace BricsCAD_Agent
                         case "REPLACE": { string n = GetString(stack.Pop()); string o = GetString(stack.Pop()); string tg = GetString(stack.Pop()); stack.Push(tg.Replace(o, n)); break; }
                         case "SUBSTR": { int l = (int)GetNum(stack.Pop()); int s = (int)GetNum(stack.Pop()); string tg = GetString(stack.Pop()); if (s < 0) s = 0; stack.Push(s >= tg.Length ? "" : tg.Substring(s, Math.Min(l, tg.Length - s))); break; }
                         case "FIND": { string s = GetString(stack.Pop()); string tg = GetString(stack.Pop()); stack.Push((double)tg.IndexOf(s)); break; }
+                        case "ABS": stack.Push(Math.Abs(GetNum(stack.Pop()))); break;
                         case "SPLIT": { int idx = (int)GetNum(stack.Pop()); string sep = GetString(stack.Pop()); string tg = GetString(stack.Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); stack.Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
                         case "GET":
                             {

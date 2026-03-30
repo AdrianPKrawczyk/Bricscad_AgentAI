@@ -51,6 +51,10 @@ namespace BricsCAD_Agent
 
                         newEnt = new Circle(cen, Vector3d.ZAxis, radius);
                     }
+
+                    ///// dbtext
+                    ///
+
                     else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase))
                     {
                         string posStr = Regex.Match(argsJson, @"\""Position\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
@@ -90,7 +94,22 @@ namespace BricsCAD_Agent
                         }
                         // Jeśli hRaw jest puste, h pozostaje równe db.Textsize
 
-                        newEnt = new DBText { Position = pos, TextString = txt, Height = h };
+                        // Tworzymy obiekt tekstu
+                        DBText dbText = new DBText { Position = pos, TextString = txt, Height = h };
+
+                        // Ustawiamy justowanie na podstawie Tagu JSON
+                        if (argsJson.Contains("MiddleCenter"))
+                        {
+                            dbText.Justify = AttachmentPoint.MiddleCenter;
+                            dbText.AlignmentPoint = pos;
+                        }
+                        else if (argsJson.Contains("BottomCenter"))
+                        {
+                            dbText.Justify = AttachmentPoint.BottomCenter;
+                            dbText.AlignmentPoint = pos;
+                        }
+
+                        newEnt = dbText;
                     }
 
                     // ==========================================
@@ -106,10 +125,49 @@ namespace BricsCAD_Agent
                         var hMatch = Regex.Match(argsJson, @"\""Height\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
                         string hRaw = hMatch.Success ? hMatch.Groups[1].Value.Trim('\"') : "";
 
-                        Point3d arrowPt = arrowStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase) ? ed.GetPoint("\nStrzałka: ").Value : ParsePoint(arrowStr);
-                        Point3d landingPt = landingStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase) ? ed.GetPoint("\nTekst: ").Value : ParsePoint(landingStr);
+                        // 1. Punkt Strzałki
+                        Point3d arrowPt = arrowStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase)
+                            ? ed.GetPoint("\n[Agent AI] Wskaż punkt STRZAŁKI: ").Value
+                            : ParsePoint(arrowStr);
 
-                        if (txt.Contains("RPN:")) txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        // 2. Punkt Tekstu (z GUMKĄ naprowadzającą!)
+                        Point3d landingPt;
+                        if (landingStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
+                        {
+                            PromptPointOptions ppo = new PromptPointOptions("\n[Agent AI] Wskaż miejsce dla TEKSTU: ");
+                            ppo.UseBasePoint = true;
+                            ppo.BasePoint = arrowPt; // To narysuje linię od strzałki do Twojego kursora!
+                            PromptPointResult ppr = ed.GetPoint(ppo);
+                            if (ppr.Status != PromptStatus.OK) return "BŁĄD: Anulowano.";
+                            landingPt = ppr.Value;
+                        }
+                        else if (!string.IsNullOrEmpty(landingStr))
+                        {
+                            landingPt = ParsePoint(landingStr);
+                        }
+                        else
+                        {
+                            landingPt = new Point3d(arrowPt.X + 10, arrowPt.Y + 10, arrowPt.Z);
+                        }
+
+                        // 3. Treść Tekstu (AskUser jako inteligentny wypełniacz / wildcard)
+                        if (txt.IndexOf("AskUser", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            PromptStringOptions pso = new PromptStringOptions("\n[Agent AI] Wpisz brakujący fragment tekstu: ");
+                            pso.AllowSpaces = true;
+                            PromptResult pr = ed.GetString(pso);
+                            if (pr.Status != PromptStatus.OK) return "BŁĄD: Anulowano wpisywanie.";
+
+                            // Podmieniamy słowo "AskUser" wewnątrz ciągu na to, co wpisałeś
+                            txt = Regex.Replace(txt, "AskUser", pr.StringResult, RegexOptions.IgnoreCase);
+
+                            // Obliczamy RPN (jeśli występuje) dopiero po podstawieniu Twojej wartości
+                            if (txt.Contains("RPN:")) txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        }
+                        else if (txt.Contains("RPN:"))
+                        {
+                            txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        }
 
                         MLeader ml = new MLeader();
                         ml.SetDatabaseDefaults(); // Pobiera aktualny styl
@@ -119,7 +177,7 @@ namespace BricsCAD_Agent
                         double finalHeight = 2.5;
                         using (MLeaderStyle mlStyle = (MLeaderStyle)tr.GetObject(db.MLeaderstyle, OpenMode.ForRead))
                         {
-                            finalHeight = mlStyle.TextHeight; // Tu powinno być Twoje 20
+                            finalHeight = mlStyle.TextHeight;
                         }
 
                         // Jeśli w tagu JSON podano inną wysokość - nadpisujemy styl
@@ -128,9 +186,11 @@ namespace BricsCAD_Agent
                             finalHeight = double.Parse(hRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
                         }
 
-                        MText mt = new MText { Contents = txt };
+                        // Konwersja podwójnych ukośników z JSON na pojedyncze dla formatowania MText
+                        txt = txt.Replace("\\\\", "\\");
+                        MText mt = new MText { Contents = txt, Height = finalHeight };
                         ml.MText = mt;
-                        ml.TextHeight = finalHeight; // KLUCZOWE: To ustawia widoczną wysokość
+                        ml.TextHeight = finalHeight; // KLUCZOWE: Ustawia wysokość widoczną
 
                         int leadIdx = ml.AddLeader();
                         int lineIdx = ml.AddLeaderLine(leadIdx);
@@ -139,6 +199,66 @@ namespace BricsCAD_Agent
 
                         newEnt = ml;
                     }
+
+                    // ==========================================
+                    // 5. TWORZENIE MTEXT (Tekst wielowierszowy)
+                    // ==========================================
+                    else if (entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string posStr = Regex.Match(argsJson, @"\""Position\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
+                        string txt = Regex.Match(argsJson, @"\""Text\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
+                        var hMatch = Regex.Match(argsJson, @"\""Height\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
+                        string hRaw = hMatch.Success ? hMatch.Groups[1].Value.Trim('\"') : "";
+
+                        // 1. Punkt Wstawienia
+                        Point3d pos = posStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase)
+                            ? ed.GetPoint("\n[Agent AI] Wskaż punkt wstawienia tekstu: ").Value
+                            : ParsePoint(posStr);
+
+                        // 2. Treść Tekstu (z inteligentnym wypełniaczem AskUser)
+                        if (txt.IndexOf("AskUser", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            PromptStringOptions pso = new PromptStringOptions("\n[Agent AI] Wpisz treść tekstu (użyj \\P dla nowej linii): ");
+                            pso.AllowSpaces = true;
+                            PromptResult pr = ed.GetString(pso);
+                            if (pr.Status != PromptStatus.OK) return "BŁĄD: Anulowano wpisywanie.";
+
+                            txt = Regex.Replace(txt, "AskUser", pr.StringResult, RegexOptions.IgnoreCase);
+                            if (txt.Contains("RPN:")) txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        }
+                        else if (txt.Contains("RPN:"))
+                        {
+                            txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        }
+
+                        // Konwersja podwójnych ukośników dla poprawnego łamania linii
+                        txt = txt.Replace("\\\\", "\\");
+
+                        // 3. Dynamiczna wysokość (domyślnie z TEXTSIZE)
+                        double h = db.Textsize;
+                        if (hRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) h = ed.GetDistance("\nWysokość: ").Value;
+                        else if (hRaw.Contains("RPN:")) h = double.Parse(RpnCalculator.Evaluate(hRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
+                        else if (!string.IsNullOrEmpty(hRaw)) h = double.Parse(hRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+
+                        // 4. Utworzenie obiektu MText
+                        MText mt = new MText();
+                        mt.Location = pos;
+                        mt.Contents = txt;
+                        mt.TextHeight = h;
+
+                        // Ustawiamy justowanie na podstawie Tagu JSON
+                        if (argsJson.Contains("MiddleCenter"))
+                        {
+                            mt.Attachment = AttachmentPoint.MiddleCenter;
+                        }
+                        else if (argsJson.Contains("BottomCenter"))
+                        {
+                            mt.Attachment = AttachmentPoint.BottomCenter;
+                        }
+
+                        newEnt = mt;
+                    }
+
 
                     if (newEnt != null)
                     {
