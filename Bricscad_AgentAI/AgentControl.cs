@@ -30,6 +30,8 @@ namespace Bricscad_AgentAI
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
+
+
             // --- GENIALNY TRIK CZ. 1: Łapiemy zaznaczenie ZANIM okno ukradnie fokus i wejdziemy w tło! ---
             ObjectId[] przechwyconeZaznaczenie = null;
             try
