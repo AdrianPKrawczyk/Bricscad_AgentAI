@@ -670,72 +670,67 @@ namespace BricsCAD_Agent
 
             using (DocumentLock loc = doc.LockDocument())
             {
-                ed.WriteMessage($"\n\n--- INTELIGENTNE TESTOWANIE SEKWENCJI Z BAZY ---");
+                ed.WriteMessage($"\n\n--- INTELIGENTNE TESTOWANIE SEKWENCJI ---");
+                string input = txtContent.Text;
                 int licznikPolecen = 0;
 
-                // Tę linijkę dodaliśmy, aby program wiedział, skąd wziąć tekst:
-                string selectedJson = txtContent.Text;
-
-                if (string.IsNullOrWhiteSpace(selectedJson)) return;
-
-                // Wyciągamy zawartość wszystkich wypowiedzi asystenta z JSONa
-                MatchCollection assistantMatches = Regex.Matches(selectedJson, @"\""role\""\s*:\s*\""assistant\""\s*,\s*\""content\""\s*:\s*\""(.*?)\""(?=\s*})", RegexOptions.Singleline);
-
-                foreach (Match m in assistantMatches)
+                int currentIndex = 0;
+                while (currentIndex < input.Length)
                 {
-                    string pelnyTekst = m.Groups[1].Value.Replace("\\\"", "\"").Replace("\\n", "\n");
-                    int currentIndex = 0;
+                    // Szukamy początku dowolnego znanego tagu prosto w tekście
+                    int startIdx = -1;
+                    string[] tagTypes = { "[ACTION:", "[SELECT:", "[LISP:" };
 
-                    while (currentIndex < pelnyTekst.Length)
+                    foreach (var t in tagTypes)
                     {
-                        int idxAction = pelnyTekst.IndexOf("[ACTION:", currentIndex);
-                        int idxSelect = pelnyTekst.IndexOf("[SELECT:", currentIndex);
-                        int idxLisp = pelnyTekst.IndexOf("[LISP:", currentIndex);
-
-                        int firstMatch = -1;
-                        int[] indices = { idxAction, idxSelect, idxLisp };
-
-                        foreach (int idx in indices)
+                        int found = input.IndexOf(t, currentIndex);
+                        if (found != -1 && (startIdx == -1 || found < startIdx))
                         {
-                            if (idx != -1 && (firstMatch == -1 || idx < firstMatch))
-                                firstMatch = idx;
+                            startIdx = found;
                         }
+                    }
 
-                        if (firstMatch == -1) break;
+                    if (startIdx == -1) break; // Brak więcej tagów
 
-                        int bracketCount = 0;
-                        int endIndex = -1;
-                        for (int i = firstMatch; i < pelnyTekst.Length; i++)
+                    // Szukamy domykającego nawiasu dla tego konkretnego tagu (uwzględniając zagnieżdżenie)
+                    int bracketCount = 0;
+                    int endIdx = -1;
+                    for (int i = startIdx; i < input.Length; i++)
+                    {
+                        if (input[i] == '[') bracketCount++;
+                        else if (input[i] == ']') bracketCount--;
+
+                        if (bracketCount == 0)
                         {
-                            if (pelnyTekst[i] == '[') bracketCount++;
-                            else if (pelnyTekst[i] == ']') bracketCount--;
-
-                            if (bracketCount == 0)
-                            {
-                                endIndex = i;
-                                break;
-                            }
+                            endIdx = i;
+                            break;
                         }
+                    }
 
-                        if (endIndex == -1) break;
+                    if (endIdx == -1) break;
 
-                        string czystyTag = pelnyTekst.Substring(firstMatch, endIndex - firstMatch + 1);
-                        currentIndex = endIndex + 1;
+                    string surowyTag = input.Substring(startIdx, endIdx - startIdx + 1);
+                    currentIndex = endIdx + 1; // Przesuwamy wskaźnik ZA wykonany tag
 
-                        if (czystyTag.Contains("[ACTION: ]") || czystyTag.Replace(" ", "") == "[ACTION:]") continue;
+                    // ==============================================================
+                    // PANCERNE CZYSZCZENIE:
+                    // Zdejmujemy wszelkie JSON-owe escape characters (\") z wewnątrz tagu
+                    // Dzięki temu tag testowany staje się w 100% zgodny z tym z CADa
+                    // ==============================================================
+                    string czystyTag = surowyTag.Replace("\\\"", "\"").Replace("\\n", "\n").Replace("\\\\", "\\");
 
-                        licznikPolecen++;
-                        ed.WriteMessage($"\n[Krok {licznikPolecen} Wykonuję]: {czystyTag}");
+                    licznikPolecen++;
+                    ed.WriteMessage($"\n[Krok {licznikPolecen}]: {czystyTag}");
 
-                        try
-                        {
-                            string wynik = BricsCAD_Agent.TrainingStudio.WykonywaczTagow(doc, czystyTag);
-                            ed.WriteMessage($"\n[Wynik]: {wynik}");
-                        }
-                        catch (Exception ex)
-                        {
-                            ed.WriteMessage($"\n[BŁĄD WYKONANIA]: {ex.Message}");
-                        }
+                    try
+                    {
+                        // Wykonujemy wyczyszczony tag
+                        string wynik = BricsCAD_Agent.TrainingStudio.WykonywaczTagow(doc, czystyTag);
+                        ed.WriteMessage($"\n[Wynik]: {wynik}");
+                    }
+                    catch (Exception ex)
+                    {
+                        ed.WriteMessage($"\n[BŁĄD]: {ex.Message}");
                     }
                 }
                 ed.WriteMessage($"\n-----------------------------------\nZakończono. Wykonano {licznikPolecen} poleceń.");

@@ -696,21 +696,30 @@ namespace BricsCAD_Agent
             {
                 string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
 
-                // Nowość: Odczytujemy tryb (jeśli Agent nie poda, domyślnie to "New")
                 string trybStr = "New";
                 Match trybMatch = Regex.Match(json, @"\""Mode\""\s*:\s*\""([^\""]+)\""");
                 if (trybMatch.Success) trybStr = trybMatch.Groups[1].Value;
 
-                // --- NOWOŚĆ: Odczytujemy obszar poszukiwań (domyślnie Model, ale może być Blocks) ---
                 string scopeStr = "Model";
                 Match scopeMatch = Regex.Match(json, @"\""Scope\""\s*:\s*\""([^\""]+)\""");
                 if (scopeMatch.Success) scopeStr = scopeMatch.Groups[1].Value;
 
                 var warunki = new List<(string Prop, string Op, string Val)>();
-                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(\""[^\""]+\""|[^\s,}]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+                // PANCERNY REGEX: Oddziela wartości w cudzysłowach od wartości bez cudzysłowów (liczbowych i logicznych)
+                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(?:\""([^\""]*)\""|([^\""\s,}]+))", RegexOptions.Singleline | RegexOptions.IgnoreCase);
                 foreach (Match m in matches)
                 {
-                    warunki.Add((m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value.Trim('\"')));
+                    string prop = m.Groups[1].Value;
+                    string op = m.Groups[2].Value;
+
+                    // Łapiemy cokolwiek regex znalazł
+                    string val = !string.IsNullOrEmpty(m.Groups[3].Value) ? m.Groups[3].Value : m.Groups[4].Value;
+
+                    // CZYSTKA TOTALNA: Usuwamy z nazwy wszelkie backslashe (\) oraz same znaki cudzysłowów (") !
+                    val = val.Replace("\\", "").Replace("\"", "").Trim();
+
+                    warunki.Add((prop, op, val));
                 }
 
                 if (string.IsNullOrEmpty(entityTypeStr)) return 0;
@@ -724,66 +733,52 @@ namespace BricsCAD_Agent
                 }
 
                 string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                // Mała modyfikacja loga, żeby pokazywał też obszar (Model czy Bloki)
                 ed.WriteMessage($"\n[System]: Szukam '{string.Join("/", typyDoSzukania)}' (Tryb: {trybStr}, Obszar: {scopeStr}, Warunki: {warunki.Count})...");
+
+                // --- WYPISZ DEBUGOWANIE WARUNKÓW DLA UŻYTKOWNIKA ---
+                foreach (var w in warunki)
+                {
+                    ed.WriteMessage($"\n  -> Zrozumiano warunek: [{w.Prop}] {w.Op} '{w.Val}'");
+                }
+                // ---------------------------------------------------
 
                 List<ObjectId> znalezioneObiekty = new List<ObjectId>();
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
                 {
-                    // --- NOWOŚĆ: Lista miejsc (obszarów/bloków), które będziemy przeszukiwać ---
                     List<ObjectId> blokiDoPrzeszukania = new List<ObjectId>();
 
                     if (scopeStr.Equals("Blocks", StringComparison.OrdinalIgnoreCase) && AktywneZaznaczenie != null && AktywneZaznaczenie.Length > 0)
                     {
-                        // 1. Zbieramy pierwsze, najwyższe warstwy bloków z zaznaczenia
                         foreach (ObjectId id in AktywneZaznaczenie)
                         {
                             Entity zaznaczonyEnt = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                            if (zaznaczonyEnt is BlockReference br)
-                            {
-                                if (!blokiDoPrzeszukania.Contains(br.BlockTableRecord))
-                                {
-                                    blokiDoPrzeszukania.Add(br.BlockTableRecord);
-                                }
-                            }
+                            if (zaznaczonyEnt is BlockReference br && !blokiDoPrzeszukania.Contains(br.BlockTableRecord))
+                                blokiDoPrzeszukania.Add(br.BlockTableRecord);
                         }
 
-                        // 2. NOWOŚĆ: Przeszukiwanie "w głąb" (rekurencja pętlowa).
-                        // Pętla iteruje po liście, która sama rośnie, jeśli znajdzie kolejne bloki!
                         for (int i = 0; i < blokiDoPrzeszukania.Count; i++)
                         {
                             BlockTableRecord wewnetrznyBtr = (BlockTableRecord)tr.GetObject(blokiDoPrzeszukania[i], OpenMode.ForRead);
                             foreach (ObjectId wewnetrzneId in wewnetrznyBtr)
                             {
                                 Entity wewnEnt = tr.GetObject(wewnetrzneId, OpenMode.ForRead) as Entity;
-                                if (wewnEnt is BlockReference zagniezdzonyBr)
-                                {
-                                    // Jeśli znajdujemy blok w bloku, dorzucamy jego definicję do końca naszej listy!
-                                    if (!blokiDoPrzeszukania.Contains(zagniezdzonyBr.BlockTableRecord))
-                                    {
-                                        blokiDoPrzeszukania.Add(zagniezdzonyBr.BlockTableRecord);
-                                    }
-                                }
+                                if (wewnEnt is BlockReference zagniezdzonyBr && !blokiDoPrzeszukania.Contains(zagniezdzonyBr.BlockTableRecord))
+                                    blokiDoPrzeszukania.Add(zagniezdzonyBr.BlockTableRecord);
                             }
                         }
 
                         if (blokiDoPrzeszukania.Count == 0)
-                        {
                             ed.WriteMessage("\n[Uwaga]: Brak zaznaczonych bloków, by szukać wewnątrz nich.");
-                        }
                     }
                     else
                     {
-                        // Domyślnie szukamy po prostu w otwartym aktualnie oknie (Model/Arkusz/BEDIT)
                         blokiDoPrzeszukania.Add(doc.Database.CurrentSpaceId);
                     }
 
-                    // --- NOWOŚĆ: Główna pętla iterująca po wszystkich wybranych obszarach ---
                     foreach (ObjectId spaceId in blokiDoPrzeszukania)
                     {
                         BlockTableRecord btr = (BlockTableRecord)tr.GetObject(spaceId, OpenMode.ForRead);
 
-                        // Oryginalna pętla przeglądająca obiekty
                         foreach (ObjectId objId in btr)
                         {
                             Entity ent = tr.GetObject(objId, OpenMode.ForRead) as Entity;
@@ -796,11 +791,13 @@ namespace BricsCAD_Agent
                             {
                                 string szukanyTyp = t.Trim();
 
-                                // --- NOWOŚĆ: Jeśli Agent szuka "Entity", przepuść absolutnie każdy obiekt graficzny! ---
                                 if (szukanyTyp.Equals("Entity", StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
-
                                 if (szukanyTyp.Equals("Text", StringComparison.OrdinalIgnoreCase) && ent is DBText) { typPasuje = true; break; }
                                 if (szukanyTyp.Equals("Dimension", StringComparison.OrdinalIgnoreCase) && ent is Dimension) { typPasuje = true; break; }
+
+                                // --- NOWOŚĆ: OBSŁUGA WILDCARDÓW (gwiazdki) np. *Line zaznaczy Line i Polyline ---
+                                if (szukanyTyp.StartsWith("*") && nazwaTypuEnt.EndsWith(szukanyTyp.Substring(1), StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
+
                                 if (nazwaTypuEnt.Equals(szukanyTyp, StringComparison.OrdinalIgnoreCase)) { typPasuje = true; break; }
                             }
                             if (!typPasuje) continue;
@@ -811,38 +808,19 @@ namespace BricsCAD_Agent
                                 string rzeczywistaWlasciwosc = warunek.Prop;
                                 bool sprawdzajWizualnie = false;
 
-                                // --- ROZDZIELENIE WŁAŚCIWOŚCI SUROWYCH OD WIZUALNYCH ---
                                 if (rzeczywistaWlasciwosc.Equals("VisualColor", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    rzeczywistaWlasciwosc = "ColorIndex";
-                                    sprawdzajWizualnie = true;
-                                }
+                                { rzeczywistaWlasciwosc = "ColorIndex"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("VisualLinetype", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    rzeczywistaWlasciwosc = "Linetype";
-                                    sprawdzajWizualnie = true;
-                                }
-                                // NOWOŚĆ: Szerokość linii
+                                { rzeczywistaWlasciwosc = "Linetype"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("VisualLineWeight", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    rzeczywistaWlasciwosc = "LineWeight";
-                                    sprawdzajWizualnie = true;
-                                }
-                                // NOWOŚĆ: Przezroczystość
+                                { rzeczywistaWlasciwosc = "LineWeight"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("VisualTransparency", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    rzeczywistaWlasciwosc = "Transparency";
-                                    sprawdzajWizualnie = true;
-                                }
+                                { rzeczywistaWlasciwosc = "Transparency"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("Color", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    rzeczywistaWlasciwosc = "ColorIndex";
-                                }
-                                // Tłumaczenia dla specyficznych klas
+                                { rzeczywistaWlasciwosc = "ColorIndex"; }
                                 else if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
                                 else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
 
-                                // --- NOWOŚĆ: Pobieranie wartości przez refleksję z obsługą zagnieżdżeń (np. Center.Z) ---
                                 string[] zagniezdzenia = rzeczywistaWlasciwosc.Split('.');
                                 object wartoscObiektu = ent;
                                 System.Reflection.PropertyInfo propInfo = null;
@@ -867,7 +845,6 @@ namespace BricsCAD_Agent
 
                                 string valStr = wartoscObiektu.ToString();
 
-                                // --- SPECJALNA OBSŁUGA PRZEZROCZYSTOŚCI ---
                                 if (wartoscObiektu is Teigha.Colors.Transparency transp)
                                 {
                                     if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
@@ -876,44 +853,34 @@ namespace BricsCAD_Agent
                                         try
                                         {
                                             LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                            if (ltr != null && ltr.Transparency.IsByAlpha)
-                                                valStr = Math.Round((255.0 - ltr.Transparency.Alpha) / 255.0 * 100.0).ToString();
+                                            if (ltr != null && ltr.Transparency.IsByAlpha) valStr = Math.Round((255.0 - ltr.Transparency.Alpha) / 255.0 * 100.0).ToString();
                                             else valStr = "0";
                                         }
                                         catch { valStr = "0"; }
                                     }
                                     else if (!sprawdzajWizualnie && transp.IsByLayer) valStr = "ByLayer";
-                                    else if (!sprawdzajWizualnie && transp.IsByBlock) valStr = "ByBlock"; // <--- NOWOŚĆ: dodano brakującą obsługę ByBlock
+                                    else if (!sprawdzajWizualnie && transp.IsByBlock) valStr = "ByBlock";
                                     else valStr = "0";
                                 }
-
-                                // --- SPECJALNA OBSŁUGA WŁAŚCIWOŚCI OPISOWEJ (ANNOTATIVE) ---
                                 else if (wartoscObiektu is Teigha.DatabaseServices.AnnotativeStates annState)
                                 {
-                                    if (annState == Teigha.DatabaseServices.AnnotativeStates.True) valStr = "True";
-                                    else valStr = "False"; // Złapie zarówno .False jak i ewentualne .NotApplicable
+                                    valStr = annState == Teigha.DatabaseServices.AnnotativeStates.True ? "True" : "False";
                                 }
-                                // Na wszelki wypadek, gdyby jakaś inna właściwość była czystym boolem:
                                 else if (wartoscObiektu is bool bVal)
                                 {
                                     valStr = bVal ? "True" : "False";
                                 }
-                                // --- SPECJALNA OBSŁUGA WSPÓŁRZĘDNYCH 3D ---
                                 else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
                                 {
                                     valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
                                 }
-
-                                // --- SPECJALNA OBSŁUGA GRUBOŚCI LINII (LineWeight) ---
                                 else if (wartoscObiektu is Teigha.DatabaseServices.LineWeight lw)
                                 {
-                                    // Zmiana: Musimy mapować ByLayer i ByBlock na liczby (-1, -2), bo tak uczy się LLM z promptu!
                                     if (lw == Teigha.DatabaseServices.LineWeight.ByLayer) valStr = "-1";
                                     else if (lw == Teigha.DatabaseServices.LineWeight.ByBlock) valStr = "-2";
                                     else if (lw == Teigha.DatabaseServices.LineWeight.ByLineWeightDefault) valStr = "-3";
                                     else valStr = ((int)lw).ToString();
 
-                                    // Jeśli LLM użył VisualLineWeight i obiekt ma przypisane "Jak warstwa"
                                     if (sprawdzajWizualnie && lw == Teigha.DatabaseServices.LineWeight.ByLayer)
                                     {
                                         try
@@ -922,7 +889,7 @@ namespace BricsCAD_Agent
                                             if (ltr != null)
                                             {
                                                 if (ltr.LineWeight == Teigha.DatabaseServices.LineWeight.ByLineWeightDefault) valStr = "-3";
-                                                else if (ltr.LineWeight == Teigha.DatabaseServices.LineWeight.ByLayer) valStr = "-1"; // Na wypadek błędu bazy
+                                                else if (ltr.LineWeight == Teigha.DatabaseServices.LineWeight.ByLayer) valStr = "-1";
                                                 else valStr = ((int)ltr.LineWeight).ToString();
                                             }
                                         }
@@ -930,8 +897,6 @@ namespace BricsCAD_Agent
                                     }
                                 }
 
-
-                                // --- ROZWIĄZYWANIE "JAK WARSTWA" DLA WŁAŚCIWOŚCI VISUAL ---
                                 if (sprawdzajWizualnie)
                                 {
                                     if (rzeczywistaWlasciwosc == "ColorIndex" && valStr == "256")
@@ -956,11 +921,9 @@ namespace BricsCAD_Agent
                                         }
                                         catch { }
                                     }
-                       
                                 }
-                                // --------------------------------------------------------
 
-                                // Logika porównywania 
+                                // BEZPIECZNE PORÓWNANIE WARTOŚCI
                                 bool warunekSpelniony = false;
                                 if (double.TryParse(valStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double valNum) &&
                                     double.TryParse(warunek.Val.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double warNum))
@@ -982,8 +945,6 @@ namespace BricsCAD_Agent
                                         case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
                                         case "!=": warunekSpelniony = !valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
                                         case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
-
-                                        // --- NOWOŚĆ: Obsługa operatora IN dla Checkboxów (wielokrotny wybór) ---
                                         case "in":
                                             string[] mozliweWartosci = warunek.Val.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                                             foreach (string mw in mozliweWartosci)
@@ -991,7 +952,7 @@ namespace BricsCAD_Agent
                                                 if (valStr.Equals(mw.Trim(), StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     warunekSpelniony = true;
-                                                    break; // Znaleziono dopasowanie, przerywamy sprawdzanie pozostałych opcji z Checkboxów
+                                                    break;
                                                 }
                                             }
                                             break;
@@ -1001,47 +962,41 @@ namespace BricsCAD_Agent
                             }
                             if (spelniaWszystkie) znalezioneObiekty.Add(objId);
                         }
-                        
+
                     }
 
-                    // =========================================================
-                    // MAGIA ŁĄCZENIA / ODEJMOWANIA ZAZNACZEŃ
-                    // =========================================================
                     List<ObjectId> aktywne = AktywneZaznaczenie != null ? AktywneZaznaczenie.ToList() : new List<ObjectId>();
                     List<ObjectId> koncowe = new List<ObjectId>();
 
                     if (trybStr.Equals("Add", StringComparison.OrdinalIgnoreCase))
                     {
-                        koncowe.AddRange(aktywne); // Kopiujemy obecne
-                        foreach (var id in znalezioneObiekty) if (!koncowe.Contains(id)) koncowe.Add(id); // Dodajemy nowe
+                        koncowe.AddRange(aktywne);
+                        foreach (var id in znalezioneObiekty) if (!koncowe.Contains(id)) koncowe.Add(id);
                     }
                     else if (trybStr.Equals("Remove", StringComparison.OrdinalIgnoreCase))
                     {
-                        koncowe.AddRange(aktywne); // Kopiujemy obecne
-                        foreach (var id in znalezioneObiekty) koncowe.Remove(id); // Usuwamy te, które model odnalazł do usunięcia
+                        koncowe.AddRange(aktywne);
+                        foreach (var id in znalezioneObiekty) koncowe.Remove(id);
                     }
-                    else // Domyślnie "New"
+                    else
                     {
-                        koncowe = znalezioneObiekty; // Nadpisuje całkowicie
+                        koncowe = znalezioneObiekty;
                     }
 
                     if (koncowe.Count > 0)
                     {
-                        // 1. Zabezpieczenie przez ewentualnymi duplikatami po łączeniu list
                         koncowe = koncowe.Distinct().ToList();
 
-                        // 2. Podświetlamy obiekty na ekranie TYLKO jeśli nie są wewnątrz bloku!
                         if (!scopeStr.Equals("Blocks", StringComparison.OrdinalIgnoreCase))
                         {
                             try { ed.SetImpliedSelection(koncowe.ToArray()); }
-                            catch { } // Ciche ignorowanie, jeśli CAD zabroni podświetlić jakiś ukryty obiekt
+                            catch { }
                         }
                         else
                         {
                             ed.WriteMessage("\n[Info]: Zapisano obiekty z wnętrza bloków do pamięci Agenta (brak podświetlenia na ekranie).");
                         }
 
-                        // 3. Niezależnie od błędu graficznego, ZAPISUJEMY obiekty w pamięci C# do dalszej edycji!
                         AktywneZaznaczenie = koncowe.ToArray();
                         ed.WriteMessage($"\n[Sukces]: Aktywne zaznaczenie w pamięci: {koncowe.Count} obiekt(ów)!");
                         return koncowe.Count;
@@ -1053,7 +1008,6 @@ namespace BricsCAD_Agent
                         AktywneZaznaczenie = new ObjectId[0];
 
                         tr.Commit();
-
                         return 0;
                     }
                 }
