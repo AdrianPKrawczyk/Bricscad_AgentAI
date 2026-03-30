@@ -21,6 +21,10 @@ namespace BricsCAD_Agent
             Match mPrompt = Regex.Match(jsonArgs, @"\""Prompt\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
             if (mPrompt.Success) promptMsg = mPrompt.Groups[1].Value;
 
+            string saveAs = "";
+            Match mSave = Regex.Match(jsonArgs, @"\""SaveAs\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            if (mSave.Success) saveAs = mSave.Groups[1].Value;
+
             Editor ed = doc.Editor;
 
             // 1. ZWYKŁY TEKST Z KONSOLI
@@ -30,7 +34,11 @@ namespace BricsCAD_Agent
                 pso.AllowSpaces = true;
                 PromptResult pr = ed.GetString(pso);
 
-                if (pr.Status == PromptStatus.OK) return $"WYNIK: Użytkownik wpisał: {pr.StringResult}";
+                if (pr.Status == PromptStatus.OK)
+                {
+                    if (!string.IsNullOrEmpty(saveAs)) AgentMemory.Variables[saveAs] = pr.StringResult;
+                    return $"WYNIK: Użytkownik wpisał: {pr.StringResult}" + (!string.IsNullOrEmpty(saveAs) ? $" (Zapisano jako @{saveAs})" : "");
+                }
                 return "WYNIK: Użytkownik anulował wprowadzanie (ESC).";
             }
             // 2. POJEDYNCZY PUNKT Z EKRANU
@@ -40,8 +48,11 @@ namespace BricsCAD_Agent
                 PromptPointResult ppr = ed.GetPoint(ppo);
 
                 if (ppr.Status == PromptStatus.OK)
-                    return $"WYNIK: Użytkownik wskazał punkt: {FormatPoint(ppr.Value)}";
-
+                {
+                    string czystyPunkt = FormatPoint(ppr.Value);
+                    if (!string.IsNullOrEmpty(saveAs)) AgentMemory.Variables[saveAs] = czystyPunkt;
+                    return $"WYNIK: Użytkownik wskazał punkt: {czystyPunkt}" + (!string.IsNullOrEmpty(saveAs) ? $" (Zapisano jako @{saveAs})" : "");
+                }
                 return "WYNIK: Użytkownik anulował wskazywanie punktu.";
             }
             // 3. WIELE PUNKTÓW Z EKRANU
@@ -54,7 +65,7 @@ namespace BricsCAD_Agent
                 while (getting)
                 {
                     PromptPointOptions ppo = new PromptPointOptions($"\n[Prośba od AI] {promptMsg} [Punkt nr {i}] (lub ENTER by zakończyć): ");
-                    ppo.AllowNone = true; // Pozwala wcisnąć ENTER bez klikania
+                    ppo.AllowNone = true;
                     PromptPointResult ppr = ed.GetPoint(ppo);
 
                     if (ppr.Status == PromptStatus.OK)
@@ -62,10 +73,14 @@ namespace BricsCAD_Agent
                         punkty.Add(FormatPoint(ppr.Value));
                         i++;
                     }
-                    else getting = false; // ESC lub ENTER przerywa pętlę
+                    else getting = false;
                 }
 
-                if (punkty.Count > 0) return $"WYNIK: Użytkownik wskazał punkty ({punkty.Count}): {string.Join(", ", punkty)}";
+                if (punkty.Count > 0)
+                {
+                    if (!string.IsNullOrEmpty(saveAs)) AgentMemory.Variables[saveAs] = string.Join(" | ", punkty);
+                    return $"WYNIK: Użytkownik wskazał punkty ({punkty.Count}): {string.Join(", ", punkty)}" + (!string.IsNullOrEmpty(saveAs) ? $" (Zapisano jako @{saveAs})" : "");
+                }
                 return "WYNIK: Użytkownik nie wskazał żadnych punktów.";
             }
 

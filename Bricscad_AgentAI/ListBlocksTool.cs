@@ -19,11 +19,15 @@ namespace BricsCAD_Agent
             // Domyślnie szukamy w zaznaczeniu
             string scope = "Selection";
 
-            // Jeśli LLM podał argumenty, próbujemy wyciągnąć Scope
+            string saveAs = "";
+            // Jeśli LLM podał argumenty, próbujemy wyciągnąć Scope i SaveAs
             if (!string.IsNullOrWhiteSpace(jsonArgs))
             {
                 Match mScope = Regex.Match(jsonArgs, @"\""Scope\""\s*:\s*\""([^\""]+)\""");
                 if (mScope.Success) scope = mScope.Groups[1].Value;
+
+                Match mSave = Regex.Match(jsonArgs, @"\""SaveAs\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+                if (mSave.Success) saveAs = mSave.Groups[1].Value;
             }
 
             HashSet<string> unikalneNazwy = new HashSet<string>();
@@ -89,7 +93,15 @@ namespace BricsCAD_Agent
             posortowane.Sort();
             string lista = string.Join(", ", posortowane);
 
-            return $"WYNIK: Znaleziono unikalne bloki ({posortowane.Count}): {lista}";
+            string finalMsg = $"WYNIK: Znaleziono unikalne bloki ({posortowane.Count}): {lista}";
+
+            if (!string.IsNullOrEmpty(saveAs))
+            {
+                AgentMemory.Variables[saveAs] = lista;
+                finalMsg = $"[ZAPISANO W PAMIĘCI JAKO: @{saveAs}]\n" + finalMsg;
+            }
+
+            return finalMsg;
         }
 
         public string Execute(Document doc) => Execute(doc, "");

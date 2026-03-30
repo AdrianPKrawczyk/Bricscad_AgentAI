@@ -22,7 +22,14 @@ namespace BricsCAD_Agent
 
             if (string.IsNullOrEmpty(propName)) return "WYNIK: Nie podano nazwy właściwości (Property) do odczytania w tagu JSON.";
 
+            // --- SEKCJA PAMIĘCI (Zadeklarowana tylko RAZ) ---
+            string saveAs = "";
+            Match mSave = Regex.Match(jsonArgs, @"\""SaveAs\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            if (mSave.Success) saveAs = mSave.Groups[1].Value;
+            // ------------------------------------------------
+
             List<string> wyniki = new List<string>();
+            List<string> czysteWartosci = new List<string>();
 
             using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
@@ -58,13 +65,21 @@ namespace BricsCAD_Agent
                         {
                             string valStr = wartoscObiektu.ToString();
 
-                            // Ładne formatowanie dla punktów 3D
+                            // Ładne formatowanie dla punktów 3D z wymuszeniem kropki dziesiętnej!
                             if (wartoscObiektu is Teigha.Geometry.Point3d pt)
-                                valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})";
+                            {
+                                string x = pt.X.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                                string y = pt.Y.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                                string z = pt.Z.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                                valStr = $"({x},{y},{z})";
+                            }
                             else if (wartoscObiektu is Teigha.Colors.Color col)
+                            {
                                 valStr = col.ColorIndex.ToString();
+                            }
 
                             wyniki.Add($"- Obiekt [{ent.GetType().Name}]: {valStr}");
+                            czysteWartosci.Add(valStr); // Zbieramy czystą wartość do pamięci
                         }
                         else
                         {
@@ -79,7 +94,16 @@ namespace BricsCAD_Agent
                 tr.Commit();
             }
 
-            return $"WYNIK ODCZYTU WŁAŚCIWOŚCI '{propName}':\n" + string.Join("\n", wyniki);
+            string pelnyWynik = $"WYNIK ODCZYTU WŁAŚCIWOŚCI '{propName}':\n" + string.Join("\n", wyniki);
+
+            // Jeśli użytkownik poprosił o zapis i mamy jakieś dane - zapisujemy
+            if (!string.IsNullOrEmpty(saveAs) && czysteWartosci.Count > 0)
+            {
+                AgentMemory.Variables[saveAs] = string.Join(" | ", czysteWartosci);
+                pelnyWynik = $"[ZAPISANO W PAMIĘCI JAKO: @{saveAs}]\n" + pelnyWynik;
+            }
+
+            return pelnyWynik;
         }
 
         public string Execute(Document doc) => Execute(doc, "");

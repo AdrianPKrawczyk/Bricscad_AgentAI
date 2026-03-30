@@ -29,6 +29,10 @@ namespace BricsCAD_Agent
             if (target.Equals("Property", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(propName))
                 return "WYNIK: Dla Target='Property' musisz podać nazwę właściwości w kluczu 'Property'.";
 
+            string saveAs = "";
+            Match mSave = Regex.Match(jsonArgs, @"\""SaveAs\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            if (mSave.Success) saveAs = mSave.Groups[1].Value;
+
             HashSet<string> unikalneWartosci = new HashSet<string>();
             int przeanalizowano = 0;
 
@@ -156,7 +160,15 @@ namespace BricsCAD_Agent
                              (scope.Equals("Database", StringComparison.OrdinalIgnoreCase) ? "bazie danych (wszystkie zdefiniowane)" : "definicjach bloków"));
 
             string targetName = target.Equals("Class", StringComparison.OrdinalIgnoreCase) ? "klas (typów)" : $"właściwości '{propName}'";
-            return $"WYNIK: W {scopePl} znaleziono unikalnych {targetName} ({posortowane.Count}): {string.Join(", ", posortowane)}";
+            string finalMsg = $"WYNIK: W {scopePl} znaleziono unikalnych {targetName} ({posortowane.Count}): {string.Join(", ", posortowane)}";
+
+            if (!string.IsNullOrEmpty(saveAs))
+            {
+                AgentMemory.Variables[saveAs] = string.Join(", ", posortowane);
+                finalMsg = $"[ZAPISANO W PAMIĘCI JAKO: @{saveAs}]\n" + finalMsg;
+            }
+
+            return finalMsg;
         }
 
         public string Execute(Document doc) => Execute(doc, "");

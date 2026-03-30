@@ -1762,6 +1762,11 @@ namespace BricsCAD_Agent
             try
             {
                 // ==========================================
+                // WSTRZYKNIĘCIE PAMIĘCI AGENTA (ZMIENNE @)
+                // ==========================================
+                wklejonyTag = AgentMemory.InjectVariables(wklejonyTag);
+
+                // ==========================================
                 // NOWOŚĆ: BEZPOŚREDNIA OBSŁUGA LISP
                 // ==========================================
                 if (wklejonyTag.StartsWith("[LISP:"))

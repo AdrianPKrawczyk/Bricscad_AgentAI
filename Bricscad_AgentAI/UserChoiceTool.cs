@@ -20,6 +20,10 @@ namespace BricsCAD_Agent
         {
             string cleanArgs = jsonArgs.Replace("\\\"", "\"").Replace("\\n", "\n");
 
+            string saveAs = "";
+            Match mSave = Regex.Match(cleanArgs, @"\""SaveAs\""\s*:\s*\""([^\""]+)\""", RegexOptions.IgnoreCase);
+            if (mSave.Success) saveAs = mSave.Groups[1].Value;
+
             string question = "Wybierz opcje:";
             Match mQuestion = Regex.Match(cleanArgs, @"""Question""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
             if (mQuestion.Success) question = mQuestion.Groups[1].Value;
@@ -263,6 +267,12 @@ namespace BricsCAD_Agent
                     }
                 }
                 else return "WYNIK: Użytkownik anulował wybór (ESC lub zamknięcie okna).";
+            }
+
+            if (!string.IsNullOrEmpty(saveAs) && !string.IsNullOrEmpty(selectedOption))
+            {
+                AgentMemory.Variables[saveAs] = selectedOption;
+                return $"WYNIK: Użytkownik wybrał opcje: {selectedOption} (Zapisano w pamięci jako @{saveAs})";
             }
 
             return $"WYNIK: Użytkownik wybrał opcje: {selectedOption}";

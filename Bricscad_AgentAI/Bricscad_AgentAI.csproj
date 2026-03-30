@@ -58,6 +58,7 @@
     <Compile Include="AgentControl.Designer.cs">
       <DependentUpon>AgentControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="AgentMemory.cs" />
     <Compile Include="AnalyzeSelectionTool.cs" />
     <Compile Include="CreateBlockTool.cs" />
     <Compile Include="CreateObjectTool.cs" />

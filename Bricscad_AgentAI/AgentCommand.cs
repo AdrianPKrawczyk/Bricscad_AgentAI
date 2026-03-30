@@ -156,11 +156,6 @@ namespace BricsCAD_Agent
                         "Przykład 3 (Utnij tekst przed '_' ): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'_' 0 SPLIT\"}]}]\n\n" +
                         "Przykład 4 (Jeśli warstwa to '0', zmień na 'Defpoints', inaczej zostaw): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"DUP '0' == 'Defpoints' SWAP IFTE\"}]}]\n\n" +
 
-                         "Tag: [ACTION:SET_PROPERTIES]\n" +
-                        "Opis: Uniwersalne narzędzie do zmiany właściwości. Domyślnie nadpisuje wartość. Jeśli użytkownik prosi o ZMODYFIKOWANIE wartości (np. \"podnieś Z o 200\"), użyj klucza \"Operator\": \"+\" (lub \"-\", \"*\"). Do skomplikowanych obliczeń użyj \"Operator\": \"RPN\" podając wyrażenie (np. \"Value\": \"2 * 50 +\").\n" +
-                        "Przykład 1 (Nadpisanie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Instalacje\"}]}]\n" +
-                        "Przykład 2 (Dodawanie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Center.Z\", \"Operator\": \"+\", \"Value\": 200}]}]\n\n" +
-
                         "Tag: [ACTION:LIST_BLOCKS]\n" +
                         "Opis: Zwraca listę unikalnych nazw bloków.\n" +
                         "Argument 'Scope': Wpisz \"Selection\" (domyślnie), aby sprawdzić, jakie bloki są obecnie zaznaczone, lub \"Database\", aby przeskanować ukrytą pamięć rysunku i wyświetlić absolutnie wszystkie zdefiniowane bloki, które można wstawić narzędziem INSERT_BLOCK.\n" +
