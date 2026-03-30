@@ -176,7 +176,7 @@ namespace BricsCAD_Agent
 
         private static void CheckProperty(string entType, string prop, string context, List<string> errors)
         {
-            string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency" };
+            string[] visualProps = { "VisualColor", "VisualLinetype", "VisualLineWeight", "VisualTransparency", "MidPoint", "Volume", "Centroid", "Area", "Length", "Angle", "Rotation" };
             foreach (string vp in visualProps) if (prop.Equals(vp, StringComparison.OrdinalIgnoreCase)) return;
             if (prop.Contains(".")) return;
 

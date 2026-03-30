@@ -52,9 +52,10 @@ namespace BricsCAD_Agent
                         newEnt = new Circle(cen, Vector3d.ZAxis, radius);
                     }
 
-                    ///// dbtext
-                    ///
 
+                    // ==========================================
+                    // 3. TWORZENIE DBTEXT (Zwykły tekst)
+                    // ==========================================
                     else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase))
                     {
                         string posStr = Regex.Match(argsJson, @"\""Position\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
@@ -70,50 +71,103 @@ namespace BricsCAD_Agent
                         }
                         else if (txt.Contains("RPN:"))
                         {
-                            // Jeśli tekst zawiera RPN, przeliczamy go (np. dla numeracji z offsetem)
                             txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
                         }
-                        string hRaw = Regex.Match(argsJson, @"\""Height\""\s*:\s*(\""[^\""]+\""|[0-9.]+)").Groups[1].Value.Trim('\"');
+
+                        var hMatch = Regex.Match(argsJson, @"\""Height\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
+                        string hRaw = hMatch.Success ? hMatch.Groups[1].Value.Trim('\"') : "";
+
+                        // --- NOWE: Pobieranie rotacji z JSON ---
+                        var rotMatch = Regex.Match(argsJson, @"\""Rotation\""\s*:\s*(\""[^\""]+\""|[-0-9.]+)");
+                        double rot = 0;
+                        if (rotMatch.Success)
+                        {
+                            string rRaw = rotMatch.Groups[1].Value.Trim('\"');
+                            if (rRaw.Contains("RPN:")) rot = double.Parse(RpnCalculator.Evaluate(rRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
+                            else rot = double.Parse(rRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                        }
+                        // ---------------------------------------
+
                         Point3d pos = posStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase) ? ed.GetPoint("\nPunkt: ").Value : ParsePoint(posStr);
 
-                        // --- POPRAWKA: Dynamiczna wysokość ---
-                        double h = db.Textsize; // Pobiera aktualną wartość zmiennej TEXTSIZE z rysunku
+                        double h = db.Textsize;
+                        if (hRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) h = ed.GetDistance("\nWysokość: ").Value;
+                        else if (hRaw.Contains("RPN:")) h = double.Parse(RpnCalculator.Evaluate(hRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
+                        else if (!string.IsNullOrEmpty(hRaw)) h = double.Parse(hRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
 
-                        if (hRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
-                        {
-                            h = ed.GetDistance("\nWysokość: ").Value;
-                        }
-                        else if (hRaw.Contains("RPN:"))
-                        {
-                            h = double.Parse(RpnCalculator.Evaluate(hRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
-                        }
-                        else if (!string.IsNullOrEmpty(hRaw))
-                        {
-                            // Jeśli podano konkretną liczbę w JSON, używamy jej
-                            h = double.Parse(hRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
-                        }
-                        // Jeśli hRaw jest puste, h pozostaje równe db.Textsize
-
-                        // Tworzymy obiekt tekstu
                         DBText dbText = new DBText { Position = pos, TextString = txt, Height = h };
 
-                        // Ustawiamy justowanie na podstawie Tagu JSON
-                        if (argsJson.Contains("MiddleCenter"))
-                        {
-                            dbText.Justify = AttachmentPoint.MiddleCenter;
-                            dbText.AlignmentPoint = pos;
-                        }
-                        else if (argsJson.Contains("BottomCenter"))
-                        {
-                            dbText.Justify = AttachmentPoint.BottomCenter;
-                            dbText.AlignmentPoint = pos;
-                        }
+                        // Przypisanie rotacji
+                        dbText.Rotation = rot;
+
+                        // Justowanie
+                        if (argsJson.Contains("MiddleCenter")) { dbText.Justify = AttachmentPoint.MiddleCenter; dbText.AlignmentPoint = pos; }
+                        else if (argsJson.Contains("BottomCenter")) { dbText.Justify = AttachmentPoint.BottomCenter; dbText.AlignmentPoint = pos; }
 
                         newEnt = dbText;
                     }
+                    // ==========================================
+                    // 4. TWORZENIE MTEXT (Tekst wielowierszowy)
+                    // ==========================================
+                    else if (entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string posStr = Regex.Match(argsJson, @"\""Position\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
+                        string txt = Regex.Match(argsJson, @"\""Text\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
+                        var hMatch = Regex.Match(argsJson, @"\""Height\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
+                        string hRaw = hMatch.Success ? hMatch.Groups[1].Value.Trim('\"') : "";
+
+                        // --- NOWE: Pobieranie rotacji z JSON ---
+                        var rotMatch = Regex.Match(argsJson, @"\""Rotation\""\s*:\s*(\""[^\""]+\""|[-0-9.]+)");
+                        double rot = 0;
+                        if (rotMatch.Success)
+                        {
+                            string rRaw = rotMatch.Groups[1].Value.Trim('\"');
+                            if (rRaw.Contains("RPN:")) rot = double.Parse(RpnCalculator.Evaluate(rRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
+                            else rot = double.Parse(rRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                        }
+                        // ---------------------------------------
+
+                        Point3d pos = posStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase) ? ed.GetPoint("\n[Agent AI] Wskaż punkt wstawienia tekstu: ").Value : ParsePoint(posStr);
+
+                        if (txt.IndexOf("AskUser", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            PromptStringOptions pso = new PromptStringOptions("\n[Agent AI] Wpisz treść tekstu (użyj \\P dla nowej linii): ");
+                            pso.AllowSpaces = true;
+                            PromptResult pr = ed.GetString(pso);
+                            if (pr.Status != PromptStatus.OK) return "BŁĄD: Anulowano wpisywanie.";
+
+                            txt = Regex.Replace(txt, "AskUser", pr.StringResult, RegexOptions.IgnoreCase);
+                            if (txt.Contains("RPN:")) txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        }
+                        else if (txt.Contains("RPN:"))
+                        {
+                            txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
+                        }
+
+                        txt = txt.Replace("\\\\", "\\");
+
+                        double h = db.Textsize;
+                        if (hRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) h = ed.GetDistance("\nWysokość: ").Value;
+                        else if (hRaw.Contains("RPN:")) h = double.Parse(RpnCalculator.Evaluate(hRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
+                        else if (!string.IsNullOrEmpty(hRaw)) h = double.Parse(hRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+
+                        MText mt = new MText();
+                        mt.Location = pos;
+                        mt.Contents = txt;
+                        mt.TextHeight = h;
+
+                        // Przypisanie rotacji
+                        mt.Rotation = rot;
+
+                        // Justowanie
+                        if (argsJson.Contains("MiddleCenter")) { mt.Attachment = AttachmentPoint.MiddleCenter; }
+                        else if (argsJson.Contains("BottomCenter")) { mt.Attachment = AttachmentPoint.BottomCenter; }
+
+                        newEnt = mt;
+                    }
 
                     // ==========================================
-                    // 4. TWORZENIE MLEADER (Linia odniesienia)
+                    // 5. TWORZENIE MLEADER (Linia odniesienia)
                     // ==========================================
                     else if (entityType.Equals("MLeader", StringComparison.OrdinalIgnoreCase))
                     {
@@ -200,66 +254,7 @@ namespace BricsCAD_Agent
                         newEnt = ml;
                     }
 
-                    // ==========================================
-                    // 5. TWORZENIE MTEXT (Tekst wielowierszowy)
-                    // ==========================================
-                    else if (entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string posStr = Regex.Match(argsJson, @"\""Position\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
-                        string txt = Regex.Match(argsJson, @"\""Text\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
-                        var hMatch = Regex.Match(argsJson, @"\""Height\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
-                        string hRaw = hMatch.Success ? hMatch.Groups[1].Value.Trim('\"') : "";
-
-                        // 1. Punkt Wstawienia
-                        Point3d pos = posStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase)
-                            ? ed.GetPoint("\n[Agent AI] Wskaż punkt wstawienia tekstu: ").Value
-                            : ParsePoint(posStr);
-
-                        // 2. Treść Tekstu (z inteligentnym wypełniaczem AskUser)
-                        if (txt.IndexOf("AskUser", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            PromptStringOptions pso = new PromptStringOptions("\n[Agent AI] Wpisz treść tekstu (użyj \\P dla nowej linii): ");
-                            pso.AllowSpaces = true;
-                            PromptResult pr = ed.GetString(pso);
-                            if (pr.Status != PromptStatus.OK) return "BŁĄD: Anulowano wpisywanie.";
-
-                            txt = Regex.Replace(txt, "AskUser", pr.StringResult, RegexOptions.IgnoreCase);
-                            if (txt.Contains("RPN:")) txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
-                        }
-                        else if (txt.Contains("RPN:"))
-                        {
-                            txt = RpnCalculator.Evaluate(txt.Replace("RPN:", "").Trim());
-                        }
-
-                        // Konwersja podwójnych ukośników dla poprawnego łamania linii
-                        txt = txt.Replace("\\\\", "\\");
-
-                        // 3. Dynamiczna wysokość (domyślnie z TEXTSIZE)
-                        double h = db.Textsize;
-                        if (hRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) h = ed.GetDistance("\nWysokość: ").Value;
-                        else if (hRaw.Contains("RPN:")) h = double.Parse(RpnCalculator.Evaluate(hRaw.Replace("RPN:", "").Trim()), System.Globalization.CultureInfo.InvariantCulture);
-                        else if (!string.IsNullOrEmpty(hRaw)) h = double.Parse(hRaw.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
-
-                        // 4. Utworzenie obiektu MText
-                        MText mt = new MText();
-                        mt.Location = pos;
-                        mt.Contents = txt;
-                        mt.TextHeight = h;
-
-                        // Ustawiamy justowanie na podstawie Tagu JSON
-                        if (argsJson.Contains("MiddleCenter"))
-                        {
-                            mt.Attachment = AttachmentPoint.MiddleCenter;
-                        }
-                        else if (argsJson.Contains("BottomCenter"))
-                        {
-                            mt.Attachment = AttachmentPoint.BottomCenter;
-                        }
-
-                        newEnt = mt;
-                    }
-
-
+                    
                     if (newEnt != null)
                     {
                         string layer = Regex.Match(argsJson, @"\""Layer\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;

@@ -42,21 +42,51 @@ namespace BricsCAD_Agent
                     {
                         object wartoscObiektu = null;
 
-                        // --- ROZWIĄZANIE 1: WIRTUALNA WŁAŚCIWOŚĆ MIDPOINT ---
-                        // Działa dla Line, Polyline, Arc, Spline (klasa bazowa Curve)
-                        if (propName.Equals("MidPoint", StringComparison.OrdinalIgnoreCase) && ent is Curve curve)
+                        // --- ZESTAW WIRTUALNYCH WŁAŚCIWOŚCI ---
+                        if (propName.Equals("MidPoint", StringComparison.OrdinalIgnoreCase) && ent is Curve curveMid)
                         {
+                            try { wartoscObiektu = curveMid.GetPointAtDist(curveMid.GetDistanceAtParameter(curveMid.EndParam) / 2.0); } catch { }
+                        }
+                        else if (propName.Equals("Length", StringComparison.OrdinalIgnoreCase) && ent is Curve curveLen)
+                        {
+                            // Niezawodne pobieranie długości dla każdego typu krzywej
+                            try { wartoscObiektu = curveLen.GetDistanceAtParameter(curveLen.EndParam); } catch { }
+                        }
+                        else if (propName.Equals("Area", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Ujednolicone pobieranie pola dla krzywych zamkniętych i kreskowań
                             try
                             {
-                                // Oblicza połowę odległości całej krzywej i znajduje ten punkt w przestrzeni
-                                double dist = curve.GetDistanceAtParameter(curve.EndParam) / 2.0;
-                                wartoscObiektu = curve.GetPointAtDist(dist);
+                                if (ent is Curve curveArea && curveArea.Closed) wartoscObiektu = curveArea.Area;
+                                else if (ent is Hatch hatch) wartoscObiektu = hatch.Area;
                             }
                             catch { }
                         }
+                        else if (propName.Equals("Volume", StringComparison.OrdinalIgnoreCase) && ent is Solid3d solidVol)
+                        {
+                            // Wyciąganie objętości z MassProperties
+                            try { wartoscObiektu = solidVol.MassProperties.Volume; } catch { }
+                        }
+                        else if (propName.Equals("Centroid", StringComparison.OrdinalIgnoreCase) && ent is Solid3d solidCent)
+                        {
+                            // Wyciąganie środka ciężkości bryły
+                            try { wartoscObiektu = solidCent.MassProperties.Centroid; } catch { }
+                        }
+
+                        else if (propName.Equals("Angle", StringComparison.OrdinalIgnoreCase) && ent is Curve curveAng)
+                        {
+                            try
+                            {
+                                // Oblicza kąt nachylenia krzywej w radianach w jej punkcie środkowym
+                                Teigha.Geometry.Vector3d dir = curveAng.GetFirstDerivative(curveAng.GetParameterAtDistance(curveAng.GetDistanceAtParameter(curveAng.EndParam) / 2.0));
+                                wartoscObiektu = Math.Atan2(dir.Y, dir.X);
+                            }
+                            catch { }
+                        }
+
                         else
                         {
-                            // Tradycyjna obsługa przez refleksję i zagnieżdżenia
+                            // Tradycyjna obsługa przez refleksję dla natywnych właściwości API
                             string[] zagniezdzenia = propName.Split('.');
                             wartoscObiektu = ent;
                             System.Reflection.PropertyInfo propInfo = null;
@@ -77,6 +107,8 @@ namespace BricsCAD_Agent
                                 }
                             }
                         }
+
+
 
                         if (wartoscObiektu != null)
                         {

@@ -54,7 +54,14 @@ namespace BricsCAD_Agent
                 }
 
                 taskArgs = AgentMemory.InjectVariables(taskArgs);
-                TrainingStudio.WykonywaczTagow(doc, $"[ACTION:{actionName.ToUpper()} {{{taskArgs}}}]");
+
+                // --- NOWE: Ujawnianie błędów z wnętrza pętli ---
+                string wynikIteracji = TrainingStudio.WykonywaczTagow(doc, $"[ACTION:{actionName.ToUpper()} {{{taskArgs}}}]");
+                if (wynikIteracji.StartsWith("BŁĄD"))
+                {
+                    doc.Editor.WriteMessage($"\n[Agent AI - Błąd w cyklu {i + 1}]: {wynikIteracji}");
+                }
+                // -----------------------------------------------
             }
             return $"WYNIK FOREACH: Wykonano {maxLen} cykli.";
         }
