@@ -1764,8 +1764,11 @@ namespace BricsCAD_Agent
                 // ==========================================
                 // WSTRZYKNIĘCIE PAMIĘCI AGENTA (ZMIENNE @)
                 // ==========================================
-                wklejonyTag = AgentMemory.InjectVariables(wklejonyTag);
-
+                // Nie wstrzykujemy zmiennych globalnie, jeśli to pętla FOREACH (ona zrobi to wewnętrznie dla każdego kroku)
+                if (!wklejonyTag.StartsWith("[ACTION:FOREACH", StringComparison.OrdinalIgnoreCase))
+                {
+                    wklejonyTag = AgentMemory.InjectVariables(wklejonyTag);
+                }
                 // ==========================================
                 // NOWOŚĆ: BEZPOŚREDNIA OBSŁUGA LISP
                 // ==========================================
@@ -1913,6 +1916,12 @@ namespace BricsCAD_Agent
                 else if (wklejonyTag.Contains("[ACTION:SEARCH_LAYERS"))
                 {
                     SearchLayersTool tool = new SearchLayersTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:FOREACH"))
+                {
+                    ForeachTool tool = new ForeachTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
 

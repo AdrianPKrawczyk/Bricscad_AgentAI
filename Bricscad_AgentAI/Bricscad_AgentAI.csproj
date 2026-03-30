@@ -66,6 +66,7 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="EditBlockTool.cs" />
+    <Compile Include="ForeachTool.cs" />
     <Compile Include="GetPropertiesTool.cs" />
     <Compile Include="GetPropertiesToolLite.cs" />
     <Compile Include="InsertBlockTool.cs" />

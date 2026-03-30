@@ -2,22 +2,18 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using Teigha.DatabaseServices;
 
 namespace BricsCAD_Agent
 {
     public static class RpnCalculator
     {
-        public static string Evaluate(string expression, object initialValue = null)
+        public static string Evaluate(string expression, object initialValue = null, Entity context = null)
         {
             Stack<object> stack = new Stack<object>();
 
-            // Wrzucamy początkową wartość obiektu na dno stosu
-            if (initialValue != null)
-            {
-                stack.Push(initialValue);
-            }
+            if (initialValue != null) stack.Push(initialValue);
 
-            // Rozbijamy wyrażenie z uwzględnieniem cudzysłowów dla tekstów
             List<string> tokens = Tokenize(expression);
 
             foreach (string t in tokens)
@@ -31,282 +27,70 @@ namespace BricsCAD_Agent
                 {
                     switch (upperToken)
                     {
-                        // ==========================================
-                        // OPERACJE NA STOSIE (Styl G50 / HP)
-                        // ==========================================
-                        case "SWAP":
-                            {
-                                object b = stack.Pop();
-                                object a = stack.Pop();
-                                stack.Push(b);
-                                stack.Push(a);
-                                break;
-                            }
-                        case "DUP":
-                            {
-                                object a = stack.Peek();
-                                stack.Push(a);
-                                break;
-                            }
-                        case "DROP":
-                            {
-                                stack.Pop();
-                                break;
-                            }
-
-                        // ==========================================
-                        // OPERACJE MATEMATYCZNE
-                        // ==========================================
+                        case "SWAP": { object b = stack.Pop(); object a = stack.Pop(); stack.Push(b); stack.Push(a); break; }
+                        case "DUP": { stack.Push(stack.Peek()); break; }
+                        case "DROP": { stack.Pop(); break; }
                         case "+":
                             {
-                                object b = stack.Pop();
-                                object a = stack.Pop();
-                                // Jeśli oba są liczbami, dodaj. W przeciwnym razie - KONKATENACJA!
+                                object b = stack.Pop(); object a = stack.Pop();
                                 if (IsNumber(a) && IsNumber(b)) stack.Push(GetNum(a) + GetNum(b));
                                 else stack.Push(GetString(a) + GetString(b));
                                 break;
                             }
-                        case "-":
-                            {
-                                double b = GetNum(stack.Pop());
-                                double a = GetNum(stack.Pop());
-                                stack.Push(a - b);
-                                break;
-                            }
-                        case "*":
-                            {
-                                double b = GetNum(stack.Pop());
-                                double a = GetNum(stack.Pop());
-                                stack.Push(a * b);
-                                break;
-                            }
-                        case "/":
-                            {
-                                double b = GetNum(stack.Pop());
-                                double a = GetNum(stack.Pop());
-                                stack.Push(a / b);
-                                break;
-                            }
-                        case "^":
-                            {
-                                double b = GetNum(stack.Pop());
-                                double a = GetNum(stack.Pop());
-                                stack.Push(Math.Pow(a, b));
-                                break;
-                            }
+                        case "-": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a - b); break; }
+                        case "*": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a * b); break; }
+                        case "/": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a / b); break; }
+                        case "^": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(Math.Pow(a, b)); break; }
                         case "SQRT": stack.Push(Math.Sqrt(GetNum(stack.Pop()))); break;
                         case "SIN": stack.Push(Math.Sin(GetNum(stack.Pop()) * Math.PI / 180.0)); break;
                         case "COS": stack.Push(Math.Cos(GetNum(stack.Pop()) * Math.PI / 180.0)); break;
-                        case "ROUND":
-                            {
-                                int decimals = (int)GetNum(stack.Pop());
-                                double val = GetNum(stack.Pop());
-                                stack.Push(Math.Round(val, decimals));
-                                break;
-                            }
-
-                        // ==========================================
-                        // OPERACJE LOGICZNE I WARUNKOWE (IF/ELSE)
-                        // ==========================================
-                        case "==":
-                        case "=":
-                            {
-                                string b = GetString(stack.Pop());
-                                string a = GetString(stack.Pop());
-                                // Zwracamy 1 (Prawda) lub 0 (Fałsz)
-                                stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0);
-                                break;
-                            }
-                        case "!=":
-                            {
-                                string b = GetString(stack.Pop());
-                                string a = GetString(stack.Pop());
-                                stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0);
-                                break;
-                            }
-                        case ">":
-                            {
-                                double b = GetNum(stack.Pop());
-                                double a = GetNum(stack.Pop());
-                                stack.Push(a > b ? 1.0 : 0.0);
-                                break;
-                            }
-                        case "<":
-                            {
-                                double b = GetNum(stack.Pop());
-                                double a = GetNum(stack.Pop());
-                                stack.Push(a < b ? 1.0 : 0.0);
-                                break;
-                            }
-                        case "IFTE":
-                            // Oczekuje na stosie: [Warunek, Wartość_Gdy_Prawda, Wartość_Gdy_Fałsz] -> IFTE
-                            {
-                                object falseVal = stack.Pop();
-                                object trueVal = stack.Pop();
-                                double cond = GetNum(stack.Pop()); // Pobiera 1 lub 0 z poprzedniego działania
-
-                                if (cond != 0) stack.Push(trueVal); // Jeśli Prawda
-                                else stack.Push(falseVal);          // Jeśli Fałsz
-                                break;
-                            }
-
-                        // ==========================================
-                        // ZAAWANSOWANE OPERACJE TEKSTOWE
-                        // ==========================================
-                        case "CONCAT":
-                        case "&":
-                            {
-                                string b = GetString(stack.Pop());
-                                string a = GetString(stack.Pop());
-                                stack.Push(a + b);
-                                break;
-                            }
+                        case "ROUND": { int d = (int)GetNum(stack.Pop()); double v = GetNum(stack.Pop()); stack.Push(Math.Round(v, d)); break; }
+                        case "==": case "=": { string b = GetString(stack.Pop()); string a = GetString(stack.Pop()); stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0); break; }
+                        case "!=": { string b = GetString(stack.Pop()); string a = GetString(stack.Pop()); stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0); break; }
+                        case ">": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a > b ? 1.0 : 0.0); break; }
+                        case "<": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a < b ? 1.0 : 0.0); break; }
+                        case "IFTE": { object f = stack.Pop(); object tr = stack.Pop(); double c = GetNum(stack.Pop()); stack.Push(c != 0 ? tr : f); break; }
+                        case "CONCAT": case "&": { string b = GetString(stack.Pop()); string a = GetString(stack.Pop()); stack.Push(a + b); break; }
                         case "UPPER": stack.Push(GetString(stack.Pop()).ToUpper()); break;
                         case "LOWER": stack.Push(GetString(stack.Pop()).ToLower()); break;
                         case "TRIM": stack.Push(GetString(stack.Pop()).Trim()); break;
                         case "LEN": stack.Push((double)GetString(stack.Pop()).Length); break;
-
-                        case "REPLACE": // [Cel, Stary, Nowy] -> REPLACE
+                        case "REPLACE": { string n = GetString(stack.Pop()); string o = GetString(stack.Pop()); string tg = GetString(stack.Pop()); stack.Push(tg.Replace(o, n)); break; }
+                        case "SUBSTR": { int l = (int)GetNum(stack.Pop()); int s = (int)GetNum(stack.Pop()); string tg = GetString(stack.Pop()); if (s < 0) s = 0; stack.Push(s >= tg.Length ? "" : tg.Substring(s, Math.Min(l, tg.Length - s))); break; }
+                        case "FIND": { string s = GetString(stack.Pop()); string tg = GetString(stack.Pop()); stack.Push((double)tg.IndexOf(s)); break; }
+                        case "SPLIT": { int idx = (int)GetNum(stack.Pop()); string sep = GetString(stack.Pop()); string tg = GetString(stack.Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); stack.Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
+                        case "GET":
                             {
-                                string newStr = GetString(stack.Pop());
-                                string oldStr = GetString(stack.Pop());
-                                string target = GetString(stack.Pop());
-                                stack.Push(target.Replace(oldStr, newStr));
-                                break;
-                            }
-                        case "SUBSTR": // [Cel, Start(0-based), Długość] -> SUBSTR
-                            {
-                                int len = (int)GetNum(stack.Pop());
-                                int start = (int)GetNum(stack.Pop());
-                                string target = GetString(stack.Pop());
-                                if (start < 0) start = 0;
-                                if (start >= target.Length) stack.Push("");
-                                else
+                                string pName = GetString(stack.Pop());
+                                if (context != null)
                                 {
-                                    if (start + len > target.Length) len = target.Length - start;
-                                    stack.Push(target.Substring(start, len));
+                                    var pi = context.GetType().GetProperty(pName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                                    stack.Push(pi != null ? pi.GetValue(context) : 0);
                                 }
+                                else stack.Push(0);
                                 break;
                             }
-                        case "FIND": // [Cel, Szukany] -> FIND (Zwraca indeks lub -1)
-                            {
-                                string search = GetString(stack.Pop());
-                                string target = GetString(stack.Pop());
-                                stack.Push((double)target.IndexOf(search));
-                                break;
-                            }
-                        case "SPLIT": // [Cel, Separator, Indeks] -> SPLIT (np. dla "A_B" "_" 1 SPLIT -> "B")
-                            {
-                                int index = (int)GetNum(stack.Pop());
-                                string sep = GetString(stack.Pop());
-                                string target = GetString(stack.Pop());
-                                string[] parts = target.Split(new string[] { sep }, StringSplitOptions.None);
-                                if (index >= 0 && index < parts.Length) stack.Push(parts[index]);
-                                else stack.Push("");
-                                break;
-                            }
-                        default:
-                            // Jeśli to ani liczba matematyczna, ani operator to po prostu ładujemy na stos.
-                            // Tokenizer usunął już z niego ewentualne cudzysłowy ochronne.
-                            stack.Push(token);
-                            break;
+                        default: stack.Push(token); break;
                     }
                 }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Błąd RPN przy tokenie '{token}': {ex.Message}");
-                }
+                catch (Exception ex) { throw new Exception($"Błąd RPN przy '{token}': {ex.Message}"); }
             }
-
-            if (stack.Count > 0)
-            {
-                return GetString(stack.Pop());
-            }
-            return "";
+            return stack.Count > 0 ? GetString(stack.Pop()) : "";
         }
 
-        // --- POMOCNICZE PARSERY ---
-
-        private static bool IsNumber(object obj)
+        private static bool IsNumber(object o) => double.TryParse(GetString(o).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out _);
+        private static double GetNum(object o) => double.TryParse(GetString(o).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r) ? r : 0;
+        private static string GetString(object o) => o?.ToString() ?? "";
+        private static List<string> Tokenize(string expr)
         {
-            if (obj is double || obj is int || obj is float || obj is decimal) return true;
-            if (obj is string s) return double.TryParse(s.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out _);
-            return false;
-        }
-
-        private static double GetNum(object obj)
-        {
-            if (obj is double d) return d;
-            if (obj is int i) return i;
-            if (obj is string s)
+            List<string> ts = new List<string>(); StringBuilder sb = new StringBuilder(); bool q = false;
+            foreach (char c in expr)
             {
-                if (double.TryParse(s.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double res)) return res;
-                return 0;
+                if (c == '\'' || c == '\"') q = !q;
+                else if (char.IsWhiteSpace(c) && !q) { if (sb.Length > 0) { ts.Add(sb.ToString()); sb.Clear(); } }
+                else sb.Append(c);
             }
-            return 0;
-        }
-
-        private static string GetString(object obj)
-        {
-            if (obj == null) return "";
-            if (obj is double d) return d.ToString(CultureInfo.InvariantCulture); // Zabezpieczenie kropek
-            return obj.ToString();
-        }
-
-        // --- INTELIGENTNY TOKENIZER (Zrozumienie cudzysłowów) ---
-        private static List<string> Tokenize(string expression)
-        {
-            List<string> tokens = new List<string>();
-            bool inQuotes = false;
-            char quoteChar = '\0';
-            StringBuilder current = new StringBuilder();
-
-            for (int i = 0; i < expression.Length; i++)
-            {
-                char c = expression[i];
-
-                if ((c == '"' || c == '\'') && (!inQuotes || quoteChar == c))
-                {
-                    if (inQuotes)
-                    {
-                        // Zamykamy tekst (zapisujemy bez cudzysłowów ochronnych!)
-                        tokens.Add(current.ToString());
-                        current.Clear();
-                        inQuotes = false;
-                        quoteChar = '\0';
-                    }
-                    else
-                    {
-                        // Otwieramy nowy tekst
-                        if (current.Length > 0 && current.ToString().Trim().Length > 0)
-                        {
-                            tokens.Add(current.ToString().Trim());
-                            current.Clear();
-                        }
-                        inQuotes = true;
-                        quoteChar = c;
-                    }
-                }
-                else if (char.IsWhiteSpace(c) && !inQuotes)
-                {
-                    if (current.Length > 0)
-                    {
-                        tokens.Add(current.ToString());
-                        current.Clear();
-                    }
-                }
-                else
-                {
-                    current.Append(c);
-                }
-            }
-
-            if (current.Length > 0)
-            {
-                tokens.Add(current.ToString().Trim());
-            }
-
-            return tokens;
+            if (sb.Length > 0) ts.Add(sb.ToString()); return ts;
         }
     }
 }
