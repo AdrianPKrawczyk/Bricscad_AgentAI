@@ -671,95 +671,74 @@ namespace BricsCAD_Agent
             using (DocumentLock loc = doc.LockDocument())
             {
                 ed.WriteMessage($"\n\n--- INTELIGENTNE TESTOWANIE SEKWENCJI Z BAZY ---");
+                int licznikPolecen = 0;
 
-                string pelnyTekst = txtContent.Text;
-                int currentIndex = 0;
-                int wykonaneKroki = 0;
+                // Tę linijkę dodaliśmy, aby program wiedział, skąd wziąć tekst:
+                string selectedJson = txtContent.Text;
 
-                while (currentIndex < pelnyTekst.Length)
+                if (string.IsNullOrWhiteSpace(selectedJson)) return;
+
+                // Wyciągamy zawartość wszystkich wypowiedzi asystenta z JSONa
+                MatchCollection assistantMatches = Regex.Matches(selectedJson, @"\""role\""\s*:\s*\""assistant\""\s*,\s*\""content\""\s*:\s*\""(.*?)\""(?=\s*})", RegexOptions.Singleline);
+
+                foreach (Match m in assistantMatches)
                 {
-                    int idxAction = pelnyTekst.IndexOf("[ACTION:", currentIndex);
-                    int idxSelect = pelnyTekst.IndexOf("[SELECT:", currentIndex);
+                    string pelnyTekst = m.Groups[1].Value.Replace("\\\"", "\"").Replace("\\n", "\n");
+                    int currentIndex = 0;
 
-                    int firstMatch = -1;
-                    if (idxAction != -1 && idxSelect != -1) firstMatch = Math.Min(idxAction, idxSelect);
-                    else if (idxAction != -1) firstMatch = idxAction;
-                    else if (idxSelect != -1) firstMatch = idxSelect;
-
-                    if (firstMatch == -1) break;
-
-                    int bracketCount = 0;
-                    int endIndex = -1;
-                    for (int i = firstMatch; i < pelnyTekst.Length; i++)
+                    while (currentIndex < pelnyTekst.Length)
                     {
-                        if (pelnyTekst[i] == '[') bracketCount++;
-                        else if (pelnyTekst[i] == ']') bracketCount--;
+                        int idxAction = pelnyTekst.IndexOf("[ACTION:", currentIndex);
+                        int idxSelect = pelnyTekst.IndexOf("[SELECT:", currentIndex);
+                        int idxLisp = pelnyTekst.IndexOf("[LISP:", currentIndex);
 
-                        if (bracketCount == 0)
+                        int firstMatch = -1;
+                        int[] indices = { idxAction, idxSelect, idxLisp };
+
+                        foreach (int idx in indices)
                         {
-                            endIndex = i;
-                            break;
+                            if (idx != -1 && (firstMatch == -1 || idx < firstMatch))
+                                firstMatch = idx;
                         }
-                    }
 
-                    if (endIndex == -1) break;
+                        if (firstMatch == -1) break;
 
-                    string tagDoWykonania = pelnyTekst.Substring(firstMatch, endIndex - firstMatch + 1);
-                    currentIndex = endIndex + 1;
-
-                    if (tagDoWykonania.Contains("[ACTION: ]") || tagDoWykonania.Replace(" ", "") == "[ACTION:]") continue;
-
-                    string czystyTag = tagDoWykonania.Replace("\\\"", "\"").Replace("\\n", "\n");
-
-                    wykonaneKroki++;
-                    ed.WriteMessage($"\n[Krok {wykonaneKroki} Wykonuję]: {czystyTag}");
-
-                    try
-                    {
-                        string wynik = TrainingStudio.WykonywaczTagow(doc, czystyTag);
-                        ed.WriteMessage($"\n[Wynik]: {wynik}");
-
-                        if (wynik.StartsWith("WYNIK: Użytkownik") && !wynik.Contains("anulował"))
+                        int bracketCount = 0;
+                        int endIndex = -1;
+                        for (int i = firstMatch; i < pelnyTekst.Length; i++)
                         {
-                            Match mExpected = Regex.Match(pelnyTekst.Substring(currentIndex), @"WYNIK: Użytkownik[^\r\n\""\\]*");
-                            if (mExpected.Success)
+                            if (pelnyTekst[i] == '[') bracketCount++;
+                            else if (pelnyTekst[i] == ']') bracketCount--;
+
+                            if (bracketCount == 0)
                             {
-                                string expectedLine = mExpected.Value;
-                                int lastColonExpected = expectedLine.LastIndexOf(':');
-                                int lastColonActual = wynik.LastIndexOf(':');
-
-                                if (lastColonExpected != -1 && lastColonActual != -1)
-                                {
-                                    string staryWybor = expectedLine.Substring(lastColonExpected + 1).Trim();
-                                    string nowyWybor = wynik.Substring(lastColonActual + 1).Trim();
-
-                                    if (!string.IsNullOrEmpty(staryWybor) && staryWybor != nowyWybor)
-                                    {
-                                        int matchIdx = currentIndex + mExpected.Index;
-                                        string head = pelnyTekst.Substring(0, matchIdx + mExpected.Length);
-                                        string tail = pelnyTekst.Substring(matchIdx + mExpected.Length);
-
-                                        tail = tail.Replace(staryWybor, nowyWybor);
-                                        pelnyTekst = head + tail;
-                                        pelnyTekst = pelnyTekst.Remove(matchIdx, mExpected.Length).Insert(matchIdx, wynik);
-
-                                        ed.WriteMessage($"\n[Inteligentny Tester AI]: Zaktualizowano scenariusz -> Zmienną '{staryWybor}' podmieniono na '{nowyWybor}'.");
-
-                                        isFormatting = true;
-                                        txtContent.Text = pelnyTekst;
-                                        isFormatting = false;
-                                        ApplySyntaxHighlighting();
-                                    }
-                                }
+                                endIndex = i;
+                                break;
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        ed.WriteMessage($"\n[BŁĄD WYKONANIA]: {ex.Message}");
+
+                        if (endIndex == -1) break;
+
+                        string czystyTag = pelnyTekst.Substring(firstMatch, endIndex - firstMatch + 1);
+                        currentIndex = endIndex + 1;
+
+                        if (czystyTag.Contains("[ACTION: ]") || czystyTag.Replace(" ", "") == "[ACTION:]") continue;
+
+                        licznikPolecen++;
+                        ed.WriteMessage($"\n[Krok {licznikPolecen} Wykonuję]: {czystyTag}");
+
+                        try
+                        {
+                            string wynik = BricsCAD_Agent.TrainingStudio.WykonywaczTagow(doc, czystyTag);
+                            ed.WriteMessage($"\n[Wynik]: {wynik}");
+                        }
+                        catch (Exception ex)
+                        {
+                            ed.WriteMessage($"\n[BŁĄD WYKONANIA]: {ex.Message}");
+                        }
                     }
                 }
-                ed.WriteMessage($"\n-----------------------------------\nZakończono. Wykonano {wykonaneKroki} poleceń.");
+                ed.WriteMessage($"\n-----------------------------------\nZakończono. Wykonano {licznikPolecen} poleceń.");
             }
             lblStatus.Text = "Test zakończony. Sprawdź okno poleceń CAD.";
             Bricscad.ApplicationServices.Application.MainWindow.Focus();

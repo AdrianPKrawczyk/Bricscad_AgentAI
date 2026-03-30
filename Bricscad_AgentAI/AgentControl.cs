@@ -300,11 +300,17 @@ namespace Bricscad_AgentAI
                 {
                     int idxAction = pelnyTekst.IndexOf("[ACTION:", currentIndex);
                     int idxSelect = pelnyTekst.IndexOf("[SELECT:", currentIndex);
+                    int idxLisp = pelnyTekst.IndexOf("[LISP:", currentIndex); // <--- NOWOŚĆ: Dodano wykrywanie LISP
 
                     int firstMatch = -1;
-                    if (idxAction != -1 && idxSelect != -1) firstMatch = Math.Min(idxAction, idxSelect);
-                    else if (idxAction != -1) firstMatch = idxAction;
-                    else if (idxSelect != -1) firstMatch = idxSelect;
+                    int[] indices = { idxAction, idxSelect, idxLisp };
+
+                    // Szukamy, który tag występuje jako pierwszy w tekście
+                    foreach (int idx in indices)
+                    {
+                        if (idx != -1 && (firstMatch == -1 || idx < firstMatch))
+                            firstMatch = idx;
+                    }
 
                     if (firstMatch == -1) break;
 

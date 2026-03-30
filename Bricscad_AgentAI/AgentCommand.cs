@@ -78,6 +78,7 @@ namespace BricsCAD_Agent
         new ManageLayersTool(),
         new SearchLayersTool(),
         new CreateObjectTool(),
+        new CreateBlockTool(),
 
         };
 
@@ -223,13 +224,23 @@ namespace BricsCAD_Agent
 
                         "Tag: [ACTION:CREATE_OBJECT]\n" +
                         "Opis: Rysuje/tworzy zupełnie nowe obiekty w przestrzeni rysunku.\n" +
-                        "Argumenty: Musisz podać \"EntityType\" (obsługiwane: \"Line\", \"Circle\", \"DBText\"). Parametry zależą od typu:\n" +
-                        " - Dla Line: podaj \"StartPoint\" i \"EndPoint\" w formacie \"(X,Y,Z)\".\n" +
-                        " - Dla Circle: podaj \"Center\" w formacie \"(X,Y,Z)\" oraz promień \"Radius\" (jako liczba).\n" +
-                        " - Dla DBText: podaj \"Position\" \"(X,Y,Z)\", treść \"Text\" (ciąg znaków) oraz wysokość \"Height\" (liczba).\n" +
-                        "Opcjonalnie do każdego typu możesz podać \"Layer\" (string z nazwą warstwy) oraz \"Color\" (indeks 1-255).\n" +
-                        "Przykład 1: [ACTION:CREATE_OBJECT {\"EntityType\": \"Line\", \"StartPoint\": \"(0,0,0)\", \"EndPoint\": \"(100,100,0)\", \"Layer\": \"Wymiary\"}]\n" +
-                        "Przykład 2: [ACTION:CREATE_OBJECT {\"EntityType\": \"Circle\", \"Center\": \"(50,50,0)\", \"Radius\": 25.5, \"Color\": 1}]\n\n" +
+                        "Argumenty: Musisz podać \"EntityType\" (obsługiwane: \"Line\", \"Circle\", \"DBText\").\n" +
+                        "Dla KAŻDEGO z poniższych parametrów możesz wpisać konkretną wartość LUB wpisać \"AskUser\", aby to sam użytkownik interaktywnie wskazał/wpisał ten parametr na ekranie CAD.\n" +
+                        " - Dla Line: podaj \"StartPoint\" i \"EndPoint\" w formacie \"(X,Y,Z)\" lub \"AskUser\".\n" +
+                        " - Dla Circle: podaj \"Center\" w formacie \"(X,Y,Z)\" lub \"AskUser\", oraz średnicę \"Diameter\" (jako liczba) lub \"AskUser\".\n" +
+                        " - Dla DBText: podaj \"Position\" \"(X,Y,Z)\" lub \"AskUser\", \"Text\" (ciąg znaków) lub \"AskUser\" oraz \"Height\" (liczba) lub \"AskUser\".\n" +
+                        "Opcjonalnie dla każdego typu możesz podać \"Layer\" oraz \"Color\" - tutaj również działa opcja \"AskUser\"!\n" +
+                        "Opcjonalnie możesz dodać parametr \"SelectObject\": true, co sprawi, że po utworzeniu obiekt od razu zostanie podświetlony i zaznaczony (np. by łatwo zrobić z niego blok w kolejnym kroku bez konieczności używania narzędzia SELECT).\n" +
+                        "Przykład 1 (Automat): [ACTION:CREATE_OBJECT {\"EntityType\": \"Line\", \"StartPoint\": \"(0,0,0)\", \"EndPoint\": \"(100,100,0)\", \"SelectObject\": true}]\n" +
+                        "Przykład 2 (Interakcja): [ACTION:CREATE_OBJECT {\"EntityType\": \"Circle\", \"Center\": \"AskUser\", \"Diameter\": \"AskUser\", \"Layer\": \"AskUser\"}]\n\n" +
+                       
+                        "Tag: [ACTION:CREATE_BLOCK]\n" +
+                        "Opis: Tworzy nowy blok z aktualnie zaznaczonych obiektów (wymaga uprzedniego [SELECT: ]).\n" +
+                        "Argumenty: Musisz podać \"Name\" (Nazwa bloku) oraz \"BasePoint\" (Punkt bazowy - środek bloku).\n" +
+                        "UWAGA: Jeśli nie znasz nazwy, wpisz \"AskUser\". Jeśli chcesz, aby użytkownik wskazał punkt bazowy klikając myszką, również wpisz \"AskUser\".\n" +
+                        "Przykład: [ACTION:CREATE_BLOCK {\"Name\": \"AskUser\", \"BasePoint\": \"AskUser\"}]\n" +
+                        "Przykład 2: [ACTION:CREATE_BLOCK {\"Name\": \"Drzwi_wew\", \"BasePoint\": \"(0,0,0)\"}]\n\n" +
+
 
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
 

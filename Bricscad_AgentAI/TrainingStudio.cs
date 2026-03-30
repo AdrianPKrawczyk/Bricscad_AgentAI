@@ -38,13 +38,15 @@ namespace BricsCAD_Agent
                 {
                     PromptKeywordOptions pko = new PromptKeywordOptions("\nWybierz tag (ENTER dla Select)");
                     pko.Keywords.Add("Select");
+                    pko.Keywords.Add("CreateObj");
+                    pko.Keywords.Add("CREATEBlock");
                     pko.Keywords.Add("SETProps");
                     pko.Keywords.Add("BlockEdit");
                     pko.Keywords.Add("ListBlocks");
                     pko.Keywords.Add("GetPropsLite");
                     pko.Keywords.Add("ReadProp");
                     pko.Keywords.Add("LISTUnique");
-                    pko.Keywords.Add("FULLGETProps"); 
+                    pko.Keywords.Add("FULLGETProps");
                     pko.Keywords.Add("FormatMText");
                     pko.Keywords.Add("UpdateMText");
                     pko.Keywords.Add("EditText");
@@ -63,8 +65,119 @@ namespace BricsCAD_Agent
 
                     string finalTag = "";
 
+                    // --- [CREATE_OBJECT] ---
+                    if (pr.StringResult == "CreateObj")
+                    {
+                        PromptKeywordOptions pkoType = new PromptKeywordOptions("\nWybierz typ obiektu do utworzenia [Line/Circle/DBText]: ");
+                        pkoType.Keywords.Add("Line"); pkoType.Keywords.Add("Circle"); pkoType.Keywords.Add("DBText");
+                        pkoType.Keywords.Default = "Line";
+                        string entityType = ed.GetKeywords(pkoType).StringResult;
+
+                        System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string> { $"\"EntityType\": \"{entityType}\"" };
+
+                        if (entityType == "Line")
+                        {
+                            PromptKeywordOptions pkoSP = new PromptKeywordOptions("\nStartPoint [Wpisz/AskUser]: ");
+                            pkoSP.Keywords.Add("Wpisz"); pkoSP.Keywords.Add("AskUser"); pkoSP.Keywords.Default = "AskUser";
+                            if (ed.GetKeywords(pkoSP).StringResult == "AskUser") argsList.Add("\"StartPoint\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj (X,Y,Z): "); argsList.Add($"\"StartPoint\": \"({ed.GetString(pso).StringResult})\""); }
+
+                            PromptKeywordOptions pkoEP = new PromptKeywordOptions("\nEndPoint [Wpisz/AskUser]: ");
+                            pkoEP.Keywords.Add("Wpisz"); pkoEP.Keywords.Add("AskUser"); pkoEP.Keywords.Default = "AskUser";
+                            if (ed.GetKeywords(pkoEP).StringResult == "AskUser") argsList.Add("\"EndPoint\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj (X,Y,Z): "); argsList.Add($"\"EndPoint\": \"({ed.GetString(pso).StringResult})\""); }
+                        }
+                        else if (entityType == "Circle")
+                        {
+                            PromptKeywordOptions pkoCen = new PromptKeywordOptions("\nCenter [Wpisz/AskUser]: ");
+                            pkoCen.Keywords.Add("Wpisz"); pkoCen.Keywords.Add("AskUser"); pkoCen.Keywords.Default = "AskUser";
+                            if (ed.GetKeywords(pkoCen).StringResult == "AskUser") argsList.Add("\"Center\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj (X,Y,Z): "); argsList.Add($"\"Center\": \"({ed.GetString(pso).StringResult})\""); }
+
+                            // ZMIANA Z RADIUS NA DIAMETER
+                            PromptKeywordOptions pkoDia = new PromptKeywordOptions("\nDiameter (Srednica) [Wpisz/AskUser]: ");
+                            pkoDia.Keywords.Add("Wpisz"); pkoDia.Keywords.Add("AskUser"); pkoDia.Keywords.Default = "AskUser";
+                            if (ed.GetKeywords(pkoDia).StringResult == "AskUser") argsList.Add("\"Diameter\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj Srednice: "); argsList.Add($"\"Diameter\": {ed.GetString(pso).StringResult.Replace(",", ".")}"); }
+                        }
+                        else if (entityType == "DBText")
+                        {
+                            PromptKeywordOptions pkoPos = new PromptKeywordOptions("\nPosition [Wpisz/AskUser]: ");
+                            pkoPos.Keywords.Add("Wpisz"); pkoPos.Keywords.Add("AskUser"); pkoPos.Keywords.Default = "AskUser";
+                            if (ed.GetKeywords(pkoPos).StringResult == "AskUser") argsList.Add("\"Position\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj (X,Y,Z): "); argsList.Add($"\"Position\": \"({ed.GetString(pso).StringResult})\""); }
+
+                            PromptKeywordOptions pkoTxt = new PromptKeywordOptions("\nText [Wpisz/AskUser]: ");
+                            pkoTxt.Keywords.Add("Wpisz"); pkoTxt.Keywords.Add("AskUser"); pkoTxt.Keywords.Default = "AskUser";
+                            if (ed.GetKeywords(pkoTxt).StringResult == "AskUser") argsList.Add("\"Text\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj treść: "); pso.AllowSpaces = true; argsList.Add($"\"Text\": \"{ed.GetString(pso).StringResult}\""); }
+
+                            PromptKeywordOptions pkoH = new PromptKeywordOptions("\nHeight [Wpisz/AskUser/Pomin]: ");
+                            pkoH.Keywords.Add("Wpisz"); pkoH.Keywords.Add("AskUser"); pkoH.Keywords.Add("Pomin"); pkoH.Keywords.Default = "AskUser";
+                            string hOpt = ed.GetKeywords(pkoH).StringResult;
+                            if (hOpt == "AskUser") argsList.Add("\"Height\": \"AskUser\"");
+                            else if (hOpt == "Wpisz") { PromptStringOptions pso = new PromptStringOptions("\nWysokość: "); argsList.Add($"\"Height\": {ed.GetString(pso).StringResult.Replace(",", ".")}"); }
+                        }
+
+                        // Wspólne, opcjonalne parametry
+                        PromptKeywordOptions pkoLay = new PromptKeywordOptions("\nLayer [Wpisz/AskUser/Pomin]: ");
+                        pkoLay.Keywords.Add("Wpisz"); pkoLay.Keywords.Add("AskUser"); pkoLay.Keywords.Add("Pomin"); pkoLay.Keywords.Default = "AskUser";
+                        string layOpt = ed.GetKeywords(pkoLay).StringResult;
+                        if (layOpt == "AskUser") argsList.Add("\"Layer\": \"AskUser\"");
+                        else if (layOpt == "Wpisz") { PromptStringOptions pso = new PromptStringOptions("\nNazwa Warstwy: "); pso.AllowSpaces = true; argsList.Add($"\"Layer\": \"{ed.GetString(pso).StringResult}\""); }
+
+                        PromptKeywordOptions pkoCol = new PromptKeywordOptions("\nColor [Wpisz/AskUser/Pomin]: ");
+                        pkoCol.Keywords.Add("Wpisz"); pkoCol.Keywords.Add("AskUser"); pkoCol.Keywords.Add("Pomin"); pkoCol.Keywords.Default = "AskUser";
+                        string colOpt = ed.GetKeywords(pkoCol).StringResult;
+                        if (colOpt == "AskUser") argsList.Add("\"Color\": \"AskUser\"");
+                        else if (colOpt == "Wpisz") { PromptStringOptions pso = new PromptStringOptions("\nNumer koloru: "); argsList.Add($"\"Color\": {ed.GetString(pso).StringResult}"); }
+
+                        // === NOWOŚĆ: Zaznaczanie utworzonego obiektu ===
+                        PromptKeywordOptions pkoSel = new PromptKeywordOptions("\nCzy ZAZNACZYĆ ten obiekt po utworzeniu? [Tak/Nie]: ");
+                        pkoSel.Keywords.Add("Tak"); pkoSel.Keywords.Add("Nie"); pkoSel.Keywords.Default = "Tak";
+                        if (ed.GetKeywords(pkoSel).StringResult == "Tak") argsList.Add("\"SelectObject\": true");
+                        // ===============================================
+
+                        finalTag = $"[ACTION:CREATE_OBJECT {{{string.Join(", ", argsList)}}}]";
+                    }
+
+                    // --- [CREATE_BLOCK] ---
+                    else if (pr.StringResult == "CREATEBlock")
+                    {
+                        System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string>();
+
+                        PromptKeywordOptions pkoName = new PromptKeywordOptions("\nSkąd wziąć nazwę bloku? [Wpisz_z_palca/AskUser]: ");
+                        pkoName.Keywords.Add("Wpisz_z_palca"); pkoName.Keywords.Add("AskUser"); pkoName.Keywords.Default = "AskUser";
+
+                        if (ed.GetKeywords(pkoName).StringResult == "AskUser")
+                        {
+                            argsList.Add("\"Name\": \"AskUser\"");
+                        }
+                        else
+                        {
+                            PromptStringOptions psoName = new PromptStringOptions("\nPodaj nazwę dla bloku: ");
+                            argsList.Add($"\"Name\": \"{ed.GetString(psoName).StringResult}\"");
+                        }
+
+                        PromptKeywordOptions pkoPt = new PromptKeywordOptions("\nJak ustalić punkt bazowy bloku? [Wpisz_XYZ/AskUser]: ");
+                        pkoPt.Keywords.Add("Wpisz_XYZ"); pkoPt.Keywords.Add("AskUser"); pkoPt.Keywords.Default = "AskUser";
+
+                        if (ed.GetKeywords(pkoPt).StringResult == "AskUser")
+                        {
+                            argsList.Add("\"BasePoint\": \"AskUser\"");
+                        }
+                        else
+                        {
+                            PromptStringOptions psoPt = new PromptStringOptions("\nPodaj współrzędne (X,Y,Z): ");
+                            argsList.Add($"\"BasePoint\": \"({ed.GetString(psoPt).StringResult})\"");
+                        }
+
+                        finalTag = $"[ACTION:CREATE_BLOCK {{{string.Join(", ", argsList)}}}]";
+                    }
+
+
                     // --- [SELECT] ---
-                    if (pr.StringResult == "Select")
+                    else if (pr.StringResult == "Select")
                     {
                         PromptKeywordOptions pkoMode = new PromptKeywordOptions("\nWybierz tryb zaznaczania [New/Add/Remove]: ");
                         pkoMode.Keywords.Add("New"); pkoMode.Keywords.Add("Add"); pkoMode.Keywords.Add("Remove");
@@ -860,7 +973,7 @@ namespace BricsCAD_Agent
                     {
                         finalTag = "[ACTION:LIST_BLOCKS]";
                     }
-                    
+
                     // --- [ADD_ANNO_SCALE] ---
                     else if (pr.StringResult == "AnnoScale")
                     {
@@ -1047,7 +1160,7 @@ namespace BricsCAD_Agent
                     else if (pr.StringResult == "FormatMText")
                     {
                         // --- WYŚWIETLANIE INSTRUKCJI W KONSOLI ---
-                    ed.WriteMessage("\n\n--- OPIS TRYBÓW NARZĘDZIA MTEXT_FORMAT ---");
+                        ed.WriteMessage("\n\n--- OPIS TRYBÓW NARZĘDZIA MTEXT_FORMAT ---");
                         ed.WriteMessage("\n[HighlightWord] - Wyróżnia tylko JEDNO słowo.");
                         ed.WriteMessage("\n  Szuka konkretnego słowa i zmienia formatowanie (kolor/pogrubienie) tylko dla niego, resztę zostawia bez zmian.");
                         ed.WriteMessage("\n  (Wymaga podania szukanego słowa).");
@@ -1082,7 +1195,7 @@ namespace BricsCAD_Agent
 
                         finalTag = $"[ACTION:MTEXT_FORMAT {{{string.Join(", ", argsList)}}}]";
                     }
-                    
+
                     // --- [TEXT EDIT TOOLS] ---
                     else if (pr.StringResult == "UpdateMText" || pr.StringResult == "EditText")
                     {
@@ -1575,13 +1688,46 @@ namespace BricsCAD_Agent
         {
             try
             {
+                // ==========================================
+                // NOWOŚĆ: BEZPOŚREDNIA OBSŁUGA LISP
+                // ==========================================
+                if (wklejonyTag.StartsWith("[LISP:"))
+                {
+                    int startIdx = wklejonyTag.IndexOf("[LISP:") + 6;
+                    int endIdx = wklejonyTag.LastIndexOf("]");
+                    if (endIdx > startIdx)
+                    {
+                        string lispCode = wklejonyTag.Substring(startIdx, endIdx - startIdx).Trim();
+
+                        // Przesyłamy wyczyszczony skrypt do wiersza poleceń BricsCADa
+                        doc.SendStringToExecute(lispCode + " ", true, false, false);
+
+                        return "Wysłano skrypt LISP do wewnętrznego silnika BricsCAD.";
+                    }
+                    return "BŁĄD: Niepoprawny format tagu [LISP: ]";
+                }
+                // ==========================================
+
                 if (wklejonyTag.Contains("[SELECT:"))
                 {
                     // Tu odwołujemy się do metody z klasy Komendy:
                     int wynik = Komendy.WykonajInteligentneZaznaczenie(doc, wklejonyTag);
                     return $"Pomyślnie zaznaczono {wynik} obiekt(ów).";
                 }
-                                
+
+                // --- NOWOŚĆ: Reakcja na tag tworzenia obiektów ---
+                else if (wklejonyTag.Contains("[ACTION:CREATE_OBJECT"))
+                {
+                    CreateObjectTool tool = new CreateObjectTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:CREATE_BLOCK"))
+                {
+                    CreateBlockTool tool = new CreateBlockTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 else if (wklejonyTag.Contains("[ACTION:SET_PROPERTIES"))
                 {
                     SetPropertiesTool tool = new SetPropertiesTool();

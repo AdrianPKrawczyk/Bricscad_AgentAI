@@ -59,6 +59,7 @@
       <DependentUpon>AgentControl.cs</DependentUpon>
     </Compile>
     <Compile Include="AnalyzeSelectionTool.cs" />
+    <Compile Include="CreateBlockTool.cs" />
     <Compile Include="CreateObjectTool.cs" />
     <Compile Include="DatasetManagerControl.cs">
       <SubType>UserControl</SubType>
