@@ -33,6 +33,8 @@ namespace BricsCAD_Agent
         private Button btnThemeToggle;
         private Button btnFormatToggle;
         private Button btnViewToggle;
+        private Button btnCopyToExamples;
+
 
         private const string RegistryPath = @"Software\BricsCADAgentAI\Settings";
 
@@ -116,8 +118,10 @@ namespace BricsCAD_Agent
             txtContent.TextChanged += TxtContent_TextChanged;
 
             Panel panBottomMenu = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(5) };
+
             Button btnTest = new Button { Text = "TESTUJ TAGI", Dock = DockStyle.Left, Width = 120, BackColor = Color.LightSkyBlue };
             btnTest.Click += BtnTest_Click;
+
             Button btnValidateTags = new Button { Text = "Sprawdź Składnię", Dock = DockStyle.Left, Width = 120, BackColor = Color.Khaki };
             btnValidateTags.Click += BtnValidateTags_Click;
 
@@ -127,17 +131,23 @@ namespace BricsCAD_Agent
 
             Button btnClone = new Button { Text = "Klonuj Wpis", Dock = DockStyle.Left, Width = 100, BackColor = Color.Plum };
             btnClone.Click += BtnClone_Click;
+
+            // --- NASZ NOWY PRZYCISK: Kopiuj do przykładów ---
+            Button btnCopyToExamples = new Button { Text = "Kopiuj do przykładów", Dock = DockStyle.Left, Width = 140, BackColor = Color.PaleTurquoise };
+            btnCopyToExamples.Click += BtnCopyToExamples_Click;
             // ----------------------
 
             Button btnUpdate = new Button { Text = "Zatwierdź Zmiany", Dock = DockStyle.Right, Width = 130 };
             btnUpdate.Click += BtnUpdate_Click;
+
             Button btnDelete = new Button { Text = "Usuń z Listy", Dock = DockStyle.Right, Width = 100, BackColor = Color.LightCoral };
             btnDelete.Click += BtnDelete_Click;
 
             panBottomMenu.Controls.Add(btnTest);
             panBottomMenu.Controls.Add(btnValidateTags);
-            panBottomMenu.Controls.Add(btnAddEmpty); // Dodany do panelu
+            panBottomMenu.Controls.Add(btnAddEmpty);
             panBottomMenu.Controls.Add(btnClone);
+            panBottomMenu.Controls.Add(btnCopyToExamples); // <--- Dodajemy do panelu, dokuje do lewej
             panBottomMenu.Controls.Add(btnDelete);
             panBottomMenu.Controls.Add(btnUpdate);
 
@@ -738,5 +748,72 @@ namespace BricsCAD_Agent
             lblStatus.Text = "Test zakończony. Sprawdź okno poleceń CAD.";
             Bricscad.ApplicationServices.Application.MainWindow.Focus();
         }
+
+        // ==========================================================
+        // --- KOPIOWANIE TAGU DO PLIKU PRZYKŁADÓW (IN-CONTEXT) ---
+        // ==========================================================
+        private void BtnCopyToExamples_Click(object sender, EventArgs e)
+        {
+            if (listEntries.SelectedIndex < 0)
+            {
+                MessageBox.Show("Wybierz najpierw tag z listy, który chcesz skopiować!", "Brak zaznaczenia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                string selectedLine = datasetLines[listEntries.SelectedIndex];
+
+                // 1. ŚCIEŻKA ROBOCZA (Tam, gdzie wtyczka DLL aktualnie "żyje" w pamięci)
+                string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string currentDir = System.IO.Path.GetDirectoryName(dllPath);
+                string pathJsonl = System.IO.Path.Combine(currentDir, "Agent_Example_Data.jsonl");
+
+                // AppendAllText automatycznie utworzy plik, jeśli go nie ma
+                System.IO.File.AppendAllText(pathJsonl, selectedLine + Environment.NewLine, System.Text.Encoding.UTF8);
+
+                string wiadomoscSukcesu = "Zapisano roboczo w:\n" + pathJsonl;
+
+                // 2. ŚCIEŻKA ŹRÓDŁOWA (Tropiciel - szuka głównego folderu projektu z kodem)
+                string sourceDir = currentDir;
+                bool znalezionoZrodlo = false;
+
+                // Cofamy się w górę drzewa katalogów tak długo, aż znajdziemy plik AgentCommand.cs
+                while (sourceDir != null)
+                {
+                    if (System.IO.File.Exists(System.IO.Path.Combine(sourceDir, "AgentCommand.cs")))
+                    {
+                        znalezionoZrodlo = true;
+                        break;
+                    }
+                    sourceDir = System.IO.Path.GetDirectoryName(sourceDir);
+                }
+
+                if (znalezionoZrodlo)
+                {
+                    string sourcePathJsonl = System.IO.Path.Combine(sourceDir, "Agent_Example_Data.jsonl");
+                    System.IO.File.AppendAllText(sourcePathJsonl, selectedLine + Environment.NewLine, System.Text.Encoding.UTF8);
+                    wiadomoscSukcesu += "\n\nZapisano źródłowo w:\n" + sourcePathJsonl;
+                }
+                else
+                {
+                    wiadomoscSukcesu += "\n\n(UWAGA: Nie odnaleziono folderu źródłowego z kodem!)";
+                }
+
+                if (lblStatus != null)
+                {
+                    lblStatus.Text = "Sukces: Dodano tag do Agent_Example_Data.jsonl!";
+                    lblStatus.ForeColor = Color.LimeGreen;
+                }
+
+                // Pokazujemy dokładne ścieżki w okienku!
+                MessageBox.Show(wiadomoscSukcesu, "Raport Kopiowania Tagu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas kopiowania: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
     }
 }
