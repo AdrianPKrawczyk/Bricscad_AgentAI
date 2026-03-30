@@ -27,7 +27,7 @@ namespace BricsCAD_Agent
         private static readonly HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMinutes(5) };
         private static List<string> historiaRozmowy = new List<string>();
         private static string wybranyModel = "qwen3.5-9b-instruct";
-
+        public static event Action<string> OnTagGenerated;
 
         // --- MULTI-DOKUMENTOWA PAMIĘĆ ZAZNACZENIA ---
         public static Dictionary<Document, ObjectId[]> PamiecZaznaczenia = new Dictionary<Document, ObjectId[]>();
@@ -77,6 +77,7 @@ namespace BricsCAD_Agent
         new UserChoiceTool(),
         new ManageLayersTool(),
         new SearchLayersTool(),
+        new CreateObjectTool(),
 
         };
 
@@ -219,6 +220,16 @@ namespace BricsCAD_Agent
                         "Opis: Automatyczna wyszukiwarka warstw. Używaj tego ZANIM użyjesz MANAGE_LAYERS, gdy użytkownik prosi o modyfikację/usunięcie warstw po słowie kluczowym (bez wyświetlania mu okienka).\n" +
                         "Dostępne klucze: Condition (Contains/StartsWith/EndsWith/Equals), Value.\n" +
                         "Przykład: [ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"kanalizacja\"}]\n\n" +
+
+                        "Tag: [ACTION:CREATE_OBJECT]\n" +
+                        "Opis: Rysuje/tworzy zupełnie nowe obiekty w przestrzeni rysunku.\n" +
+                        "Argumenty: Musisz podać \"EntityType\" (obsługiwane: \"Line\", \"Circle\", \"DBText\"). Parametry zależą od typu:\n" +
+                        " - Dla Line: podaj \"StartPoint\" i \"EndPoint\" w formacie \"(X,Y,Z)\".\n" +
+                        " - Dla Circle: podaj \"Center\" w formacie \"(X,Y,Z)\" oraz promień \"Radius\" (jako liczba).\n" +
+                        " - Dla DBText: podaj \"Position\" \"(X,Y,Z)\", treść \"Text\" (ciąg znaków) oraz wysokość \"Height\" (liczba).\n" +
+                        "Opcjonalnie do każdego typu możesz podać \"Layer\" (string z nazwą warstwy) oraz \"Color\" (indeks 1-255).\n" +
+                        "Przykład 1: [ACTION:CREATE_OBJECT {\"EntityType\": \"Line\", \"StartPoint\": \"(0,0,0)\", \"EndPoint\": \"(100,100,0)\", \"Layer\": \"Wymiary\"}]\n" +
+                        "Przykład 2: [ACTION:CREATE_OBJECT {\"EntityType\": \"Circle\", \"Center\": \"(50,50,0)\", \"Radius\": 25.5, \"Color\": 1}]\n\n" +
 
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
 
@@ -364,6 +375,8 @@ namespace BricsCAD_Agent
                             // Wymuszamy samonaprawę (odpalamy zapytanie do API jeszcze raz z wytkniętym błędem)
                             return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                         }
+                        // Jeśli tag nie miał błędów, strzelamy nim natychmiast do zakładki Trening!
+                        OnTagGenerated?.Invoke(aiMsg);
                     }
                     // =======================================================================
 
