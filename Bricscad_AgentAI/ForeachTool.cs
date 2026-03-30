@@ -15,7 +15,6 @@ namespace BricsCAD_Agent
             string cleanArgs = jsonArgs.Replace("\\\"", "\"");
             string rawIter = Regex.Match(cleanArgs, @"\""Iterable\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
 
-            // Dzielimy po przecinku, aby obsłużyć wiele list z pamięci
             string[] iterNames = rawIter.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             List<string[]> arrays = new List<string[]>();
 
@@ -36,7 +35,7 @@ namespace BricsCAD_Agent
             string actionName = Regex.Match(cleanArgs, @"\""Action\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
             string templateArgs = Regex.Match(cleanArgs, @"\""TemplateArgs\""\s*:\s*\{(.*?)\}", RegexOptions.Singleline).Groups[1].Value;
 
-            int maxLen = arrays[0].Length;
+            int maxLen = arrays.Count > 0 ? arrays[0].Length : 0;
             for (int i = 0; i < maxLen; i++)
             {
                 string taskArgs = templateArgs.Replace("$INDEX", (i + 1).ToString());
@@ -55,13 +54,12 @@ namespace BricsCAD_Agent
 
                 taskArgs = AgentMemory.InjectVariables(taskArgs);
 
-                // --- NOWE: Ujawnianie błędów z wnętrza pętli ---
+                // --- UJAWNIANIE BŁĘDÓW Z WNĘTRZA PĘTLI ---
                 string wynikIteracji = TrainingStudio.WykonywaczTagow(doc, $"[ACTION:{actionName.ToUpper()} {{{taskArgs}}}]");
                 if (wynikIteracji.StartsWith("BŁĄD"))
                 {
                     doc.Editor.WriteMessage($"\n[Agent AI - Błąd w cyklu {i + 1}]: {wynikIteracji}");
                 }
-                // -----------------------------------------------
             }
             return $"WYNIK FOREACH: Wykonano {maxLen} cykli.";
         }
