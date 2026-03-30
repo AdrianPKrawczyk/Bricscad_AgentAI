@@ -67,6 +67,7 @@
     <Compile Include="EditBlockTool.cs" />
     <Compile Include="GetPropertiesTool.cs" />
     <Compile Include="GetPropertiesToolLite.cs" />
+    <Compile Include="InsertBlockTool.cs" />
     <Compile Include="ListBlocksTool.cs" />
     <Compile Include="ListUniqueTool.cs" />
     <Compile Include="ManageLayersTool.cs" />

@@ -79,6 +79,7 @@ namespace BricsCAD_Agent
         new SearchLayersTool(),
         new CreateObjectTool(),
         new CreateBlockTool(),
+        new InsertBlockTool(),
 
         };
 
@@ -161,8 +162,9 @@ namespace BricsCAD_Agent
                         "Przykład 2 (Dodawanie): [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Center.Z\", \"Operator\": \"+\", \"Value\": 200}]}]\n\n" +
 
                         "Tag: [ACTION:LIST_BLOCKS]\n" +
-                        "Opis: Zwraca listę wszystkich unikalnych (niepowtarzających się) nazw bloków, które znajdują się w aktualnym zaznaczeniu. Narzędzie nie wymaga argumentów.\n" +
-                        "Przykład użycia: [ACTION:LIST_BLOCKS]\n\n" +
+                        "Opis: Zwraca listę unikalnych nazw bloków.\n" +
+                        "Argument 'Scope': Wpisz \"Selection\" (domyślnie), aby sprawdzić, jakie bloki są obecnie zaznaczone, lub \"Database\", aby przeskanować ukrytą pamięć rysunku i wyświetlić absolutnie wszystkie zdefiniowane bloki, które można wstawić narzędziem INSERT_BLOCK.\n" +
+                        "Przykład: [ACTION:LIST_BLOCKS {\"Scope\": \"Database\"}]\n\n" +
 
                         "Tag: [ACTION:MODIFY_GEOMETRY]\n" +
                         "Opis: Fizyczna edycja kształtu i położenia zaznaczonych obiektów (Usuwanie, Przesuwanie, Kopiowanie, Obracanie, Skalowanie). Wymaga parametrów w JSON!\n" +
@@ -241,6 +243,10 @@ namespace BricsCAD_Agent
                         "Przykład: [ACTION:CREATE_BLOCK {\"Name\": \"AskUser\", \"BasePoint\": \"AskUser\"}]\n" +
                         "Przykład 2: [ACTION:CREATE_BLOCK {\"Name\": \"Drzwi_wew\", \"BasePoint\": \"(0,0,0)\"}]\n\n" +
 
+                        "Tag: [ACTION:INSERT_BLOCK]\n" +
+                        "Opis: Wstawia fizycznie blok na rysunek.\n" +
+                        "Argumenty: \"Name\" (nazwa bloku lub \"AskUser\"), \"Position\" (\"(X,Y,Z)\" lub \"AskUser\"). Opcjonalnie: \"Scale\" (liczba domyślnie 1.0), \"Rotation\" (kąt w stopniach domyślnie 0), \"Layer\" (nazwa warstwy) oraz \"SelectObject\": true.\n" +
+                        "Przykład: [ACTION:INSERT_BLOCK {\"Name\": \"Zawor_Kulowy\", \"Position\": \"AskUser\", \"Scale\": 1.0}]\n\n" +
 
                         "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Length\", \"Operator\": \">\", \"Value\": 50}]}]\n" +
 

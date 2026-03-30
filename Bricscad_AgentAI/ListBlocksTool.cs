@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Teigha.DatabaseServices;
 using Bricscad.ApplicationServices;
 
@@ -8,51 +9,70 @@ namespace BricsCAD_Agent
 {
     public class ListBlocksTool : ITool
     {
-        // 1. Wymagane właściwości z interfejsu (to dzięki nim AgentCommand sam rozpoznaje to narzędzie!)
         public string ActionTag => "[ACTION:LIST_BLOCKS]";
-        public string Description => "Zwraca listę wszystkich unikalnych (niepowtarzających się) nazw bloków z aktualnego zaznaczenia. Nie wymaga argumentów JSON.";
 
-        // 2. Główna metoda Execute
+        // Zaktualizowany opis dla interfejsu
+        public string Description => "Zwraca listę unikalnych nazw bloków. Przyjmuje opcjonalny argument {\"Scope\": \"Selection\"|\"Database\"}.";
+
         public string Execute(Document doc, string jsonArgs)
         {
-            // Pobieramy zaznaczenie z pamięci globalnej Agenta, dokładnie tak jak w AnalyzeSelectionTool
-            ObjectId[] ids = Komendy.AktywneZaznaczenie;
+            // Domyślnie szukamy w zaznaczeniu
+            string scope = "Selection";
 
-            if (ids == null || ids.Length == 0)
+            // Jeśli LLM podał argumenty, próbujemy wyciągnąć Scope
+            if (!string.IsNullOrWhiteSpace(jsonArgs))
             {
-                return "WYNIK: Brak zaznaczonych obiektów.";
+                Match mScope = Regex.Match(jsonArgs, @"\""Scope\""\s*:\s*\""([^\""]+)\""");
+                if (mScope.Success) scope = mScope.Groups[1].Value;
             }
 
             HashSet<string> unikalneNazwy = new HashSet<string>();
 
             using (Transaction tr = doc.TransactionManager.StartTransaction())
             {
-                foreach (ObjectId id in ids)
+                if (scope.Equals("Database", StringComparison.OrdinalIgnoreCase))
                 {
-                    Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    if (ent is BlockReference blkRef)
+                    // --- TRYB: SKANOWANIE CAŁEJ PAMIĘCI RYSUNKU ---
+                    BlockTable bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
+                    foreach (ObjectId btrId in bt)
                     {
-                        // Domyślnie bierzemy zwykłą nazwę
-                        string nazwaBloku = blkRef.Name;
+                        BlockTableRecord btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
 
-                        try
+                        // Odfiltrowujemy arkusze (Layouty), bloki anonimowe (zaczynające się od * itp.) i Xrefy
+                        if (!btr.IsLayout && !btr.IsAnonymous && !btr.IsFromExternalReference && !btr.Name.StartsWith("*"))
                         {
-                            // Pobieramy ID definicji bloku dynamicznego
-                            ObjectId dynId = blkRef.DynamicBlockTableRecord;
+                            unikalneNazwy.Add(btr.Name);
+                        }
+                    }
+                }
+                else
+                {
+                    // --- TRYB: SKANOWANIE AKTYWNEGO ZAZNACZENIA (STARE ZACHOWANIE) ---
+                    ObjectId[] ids = Komendy.AktywneZaznaczenie;
 
-                            // UPEWNIAMY SIĘ, że ID nie jest puste (chroni przed eNullObjectId)
-                            if (dynId != ObjectId.Null)
+                    if (ids == null || ids.Length == 0)
+                    {
+                        return "WYNIK: Brak zaznaczonych obiektów. Użyj {\"Scope\": \"Database\"} jeśli chcesz przeszukać pamięć rysunku.";
+                    }
+
+                    foreach (ObjectId id in ids)
+                    {
+                        Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        if (ent is BlockReference blkRef)
+                        {
+                            string nazwaBloku = blkRef.Name;
+                            try
                             {
-                                BlockTableRecord btr = tr.GetObject(dynId, OpenMode.ForRead) as BlockTableRecord;
-                                if (btr != null && !string.IsNullOrEmpty(btr.Name))
+                                ObjectId dynId = blkRef.DynamicBlockTableRecord;
+                                if (dynId != ObjectId.Null)
                                 {
-                                    nazwaBloku = btr.Name; // Nadpisujemy prawdziwą nazwą, jeśli to blok dynamiczny
+                                    BlockTableRecord btr = tr.GetObject(dynId, OpenMode.ForRead) as BlockTableRecord;
+                                    if (btr != null && !string.IsNullOrEmpty(btr.Name)) nazwaBloku = btr.Name;
                                 }
                             }
+                            catch { }
+                            unikalneNazwy.Add(nazwaBloku);
                         }
-                        catch { } // Jeśli cokolwiek pójdzie nie tak z API, program i tak ma już domyślną nazwę
-
-                        unikalneNazwy.Add(nazwaBloku);
                     }
                 }
                 tr.Commit();
@@ -60,7 +80,9 @@ namespace BricsCAD_Agent
 
             if (unikalneNazwy.Count == 0)
             {
-                return "WYNIK: W zaznaczeniu nie znaleziono żadnych bloków.";
+                return scope.Equals("Database", StringComparison.OrdinalIgnoreCase)
+                    ? "WYNIK: Ten rysunek nie posiada jeszcze żadnych zdefiniowanych bloków w pamięci."
+                    : "WYNIK: W zaznaczeniu nie znaleziono żadnych bloków.";
             }
 
             List<string> posortowane = unikalneNazwy.ToList();
@@ -70,7 +92,6 @@ namespace BricsCAD_Agent
             return $"WYNIK: Znaleziono unikalne bloki ({posortowane.Count}): {lista}";
         }
 
-        // 3. Druga wymagana metoda z interfejsu (przekierowuje do głównej z pustym JSON-em)
         public string Execute(Document doc) => Execute(doc, "");
     }
 }

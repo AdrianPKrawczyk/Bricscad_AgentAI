@@ -40,6 +40,7 @@ namespace BricsCAD_Agent
                     pko.Keywords.Add("Select");
                     pko.Keywords.Add("CreateObj");
                     pko.Keywords.Add("CREATEBlock");
+                    pko.Keywords.Add("INSERTBlock");
                     pko.Keywords.Add("SETProps");
                     pko.Keywords.Add("BlockEdit");
                     pko.Keywords.Add("ListBlocks");
@@ -175,6 +176,78 @@ namespace BricsCAD_Agent
                         finalTag = $"[ACTION:CREATE_BLOCK {{{string.Join(", ", argsList)}}}]";
                     }
 
+                    // --- [INSERT_BLOCK] ---
+                    else if (pr.StringResult == "INSERTBlock")
+                    {
+                        System.Collections.Generic.List<string> argsList = new System.Collections.Generic.List<string>();
+
+                        PromptKeywordOptions pkoName = new PromptKeywordOptions("\nSkąd wziąć nazwę bloku? [Wpisz_z_palca/Pobierz_z_rysunku/AskUser]: ");
+                        pkoName.Keywords.Add("Wpisz_z_palca");
+                        pkoName.Keywords.Add("Pobierz_z_rysunku");
+                        pkoName.Keywords.Add("AskUser");
+                        pkoName.Keywords.Default = "Pobierz_z_rysunku";
+
+                        string nameMode = ed.GetKeywords(pkoName).StringResult;
+
+                        if (nameMode == "AskUser")
+                        {
+                            argsList.Add("\"Name\": \"AskUser\"");
+                        }
+                        else if (nameMode == "Pobierz_z_rysunku")
+                        {
+                            // Genialne zastosowanie USER_CHOICE do wyciągnięcia listy dostępnych bloków!
+                            string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz blok do wstawienia:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Database\", \"FetchProperty\": \"Name\"}}]";
+                            
+                            ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE KROKU POŚREDNIEGO (Skanowanie rysunku w poszukiwaniu bloków) ---");
+                            string wynikUC = WykonywaczTagow(doc, ucTag);
+
+                            if (wynikUC.Contains("anulował"))
+                            {
+                                finalTag = "ABORT";
+                            }
+                            else
+                            {
+                                // Zapisujemy ten krok do logów nauki, by Agent widział tok myślenia
+                                historiaSekwencji.Add($"{{\"role\": \"assistant\", \"content\": \"{Komendy.SafeJson(ucTag)}\"}}");
+                                string sysFeedback = $"Oto dane z narzędzia:\n{wynikUC}\n\nKontynuuj zadanie. UŻYJ TAGU [ACTION:INSERT_BLOCK ].";
+                                historiaSekwencji.Add($"{{\"role\": \"user\", \"content\": \"{Komendy.SafeJson(sysFeedback)}\"}}");
+
+                                int lastColonActual = wynikUC.LastIndexOf(':');
+                                if (lastColonActual != -1)
+                                {
+                                    string wytypowanaNazwa = wynikUC.Substring(lastColonActual + 1).Trim();
+                                    argsList.Add($"\"Name\": \"{wytypowanaNazwa}\"");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            PromptStringOptions pso = new PromptStringOptions("\nPodaj nazwę bloku: ");
+                            argsList.Add($"\"Name\": \"{ed.GetString(pso).StringResult}\"");
+                        }
+
+                        // Jeśli użytkownik nie wcisnął ESC, kontynuujemy budowanie tagu
+                        if (finalTag != "ABORT")
+                        {
+                            PromptKeywordOptions pkoPt = new PromptKeywordOptions("\nJak ustalić punkt wstawienia? [Wpisz_XYZ/AskUser]: ");
+                            pkoPt.Keywords.Add("Wpisz_XYZ"); pkoPt.Keywords.Add("AskUser"); pkoPt.Keywords.Default = "AskUser";
+
+                            if (ed.GetKeywords(pkoPt).StringResult == "AskUser") argsList.Add("\"Position\": \"AskUser\"");
+                            else { PromptStringOptions pso = new PromptStringOptions("\nPodaj współrzędne (X,Y,Z): "); argsList.Add($"\"Position\": \"({ed.GetString(pso).StringResult})\""); }
+
+                            string sc = ed.GetString(new PromptStringOptions("\nSkala (domyślnie 1.0, ENTER by pominąć): ")).StringResult;
+                            if (!string.IsNullOrWhiteSpace(sc)) argsList.Add($"\"Scale\": {sc.Replace(",", ".")}");
+
+                            string rot = ed.GetString(new PromptStringOptions("\nObrót w stopniach (domyślnie 0, ENTER by pominąć): ")).StringResult;
+                            if (!string.IsNullOrWhiteSpace(rot)) argsList.Add($"\"Rotation\": {rot.Replace(",", ".")}");
+
+                            PromptKeywordOptions pkoSel = new PromptKeywordOptions("\nCzy ZAZNACZYĆ ten blok po wstawieniu? [Tak/Nie]: ");
+                            pkoSel.Keywords.Add("Tak"); pkoSel.Keywords.Add("Nie"); pkoSel.Keywords.Default = "Tak";
+                            if (ed.GetKeywords(pkoSel).StringResult == "Tak") argsList.Add("\"SelectObject\": true");
+
+                            finalTag = $"[ACTION:INSERT_BLOCK {{{string.Join(", ", argsList)}}}]";
+                        }
+                    }
 
                     // --- [SELECT] ---
                     else if (pr.StringResult == "Select")
@@ -1725,6 +1798,12 @@ namespace BricsCAD_Agent
                 else if (wklejonyTag.Contains("[ACTION:CREATE_BLOCK"))
                 {
                     CreateBlockTool tool = new CreateBlockTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
+                else if (wklejonyTag.Contains("[ACTION:INSERT_BLOCK"))
+                {
+                    InsertBlockTool tool = new InsertBlockTool();
                     return tool.Execute(doc, wklejonyTag);
                 }
 
