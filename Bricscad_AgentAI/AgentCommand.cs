@@ -447,9 +447,9 @@ namespace BricsCAD_Agent
                         else if (aiMsg.Contains("[ACTION:") || aiMsg.Contains("[ANALYZE") || aiMsg.Contains("[READ_SAMPLE"))
                         {
                             // --- PRZERWANIE W TRYBIE TESTOWYM (BENCHMARKING) ---
-                            // Blokujemy WYŁĄCZNIE narzędzia, które proszą użytkownika o kliknięcie/wpisanie w CAD, 
-                            // aby nie zawiesić interfejsu testowego. Pozostałe akcje (rysowanie, edycja) zostaną wykonane!
-                            if (TrybTestowy && (aiMsg.Contains("USER_INPUT") || aiMsg.Contains("USER_CHOICE")))
+                            // Blokujemy narzędzia interaktywne ORAZ wewnętrzne parametry "AskUser", 
+                            // aby okno testowe nie zamroziło interfejsu BricsCADa, czekając na focus myszki!
+                            if (TrybTestowy && (aiMsg.Contains("USER_INPUT") || aiMsg.Contains("USER_CHOICE") || aiMsg.Contains("AskUser")))
                             {
                                 return aiMsg;
                             }
@@ -983,7 +983,11 @@ namespace BricsCAD_Agent
                                 }
                                 else if (wartoscObiektu is Teigha.Geometry.Point3d pt)
                                 {
-                                    valStr = $"({Math.Round(pt.X, 4)},{Math.Round(pt.Y, 4)},{Math.Round(pt.Z, 4)})".Replace(".0000", "").Replace(",0)", ",0,0)");
+                                    // Wymuszamy kropkę jako separator dziesiętny (InvariantCulture) i zaokrąglamy do 4 miejsc
+                                    string ptX = Math.Round(pt.X, 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    string ptY = Math.Round(pt.Y, 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    string ptZ = Math.Round(pt.Z, 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    valStr = $"({ptX},{ptY},{ptZ})";
                                 }
                                 else if (wartoscObiektu is Teigha.DatabaseServices.LineWeight lw)
                                 {
@@ -1053,8 +1057,9 @@ namespace BricsCAD_Agent
                                 {
                                     switch (warunek.Op.ToLower())
                                     {
-                                        case "==": warunekSpelniony = valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
-                                        case "!=": warunekSpelniony = !valStr.Equals(warunek.Val, StringComparison.OrdinalIgnoreCase); break;
+                                        // Usuwamy spacje (Replace) po obu stronach przed porównaniem, by ignorować formatowanie np. "(0, 0, 0)" == "(0,0,0)"
+                                        case "==": warunekSpelniony = valStr.Replace(" ", "").Equals(warunek.Val.Replace(" ", ""), StringComparison.OrdinalIgnoreCase); break;
+                                        case "!=": warunekSpelniony = !valStr.Replace(" ", "").Equals(warunek.Val.Replace(" ", ""), StringComparison.OrdinalIgnoreCase); break;
                                         case "contains": warunekSpelniony = valStr.IndexOf(warunek.Val, StringComparison.OrdinalIgnoreCase) >= 0; break;
                                         case "in":
                                             string[] mozliweWartosci = warunek.Val.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
