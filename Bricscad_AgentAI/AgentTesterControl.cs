@@ -1,12 +1,13 @@
-﻿using System;
+﻿using Bricscad.ApplicationServices;
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Bricscad.ApplicationServices;
 
 namespace BricsCAD_Agent
 {
@@ -20,6 +21,7 @@ namespace BricsCAD_Agent
         public string Comment { get; set; }
         public bool Passed { get; set; }
         public bool IsTested { get; set; }
+        public double ResponseTimeSec { get; set; }
     }
 
     public class AgentTesterControl : UserControl
@@ -34,11 +36,14 @@ namespace BricsCAD_Agent
         private Label lblStatus, lblScore, lblQ;
         private Button btnRunTest, btnReply, btnSaveEvaluation;
         private ComboBox cmbModels; // Rozwijana lista z modelami!
+        private Label lblStats;
+        private double lastResponseTime = 0; // Zmienna tymczasowa do łapania czasu z Mózgu
 
         public AgentTesterControl()
         {
             InitializeUI();
             LoadModelsAsync(); // Od razu ładujemy listę z LM Studio
+            BricsCAD_Agent.Komendy.OnModelStatsUpdated += UpdateStatsUI;
         }
 
         private void InitializeUI()
@@ -144,10 +149,16 @@ namespace BricsCAD_Agent
             split3.Panel2.Controls.Add(lblComm);
             split3.Panel2.Controls.Add(panEval);
 
+            // --- PASEK STATYSTYK (HUD) ---
+            Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 22, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 0, 0, 0) };
+            lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Color.LightGray, Font = new Font("Consolas", 8), TextAlign = ContentAlignment.MiddleLeft, Text = "Gotowy. Czekam na połączenie z LM Studio..." };
+            panStats.Controls.Add(lblStats);
+
             // Składanie w całość
             this.Controls.Add(split1);
             this.Controls.Add(listTests);
             this.Controls.Add(panTop);
+            this.Controls.Add(panStats);
 
             // Automatyczne ustawienie proporcji okien (10% - 10% - 60% - 20%)
             bool proporcjeUstawione = false;
@@ -281,13 +292,14 @@ namespace BricsCAD_Agent
                 // WŁĄCZAMY TRYB TESTOWY, ABY AGENT NIE WYKONYWAŁ FIZYCZNIE AKCJI
                 Komendy.TrybTestowy = true;
 
-             //   using (DocumentLock loc = doc.LockDocument())
-             //   {
-             //       if (Komendy.AktywneZaznaczenie != null) Komendy.AktywneZaznaczenie = new Teigha.DatabaseServices.ObjectId[0];
-             //       doc.Editor.SetImpliedSelection(new Teigha.DatabaseServices.ObjectId[0]);
-             //   }
+                //   using (DocumentLock loc = doc.LockDocument())
+                //   {
+                //       if (Komendy.AktywneZaznaczenie != null) Komendy.AktywneZaznaczenie = new Teigha.DatabaseServices.ObjectId[0];
+                //       doc.Editor.SetImpliedSelection(new Teigha.DatabaseServices.ObjectId[0]);
+                //   }
 
                 string odpowiedz = await Komendy.ZapytajAgentaAsync(t.Question, doc, null);
+                t.ResponseTimeSec = lastResponseTime; // <--- Zapisujemy czas do raportu!
                 txtTag.Text = $"[Polecenie]: {t.Question}\r\n--- AGENT ---\r\n{odpowiedz}";
                 lblStatus.Text = "Agent odpowiedział.";
             }
@@ -400,13 +412,20 @@ namespace BricsCAD_Agent
                     @"\""GeneratedTag\""\s*:\s*\""" + strPattern + @"\""\s*,\s*" +
                     @"\""Comment\""\s*:\s*\""" + strPattern + @"\""\s*,\s*" +
                     @"\""Passed\""\s*:\s*(true|false)\s*,\s*" +
-                    @"\""IsTested\""\s*:\s*(true|false)\s*" +
+                    @"\""IsTested\""\s*:\s*(true|false)" +
+                    @"(?:\s*,\s*\""ResponseTimeSec\""\s*:\s*([0-9.]+))?\s*" + // Opcjonalny odczyt z pliku!
                     @"\}";
 
                 MatchCollection matches = Regex.Matches(content, pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
                 foreach (Match m in matches)
                 {
+                    double responseTime = 0;
+                    if (m.Groups[9].Success && !string.IsNullOrEmpty(m.Groups[9].Value))
+                    {
+                        double.TryParse(m.Groups[9].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out responseTime);
+                    }
+
                     tests.Add(new TestCase
                     {
                         Id = int.Parse(m.Groups[1].Value),
@@ -416,7 +435,8 @@ namespace BricsCAD_Agent
                         GeneratedTag = UnescapeJson(m.Groups[5].Value),
                         Comment = UnescapeJson(m.Groups[6].Value),
                         Passed = m.Groups[7].Value.ToLower() == "true",
-                        IsTested = m.Groups[8].Value.ToLower() == "true"
+                        IsTested = m.Groups[8].Value.ToLower() == "true",
+                        ResponseTimeSec = responseTime // <--- Ładujemy czas!
                     });
                 }
                 RefreshList();
@@ -442,13 +462,29 @@ namespace BricsCAD_Agent
                 sb.AppendLine($"    \"GeneratedTag\": \"{EscapeJson(t.GeneratedTag)}\",");
                 sb.AppendLine($"    \"Comment\": \"{EscapeJson(t.Comment)}\",");
                 sb.AppendLine($"    \"Passed\": {t.Passed.ToString().ToLower()},");
-                sb.AppendLine($"    \"IsTested\": {t.IsTested.ToString().ToLower()}");
+                sb.AppendLine($"    \"IsTested\": {t.IsTested.ToString().ToLower()},"); // Zwróć uwagę na dodany przecinek na końcu tej linijki!
+                sb.AppendLine($"    \"ResponseTimeSec\": {t.ResponseTimeSec.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
                 sb.AppendLine($"  }}{comma}");
             }
             sb.AppendLine("]");
             File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
         }
 
+        private void UpdateStatsUI(int promptTokens, int completionTokens, double timeSec)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => UpdateStatsUI(promptTokens, completionTokens, timeSec)));
+                return;
+            }
+
+            int totalTokens = promptTokens + completionTokens;
+            double speed = timeSec > 0 ? (completionTokens / timeSec) : 0;
+
+            lblStats.Text = $"⏱ Czas: {timeSec:F1}s | 🧠 Kontekst: {promptTokens} tk | ⚡ Prędkość: {speed:F1} t/s | 📝 Wysłano: {completionTokens} tk";
+
+            lastResponseTime = timeSec; // Zapisujemy do zmiennej tymczasowej!
+        }
         private string EscapeJson(string s) => (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r\n", "\\n").Replace("\n", "\\n");
         private string UnescapeJson(string s) => s.Replace("\\\"", "\"").Replace("\\n", "\r\n").Replace("\\\\", "\\");
     }

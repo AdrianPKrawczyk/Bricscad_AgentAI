@@ -9,6 +9,8 @@ using Bricscad.EditorInput;
 using Teigha.DatabaseServices;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using SaveFileDialog = System.Windows.Forms.SaveFileDialog;
 
 namespace BricsCAD_Agent
 {

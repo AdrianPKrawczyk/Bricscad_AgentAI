@@ -3,6 +3,7 @@ using Bricscad.EditorInput;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -11,6 +12,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Teigha.DatabaseServices;
 using Application = Bricscad.ApplicationServices.Application;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using SaveFileDialog = System.Windows.Forms.SaveFileDialog;
 
 namespace Bricscad_AgentAI
 {
@@ -41,6 +44,9 @@ namespace Bricscad_AgentAI
         private List<string> sessionJsonlLines = new List<string>();
         private string lastUserPrompt = "";
 
+        // ---- Statystyki
+        private Label lblStats;
+
         public AgentControl()
         {
             LoadSettingsFromRegistry();
@@ -50,6 +56,7 @@ namespace Bricscad_AgentAI
             // Podpinamy nasłuchiwacz tagów z głównego silnika Agenta
             BricsCAD_Agent.Komendy.OnTagGenerated -= CatchTagForTraining;
             BricsCAD_Agent.Komendy.OnTagGenerated += CatchTagForTraining;
+            BricsCAD_Agent.Komendy.OnModelStatsUpdated += UpdateStatsUI;
         }
 
         private void InitializeModernUI()
@@ -122,6 +129,21 @@ namespace Bricscad_AgentAI
             panInput.Controls.Add(btnReset); // <-- Dodajemy Reset
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnSend);  // <-- Dodajemy Wyślij na samym końcu
+
+            // --- PASEK STATYSTYK (HUD) ---
+            Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 22, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 0, 0, 0) };
+            lblStats = new Label
+            {
+                Dock = DockStyle.Fill,
+                ForeColor = Color.LightGray,
+                Font = new Font("Consolas", 8),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Text = "Gotowy. Czekam na połączenie z LM Studio..."
+            };
+            panStats.Controls.Add(lblStats);
+
+            // UPEWNIJ SIĘ, że dodajesz panele w tej kolejności do tabChat, aby pasek ułożył się nad oknem wpisywania:
+            tabChat.Controls.Add(panStats);
 
             tabChat.Controls.Add(txtHistory);
             tabChat.Controls.Add(panInput);
@@ -272,6 +294,28 @@ namespace Bricscad_AgentAI
                 txtInput.Focus();
             }
         }
+
+        // =========================================================
+        // AKTUALIZACJA HUD (STATYSTYK MODELU)
+        // =========================================================
+        private void UpdateStatsUI(int promptTokens, int completionTokens, double timeSec)
+        {
+            // Wymuszenie wykonania w wątku głównym UI (zapobiega błędom zamrożenia)
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => UpdateStatsUI(promptTokens, completionTokens, timeSec)));
+                return;
+            }
+
+            int totalTokens = promptTokens + completionTokens;
+
+            // Zabezpieczenie przed dzieleniem przez zero
+            double speed = timeSec > 0 ? (completionTokens / timeSec) : 0;
+
+            // Formatowanie ułamków (F1 oznacza 1 miejsce po przecinku)
+            lblStats.Text = $"⏱ Czas: {timeSec:F1}s | 🧠 Kontekst: {promptTokens} tk | ⚡ Prędkość: {speed:F1} t/s | 📝 Wysłano: {completionTokens} tk | 📦 Pamięć: {totalTokens} tk";
+        }
+
 
         // =========================================================
         // AKCJE ZAKŁADKI "LOGI TAGÓW" (Testowanie, Update, Usuwanie)

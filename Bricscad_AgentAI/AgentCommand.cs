@@ -29,6 +29,7 @@ namespace BricsCAD_Agent
         public static string wybranyModel = "qwen3.5-9b-instruct";
         public static event Action<string> OnTagGenerated;
         public static bool TrybTestowy = false;
+        public static event Action<int, int, double> OnModelStatsUpdated;
 
         // --- MULTI-DOKUMENTOWA PAMIĘĆ ZAZNACZENIA ---
         public static Dictionary<Document, ObjectId[]> PamiecZaznaczenia = new Dictionary<Document, ObjectId[]>();
@@ -330,8 +331,30 @@ namespace BricsCAD_Agent
                 string jsonBody = "{\"model\": \"" + wybranyModel + "\", \"messages\": [" + string.Join(",", historiaRozmowy) + "], \"temperature\": 0.1, \"stream\": false}";
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
+                // Odpalamy stoper
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
+
+                // Wysyłamy zapytanie
                 var response = await client.PostAsync("http://127.0.0.1:1234/v1/chat/completions", content);
-                string aiMsg = new Komendy().WyciagnijContentZJson(await response.Content.ReadAsStringAsync());
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+
+                // Zatrzymujemy stoper
+                sw.Stop();
+                double elapsedSec = sw.Elapsed.TotalSeconds;
+
+                // Wyciągamy samą wiadomość
+                string aiMsg = new Komendy().WyciagnijContentZJson(jsonResponse);
+
+                // --- WYCIĄGANIE STATYSTYK Z LM STUDIO ---
+                int pTokens = 0, cTokens = 0;
+                var mPrompt = Regex.Match(jsonResponse, @"""prompt_tokens""\s*:\s*(\d+)");
+                var mComp = Regex.Match(jsonResponse, @"""completion_tokens""\s*:\s*(\d+)");
+                if (mPrompt.Success) int.TryParse(mPrompt.Groups[1].Value, out pTokens);
+                if (mComp.Success) int.TryParse(mComp.Groups[1].Value, out cTokens);
+
+                // Wysyłamy statystyki do interfejsu (jeśli cokolwiek odebrano)
+                if (pTokens > 0) OnModelStatsUpdated?.Invoke(pTokens, cTokens, elapsedSec);
 
                 if (aiMsg.Contains("</think>")) aiMsg = aiMsg.Substring(aiMsg.LastIndexOf("</think>") + 8).Trim();
 
@@ -483,20 +506,66 @@ namespace BricsCAD_Agent
 
                                     // Odpalamy narzędzie przez Refleksję, ale tym razem dajemy mu tylko parametry (args)
                                     var methodInfo = tool.GetType().GetMethod("Execute", new Type[] { typeof(Document), typeof(string) });
-                                    if (methodInfo != null)
+
+                                    // --- POPRAWKA 1: ODDANIE FOCUSU DO BricsCADa ---
+                                    // Zapobiega natychmiastowemu anulowaniu (Anuluj) i rysowaniu ramek wyboru ("Przeciwległy narożnik")
+                                    bool wymagaInterakcji = aiMsg.Contains("USER_INPUT") || aiMsg.Contains("USER_CHOICE") || aiMsg.Contains("AskUser");
+
+                                    Bricscad.EditorInput.EditorUserInteraction ui = null;
+                                    if (wymagaInterakcji)
                                     {
-                                        wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, args });
+                                        // 1. Zmuszamy BricsCAD do przeniesienia kursora na obszar rysunku (naprawia problem z "Anuluj")
+                                        try { Bricscad.ApplicationServices.Application.MainWindow.Focus(); } catch { }
+
+                                        if (interfejsAgenta != null)
+                                        {
+                                            try
+                                            {
+                                                // 2. Funkcja API wymaga głównego okna (Form), a nie kontrolki (UserControl)
+                                                System.Windows.Forms.Form topForm = interfejsAgenta.FindForm();
+                                                if (topForm != null)
+                                                {
+                                                    ui = doc.Editor.StartUserInteraction(topForm);
+                                                }
+                                            }
+                                            catch (System.Exception)
+                                            {
+                                                // 3. Tarcza: Cicho ignorujemy narzekanie BricsCADa ("Form is not active")
+                                                // Okno i tak dostało focus w punkcie 1, więc polecenie wykona się poprawnie!
+                                            }
+                                        }
                                     }
-                                    else
+
+                                    try
                                     {
-                                        wynikNarzedzia = tool.Execute(doc);
+                                        if (methodInfo != null)
+                                        {
+                                            wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, args });
+                                        }
+                                        else
+                                        {
+                                            wynikNarzedzia = tool.Execute(doc);
+                                        }
                                     }
+                                    finally
+                                    {
+                                        // Zawsze przywracamy focus i działanie palety po kliknięciu lub błędzie!
+                                        if (ui != null)
+                                        {
+                                            ui.Dispose();
+                                        }
+                                    }
+
+                                    // --- POPRAWKA 2: PRZYWRÓCONY BRAKUJĄCY WARUNEK 'IF' ---
+                                    // Rekursja w tle tylko dla narzędzi, które odczytały konkretne dane dla LLM
+                                    if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                     {
                                         historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
                                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
 
-                                    //return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
+                                    // Odblokowano poprawny return po wykonaniu akcji nierekursywnych (np. CREATE_OBJECT)
+                                    return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
                                 }
                             }
                         }
