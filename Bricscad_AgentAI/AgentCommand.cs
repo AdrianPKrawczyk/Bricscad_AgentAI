@@ -29,6 +29,65 @@ namespace BricsCAD_Agent
         public static string wybranyModel = "qwen3.5-9b-instruct";
         public static event Action<string> OnTagGenerated;
         public static bool TrybTestowy = false;
+
+        // =========================================================================
+        // MAGICZNY WRAPPER: BEZPIECZNE WYKONYWANIE KODU NA GŁÓWNYM WĄTKU CAD
+        // =========================================================================
+        // =========================================================================
+        // MAGICZNY WRAPPER V2: NIEZNISZCZALNA KOLEJKA POLECEŃ (COMMAND CONTEXT)
+        // =========================================================================
+        private static Func<object> AktualneZadanieCAD = null;
+        private static Action<object, System.Exception> CallbackZadaniaCAD = null;
+
+        public static Task<T> WykonajWCADAsync<T>(Func<T> akcjaCAD)
+        {
+            var tcs = new TaskCompletionSource<T>();
+
+            // 1. Zapisujemy to, co Agent chce zrobić, w globalnej pamięci
+            AktualneZadanieCAD = () => { return akcjaCAD(); };
+            CallbackZadaniaCAD = (wynik, ex) =>
+            {
+                if (ex != null) tcs.SetException(ex);
+                else tcs.SetResult((T)wynik);
+            };
+
+            // 2. Przekazujemy focus głównemu oknu BricsCADa
+            try { Bricscad.ApplicationServices.Application.MainWindow.Focus(); } catch { }
+
+            // 3. Wpisujemy ukrytą komendę, zmuszając CADa do wejścia w rygorystyczny tryb pracy!
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            doc.SendStringToExecute("_AGENT_RUN_TOOL\n", true, false, false);
+
+            return tcs.Task;
+        }
+
+        // =========================================================================
+        // WŁAŚCIWA KOMENDA WYKONAWCZA (Otwiera oficjalny kanał komunikacji dla myszki)
+        // =========================================================================
+        [CommandMethod("AGENT_RUN_TOOL", CommandFlags.Redraw)]
+        public void AgentRunToolCommand()
+        {
+            if (AktualneZadanieCAD != null && CallbackZadaniaCAD != null)
+            {
+                try
+                {
+                    // Tutaj faktycznie odpala się narzędzie (np. pobieranie punktów GetPoint)
+                    object wynik = AktualneZadanieCAD();
+                    CallbackZadaniaCAD(wynik, null); // Odsyłamy sukces do asynchronicznego Agenta
+                }
+                catch (System.Exception ex)
+                {
+                    CallbackZadaniaCAD(null, ex); // Odsyłamy błąd
+                }
+                finally
+                {
+                    // Czyścimy kolejkę
+                    AktualneZadanieCAD = null;
+                    CallbackZadaniaCAD = null;
+                }
+            }
+        }
+
         public static event Action<int, int, double> OnModelStatsUpdated;
 
         // --- MULTI-DOKUMENTOWA PAMIĘĆ ZAZNACZENIA ---
@@ -442,14 +501,17 @@ namespace BricsCAD_Agent
                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                     }
 
-                    // Blokada dokumentu dla operacji modyfikujących CAD
-                    using (DocumentLock docLock = doc.LockDocument())
-                    {
-                        if (przechwyconeZaznaczenie != null && przechwyconeZaznaczenie.Length > 0)
-                        {
-                            doc.Editor.SetImpliedSelection(przechwyconeZaznaczenie);
-                        }
+                    // --- DODANA DEKLARACJA ZMIENNEJ ---
+                    bool wymagaInterakcji = aiMsg.Contains("USER_INPUT") || aiMsg.Contains("USER_CHOICE") || aiMsg.Contains("AskUser");
 
+                    DocumentLock globalLock = null;
+                    if (!wymagaInterakcji || aiMsg.Contains("[SELECT:") || aiMsg.Contains("[LISP:"))
+                    {
+                        globalLock = doc.LockDocument();
+                    }
+
+                    try
+                    {
                         // 2. OBSŁUGA ZAZNACZANIA (SELECT)
                         if (aiMsg.Contains("[SELECT:"))
                         {
@@ -457,11 +519,13 @@ namespace BricsCAD_Agent
                             int end = aiMsg.LastIndexOf("}");
                             if (start != -1 && end > start)
                             {
-                                int zaznaczoneLiczba = Komendy.WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start + 1));
+                                // Wrzucamy zaznaczanie do bezpiecznej kolejki CAD
+                                int zaznaczoneLiczba = await WykonajWCADAsync(() => {
+                                    return Komendy.WykonajInteligentneZaznaczenie(doc, aiMsg.Substring(start, end - start + 1));
+                                });
 
                                 string sysOdp = $"[SYSTEM]: Pomyślnie zaznaczono {zaznaczoneLiczba} obiekt(ów). Jeśli masz wykonać akcję na zaznaczeniu użyj [ACTION: ], w przeciwnym razie opisz wynik za pomocą [MSG: ].";
                                 historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(sysOdp) + "\"}");
-
                                 return await ZapytajAgentaAsync("", doc, AktywneZaznaczenie);
                             }
                         }
@@ -483,12 +547,11 @@ namespace BricsCAD_Agent
                                 string pelnySzukany = tool.ActionTag.Replace("]", ""); // np. "[ACTION:ANALYZE"
                                 string krotkiSzukany = tool.ActionTag.Replace("[ACTION:", "[").Replace("]", ""); // np. "[ANALYZE"
 
-                                // Sprawdzamy czy wygenerowany tekst zawiera fragment szukanego narzędzia
                                 if (aiMsg.Contains(pelnySzukany) || aiMsg.Contains(krotkiSzukany))
                                 {
-                                    string wynikNarzedzia = "";
-
-                                    // --- ZABEZPIECZENIE: WYCIĄGAMY TYLKO CZYSTY JSON Z TAGU ---
+                                    // ==========================================================
+                                    // 1. NAJPIERW WYCIĄGAMY PARAMETRY (ARGS)
+                                    // ==========================================================
                                     string args = "";
                                     int startArgs = -1;
 
@@ -504,67 +567,42 @@ namespace BricsCAD_Agent
                                         args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
                                     }
 
-                                    // Odpalamy narzędzie przez Refleksję, ale tym razem dajemy mu tylko parametry (args)
+                                    // ==========================================================
+                                    // 2. NASTĘPNIE SZUKAMY METODY (METHODINFO)
+                                    // ==========================================================
                                     var methodInfo = tool.GetType().GetMethod("Execute", new Type[] { typeof(Document), typeof(string) });
 
-                                    // --- POPRAWKA 1: ODDANIE FOCUSU DO BricsCADa ---
-                                    // Zapobiega natychmiastowemu anulowaniu (Anuluj) i rysowaniu ramek wyboru ("Przeciwległy narożnik")
-                                    bool wymagaInterakcji = aiMsg.Contains("USER_INPUT") || aiMsg.Contains("USER_CHOICE") || aiMsg.Contains("AskUser");
+                                    // ==========================================================
+                                    // 3. DOPIERO TERAZ WYKONUJEMY KOD (MAJĄC ZMIENNE)
+                                    // ==========================================================
+                                    string wynikNarzedzia = await WykonajWCADAsync(() => {
 
-                                    Bricscad.EditorInput.EditorUserInteraction ui = null;
-                                    if (wymagaInterakcji)
-                                    {
-                                        // 1. Zmuszamy BricsCAD do przeniesienia kursora na obszar rysunku (naprawia problem z "Anuluj")
-                                        try { Bricscad.ApplicationServices.Application.MainWindow.Focus(); } catch { }
-
-                                        if (interfejsAgenta != null)
+                                        // Oddanie focusu (wymagaInterakcji jest obliczane wyżej przed pętlą)
+                                        if (wymagaInterakcji)
                                         {
-                                            try
-                                            {
-                                                // 2. Funkcja API wymaga głównego okna (Form), a nie kontrolki (UserControl)
-                                                System.Windows.Forms.Form topForm = interfejsAgenta.FindForm();
-                                                if (topForm != null)
-                                                {
-                                                    ui = doc.Editor.StartUserInteraction(topForm);
-                                                }
-                                            }
-                                            catch (System.Exception)
-                                            {
-                                                // 3. Tarcza: Cicho ignorujemy narzekanie BricsCADa ("Form is not active")
-                                                // Okno i tak dostało focus w punkcie 1, więc polecenie wykona się poprawnie!
-                                            }
+                                            try { Bricscad.ApplicationServices.Application.MainWindow.Focus(); } catch { }
                                         }
-                                    }
 
-                                    try
-                                    {
+                                        // Wykonanie narzędzia
                                         if (methodInfo != null)
                                         {
-                                            wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, args });
+                                            return (string)methodInfo.Invoke(tool, new object[] { doc, args });
                                         }
                                         else
                                         {
-                                            wynikNarzedzia = tool.Execute(doc);
+                                            return tool.Execute(doc);
                                         }
-                                    }
-                                    finally
-                                    {
-                                        // Zawsze przywracamy focus i działanie palety po kliknięciu lub błędzie!
-                                        if (ui != null)
-                                        {
-                                            ui.Dispose();
-                                        }
-                                    }
+                                    });
 
-                                    // --- POPRAWKA 2: PRZYWRÓCONY BRAKUJĄCY WARUNEK 'IF' ---
-                                    // Rekursja w tle tylko dla narzędzi, które odczytały konkretne dane dla LLM
+                                    // ==========================================================
+                                    // 4. OBSŁUGA WYNIKU I REKURENCJA
+                                    // ==========================================================
                                     if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                     {
                                         historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
                                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
 
-                                    // Odblokowano poprawny return po wykonaniu akcji nierekursywnych (np. CREATE_OBJECT)
                                     return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
                                 }
                             }
@@ -580,9 +618,17 @@ namespace BricsCAD_Agent
                                 doc.SendStringToExecute(lisp + "\n", true, false, false);
                             }
                         }
+                        return aiMsg;
+                    }
+                    finally
+                    {
+                        // Zdejmujemy globalną blokadę po zakończeniu pracy (jeśli była założona)
+                        if (globalLock != null)
+                        {
+                            globalLock.Dispose();
+                        }
                     }
 
-                    return aiMsg;
                 }
             }
             catch (System.Exception ex)

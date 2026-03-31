@@ -54,12 +54,14 @@ namespace BricsCAD_Agent
                 }
 
                 // 3. Właściwa logika Bazy Danych
-                using (Transaction tr = db.TransactionManager.StartTransaction())
+                using (DocumentLock dl = doc.LockDocument()) // <--- DODANA LOKALNA BLOKADA
                 {
-                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    using (Transaction tr = db.TransactionManager.StartTransaction())
+                    {
+                        BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
 
-                    // Zabezpieczenie przed nadpisaniem istniejącego bloku
-                    if (bt.Has(blockName))
+                        // Zabezpieczenie przed nadpisaniem istniejącego bloku
+                        if (bt.Has(blockName))
                     {
                         return $"BŁĄD: Blok o nazwie '{blockName}' już istnieje w rysunku.";
                     }
@@ -93,12 +95,13 @@ namespace BricsCAD_Agent
 
                     tr.Commit();
 
-                    // Czyścimy pamięć zaznaczenia, bo oryginalne obiekty wyleciały z rysunku
-                    Komendy.AktywneZaznaczenie = new ObjectId[0];
+                        // Czyścimy pamięć zaznaczenia, bo oryginalne obiekty wyleciały z rysunku
+                        Komendy.AktywneZaznaczenie = new ObjectId[0];
 
-                    return $"WYNIK: Pomyślnie utworzono blok '{blockName}' z {idsToClone.Count} obiektów i zamieniono zaznaczenie na to odniesienie bloku.";
-                }
-            }
+                        return $"WYNIK: Pomyślnie utworzono blok '{blockName}' z {idsToClone.Count} obiektów i zamieniono zaznaczenie na to odniesienie bloku.";
+                    } // To zamyka Transaction
+                } // <--- TUTAJ DODAJ BRAKUJĄCĄ KLAMRĘ (Ona zamyka DocumentLock)
+            } // To zamyka blok try
             catch (Exception ex)
             {
                 return $"BŁĄD narzędzia CREATE_BLOCK: {ex.Message}";

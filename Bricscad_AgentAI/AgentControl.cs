@@ -258,6 +258,72 @@ namespace Bricscad_AgentAI
 
             flowSettings.Controls.Add(btnThemeToggle);
             flowSettings.Controls.Add(lblInfo);
+
+            // ==========================================
+            // NARZĘDZIE DIAGNOSTYCZNE GETPOINT
+            // ==========================================
+            Button btnDebug = new Button
+            {
+                Text = "🛠 URUCHOM DIAGNOSTYKĘ GETPOINT",
+                Width = 250,
+                Height = 45,
+                BackColor = Color.DarkOrange,
+                ForeColor = Color.Black,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Margin = new Padding(0, 30, 0, 0),
+                Cursor = Cursors.Hand
+            };
+
+            btnDebug.Click += async (s, e) =>
+            {
+                Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                Editor ed = doc.Editor;
+                ed.WriteMessage("\n\n=============== START DIAGNOSTYKI ===============");
+
+                // TEST 1: Zwykły GetPoint (Zapewne anuluje od razu)
+                try
+                {
+                    ed.WriteMessage("\n[TEST 1] Zwykły GetPoint... ");
+                    var res1 = ed.GetPoint("\nKliknij punkt (TEST 1): ");
+                    ed.WriteMessage($"Wynik: {res1.Status}");
+                }
+                catch (Exception ex) { ed.WriteMessage($"Błąd: {ex.Message}"); }
+
+                // TEST 2: Wymuszony Focus + StartUserInteraction (Test przejęcia kontroli)
+                try
+                {
+                    ed.WriteMessage("\n[TEST 2] Focus() + StartUserInteraction... ");
+                    Bricscad.ApplicationServices.Application.MainWindow.Focus();
+                    using (ed.StartUserInteraction(this))
+                    {
+                        var res2 = ed.GetPoint("\nKliknij punkt (TEST 2): ");
+                        ed.WriteMessage($"Wynik: {res2.Status}");
+                    }
+                }
+                catch (Exception ex) { ed.WriteMessage($"Błąd: {ex.Message}"); }
+
+                // TEST 3: Odtworzenie zachowania LLM (Asynchroniczna pułapka!)
+                try
+                {
+                    ed.WriteMessage("\n[TEST 3] Symulacja zapytania do AI (Czekam 1 sek)... ");
+
+                    // Ta linijka zachowuje się dokładnie tak jak await client.PostAsync
+                    await Task.Delay(1000);
+
+                    Bricscad.ApplicationServices.Application.MainWindow.Focus();
+                    using (ed.StartUserInteraction(this))
+                    {
+                        var res3 = ed.GetPoint("\nKliknij punkt (TEST 3): ");
+                        ed.WriteMessage($"Wynik: {res3.Status}");
+                    }
+                }
+                catch (Exception ex) { ed.WriteMessage($"Błąd: {ex.Message}"); }
+
+                ed.WriteMessage("\n=============== KONIEC DIAGNOSTYKI ===============\n");
+            };
+
+            flowSettings.Controls.Add(btnDebug);
+
             tabSettings.Controls.Add(flowSettings);
 
             // Dodajemy zakładki do kontrolki głównej
