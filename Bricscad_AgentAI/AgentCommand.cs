@@ -141,6 +141,7 @@ namespace BricsCAD_Agent
         new CreateObjectTool(),
         new CreateBlockTool(),
         new InsertBlockTool(),
+        new ForeachTool(),
 
 
         };
@@ -289,6 +290,7 @@ namespace BricsCAD_Agent
                 "1. ZAKAZ ZMYŚLANIA ZAZNACZEŃ! ZAWSZE użyj [SELECT: ...], zanim cokolwiek edytujesz lub odczytasz za pomocą ACTION.\n" +
                 "2. ZAKAZ RYSOWANIA, GDY UŻYTKOWNIK CHCE ZAZNACZYĆ! Słowa 'dodaj do zaznaczenia' (add to selection) to komenda [SELECT: ... {\"Mode\": \"Add\"}].\n" +
                 "3. Komentuj swoje intencje! Dodawaj opcjonalny parametr \"Comment\": \"Twój komentarz\" do każdego JSONa w tagach SELECT i ACTION, by wyjaśnić swój proces myślowy.\n\n" +
+                "4. ZAKAZ ŁĄCZENIA TAGÓW! W jednej odpowiedzi możesz wygenerować TYLKO JEDEN tag [ACTION] lub [SELECT]. Zawsze czekaj na słowo 'WYNIK' z pierwszego narzędzia, zanim użyjesz kolejnego!\n\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
 
@@ -560,11 +562,31 @@ namespace BricsCAD_Agent
                                     else if (aiMsg.Contains(krotkiSzukany))
                                         startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(krotkiSzukany));
 
-                                    int endArgs = aiMsg.LastIndexOf("}");
+                                    int endArgs = -1;
+                                    if (startArgs != -1)
+                                    {
+                                        int licznikNawiasow = 0;
+                                        for (int i = startArgs; i < aiMsg.Length; i++)
+                                        {
+                                            if (aiMsg[i] == '{') licznikNawiasow++;
+                                            else if (aiMsg[i] == '}')
+                                            {
+                                                licznikNawiasow--;
+                                                if (licznikNawiasow == 0) // Znaleźliśmy idealne zamknięcie tego konkretnego tagu!
+                                                {
+                                                    endArgs = i;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     if (startArgs != -1 && endArgs > startArgs)
                                     {
                                         args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
+
+                                        // Wstrzykujemy zapisane wartości z pamięci
+                                        args = BricsCAD_Agent.AgentMemory.InjectVariables(args);
                                     }
 
                                     // ==========================================================
@@ -597,9 +619,13 @@ namespace BricsCAD_Agent
                                     // ==========================================================
                                     // 4. OBSŁUGA WYNIKU I REKURENCJA
                                     // ==========================================================
-                                    if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
+                                    // Dodajemy obsługę prefiksu [ZAPISANO...] z narzędzia SearchLayers
+                                    if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano") || wynikNarzedzia.StartsWith("BŁĄD") || wynikNarzedzia.StartsWith("[ZAPISANO"))
                                     {
-                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
+                                        // Ulepszony Prompt Rekursywny: Uczy Agenta, że może używać kolejnych narzędzi w łańcuchu!
+                                        string zacheta = $"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie krok po kroku. Jeśli musisz wykonać kolejną akcję, użyj tagu [ACTION: ...]. Jeśli zadanie jest w pełni zakończone, opisz wynik za pomocą [MSG: ...].";
+
+                                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(zacheta) + "\"}");
                                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
 

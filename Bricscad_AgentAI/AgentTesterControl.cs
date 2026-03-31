@@ -290,7 +290,7 @@ namespace BricsCAD_Agent
                 Komendy.historiaRozmowy.Clear();
 
                 // WŁĄCZAMY TRYB TESTOWY, ABY AGENT NIE WYKONYWAŁ FIZYCZNIE AKCJI
-                Komendy.TrybTestowy = true;
+                //Komendy.TrybTestowy = true;
 
                 //   using (DocumentLock loc = doc.LockDocument())
                 //   {
@@ -311,7 +311,7 @@ namespace BricsCAD_Agent
             finally
             {
                 // OBOWIĄZKOWO WYŁĄCZAMY TRYB TESTOWY PO ZAKOŃCZENIU
-                Komendy.TrybTestowy = false;
+                //Komendy.TrybTestowy = false;
 
                 btnRunTest.Text = "🚀 WYŚLIJ POLECENIE DO AGENTA (Start Testu)";
                 btnRunTest.Enabled = true;
