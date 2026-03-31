@@ -22,6 +22,7 @@ namespace Bricscad_AgentAI
         private RichTextBox txtHistory;
         private RichTextBox txtInput;
         private Button btnSend;
+        private Button btnReset;
 
         // --- UI Logi Tagów ---
         private ListBox listTags;
@@ -97,12 +98,30 @@ namespace Bricscad_AgentAI
             btnSend.FlatAppearance.BorderSize = 0;
             btnSend.Click += btnSend_Click;
 
+            // --- NOWY PRZYCISK RESET ---
+            btnReset = new Button
+            {
+                Text = "Reset\nPamięci",
+                Dock = DockStyle.Right,
+                Width = 80,
+                BackColor = Color.Crimson,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnReset.FlatAppearance.BorderSize = 0;
+            btnReset.Click += BtnReset_Click;
+            // --------------------------
+
             Panel inputBorder = new Panel { Dock = DockStyle.Fill, Padding = new Padding(1), BackColor = Color.Gray };
             inputBorder.Controls.Add(txtInput);
 
+            // --- ZMIENIONA KOLEJNOŚĆ (Aby Reset był obok Wyślij) ---
             panInput.Controls.Add(inputBorder);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
-            panInput.Controls.Add(btnSend);
+            panInput.Controls.Add(btnReset); // <-- Dodajemy Reset
+            panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panInput.Controls.Add(btnSend);  // <-- Dodajemy Wyślij na samym końcu
 
             tabChat.Controls.Add(txtHistory);
             tabChat.Controls.Add(panInput);
@@ -232,6 +251,26 @@ namespace Bricscad_AgentAI
             // ---------------------------------
 
             this.Controls.Add(tabControl);
+        }
+
+        // =========================================================
+        // AKCJA RESETU PAMIĘCI
+        // =========================================================
+        private void BtnReset_Click(object sender, EventArgs e)
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc != null)
+            {
+                // Wywołujemy publiczną metodę resetu z AgentCommand.cs
+                BricsCAD_Agent.Komendy.ResetujPamiec(doc);
+
+                // Zostawiamy ślad w oknie czatu
+                AppendToHistory("SYSTEM", "Pamięć Agenta została wyczyszczona. Persona zresetowana.", isDarkMode ? Color.Orange : Color.DarkOrange);
+
+                // Czyścimy ewentualny rozgrzebany tekst
+                txtInput.Clear();
+                txtInput.Focus();
+            }
         }
 
         // =========================================================

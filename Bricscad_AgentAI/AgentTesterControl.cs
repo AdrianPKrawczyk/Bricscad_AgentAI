@@ -254,12 +254,14 @@ namespace BricsCAD_Agent
             {
                 Komendy.historiaRozmowy.Clear();
 
-                // NAPRAWA BŁĘDU KOMUNIKACJI: Wymagana blokada dokumentu dla zmiany zaznaczenia z poziomu okienka!
-                using (DocumentLock loc = doc.LockDocument())
-                {
-                    if (Komendy.AktywneZaznaczenie != null) Komendy.AktywneZaznaczenie = new Teigha.DatabaseServices.ObjectId[0];
-                    doc.Editor.SetImpliedSelection(new Teigha.DatabaseServices.ObjectId[0]);
-                }
+                // WŁĄCZAMY TRYB TESTOWY, ABY AGENT NIE WYKONYWAŁ FIZYCZNIE AKCJI
+                Komendy.TrybTestowy = true;
+
+             //   using (DocumentLock loc = doc.LockDocument())
+             //   {
+             //       if (Komendy.AktywneZaznaczenie != null) Komendy.AktywneZaznaczenie = new Teigha.DatabaseServices.ObjectId[0];
+             //       doc.Editor.SetImpliedSelection(new Teigha.DatabaseServices.ObjectId[0]);
+             //   }
 
                 string odpowiedz = await Komendy.ZapytajAgentaAsync(t.Question, doc, null);
                 txtTag.Text = $"[Polecenie]: {t.Question}\r\n--- AGENT ---\r\n{odpowiedz}";
@@ -272,6 +274,9 @@ namespace BricsCAD_Agent
             }
             finally
             {
+                // OBOWIĄZKOWO WYŁĄCZAMY TRYB TESTOWY PO ZAKOŃCZENIU
+                Komendy.TrybTestowy = false;
+
                 btnRunTest.Text = "🚀 WYŚLIJ POLECENIE DO AGENTA (Start Testu)";
                 btnRunTest.Enabled = true;
             }

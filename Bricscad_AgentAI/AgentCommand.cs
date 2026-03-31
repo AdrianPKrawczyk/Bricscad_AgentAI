@@ -28,6 +28,7 @@ namespace BricsCAD_Agent
         public static List<string> historiaRozmowy = new List<string>();
         public static string wybranyModel = "qwen3.5-9b-instruct";
         public static event Action<string> OnTagGenerated;
+        public static bool TrybTestowy = false;
 
         // --- MULTI-DOKUMENTOWA PAMIĘĆ ZAZNACZENIA ---
         public static Dictionary<Document, ObjectId[]> PamiecZaznaczenia = new Dictionary<Document, ObjectId[]>();
@@ -296,7 +297,7 @@ namespace BricsCAD_Agent
         // =========================================================================================
         // NOWY ASYNCHRONICZNY MÓZG AGENTA (DLA OKIENKA)
         // =========================================================================================
-        public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc, ObjectId[] przechwyconeZaznaczenie = null)
+        public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc, ObjectId[] przechwyconeZaznaczenie = null, int licznikNapraw = 0)
         {
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
@@ -317,7 +318,11 @@ namespace BricsCAD_Agent
             // Zapobiega dodawaniu pustych wiadomości przy automatycznej rekurencji (chaining)
             if (!string.IsNullOrEmpty(userMsg))
             {
-                historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(userMsg) + "\"}");
+                // --- POPRAWKA 1: CONTEXT INJECTION ---
+                // Doklejamy przypomnienie, by Agent trzymał się roli, niezależnie od tego o co pyta użytkownik.
+                string przypomnienie = "\\n\\n[SYSTEM]: Pamiętaj, jesteś Agentem BricsCAD. ZAWSZE odpowiadaj używając tagów (np. [MSG: ...], [SELECT: ...], [ACTION: ...]). NIGDY nie używaj czystego tekstu.";
+
+                historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(userMsg + przypomnienie) + "\"}");
             }
 
             try
@@ -332,6 +337,33 @@ namespace BricsCAD_Agent
 
                 if (!string.IsNullOrEmpty(aiMsg))
                 {
+                    // --- POPRAWKA 2: BLOKADA ZATRUWANIA KONTEKSTU ---
+                    // Sprawdzamy czy w wypowiedzi modelu jest jakikolwiek znany tag
+                    bool maTag = aiMsg.Contains("[ACTION:") || aiMsg.Contains("[SELECT:") || aiMsg.Contains("[MSG:") ||
+                                 aiMsg.Contains("[SEARCH:") || aiMsg.Contains("[LISP:") || aiMsg.Contains("[ANALYZE") ||
+                                 aiMsg.Contains("[READ_SAMPLE");
+
+                    if (!maTag)
+                    {
+                        // Jeśli model napisał zwykły tekst bez tagu:
+                        if (licznikNapraw >= 2)
+                        {
+                            doc.Editor.WriteMessage($"\n[Tarcza AI]: Model odmawia współpracy w formacie tagów.");
+                            return $"[BŁĄD KRYTYCZNY] Agent przestał używać tagów i zaczął pisać zwykłym tekstem:\n{aiMsg}";
+                        }
+
+                        doc.Editor.WriteMessage($"\n[Tarcza AI]: Zablokowano odpowiedź bez tagu (Ochrona Persony). Wymuszam poprawę...");
+
+                        string reprymenda = "[SYSTEM] BŁĄD KRYTYCZNY: Twoja odpowiedź nie zawierała żadnego tagu! Złamałeś zasady Systemu. Musisz użyć [MSG: twój tekst] do komunikacji ze mną lub [ACTION: ...]/[SELECT: ...] do pracy w CAD. Wygeneruj odpowiedź ponownie, trzymając się rygorystycznie formatu.";
+
+                        // Dodajemy reprymendę do historii (ale NIE dodajemy błędnej wypowiedzi modelu!)
+                        historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(reprymenda) + "\"}");
+
+                        // Wywołujemy rekurencję z podbitym licznikiem napraw
+                        return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie, licznikNapraw + 1);
+                    }
+
+                    // Jeśli odpowiedź MA poprawny tag, DOPIERO TERAZ dodajemy ją na stałe do historii rozmowy!
                     historiaRozmowy.Add("{\"role\": \"assistant\", \"content\": \"" + Komendy.SafeJson(aiMsg) + "\"}");
 
                     // =======================================================================
@@ -342,7 +374,14 @@ namespace BricsCAD_Agent
                         List<string> syntaxErrors = TagValidator.ValidateSequence(aiMsg);
                         if (syntaxErrors.Count > 0)
                         {
-                            doc.Editor.WriteMessage($"\n[Tarcza AI]: Zablokowano wadliwy tag. Wymuszam samonaprawę w tle...");
+                            // BEZPIECZNIK: Przerywamy po 2 nieudanych próbach naprawy tego samego tagu
+                            if (licznikNapraw >= 2)
+                            {
+                                doc.Editor.WriteMessage($"\n[Tarcza AI]: Przerwano samonaprawę (zbyt wiele nieudanych prób).");
+                                return $"[BŁĄD KRYTYCZNY] Agent nie potrafił wygenerować poprawnego tagu po 3 próbach.\nOstatni wadliwy tag: {aiMsg}";
+                            }
+
+                            doc.Editor.WriteMessage($"\n[Tarcza AI]: Zablokowano wadliwy tag. Wymuszam samonaprawę w tle (Próba {licznikNapraw + 1})...");
 
                             string systemFeedback = $"[SYSTEM] Twój wygenerowany tag zawiera błędy. Nie został wykonany:\n" +
                                                     $"{string.Join("\n", syntaxErrors)}\n" +
@@ -350,8 +389,8 @@ namespace BricsCAD_Agent
 
                             historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(systemFeedback) + "\"}");
 
-                            // Wymuszamy samonaprawę (odpalamy zapytanie do API jeszcze raz z wytkniętym błędem)
-                            return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
+                            // Wymuszamy samonaprawę, zwiększając licznik!
+                            return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie, licznikNapraw + 1);
                         }
                         // Jeśli tag nie miał błędów, strzelamy nim natychmiast do zakładki Trening!
                         OnTagGenerated?.Invoke(aiMsg);
@@ -404,54 +443,60 @@ namespace BricsCAD_Agent
                             }
                         }
                         // 3. OBSŁUGA NARZĘDZI (ACTION) ORAZ (ANALYZE / READ_SAMPLE)
-                        else if (aiMsg.Contains("[ACTION:") || aiMsg.Contains("[ANALYZE:") || aiMsg.Contains("[READ_SAMPLE:"))
+                        // ZMIANA: Usunięto dwukropki, aby łapało czyste [ANALYZE] i [READ_SAMPLE]
+                        else if (aiMsg.Contains("[ACTION:") || aiMsg.Contains("[ANALYZE") || aiMsg.Contains("[READ_SAMPLE"))
                         {
+                            // --- PRZERWANIE W TRYBIE TESTOWYM (BENCHMARKING) ---
+                            // Blokujemy WYŁĄCZNIE narzędzia, które proszą użytkownika o kliknięcie/wpisanie w CAD, 
+                            // aby nie zawiesić interfejsu testowego. Pozostałe akcje (rysowanie, edycja) zostaną wykonane!
+                            if (TrybTestowy && (aiMsg.Contains("USER_INPUT") || aiMsg.Contains("USER_CHOICE")))
+                            {
+                                return aiMsg;
+                            }
+
                             foreach (var tool in new Komendy().tools)
                             {
-                                string pelnyTag = tool.ActionTag;
-                                string krotkiTag = tool.ActionTag.Replace("[ACTION:", "[").Replace("]", ":");
+                                // Pozbywamy się nawiasu zamykającego i dwukropka do celów szukania
+                                string pelnySzukany = tool.ActionTag.Replace("]", ""); // np. "[ACTION:ANALYZE"
+                                string krotkiSzukany = tool.ActionTag.Replace("[ACTION:", "[").Replace("]", ""); // np. "[ANALYZE"
 
-                                if (aiMsg.Contains(pelnyTag.Replace("]", "")) || aiMsg.Contains(krotkiTag))
+                                // Sprawdzamy czy wygenerowany tekst zawiera fragment szukanego narzędzia
+                                if (aiMsg.Contains(pelnySzukany) || aiMsg.Contains(krotkiSzukany))
                                 {
+                                    string wynikNarzedzia = "";
+
+                                    // --- ZABEZPIECZENIE: WYCIĄGAMY TYLKO CZYSTY JSON Z TAGU ---
                                     string args = "";
                                     int startArgs = -1;
 
-                                    if (aiMsg.Contains(pelnyTag.Replace("]", "")))
-                                        startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(pelnyTag.Replace("]", "")));
-                                    else if (aiMsg.Contains(krotkiTag))
-                                        startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(krotkiTag));
+                                    if (aiMsg.Contains(pelnySzukany))
+                                        startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(pelnySzukany));
+                                    else if (aiMsg.Contains(krotkiSzukany))
+                                        startArgs = aiMsg.IndexOf("{", aiMsg.IndexOf(krotkiSzukany));
 
                                     int endArgs = aiMsg.LastIndexOf("}");
+
                                     if (startArgs != -1 && endArgs > startArgs)
                                     {
                                         args = aiMsg.Substring(startArgs, endArgs - startArgs + 1);
                                     }
 
-                                    string wynikNarzedzia = "";
-
-                                    // Sprawdzamy, czy dane narzędzie posiada wbudowaną metodę Execute przyjmującą parametry (Document, string)
+                                    // Odpalamy narzędzie przez Refleksję, ale tym razem dajemy mu tylko parametry (args)
                                     var methodInfo = tool.GetType().GetMethod("Execute", new Type[] { typeof(Document), typeof(string) });
-
                                     if (methodInfo != null)
                                     {
-                                        // Jeśli tak, przekazujemy dokument oraz cały wygenerowany tag (aiMsg)
-                                        // (Zauważyłem, że w TestTag też tak robisz, a narzędzia radzą sobie wyciągając JSON z ciągu)
-                                        wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, aiMsg });
+                                        wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, args });
                                     }
                                     else
                                     {
-                                        // Fallback - jeśli narzędzie działa bez argumentów tekstowych (czyste doc)
                                         wynikNarzedzia = tool.Execute(doc);
                                     }
-
-                                    // Rekursja gdy mamy dane, których potrzebuje model
-                                    if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                     {
                                         historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson($"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie. UŻYJ TAGU [MSG: twoja odpowiedź].") + "\"}");
                                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
 
-                                    return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
+                                    //return $"[Wykonano narzędzie {tool.ActionTag}]\n{aiMsg}";
                                 }
                             }
                         }
@@ -503,14 +548,14 @@ namespace BricsCAD_Agent
         }
 
         // --- ŚCIEŻKI I PAMIĘĆ ---
-        private string GetGlobalPath()
+        public static string GetGlobalPath()
         {
             string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BricsCAD_Agent");
             if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
             return Path.Combine(folder, "global_memory.json");
         }
 
-        private string GetLocalPath(Document doc)
+        public static string GetLocalPath(Document doc)
         {
             string docPath = doc.Database.Filename;
             if (string.IsNullOrEmpty(docPath)) return null;
@@ -592,7 +637,7 @@ namespace BricsCAD_Agent
             catch { }
         }
 
-        private void ResetujPamiec(Document doc)
+        public static void ResetujPamiec(Document doc)
         {
             historiaRozmowy.Clear();
             if (File.Exists(GetGlobalPath())) File.Delete(GetGlobalPath());
