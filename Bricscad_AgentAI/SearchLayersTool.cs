@@ -54,10 +54,28 @@ namespace BricsCAD_Agent
                 }
             }
 
+            // --- NOWE: Obsługa zapisu do pamięci (SaveAs) ---
+            string saveAs = "";
+            Match mSave = Regex.Match(cleanArgs, @"""SaveAs""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
+            if (mSave.Success) saveAs = mSave.Groups[1].Value;
+
+            if (!string.IsNullOrEmpty(saveAs) && foundLayers.Count > 0)
+            {
+                // Zapisujemy warstwy do pamięci, oddzielone " | " aby pętla FOREACH mogła po nich iterować
+                AgentMemory.Variables[saveAs] = string.Join(" | ", foundLayers);
+            }
+            // ------------------------------------------------
+
             if (foundLayers.Count == 0) return $"WYNIK: Nie znaleziono żadnych warstw spełniających warunek {condition} '{val}'.";
 
-            // Zwracamy listę oddzieloną przecinkami, idealną do wrzucenia prosto w [ACTION:MANAGE_LAYERS]
-            return $"WYNIK: Znaleziono warstwy ({foundLayers.Count}): {string.Join(", ", foundLayers)}";
+            string pelnyWynik = $"WYNIK: Znaleziono warstwy ({foundLayers.Count}): {string.Join(", ", foundLayers)}";
+
+            if (!string.IsNullOrEmpty(saveAs) && foundLayers.Count > 0)
+            {
+                pelnyWynik = $"[ZAPISANO W PAMIĘCI JAKO: @{saveAs}]\n" + pelnyWynik;
+            }
+
+            return pelnyWynik;
         }
 
         public string Execute(Document doc) => Execute(doc, "");

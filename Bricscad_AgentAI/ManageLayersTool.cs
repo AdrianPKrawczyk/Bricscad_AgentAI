@@ -83,9 +83,25 @@ namespace BricsCAD_Agent
                                 else
                                 {
                                     string nn = mNewName.Groups[1].Value;
+
+                                    // --- NOWE: Ewaluacja RPN dla nowej nazwy warstwy ---
+                                    if (nn.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        try
+                                        {
+                                            nn = RpnCalculator.Evaluate(nn.Substring(4).Trim());
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            failed.Add($"{layerName} (błąd RPN: {ex.Message})");
+                                            continue;
+                                        }
+                                    }
+                                    // ---------------------------------------------------
+
                                     if (layerName == "0" || layerName.Equals("Defpoints", StringComparison.OrdinalIgnoreCase))
                                     { failed.Add($"{layerName} (warstwa systemowa)"); continue; }
-                                    
+
                                     if (lt.Has(nn)) { failed.Add($"{layerName} -> {nn} (nazwa zajęta)"); continue; }
                                     ltr.Name = nn;
                                 }

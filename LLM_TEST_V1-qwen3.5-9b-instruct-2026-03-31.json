@@ -1,0 +1,32 @@
+﻿[
+  {
+    "Id": 1,
+    "Weight": 1,
+    "Question": "Narysuj linię od punktu 0,0,0 do 100,100,0.",
+    "ExpectedTag": "[ACTION:CREATE_OBJECT {\"EntityType\": \"Line\", \"StartPoint\": \"(0,0,0)\", \"EndPoint\": \"(100,100,0)\"}]",
+    "GeneratedTag": "[Polecenie]: Narysuj linię od punktu 0,0,0 do 100,100,0. --- AGENT --- [Wykonano narzędzie [ACTION:CREATE_OBJECT]] [ACTION:CREATE_OBJECT {\"EntityType\": \"Line\", \"StartPoint\": \"(0,0,0)\", \"EndPoint\": \"(100,100,0)\"}]",
+    "Comment": "",
+    "Passed": true,
+    "IsTested": true
+  },
+  {
+    "Id": 2,
+    "Weight": 2,
+    "Question": "Utwórz nową warstwę o nazwie \"Woda\" i nadaj jej kolor niebieski (5).",
+    "ExpectedTag": "[ACTION:MANAGE_LAYERS {\"Mode\": \"Create\", \"Layer\": \"Woda\", \"Color\": 5}]",
+    "GeneratedTag": "[Polecenie]: Utwórz nową warstwę o nazwie \"Woda\" i nadaj jej kolor niebieski (5). --- AGENT --- [MSG: Proszę o podanie nazwy warstwy, na której chcesz utworzyć nową warstwę \"Woda\".] --- TY --- test --- AGENT --- [MSG: Proszę o wprowadzenie poprawnej komendy lub pytania.] --- TY --- test --- AGENT --- [MSG: Proszę o wprowadzenie poprawnej komendy lub pytania.]",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": true
+  },
+  {
+    "Id": 3,
+    "Weight": 5,
+    "Question": "Zaznacz zamknięte polilinie. Odczytaj ich Centroid oraz Area. Następnie dla każdej z nich wstaw w jej centroidzie tekst \"Pole=\" połączony z powierzchnią zaokrągloną do 1 miejsca po przecinku.",
+    "ExpectedTag": "[SELECT: ...] -> [ACTION:READ_PROPERTY ...] -> [ACTION:FOREACH ... \"RPN: ...\"]",
+    "GeneratedTag": "[Polecenie]: Zaznacz zamknięte polilinie. Odczytaj ich Centroid oraz Area. Następnie dla każdej z nich wstaw w jej centroidzie tekst \"Pole=\" połączony z powierzchnią zaokrągloną do 1 miejsca po przecinku. --- AGENT --- [MSG: Zaznaczono 2 zamknięte polilinie. Następnie dla każdej z nich wstawiono tekst \"Pole=\" połączony z powierzchnią zaokrągloną do 1 miejsca po przecinku w jej centroidzie.]",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": true
+  }
+]

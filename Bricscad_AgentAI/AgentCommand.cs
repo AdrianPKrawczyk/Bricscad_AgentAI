@@ -24,9 +24,9 @@ namespace BricsCAD_Agent
     public class Komendy
     {
 
-        private static readonly HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMinutes(5) };
-        private static List<string> historiaRozmowy = new List<string>();
-        private static string wybranyModel = "qwen3.5-9b-instruct";
+        public static readonly HttpClient client = new HttpClient() { Timeout = TimeSpan.FromMinutes(5) };
+        public static List<string> historiaRozmowy = new List<string>();
+        public static string wybranyModel = "qwen3.5-9b-instruct";
         public static event Action<string> OnTagGenerated;
 
         // --- MULTI-DOKUMENTOWA PAMIĘĆ ZAZNACZENIA ---
@@ -81,13 +81,14 @@ namespace BricsCAD_Agent
         new CreateBlockTool(),
         new InsertBlockTool(),
 
+
         };
 
         private static PaletteSet oknoAgenta = null;
         private static Bricscad_AgentAI.AgentControl interfejsAgenta = null;
 
         private static string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
-                "Analizuj zadania w 5 tagach <think>.\n\n" +
+                "Analizuj zadania w 5 tagach.\n\n" +
                 "MUSISZ odpowiedzieć jednym z tagów:\n" +
                 "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA. \"Pamiętaj, że wszystkie obiekty graficzne (Line, Circle, Text, MText, itp) dziedziczą po klasie bazowej Entity. Zatem każdy obiekt zawsze posiada właściwości: Layer (warstwa), ColorIndex (1-255), Linetype, Transparency (0-90), Visible (True/False), LineWeight\"\n" +
                 "2. [SELECT: {\"Mode\": \"New|Add|Remove\", \"Scope\": \"Model|Blocks\", \"EntityType\": \"Klasa1, Klasa2\", \"Conditions\": [{\"Property\": \"Prop\", \"Operator\": \"==\", \"Value\": \"wartość\"}]}] - do zaznaczania. Użyj \"Scope\": \"Blocks\", jeśli użytkownik prosi o znalezienie obiektów WEWNĄTRZ aktualnie zaznaczonych bloków (domyślnie to \"Model\"). Parametr Mode określa zachowanie: \"New\" (tworzy nowe zaznaczenie, nadpisuje obecne), \"Add\" (dodaje szukane obiekty do tego, co obecnie zaznaczone), \"Remove\" (odejmuje szukane obiekty z obecnego zaznaczenia). Aby zaznaczyć wiele typów naraz, wymieniaj je po przecinku (np. \"DBText, MText\"). JSON bez enterów!\n" +
@@ -197,8 +198,14 @@ namespace BricsCAD_Agent
                 "Przykład z auto-pobieraniem z rysunku: [ACTION:USER_CHOICE {\"Question\": \"Wybierz warstwę:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Model\", \"FetchProperty\": \"Layer\", \"SaveAs\": \"WybranaWarstwa\"}]\n\n" +
 
                 "Tag: [ACTION:SEARCH_LAYERS]\n" +
-                "Opis: Automatyczna wyszukiwarka warstw (Condition: Contains, StartsWith, EndsWith, Equals).\n\n" +
+                "Opis: Automatyczna wyszukiwarka warstw (Condition: Contains, StartsWith, EndsWith, Equals). Obsługuje \"SaveAs\" do zapisania w pamięci wyników.\n\n" +
 
+                "Tag: [ACTION:MANAGE_LAYERS]\n" +
+                "Opis: Potężne zarządzanie warstwami. Tryby (Mode): \"Create\", \"Modify\", \"Purge\", \"Delete\", \"Merge\".\n" +
+                " - Dla Modify/Create: Wymaga \"Layer\" (nazwa warstwy). Opcjonalne: \"NewName\" (wspiera RPN!), \"Color\", \"LineWeight\", \"Linetype\", \"IsOff\", \"IsFrozen\", \"IsLocked\", \"Transparency\".\n" +
+                " - Dla Delete: Wymaga podania listy \"SourceLayers\": [\"W1\", \"W2\"].\n" +
+                " - Dla Merge: Wymaga \"SourceLayers\" oraz docelowej warstwy \"TargetLayer\".\n" +
+                "Przykład modyfikacji: [ACTION:MANAGE_LAYERS {\"Mode\": \"Modify\", \"Layer\": \"_HCR\", \"NewName\": \"STARE__HCR\", \"Color\": 1}]\n\n" +
                 "Tag: [ACTION:CREATE_BLOCK]\n" +
                 "Opis: Tworzy nowy blok z zaznaczonych obiektów.\n" +
                 "Argumenty: \"Name\" (nazwa), \"BasePoint\". Możesz użyć \"AskUser\".\n\n" +
@@ -271,7 +278,10 @@ namespace BricsCAD_Agent
 
                 // Dodajemy interfejs do palety
                 oknoAgenta.Add("Czat z AI", interfejsAgenta);
-                
+
+                // --- NOWA ZAKŁADKA TESTOWANIA MODELI ---
+                AgentTesterControl testerAgenta = new AgentTesterControl();
+                oknoAgenta.Add("Benchmarking LLM", testerAgenta);
             }
 
             // Pokazujemy paletę na ekranie
@@ -1313,7 +1323,7 @@ namespace BricsCAD_Agent
                 // Szukamy pliku Agent_Training_Data.jsonl w tym samym folderze co wtyczka DLL
                 string assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                 string folder = System.IO.Path.GetDirectoryName(assemblyPath);
-                string pathJsonl = System.IO.Path.Combine(folder, "Agent_Example_Datata.jsonl");
+                string pathJsonl = System.IO.Path.Combine(folder, "Agent_Example_Data.jsonl");
 
                 if (System.IO.File.Exists(pathJsonl))
                 {

@@ -1,0 +1,32 @@
+﻿[
+  {
+    "Id": 1,
+    "Weight": 1,
+    "Question": "Narysuj linię od punktu 0,0,0 do 100,100,0.",
+    "ExpectedTag": "[ACTION:CREATE_OBJECT {\"EntityType\": \"Line\", \"StartPoint\": \"(0,0,0)\", \"EndPoint\": \"(100,100,0)\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 2,
+    "Weight": 2,
+    "Question": "Utwórz nową warstwę o nazwie \"Woda\" i nadaj jej kolor niebieski (5).",
+    "ExpectedTag": "[ACTION:MANAGE_LAYERS {\"Mode\": \"Create\", \"Layer\": \"Woda\", \"Color\": 5}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 3,
+    "Weight": 5,
+    "Question": "Zaznacz zamknięte polilinie. Odczytaj ich Centroid oraz Area. Następnie dla każdej z nich wstaw w jej centroidzie tekst \"Pole=\" połączony z powierzchnią zaokrągloną do 1 miejsca po przecinku.",
+    "ExpectedTag": "[SELECT: ...] -> [ACTION:READ_PROPERTY ...] -> [ACTION:FOREACH ... \"RPN: ...\"]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  }
+]
