@@ -11,7 +11,47 @@
   },
   {
     "Id": 2,
-    "Weight": 2,
+    "Weight": 1,
+    "Question": "Zaznacz wszystkie okręgi w modelu i zmień ich kolor na czerwony.",
+    "ExpectedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Circle\"}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Color\", \"Value\": 1}]}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 3,
+    "Weight": 1,
+    "Question": "Przesuń zaznaczone obiekty o wektor (50, 0, 0).",
+    "ExpectedTag": "[ACTION:MODIFY_GEOMETRY {\"Mode\": \"Move\", \"Vector\": \"(50, 0, 0)\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 4,
+    "Weight": 1,
+    "Question": "Zapytaj mnie o wysokość tekstu i zapisz ją do pamięci.",
+    "ExpectedTag": "[ACTION:USER_INPUT {\"Type\": \"String\", \"Prompt\": \"...\", \"SaveAs\": \"Zmienna\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 5,
+    "Weight": 1,
+    "Question": "Zaznacz teksty (DBText, MText) i obróć je wokół punktu (0,0,0) o 45 stopni.",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"DBText, MText\"}] -> [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Rotate\", \"BasePoint\": \"(0,0,0)\", \"Angle\": 45}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 6,
+    "Weight": 1,
     "Question": "Utwórz nową warstwę o nazwie \"Woda\" i nadaj jej kolor niebieski (5).",
     "ExpectedTag": "[ACTION:MANAGE_LAYERS {\"Mode\": \"Create\", \"Layer\": \"Woda\", \"Color\": 5}]",
     "GeneratedTag": "",
@@ -20,10 +60,140 @@
     "IsTested": false
   },
   {
-    "Id": 3,
+    "Id": 7,
+    "Weight": 1,
+    "Question": "Zaznacz wszystkie obiekty, które nie leżą na warstwie \"0\".",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"Entity\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"!=\", \"Value\": \"0\"}]}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 8,
+    "Weight": 3,
+    "Question": "Znajdź wszystkie linie na warstwie \"Osie\" i zmień ich rodzaj linii (Linetype) na \"Continuous\".",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"==\", \"Value\": \"Osie\"}]}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Linetype\", \"Value\": \"Continuous\"}]}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 9,
+    "Weight": 3,
+    "Question": "Przeczytaj pole powierzchni (Area) zaznaczonych polilinii i zapisz je do zmiennej.",
+    "ExpectedTag": "[ACTION:READ_PROPERTY {\"Property\": \"Area\", \"SaveAs\": \"Zmienna\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 10,
+    "Weight": 3,
+    "Question": "Utwórz blok o nazwie \"Pompa\" z aktualnie zaznaczonych obiektów, ale zapytaj mnie o punkt bazowy.",
+    "ExpectedTag": "[ACTION:CREATE_BLOCK {\"Name\": \"Pompa\", \"BasePoint\": \"AskUser\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 11,
+    "Weight": 3,
+    "Question": "Zaznacz wszystkie obiekty typu MText i ujednolić ich wysokość (TextHeight) na 25.",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"MText\"}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"TextHeight\", \"Value\": 25}]}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 12,
+    "Weight": 3,
+    "Question": "Wstaw blok \"Silnik\" na warstwę \"Urzadzenia\" w punkcie (10,10,0).",
+    "ExpectedTag": "[ACTION:INSERT_BLOCK {\"Name\": \"Silnik\", \"Position\": \"(10,10,0)\", \"Layer\": \"Urzadzenia\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 13,
+    "Weight": 3,
+    "Question": "Podnieś wszystkie zaznaczone okręgi o 200 jednostek w osi Z.",
+    "ExpectedTag": "[ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Center.Z\", \"Operator\": \"+\", \"Value\": 200}]}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 14,
+    "Weight": 3,
+    "Question": "Odczytaj środki (MidPoint) zaznaczonych linii i zapisz je jako \"PunktySrodkowe\".",
+    "ExpectedTag": "[ACTION:READ_PROPERTY {\"Property\": \"MidPoint\", \"SaveAs\": \"PunktySrodkowe\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 15,
+    "Weight": 5,
+    "Question": "Znajdź wszystkie teksty MText. Słowo \"Awaria\" podświetl w nich na czerwono i zrób pogrubione.",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"MText\"}] -> [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"Awaria\", \"Color\": 1, \"Bold\": true}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 16,
+    "Weight": 5,
+    "Question": "Znajdź bloki o nazwie \"Silnik\", zmień ich kolor na JakWarstwa (256) i podmień w ich atrybutach tekst \"V1\" na \"V2\".",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"BlockReference\", \"Conditions\": [{\"Property\": \"Name\", \"Operator\": \"==\", \"Value\": \"Silnik\"}]}] -> [ACTION:EDIT_BLOCK {\"Color\": 256, \"FindText\": \"V1\", \"ReplaceText\": \"V2\"}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 17,
+    "Weight": 5,
+    "Question": "Do nazwy warstwy wszystkich zaznaczonych obiektów dodaj na początku prefiks \"INWENTARYZACJA_\".",
+    "ExpectedTag": "[ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Operator\": \"RPN\", \"Value\": \"'INWENTARYZACJA_' SWAP CONCAT\"}]}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 18,
+    "Weight": 5,
+    "Question": "Znajdź wszystkie warstwy zawierające słowo \"TEMP\", zapisz je, a następnie używając pętli połącz je (Merge) w jedną warstwę o nazwie \"SMIETNIK\".",
+    "ExpectedTag": "[ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"TEMP\", \"SaveAs\": \"Zmienna\"}] -> [ACTION:FOREACH {\"Action\": \"MANAGE_LAYERS\", \"TemplateArgs\": {\"Mode\": \"Merge\", \"SourceLayers\": \"[$ITEM1]\", \"TargetLayer\": \"SMIETNIK\"}}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 19,
     "Weight": 5,
     "Question": "Zaznacz zamknięte polilinie. Odczytaj ich Centroid oraz Area. Następnie dla każdej z nich wstaw w jej centroidzie tekst \"Pole=\" połączony z powierzchnią zaokrągloną do 1 miejsca po przecinku.",
-    "ExpectedTag": "[SELECT: ...] -> [ACTION:READ_PROPERTY ...] -> [ACTION:FOREACH ... \"RPN: ...\"]",
+    "ExpectedTag": "[SELECT] -> [ACTION:READ_PROPERTY Centroid] -> [ACTION:READ_PROPERTY Area] -> [ACTION:FOREACH {\"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Text\": \"RPN: 'Pole=' $ITEM2 1 ROUND CONCAT\"}}]",
+    "GeneratedTag": "",
+    "Comment": "",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 20,
+    "Weight": 5,
+    "Question": "Poproś mnie o wyklikanie punktów (Points). Następnie używając pętli, wstaw w każdym z nich odnośnik wieloliniowy (MLeader) o wysokości 20, z tekstem w formacie \"Rzędna:\\P[zapytaj_mnie_o_tekst]\".",
+    "ExpectedTag": "[ACTION:USER_INPUT {\"Type\": \"Points\", \"SaveAs\": \"Punkty\"}] -> [ACTION:FOREACH {\"Iterable\": \"@Punkty\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"MLeader\", \"ArrowPoint\": \"$ITEM1\", \"Text\": \"Rzędna:\\\\PAskUser\"}}]",
     "GeneratedTag": "",
     "Comment": "",
     "Passed": false,

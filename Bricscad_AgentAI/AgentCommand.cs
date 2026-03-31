@@ -428,12 +428,21 @@ namespace BricsCAD_Agent
                                     }
 
                                     string wynikNarzedzia = "";
-                                    if (tool is MTextFormatTool mtextTool) wynikNarzedzia = mtextTool.Execute(doc, args);
-                                    else if (tool is MTextEditTool mtextEditTool) wynikNarzedzia = mtextEditTool.Execute(doc, args);
-                                    else if (tool is TextEditTool textEditTool) wynikNarzedzia = textEditTool.Execute(doc, args);
-                                    else if (tool is AnalyzeSelectionTool analyzeTool) wynikNarzedzia = analyzeTool.Execute(doc, args);
-                                    else if (tool is ReadTextSampleTool readTool) wynikNarzedzia = readTool.Execute(doc, args);
-                                    else wynikNarzedzia = tool.Execute(doc);
+
+                                    // Sprawdzamy, czy dane narzędzie posiada wbudowaną metodę Execute przyjmującą parametry (Document, string)
+                                    var methodInfo = tool.GetType().GetMethod("Execute", new Type[] { typeof(Document), typeof(string) });
+
+                                    if (methodInfo != null)
+                                    {
+                                        // Jeśli tak, przekazujemy dokument oraz cały wygenerowany tag (aiMsg)
+                                        // (Zauważyłem, że w TestTag też tak robisz, a narzędzia radzą sobie wyciągając JSON z ciągu)
+                                        wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, aiMsg });
+                                    }
+                                    else
+                                    {
+                                        // Fallback - jeśli narzędzie działa bez argumentów tekstowych (czyste doc)
+                                        wynikNarzedzia = tool.Execute(doc);
+                                    }
 
                                     // Rekursja gdy mamy dane, których potrzebuje model
                                     if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
@@ -1238,12 +1247,21 @@ namespace BricsCAD_Agent
                                         }
 
                                         string wynikNarzedzia = "";
-                                        if (tool is MTextFormatTool mtextTool) wynikNarzedzia = mtextTool.Execute(doc, args);
-                                        else if (tool is MTextEditTool mtextEditTool) wynikNarzedzia = mtextEditTool.Execute(doc, args);
-                                        else if (tool is TextEditTool textEditTool) wynikNarzedzia = textEditTool.Execute(doc, args);
-                                        else if (tool is AnalyzeSelectionTool analyzeTool) wynikNarzedzia = analyzeTool.Execute(doc, args);
-                                        else if (tool is ReadTextSampleTool readTool) wynikNarzedzia = readTool.Execute(doc, args);
-                                        else wynikNarzedzia = tool.Execute(doc);
+
+                                        // Sprawdzamy, czy dane narzędzie posiada wbudowaną metodę Execute przyjmującą parametry (Document, string)
+                                        var methodInfo = tool.GetType().GetMethod("Execute", new Type[] { typeof(Document), typeof(string) });
+
+                                        if (methodInfo != null)
+                                        {
+                                            // Jeśli tak, przekazujemy dokument oraz cały wygenerowany tag (aiMsg)
+                                            // (Zauważyłem, że w TestTag też tak robisz, a narzędzia radzą sobie wyciągając JSON z ciągu)
+                                            wynikNarzedzia = (string)methodInfo.Invoke(tool, new object[] { doc, aiMsg });
+                                        }
+                                        else
+                                        {
+                                            // Fallback - jeśli narzędzie działa bez argumentów tekstowych (czyste doc)
+                                            wynikNarzedzia = tool.Execute(doc);
+                                        }
 
                                         if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano"))
                                         {

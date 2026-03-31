@@ -83,7 +83,7 @@ namespace BricsCAD_Agent
             // --- PANEL SZCZEGÓŁÓW (PRAWA STRONA) - BUDOWA OPARTA O ROZCIĄGALNE SPLITCONTAINERY ---
 
             // 1. Zewnętrzny SplitContainer (Pytanie vs Reszta)
-            SplitContainer split1 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterDistance = 60, SplitterWidth = 6, BackColor = Color.DimGray };
+            SplitContainer split1 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterDistance = 48, SplitterWidth = 6, BackColor = Color.DimGray, FixedPanel = FixedPanel.Panel1 };
             split1.Panel1.BackColor = Color.FromArgb(40, 40, 40);
             split1.Panel2.BackColor = Color.FromArgb(40, 40, 40);
 
@@ -93,7 +93,7 @@ namespace BricsCAD_Agent
             split1.Panel1.Controls.Add(lblQ);
 
             // 2. Wewnętrzny SplitContainer (Oczekiwane vs Tag z dołem)
-            SplitContainer split2 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterDistance = 60, SplitterWidth = 6, BackColor = Color.DimGray };
+            SplitContainer split2 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterDistance = 48, SplitterWidth = 6, BackColor = Color.DimGray, FixedPanel = FixedPanel.Panel1 };
             split2.Panel1.BackColor = Color.FromArgb(40, 40, 40);
             split2.Panel2.BackColor = Color.FromArgb(40, 40, 40);
             split1.Panel2.Controls.Add(split2);
@@ -104,7 +104,7 @@ namespace BricsCAD_Agent
             split2.Panel1.Controls.Add(lblExpected);
 
             // 3. Najgłębszy SplitContainer (Odpowiedź Agenta vs Oceny i Komentarz)
-            SplitContainer split3 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterDistance = 160, SplitterWidth = 6, BackColor = Color.DimGray };
+            SplitContainer split3 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterDistance = 250, SplitterWidth = 6, BackColor = Color.DimGray, FixedPanel = FixedPanel.Panel2 };
             split3.Panel1.BackColor = Color.FromArgb(40, 40, 40);
             split3.Panel2.BackColor = Color.FromArgb(40, 40, 40);
             split2.Panel2.Controls.Add(split3);
@@ -114,6 +114,7 @@ namespace BricsCAD_Agent
 
             Panel panAgentControls = new Panel { Dock = DockStyle.Top, Height = 75 };
             btnRunTest = new Button { Text = "🚀 WYŚLIJ POLECENIE DO AGENTA (Start Testu)", Dock = DockStyle.Top, Height = 40, BackColor = Color.LightSkyBlue, ForeColor = Color.Black, Cursor = Cursors.Hand, Font = new Font(this.Font, FontStyle.Bold) };
+            btnRunTest.Click += BtnRunTest_Click; // <--- DODAJ TĘ LINIJKĘ
 
             Panel panReply = new Panel { Dock = DockStyle.Bottom, Height = 30, Padding = new Padding(0, 5, 0, 0) };
             btnReply = new Button { Text = "Wyślij odpowiedź", Dock = DockStyle.Right, Width = 120, BackColor = Color.Khaki, ForeColor = Color.Black, Cursor = Cursors.Hand };
