@@ -8,11 +8,88 @@ namespace BricsCAD_Agent
 {
     public static class RpnCalculator
     {
+        // ==============================================================
+        // ETAP 1: TRWAŁA PAMIĘĆ STOSU I USTAWIENIA
+        // ==============================================================
+        private static List<object> _stack = new List<object>();
+        private const int MaxStackSize = 50; // Zabezpieczenie (Punkt 5)
+
+        public static bool AutoPreview { get; set; } = true; // Tryb podglądu (Punkt 6)
+
+        // API DLA AGENTA AI (Punkt 7)
+        public static string GetStackState()
+        {
+            if (_stack.Count == 0) return "Stos jest pusty.";
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < _stack.Count; i++)
+            {
+                // Wyświetla od góry (1:) do dołu
+                sb.AppendLine($"  {_stack.Count - i}: {GetString(_stack[_stack.Count - 1 - i])}");
+            }
+            return sb.ToString();
+        }
+
+        // ==============================================================
+        // MECHANIKA STOSU
+        // ==============================================================
+        public static void ClearStack() => _stack.Clear();
+
+        private static void Push(object item)
+        {
+            _stack.Add(item);
+            if (_stack.Count > MaxStackSize)
+            {
+                _stack.RemoveAt(0); // Wypychanie najstarszych danych z dna stosu
+            }
+        }
+
+        private static object Pop()
+        {
+            if (_stack.Count == 0) throw new Exception("Stos jest pusty!");
+            object item = _stack[_stack.Count - 1];
+            _stack.RemoveAt(_stack.Count - 1);
+            return item;
+        }
+
+        private static object Peek()
+        {
+            if (_stack.Count == 0) throw new Exception("Stos jest pusty!");
+            return _stack[_stack.Count - 1];
+        }
+
+        // Pobiera wartość ze szczytu stosu bez jej usuwania
+        public static string GetTopAsString()
+        {
+            if (_stack.Count > 0) return GetString(_stack[_stack.Count - 1]);
+            return "";
+        }
+
+        // Kompaktowy widok stosu do wyświetlania w pętli (pokazuje max 5 ostatnich elementów w jednej linii)
+        public static string GetHPStackView(int maxLevels = 5)
+        {
+            if (_stack.Count == 0) return " 1: [Pusty]"; // Pusty stos wciąż ma poziom 1
+
+            StringBuilder sb = new StringBuilder();
+
+            // Ograniczamy wyświetlanie, by nie zalać paska poleceń, np. do 5-6 poziomów
+            int levelsToShow = Math.Min(_stack.Count, maxLevels);
+
+            // Pętla iteruje "od góry ekranu" (najwyższy numer) w dół do poziomu 1:
+            for (int i = levelsToShow; i >= 1; i--)
+            {
+                int stackIndex = _stack.Count - i;
+                sb.AppendLine($" {i}: {GetString(_stack[stackIndex])}");
+            }
+
+            return sb.ToString().TrimEnd(); // Zwracamy piękny pionowy stos bez ostatniego entera
+        }
+
+        // ==============================================================
+        // GŁÓWNY SILNIK OBLICZENIOWY
+        // ==============================================================
         public static string Evaluate(string expression, object initialValue = null, Entity context = null)
         {
-            Stack<object> stack = new Stack<object>();
-
-            if (initialValue != null) stack.Push(initialValue);
+            if (initialValue != null) Push(initialValue);
 
             List<string> tokens = Tokenize(expression);
 
@@ -27,61 +104,83 @@ namespace BricsCAD_Agent
                 {
                     switch (upperToken)
                     {
-                        case "SWAP": { object b = stack.Pop(); object a = stack.Pop(); stack.Push(b); stack.Push(a); break; }
-                        case "DUP": { stack.Push(stack.Peek()); break; }
-                        case "DROP": { stack.Pop(); break; }
-                        case "+":
+                        // Nowe komendy stosu (Punkt 1 i 5)
+                        case "CLEAR": ClearStack(); break;
+                        case "SWAP": { object b = Pop(); object a = Pop(); Push(b); Push(a); break; }
+                        case "DUP": { Push(Peek()); break; }
+                        case "DROP": { Pop(); break; }
+                        case "PICK":
                             {
-                                object b = stack.Pop(); object a = stack.Pop();
-                                if (IsNumber(a) && IsNumber(b)) stack.Push(GetNum(a) + GetNum(b));
-                                else stack.Push(GetString(a) + GetString(b));
+                                int index = (int)GetNum(Pop());
+                                if (index < 1 || index > _stack.Count) throw new Exception($"Brak elementu na pozycji {index}");
+                                // 1 PICK kopiuje sam szczyt, 2 PICK kopiuje element pod nim itd.
+                                Push(_stack[_stack.Count - index]);
                                 break;
                             }
-                        case "-": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a - b); break; }
-                        case "*": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a * b); break; }
-                        case "/": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a / b); break; }
-                        case "^": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(Math.Pow(a, b)); break; }
-                        case "SQRT": stack.Push(Math.Sqrt(GetNum(stack.Pop()))); break;
-                        case "SIN": stack.Push(Math.Sin(GetNum(stack.Pop()) * Math.PI / 180.0)); break;
-                        case "COS": stack.Push(Math.Cos(GetNum(stack.Pop()) * Math.PI / 180.0)); break;
-                        case "ROUND": { int d = (int)GetNum(stack.Pop()); double v = GetNum(stack.Pop()); stack.Push(Math.Round(v, d)); break; }
-                        case "==": case "=": { string b = GetString(stack.Pop()); string a = GetString(stack.Pop()); stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0); break; }
-                        case "!=": { string b = GetString(stack.Pop()); string a = GetString(stack.Pop()); stack.Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0); break; }
-                        case ">": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a > b ? 1.0 : 0.0); break; }
-                        case "<": { double b = GetNum(stack.Pop()); double a = GetNum(stack.Pop()); stack.Push(a < b ? 1.0 : 0.0); break; }
-                        case "IFTE": { object f = stack.Pop(); object tr = stack.Pop(); double c = GetNum(stack.Pop()); stack.Push(c != 0 ? tr : f); break; }
-                        case "CONCAT": case "&": { string b = GetString(stack.Pop()); string a = GetString(stack.Pop()); stack.Push(a + b); break; }
-                        case "UPPER": stack.Push(GetString(stack.Pop()).ToUpper()); break;
-                        case "LOWER": stack.Push(GetString(stack.Pop()).ToLower()); break;
-                        case "TRIM": stack.Push(GetString(stack.Pop()).Trim()); break;
-                        case "LEN": stack.Push((double)GetString(stack.Pop()).Length); break;
-                        case "REPLACE": { string n = GetString(stack.Pop()); string o = GetString(stack.Pop()); string tg = GetString(stack.Pop()); stack.Push(tg.Replace(o, n)); break; }
-                        case "SUBSTR": { int l = (int)GetNum(stack.Pop()); int s = (int)GetNum(stack.Pop()); string tg = GetString(stack.Pop()); if (s < 0) s = 0; stack.Push(s >= tg.Length ? "" : tg.Substring(s, Math.Min(l, tg.Length - s))); break; }
-                        case "FIND": { string s = GetString(stack.Pop()); string tg = GetString(stack.Pop()); stack.Push((double)tg.IndexOf(s)); break; }
-                        case "ABS": stack.Push(Math.Abs(GetNum(stack.Pop()))); break;
-                        case "SPLIT": { int idx = (int)GetNum(stack.Pop()); string sep = GetString(stack.Pop()); string tg = GetString(stack.Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); stack.Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
+
+                        // Matematyka i Logika
+                        case "+":
+                            {
+                                object b = Pop(); object a = Pop();
+                                if (IsNumber(a) && IsNumber(b)) Push(GetNum(a) + GetNum(b));
+                                else Push(GetString(a) + GetString(b));
+                                break;
+                            }
+                        case "-": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a - b); break; }
+                        case "*": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a * b); break; }
+                        case "/": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a / b); break; }
+                        case "^": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(Math.Pow(a, b)); break; }
+                        case "SQRT": Push(Math.Sqrt(GetNum(Pop()))); break;
+                        case "SIN": Push(Math.Sin(GetNum(Pop()) * Math.PI / 180.0)); break;
+                        case "COS": Push(Math.Cos(GetNum(Pop()) * Math.PI / 180.0)); break;
+                        case "ROUND": { int d = (int)GetNum(Pop()); double v = GetNum(Pop()); Push(Math.Round(v, d)); break; }
+                        case "==": case "=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0); break; }
+                        case "!=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0); break; }
+                        case ">": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a > b ? 1.0 : 0.0); break; }
+                        case "<": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a < b ? 1.0 : 0.0); break; }
+                        case "IFTE": { object f = Pop(); object tr = Pop(); double c = GetNum(Pop()); Push(c != 0 ? tr : f); break; }
+
+                        // Operacje na Tekstach
+                        case "CONCAT": case "&": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a + b); break; }
+                        case "UPPER": Push(GetString(Pop()).ToUpper()); break;
+                        case "LOWER": Push(GetString(Pop()).ToLower()); break;
+                        case "TRIM": Push(GetString(Pop()).Trim()); break;
+                        case "LEN": Push((double)GetString(Pop()).Length); break;
+                        case "REPLACE": { string n = GetString(Pop()); string o = GetString(Pop()); string tg = GetString(Pop()); Push(tg.Replace(o, n)); break; }
+                        case "SUBSTR": { int l = (int)GetNum(Pop()); int s = (int)GetNum(Pop()); string tg = GetString(Pop()); if (s < 0) s = 0; Push(s >= tg.Length ? "" : tg.Substring(s, Math.Min(l, tg.Length - s))); break; }
+                        case "FIND": { string s = GetString(Pop()); string tg = GetString(Pop()); Push((double)tg.IndexOf(s)); break; }
+                        case "ABS": Push(Math.Abs(GetNum(Pop()))); break;
+                        case "SPLIT": { int idx = (int)GetNum(Pop()); string sep = GetString(Pop()); string tg = GetString(Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
+
+                        // Ekstrakcja właściwości CAD
                         case "GET":
                             {
-                                string pName = GetString(stack.Pop());
+                                string pName = GetString(Pop());
                                 if (context != null)
                                 {
                                     var pi = context.GetType().GetProperty(pName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
-                                    stack.Push(pi != null ? pi.GetValue(context) : 0);
+                                    Push(pi != null ? pi.GetValue(context) : 0);
                                 }
-                                else stack.Push(0);
+                                else Push(0);
                                 break;
                             }
-                        default: stack.Push(token); break;
+                        default: Push(token); break;
                     }
                 }
                 catch (Exception ex) { throw new Exception($"Błąd RPN przy '{token}': {ex.Message}"); }
             }
-            return stack.Count > 0 ? GetString(stack.Pop()) : "";
+
+            // UWAGA: Zamiast Pop(), używamy Peek(). Wynik ZOSTANIE na stosie do użycia w kolejnych komendach!
+            return _stack.Count > 0 ? GetString(Peek()) : "";
         }
 
+        // ==============================================================
+        // NARZĘDZIA POMOCNICZE
+        // ==============================================================
         private static bool IsNumber(object o) => double.TryParse(GetString(o).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out _);
         private static double GetNum(object o) => double.TryParse(GetString(o).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r) ? r : 0;
         private static string GetString(object o) => o?.ToString() ?? "";
+
         private static List<string> Tokenize(string expr)
         {
             List<string> ts = new List<string>(); StringBuilder sb = new StringBuilder(); bool q = false;

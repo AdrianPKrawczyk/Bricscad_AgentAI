@@ -92,7 +92,7 @@ namespace BricsCAD_Agent
         }
 
         // ==============================================================
-        // BEZPOŚREDNI KALKULATOR RPN Z KONSOLI (Przezroczysty)
+        // INTERAKTYWNY KALKULATOR RPN (WSTRZYKUJĄCY)
         // ==============================================================
         [CommandMethod("RPN", CommandFlags.Transparent)]
         public void CommandRPN()
@@ -100,36 +100,67 @@ namespace BricsCAD_Agent
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
 
-            PromptStringOptions pso = new PromptStringOptions("\n[Kalkulator RPN] Podaj wyrażenie (np. 2 2 +): ");
-            pso.AllowSpaces = true;
-            PromptResult pr = ed.GetString(pso);
+            ed.WriteMessage("\n\n--- INTERAKTYWNY KALKULATOR RPN ---");
+            ed.WriteMessage("\nWpisuj liczby/operatory i zatwierdzaj [ENTER]. Zostaną na stosie.");
+            ed.WriteMessage("\nWciśnij pusty [ENTER] lub wpisz '=', aby WSTRZYKNĄĆ wynik i zamknąć.");
+            ed.WriteMessage("\n-----------------------------------\n");
 
-            if (pr.Status == PromptStatus.OK && !string.IsNullOrWhiteSpace(pr.StringResult))
+            while (true)
             {
-                string expr = pr.StringResult.Trim();
+                if (RpnCalculator.AutoPreview)
+                {
+                    ed.WriteMessage("\n========================");
+                    // Pobieramy max 6 poziomów stosu do podglądu (aby było widać więcej)
+                    ed.WriteMessage("\n" + RpnCalculator.GetHPStackView(6));
+                    ed.WriteMessage("\n========================");
+                }
+
+                PromptStringOptions pso = new PromptStringOptions("\n[RPN] Wejście (lub '=' / [ENTER] by zakończyć): ");
+                pso.AllowSpaces = true;
+                PromptResult pr = ed.GetString(pso);
+
+                // Reakcja na ESC (Anulowanie całkowite, bez wstrzykiwania)
+                if (pr.Status == PromptStatus.Cancel)
+                {
+                    ed.WriteMessage("\n[Kalkulator]: Przerwano działanie (ESC).");
+                    return;
+                }
+
+                string input = pr.StringResult?.Trim() ?? "";
+
+                // Wyjście z pętli (Zatwierdzenie)
+                if (input == "=" || input == "")
+                {
+                    break;
+                }
+
                 try
                 {
-                    // Odwołujemy się bezpośrednio do Twojego silnika RPN
-                    string result = RpnCalculator.Evaluate(expr);
-
-                    // Zamieniamy przecinki na kropki, bo CAD wymaga formatu InvariantCulture dla liczb
-                    result = result.Replace(",", ".");
-
-                    // Wypisujemy ładny komunikat dla Ciebie
-                    ed.WriteMessage($"\n[Wynik]: {result}");
-
-                    // Wstrzykujemy wynik fizycznie do paska poleceń!
-                    doc.SendStringToExecute(result + "\n", true, false, false);
+                    // Obliczamy wyrażenie w locie
+                    RpnCalculator.Evaluate(input);
                 }
                 catch (System.Exception ex)
                 {
                     ed.WriteMessage($"\n[Błąd RPN]: {ex.Message}");
                 }
             }
+
+            // PO WYJŚCIU Z PĘTLI -> Wstrzykiwanie wyniku na ekran
+            string result = RpnCalculator.GetTopAsString();
+            if (!string.IsNullOrEmpty(result))
+            {
+                result = result.Replace(",", ".");
+                ed.WriteMessage($"\n>> Wstrzyknięto wartość: {result} <<\n");
+                doc.SendStringToExecute(result + "\n", true, false, false);
+            }
+            else
+            {
+                ed.WriteMessage("\n[Kalkulator]: Stos pusty, brak wartości do wstrzyknięcia.\n");
+            }
         }
 
         // ==============================================================
-        // BEZPOŚREDNI KALKULATOR RPN - TYLKO DO ODCZYTU (BEZ WSTRZYKIWANIA)
+        // INTERAKTYWNY KALKULATOR (TYLKO DO ODCZYTU)
         // ==============================================================
         [CommandMethod("CALC", CommandFlags.Transparent)]
         public void CommandCalc()
@@ -137,28 +168,67 @@ namespace BricsCAD_Agent
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
 
-            PromptStringOptions pso = new PromptStringOptions("\n[Kalkulator] Podaj wyrażenie RPN do sprawdzenia (np. 2 2 +): ");
-            pso.AllowSpaces = true;
-            PromptResult pr = ed.GetString(pso);
+            ed.WriteMessage("\n\n--- INTERAKTYWNY KALKULATOR (ODCZYT) ---");
+            ed.WriteMessage("\nWpisuj liczby/operatory. Wciśnij pusty [ENTER] by po prostu wyjść.");
 
-            if (pr.Status == PromptStatus.OK && !string.IsNullOrWhiteSpace(pr.StringResult))
+            while (true)
             {
-                string expr = pr.StringResult.Trim();
+                if (RpnCalculator.AutoPreview)
+                {
+                    ed.WriteMessage("\n========================");
+                    // Pobieramy max 6 poziomów stosu do podglądu (aby było widać więcej)
+                    ed.WriteMessage("\n" + RpnCalculator.GetHPStackView(6));
+                    ed.WriteMessage("\n========================");
+                }
+
+                PromptStringOptions pso = new PromptStringOptions("\n[CALC] Wejście (lub [ENTER] by wyjść): ");
+                pso.AllowSpaces = true;
+                PromptResult pr = ed.GetString(pso);
+
+                if (pr.Status == PromptStatus.Cancel || pr.StringResult?.Trim() == "" || pr.StringResult?.Trim() == "=")
+                {
+                    break; // Wychodzimy i nic nie wstrzykujemy
+                }
+
                 try
                 {
-                    // Odwołujemy się do Twojego silnika RPN
-                    string result = RpnCalculator.Evaluate(expr);
-
-                    // Wypisujemy wynik na ekranie Z POMINIĘCIEM funkcji SendStringToExecute
-                    ed.WriteMessage($"\n=========================");
-                    ed.WriteMessage($"\n WYNIK OBLICZEŃ: {result}");
-                    ed.WriteMessage($"\n=========================\n");
+                    RpnCalculator.Evaluate(pr.StringResult.Trim());
                 }
                 catch (System.Exception ex)
                 {
-                    ed.WriteMessage($"\n[Błąd RPN]: {ex.Message}");
+                    ed.WriteMessage($"\n[Błąd]: {ex.Message}");
                 }
             }
+
+            ed.WriteMessage($"\n--- Konic pracy. Wynik na szczycie: {RpnCalculator.GetTopAsString()} ---\n");
+        }
+
+        // ==============================================================
+        // ZARZĄDZANIE PAMIĘCIĄ STOSU RPN (ETAP 1)
+        // ==============================================================
+
+        [CommandMethod("STOS", CommandFlags.Transparent)]
+        public void CommandStos()
+        {
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            ed.WriteMessage("\n\n--- AKTUALNY STAN STOSU RPN ---");
+            ed.WriteMessage("\n" + RpnCalculator.GetStackState());
+            ed.WriteMessage("-------------------------------\n");
+        }
+
+        [CommandMethod("STOS_CLEAR", CommandFlags.Transparent)]
+        public void CommandStosClear()
+        {
+            RpnCalculator.ClearStack();
+            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n[Kalkulator]: Stos został całkowicie wyczyszczony.\n");
+        }
+
+        [CommandMethod("STOS_AUTO", CommandFlags.Transparent)]
+        public void CommandStosAuto()
+        {
+            RpnCalculator.AutoPreview = !RpnCalculator.AutoPreview;
+            string status = RpnCalculator.AutoPreview ? "WŁĄCZONY" : "WYŁĄCZONY";
+            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n[Kalkulator]: Automatyczny podgląd stosu jest teraz {status}.\n");
         }
 
         // ==============================================================
