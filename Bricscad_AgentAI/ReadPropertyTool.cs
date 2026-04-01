@@ -84,6 +84,12 @@ namespace BricsCAD_Agent
                             catch { }
                         }
 
+                        else if (propName.Equals("Value", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (ent is DBText dbText) wartoscObiektu = dbText.TextString;
+                            else if (ent is MText mText) wartoscObiektu = mText.Text; // Celowo bierzemy czysty .Text bez RTF, by RPN mógł znaleźć liczby!
+                        }
+
                         else
                         {
                             // Tradycyjna obsługa przez refleksję dla natywnych właściwości API

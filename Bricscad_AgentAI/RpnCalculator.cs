@@ -60,22 +60,26 @@ namespace BricsCAD_Agent
         public double Value;
         public UnitDim Dim;
         public string PrefUnit;
+        public double Offset; // NOWOŚĆ! Obsługa temperatury absolutnej
 
-        public PhysicalValue(double v, UnitDim d, string pref = null) { Value = v; Dim = d; PrefUnit = pref; }
+        public PhysicalValue(double v, UnitDim d, string pref = null, double off = 0)
+        {
+            Value = v; Dim = d; PrefUnit = pref; Offset = off;
+        }
 
         public override string ToString()
         {
-            if (Dim.IsDimensionless()) return Math.Round(Value, 6).ToString(CultureInfo.InvariantCulture);
+            if (Dim.IsDimensionless() && string.IsNullOrEmpty(PrefUnit)) return Math.Round(Value, 6).ToString(CultureInfo.InvariantCulture);
 
             if (!string.IsNullOrEmpty(PrefUnit))
             {
                 try
                 {
-                    // Wykorzystujemy nasz nowy parser do ładnego renderowania złożonych jednostek
                     var pUnit = UnitEngine.ParseUnit(PrefUnit);
-                    if (this.Dim == pUnit.Dim)
+                    if (this.Dim == pUnit.Dim || (Dim.IsDimensionless() && pUnit.Dim.IsDimensionless()))
                     {
-                        double displayVal = this.Value / pUnit.Value;
+                        // Wyświetlając, najpierw skalujemy, a potem zdejmujemy offset!
+                        double displayVal = (this.Value / pUnit.Value) - pUnit.Offset;
                         return $"{Math.Round(displayVal, 6).ToString(CultureInfo.InvariantCulture)}_{PrefUnit}";
                     }
                 }
@@ -99,67 +103,116 @@ namespace BricsCAD_Agent
             Units["K"] = new PhysicalValue(1.0, new UnitDim { Theta = 1 });
             Units["mol"] = new PhysicalValue(1.0, new UnitDim { N = 1 });
 
-            // DŁUGOŚĆ / POLE / OBJĘTOŚĆ
+            // DŁUGOŚĆ / POLE / OBJĘTOŚĆ (Rozszerzone)
             Units["mm"] = new PhysicalValue(1e-3, new UnitDim { L = 1 });
             Units["cm"] = new PhysicalValue(1e-2, new UnitDim { L = 1 });
             Units["km"] = new PhysicalValue(1e3, new UnitDim { L = 1 });
-            Units["in"] = new PhysicalValue(0.0254, new UnitDim { L = 1 }); // cale
+            Units["in"] = new PhysicalValue(0.0254, new UnitDim { L = 1 });
             Units["mm2"] = new PhysicalValue(1e-6, new UnitDim { L = 2 });
             Units["cm2"] = new PhysicalValue(1e-4, new UnitDim { L = 2 });
             Units["m2"] = new PhysicalValue(1.0, new UnitDim { L = 2 });
-            Units["ha"] = new PhysicalValue(10000.0, new UnitDim { L = 2 }); // hektary
+            Units["ha"] = new PhysicalValue(10000.0, new UnitDim { L = 2 });
             Units["m3"] = new PhysicalValue(1.0, new UnitDim { L = 3 });
-            Units["L"] = new PhysicalValue(1e-3, new UnitDim { L = 3 }); // litry
+            Units["L"] = new PhysicalValue(1e-3, new UnitDim { L = 3 });
+            Units["dm3"] = new PhysicalValue(1e-3, new UnitDim { L = 3 });
+            Units["cm3"] = new PhysicalValue(1e-6, new UnitDim { L = 3 });
+            Units["ml"] = new PhysicalValue(1e-6, new UnitDim { L = 3 });
 
-            // MASA I CZAS
+            // MASA I CZAS (Rozszerzone)
             Units["g"] = new PhysicalValue(1e-3, new UnitDim { M = 1 });
-            Units["t"] = new PhysicalValue(1000.0, new UnitDim { M = 1 }); // tony
+            Units["t"] = new PhysicalValue(1000.0, new UnitDim { M = 1 });
             Units["min"] = new PhysicalValue(60.0, new UnitDim { T = 1 });
             Units["h"] = new PhysicalValue(3600.0, new UnitDim { T = 1 });
+            Units["dzień"] = new PhysicalValue(86400.0, new UnitDim { T = 1 });
+            Units["rok"] = new PhysicalValue(31557600.0, new UnitDim { T = 1 });
 
-            // MECHANIKA (Siła, Ciśnienie, Praca, Moc)
+            // MECHANIKA I CIŚNIENIE (Rozszerzone)
             Units["N"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 1, T = -2 });
             Units["kN"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 1, T = -2 });
             Units["Pa"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = -1, T = -2 });
             Units["kPa"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = -1, T = -2 });
             Units["MPa"] = new PhysicalValue(1e6, new UnitDim { M = 1, L = -1, T = -2 });
             Units["bar"] = new PhysicalValue(1e5, new UnitDim { M = 1, L = -1, T = -2 });
+            Units["mbar"] = new PhysicalValue(100.0, new UnitDim { M = 1, L = -1, T = -2 });
+            Units["mWody"] = new PhysicalValue(9806.65, new UnitDim { M = 1, L = -1, T = -2 });
+
+            // ENERGIA I PRACA (Rozszerzone)
             Units["J"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -2 });
             Units["kJ"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["MJ"] = new PhysicalValue(1e6, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["GJ"] = new PhysicalValue(1e9, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["TJ"] = new PhysicalValue(1e12, new UnitDim { M = 1, L = 2, T = -2 });
             Units["W"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -3 });
             Units["kW"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 2, T = -3 });
+            Units["Wh"] = new PhysicalValue(3600.0, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["kWh"] = new PhysicalValue(3.6e6, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["MWh"] = new PhysicalValue(3.6e9, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["GWh"] = new PhysicalValue(3.6e12, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["TWh"] = new PhysicalValue(3.6e15, new UnitDim { M = 1, L = 2, T = -2 });
 
-            // PŁYNY I TERMODYNAMIKA
+            // PŁYNY, TERMODYNAMIKA, INNE (Rozszerzone)
             Units["Hz"] = new PhysicalValue(1.0, new UnitDim { T = -1 });
-            Units["kg/m3"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = -3 }); // gęstość
-            Units["m/s"] = new PhysicalValue(1.0, new UnitDim { L = 1, T = -1 }); // prędkość
-            Units["m/s2"] = new PhysicalValue(1.0, new UnitDim { L = 1, T = -2 }); // przyspieszenie
-            Units["J/kgK"] = new PhysicalValue(1.0, new UnitDim { L = 2, T = -2, Theta = -1 }); // ciepło właściwe
+            Units["1/h"] = new PhysicalValue(1.0 / 3600.0, new UnitDim { T = -1 });
+            Units["kg/m3"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = -3 });
+            Units["m/s"] = new PhysicalValue(1.0, new UnitDim { L = 1, T = -1 });
+            Units["m/s2"] = new PhysicalValue(1.0, new UnitDim { L = 1, T = -2 });
+            Units["J/kgK"] = new PhysicalValue(1.0, new UnitDim { L = 2, T = -2, Theta = -1 });
+            Units["kJ/kg"] = new PhysicalValue(1000.0, new UnitDim { L = 2, T = -2 });
+            Units["kJ/kgK"] = new PhysicalValue(1000.0, new UnitDim { L = 2, T = -2, Theta = -1 });
+            Units["cSt"] = new PhysicalValue(1e-6, new UnitDim { L = 2, T = -1 });
+            Units["St"] = new PhysicalValue(1e-4, new UnitDim { L = 2, T = -1 });
+            Units["cP"] = new PhysicalValue(1e-3, new UnitDim { M = 1, L = -1, T = -1 });
+            Units["g/kg"] = new PhysicalValue(1e-3, new UnitDim());
+            Units["%"] = new PhysicalValue(0.01, new UnitDim());
 
             // PRZEPŁYWY (Objętościowe i Masowe)
             Units["m3/h"] = new PhysicalValue(1.0 / 3600.0, new UnitDim { L = 3, T = -1 });
             Units["kg/h"] = new PhysicalValue(1.0 / 3600.0, new UnitDim { M = 1, T = -1 });
-            Units["dm3/s"] = new PhysicalValue(1e-3, new UnitDim { L = 3, T = -1 }); // Odpowiednik l/s
+            Units["dm3/s"] = new PhysicalValue(1e-3, new UnitDim { L = 3, T = -1 });
             Units["g/h"] = new PhysicalValue(1e-3 / 3600.0, new UnitDim { M = 1, T = -1 });
+            Units["dm3/min"] = new PhysicalValue(1e-3 / 60.0, new UnitDim { L = 3, T = -1 });
+            Units["l/s"] = new PhysicalValue(1e-3, new UnitDim { L = 3, T = -1 });
+            Units["g/s"] = new PhysicalValue(1e-3, new UnitDim { M = 1, T = -1 });
+            Units["m3/s"] = new PhysicalValue(1.0, new UnitDim { L = 3, T = -1 });
+            Units["m3/dzień"] = new PhysicalValue(1.0 / 86400.0, new UnitDim { L = 3, T = -1 });
+            Units["m3/rok"] = new PhysicalValue(1.0 / 31557600.0, new UnitDim { L = 3, T = -1 });
+            Units["kg/s"] = new PhysicalValue(1.0, new UnitDim { M = 1, T = -1 });
+
+            // ELEKTRYKA
+            Units["V"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -3, I = -1 });
+            Units["kV"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 2, T = -3, I = -1 });
+            Units["mV"] = new PhysicalValue(1e-3, new UnitDim { M = 1, L = 2, T = -3, I = -1 });
+            Units["A"] = new PhysicalValue(1.0, new UnitDim { I = 1 });
+            Units["mA"] = new PhysicalValue(1e-3, new UnitDim { I = 1 });
+            Units["F"] = new PhysicalValue(1.0, new UnitDim { M = -1, L = -2, T = 4, I = 2 });
+            Units["pF"] = new PhysicalValue(1e-12, new UnitDim { M = -1, L = -2, T = 4, I = 2 });
+            Units["uF"] = new PhysicalValue(1e-6, new UnitDim { M = -1, L = -2, T = 4, I = 2 });
+            Units["mF"] = new PhysicalValue(1e-3, new UnitDim { M = -1, L = -2, T = 4, I = 2 });
+            Units["Ohm"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -3, I = -2 });
+            Units["kOhm"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 2, T = -3, I = -2 });
+            Units["MOhm"] = new PhysicalValue(1e6, new UnitDim { M = 1, L = 2, T = -3, I = -2 });
+            Units["H"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -2, I = -2 });
+            Units["mH"] = new PhysicalValue(1e-3, new UnitDim { M = 1, L = 2, T = -2, I = -2 });
+
+            // TEMPERATURA Z OFFSETEM
+            Units["degC"] = new PhysicalValue(1.0, new UnitDim { Theta = 1 }, null, 273.15);
         }
         // --- NOWOŚĆ: ALGEBRAICZNY PARSER JEDNOSTEK ---
         public static PhysicalValue ParseUnit(string expr)
         {
-            // --- SZYBKA ŚCIEŻKA: Zabezpiecza gotowe jednostki takie jak m2, m3, m3/h ---
             if (Units.TryGetValue(expr, out var exactMatch)) return exactMatch;
 
-            // Rozbija ciąg np. kJ/(kg*K) na tokeny
-            var tokens = Regex.Matches(expr, @"[a-zA-Z]+|-?\d+|[/*^()]")
+            // Zaktualizowany Regex - łapie polskie znaki i jednostki % jako całość
+            var tokens = Regex.Matches(expr, @"[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ%][a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ0-9%]*|-?\d+|[/*^()]")
                               .Cast<Match>().Select(m => m.Value).ToList();
 
             var output = new List<string>();
             var ops = new Stack<string>();
             int Precedence(string op) => op == "^" ? 3 : (op == "*" || op == "/" ? 2 : 0);
 
-            // Shunting Yard (Przejście na ONP w locie)
             foreach (var t in tokens)
             {
-                if (char.IsLetter(t[0]) || char.IsDigit(t[0]) || (t.Length > 1 && t[0] == '-')) output.Add(t);
+                if (char.IsLetter(t[0]) || char.IsDigit(t[0]) || t == "%" || (t.Length > 1 && t[0] == '-')) output.Add(t);
                 else if (t == "(") ops.Push(t);
                 else if (t == ")")
                 {
@@ -174,18 +227,18 @@ namespace BricsCAD_Agent
             }
             while (ops.Count > 0) output.Add(ops.Pop());
 
-            // Matematyka na jednostkach
             var stack = new Stack<PhysicalValue>();
             foreach (var t in output)
             {
-                if (t == "*") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(a.Value * b.Value, a.Dim + b.Dim)); }
-                else if (t == "/") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(a.Value / b.Value, a.Dim - b.Dim)); }
-                else if (t == "^") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(Math.Pow(a.Value, b.Value), a.Dim * (int)Math.Round(b.Value))); }
-                else if (char.IsDigit(t[0]) || t.StartsWith("-")) stack.Push(new PhysicalValue(double.Parse(t, CultureInfo.InvariantCulture), new UnitDim()));
+                // Mnożenie, dzielenie i potęgowanie ZAWSZE ZERUJE OFFSET! (degC użyte w ułamkach traci Celsjusza i staje się wirtualnym Kelvinem)
+                if (t == "*") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(a.Value * b.Value, a.Dim + b.Dim, null, 0)); }
+                else if (t == "/") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(a.Value / b.Value, a.Dim - b.Dim, null, 0)); }
+                else if (t == "^") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(Math.Pow(a.Value, b.Value), a.Dim * (int)Math.Round(b.Value), null, 0)); }
+                else if (char.IsDigit(t[0]) || t.StartsWith("-")) stack.Push(new PhysicalValue(double.Parse(t, CultureInfo.InvariantCulture), new UnitDim(), null, 0));
                 else
                 {
                     if (Units.TryGetValue(t, out var u)) stack.Push(u);
-                    else throw new Exception(t); // Zwraca konkretną nazwę błędnej, składowej jednostki
+                    else throw new Exception(t);
                 }
             }
             if (stack.Count != 1) throw new Exception("Błąd składni jednostki.");
@@ -401,7 +454,10 @@ namespace BricsCAD_Agent
                             {
                                 var pb = GetPhys(Pop()); var pa = GetPhys(Pop());
                                 if (pa.Dim != pb.Dim && !pa.Dim.IsDimensionless() && !pb.Dim.IsDimensionless()) throw new Exception($"Niezgodność: {pa.Dim} - {pb.Dim}");
-                                Push(new PhysicalValue(pa.Value - pb.Value, pa.Dim != new UnitDim() ? pa.Dim : pb.Dim, pa.PrefUnit));
+                                string pref = pa.PrefUnit;
+                                // Zabezpieczenie: różnica temperatur to zawsze temperatura względna (Delta), więc wymuszamy czyste Kelviny
+                                if (pa.Dim == new UnitDim { Theta = 1 }) pref = "K";
+                                Push(new PhysicalValue(pa.Value - pb.Value, pa.Dim != new UnitDim() ? pa.Dim : pb.Dim, pref));
                                 break;
                             }
                         case "*":
@@ -470,11 +526,49 @@ namespace BricsCAD_Agent
                                 double displayVal = pv.Value;
                                 if (!string.IsNullOrEmpty(pv.PrefUnit))
                                 {
-                                    try { displayVal /= UnitEngine.ParseUnit(pv.PrefUnit).Value; } catch { }
+                                    try
+                                    {
+                                        var pUnit = UnitEngine.ParseUnit(pv.PrefUnit);
+                                        displayVal = (displayVal / pUnit.Value) - pUnit.Offset;
+                                    }
+                                    catch { }
                                 }
                                 Push(new PhysicalValue(displayVal, new UnitDim()));
                                 break;
                             }
+
+                        case "PRETTY":
+                            {
+                                int d = (int)GetNum(Pop()); // Precyzja (np. 2 dla 2 miejsc po przecinku)
+                                var p = GetPhys(Pop());
+
+                                double displayVal = p.Value;
+                                string unitStr = p.PrefUnit ?? p.Dim.ToString();
+
+                                // Jeśli wektor ma jednostkę, przeliczamy na nią i uwzględniamy offset (np. dla degC)
+                                if (!string.IsNullOrEmpty(p.PrefUnit))
+                                {
+                                    try
+                                    {
+                                        var u = UnitEngine.ParseUnit(p.PrefUnit);
+                                        displayVal = (p.Value / u.Value) - u.Offset;
+                                    }
+                                    catch { }
+                                }
+
+                                // Używamy naszej logiki "Smart Round" (3 cyfry znaczące)
+                                int requiredSigFigs = 3;
+                                int sigPlaces = displayVal != 0 ? requiredSigFigs - 1 - (int)Math.Floor(Math.Log10(Math.Abs(displayVal))) : 0;
+                                int finalD = Math.Max(d, Math.Max(0, sigPlaces));
+
+                                string formattedNum = Math.Round(displayVal, finalD).ToString(CultureInfo.InvariantCulture);
+
+                                // Zwracamy ładny tekst: "Liczba Jednostka"
+                                Push($"{formattedNum} {unitStr}");
+                                break;
+                            }
+
+
                         case "UFACT":
                             {
                                 string tgtUnit = GetString(Pop());
@@ -509,7 +603,36 @@ namespace BricsCAD_Agent
 
                         // MATEMATYKA / TEKST
                         case "SQRT": { var p = GetPhys(Pop()); Push(new PhysicalValue(Math.Sqrt(p.Value), new UnitDim())); break; } // Uproszczone do bezwymiarowych
-                        case "ROUND": { int d = (int)GetNum(Pop()); var p = GetPhys(Pop()); Push(new PhysicalValue(Math.Round(p.Value, d), p.Dim, p.PrefUnit)); break; }
+                        case "ROUND":
+                            {
+                                int d = (int)GetNum(Pop());
+                                var p = GetPhys(Pop());
+                                int requiredSigFigs = 3;
+
+                                if (!string.IsNullOrEmpty(p.PrefUnit))
+                                {
+                                    try
+                                    {
+                                        var pUnit = UnitEngine.ParseUnit(p.PrefUnit);
+                                        double uFact = pUnit.Value;
+                                        double displayVal = (p.Value / uFact) - pUnit.Offset;
+
+                                        int sigPlaces = displayVal != 0 ? requiredSigFigs - 1 - (int)Math.Floor(Math.Log10(Math.Abs(displayVal))) : 0;
+                                        int finalD = Math.Max(d, Math.Max(0, sigPlaces));
+
+                                        double roundedDisplay = Math.Round(displayVal, finalD);
+                                        Push(new PhysicalValue((roundedDisplay + pUnit.Offset) * uFact, p.Dim, p.PrefUnit));
+                                        break;
+                                    }
+                                    catch { }
+                                }
+
+                                int baseSigPlaces = p.Value != 0 ? requiredSigFigs - 1 - (int)Math.Floor(Math.Log10(Math.Abs(p.Value))) : 0;
+                                int baseFinalD = Math.Max(d, Math.Max(0, baseSigPlaces));
+                                double baseRounded = Math.Round(p.Value, baseFinalD);
+                                Push(new PhysicalValue(baseRounded, p.Dim, p.PrefUnit));
+                                break;
+                            }
                         case "ABS": { var p = GetPhys(Pop()); Push(new PhysicalValue(Math.Abs(p.Value), p.Dim, p.PrefUnit)); break; }
 
                         case "==": case "=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(new PhysicalValue(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0, new UnitDim())); break; }
@@ -520,6 +643,23 @@ namespace BricsCAD_Agent
                         case "CONCAT": case "&": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a + b); break; }
                         case "REPLACE": { string n = GetString(Pop()); string o = GetString(Pop()); string tg = GetString(Pop()); Push(tg.Replace(o, n)); break; }
                         case "SPLIT": { int idx = (int)GetNum(Pop()); string sep = GetString(Pop()); string tg = GetString(Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
+                        case "NUM_ADD":
+                            {
+                                double valToAdd = GetNum(Pop());
+                                string baseText = GetString(Pop());
+
+                                // Używamy słowa 'match' zamiast 'm', aby uniknąć konfliktu nazw w C#
+                                string result = Regex.Replace(baseText, @"\d+([.,]\d+)?", match =>
+                                {
+                                    if (double.TryParse(match.Value.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedNum))
+                                    {
+                                        return (parsedNum + valToAdd).ToString(CultureInfo.InvariantCulture);
+                                    }
+                                    return match.Value;
+                                });
+                                Push(result);
+                                break;
+                            }
 
                         default:
                             if (token.StartsWith("$"))
@@ -530,17 +670,33 @@ namespace BricsCAD_Agent
                                 break;
                             }
 
+                            // 2. STAŁE FIZYCZNE, MATEMATYCZNE I SYSTEMOWE CAD (Chronione znakiem #)
                             if (token.StartsWith("#"))
                             {
                                 if (upperToken == "#PI") { Push(new PhysicalValue(Math.PI, new UnitDim())); break; }
                                 if (upperToken == "#G") { Push(new PhysicalValue(9.81, new UnitDim { L = 1, T = -2 }, "m/s2")); break; }
                                 if (upperToken == "#C") { Push(new PhysicalValue(299792458.0, new UnitDim { L = 1, T = -1 }, "m/s")); break; }
                                 if (upperToken == "#R_GAS") { Push(new PhysicalValue(8.314, new UnitDim { M = 1, L = 2, T = -2, Theta = -1, N = -1 }, "J/molK")); break; }
+
+                                /// AUTODETEKCJA JEDNOSTEK RYSUNKU (Liniowe i Powierzchniowe)
+                                if (upperToken == "#UNITA")
+                                {
+                                    short ins = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
+                                    Push(ins == 4 ? "mm2" : (ins == 5 ? "cm2" : "m2"));
+                                    break;
+                                }
+                                if (upperToken == "#UNITL")
+                                {
+                                    short ins = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
+                                    Push(ins == 4 ? "mm" : (ins == 5 ? "cm" : "m"));
+                                    break;
+                                }
+
                                 throw new Exception($"Nieznana stała fizyczna: {token}");
                             }
 
-                            // Inteligentny parser jednostek z potęgami i nawiasami!
-                            Match m = Regex.Match(token, @"^([-0-9.,]+)_?([a-zA-Z(][a-zA-Z0-9/*^()-]*)$");
+                            // Inteligentny parser jednostek z polskimi znakami, potęgami i nawiasami!
+                            Match m = Regex.Match(token, @"^([-0-9.,]+)_?([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ%(][a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ0-9/*^()%-]*)$");
                             if (m.Success)
                             {
                                 try
@@ -548,7 +704,8 @@ namespace BricsCAD_Agent
                                     double val = double.Parse(m.Groups[1].Value.Replace(",", "."), CultureInfo.InvariantCulture);
                                     string unitStr = m.Groups[2].Value;
                                     PhysicalValue uVal = UnitEngine.ParseUnit(unitStr);
-                                    Push(new PhysicalValue(val * uVal.Value, uVal.Dim, unitStr));
+                                    // Dodajemy offset w momencie ładowania na stos!
+                                    Push(new PhysicalValue((val + uVal.Offset) * uVal.Value, uVal.Dim, unitStr));
                                     break;
                                 }
                                 catch (Exception ex)
@@ -573,22 +730,20 @@ namespace BricsCAD_Agent
         private static PhysicalValue GetPhys(object o)
         {
             if (o is PhysicalValue p) return p;
-            string s = GetString(o); // <-- ZMIANA: Bezpiecznie odpakowuje ewentualne cudzysłowy
+            string s = GetString(o);
 
-            // NOWY REGEX: obsługuje nawiasy, gwiazdki i potęgi!
-            Match m = Regex.Match(s, @"^([-0-9.,]+)_?([a-zA-Z(][a-zA-Z0-9/*^()-]*)$");
+            Match m = Regex.Match(s, @"^([-0-9.,]+)_?([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ%(][a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ0-9/*^()%-]*)$");
             if (m.Success)
             {
                 try
                 {
                     double val = double.Parse(m.Groups[1].Value.Replace(",", "."), CultureInfo.InvariantCulture);
                     PhysicalValue uVal = UnitEngine.ParseUnit(m.Groups[2].Value);
-                    return new PhysicalValue(val * uVal.Value, uVal.Dim, m.Groups[2].Value);
+                    return new PhysicalValue((val + uVal.Offset) * uVal.Value, uVal.Dim, m.Groups[2].Value);
                 }
                 catch { }
             }
 
-            // Czysta liczba
             double.TryParse(s.Replace("_", "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double num);
             return new PhysicalValue(num, new UnitDim());
         }

@@ -282,6 +282,7 @@ namespace BricsCAD_Agent
             ed.WriteMessage("\n [LOGIKA]    ==, !=, >, <, IFTE (Warunek Prawda Falsz IFTE)");
             ed.WriteMessage("\n [TEKSTOWE]  Szczegółowy opis operacji na ciągach znaków:");
             ed.WriteMessage("\n   CONCAT / &  : Łączy 2 teksty (np. 'A' 'B' & -> 'AB')");
+            ed.WriteMessage("\n   NUM_ADD     : [Tekst] [Wartość] NUM_ADD (np. 'DN50' 20 NUM_ADD -> 'DN70')");
             ed.WriteMessage("\n   UPPER/LOWER : Zmienia wielkość liter ('abc' UPPER -> 'ABC')");
             ed.WriteMessage("\n   TRIM        : Usuwa białe znaki z początku i końca tekstu");
             ed.WriteMessage("\n   LEN         : Zwraca długość tekstu (ilość znaków)");

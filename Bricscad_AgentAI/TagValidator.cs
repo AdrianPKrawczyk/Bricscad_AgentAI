@@ -94,14 +94,27 @@ namespace BricsCAD_Agent
             {
                 string json = m.Groups[1].Value;
 
-                string entType = "Entity";
+                string entTypeStr = "Entity";
                 Match mEnt = Regex.Match(json, @"""EntityType""\s*:\s*""([^""]+)""", RegexOptions.IgnoreCase);
-                if (mEnt.Success) entType = mEnt.Groups[1].Value;
+                if (mEnt.Success) entTypeStr = mEnt.Groups[1].Value;
 
-                if (!apiCache.ContainsKey(entType) && !entType.Equals("Entity", StringComparison.OrdinalIgnoreCase))
+                // --- ROZWIĄZANIE: ROZDZIELANIE PO PRZECINKACH ---
+                string[] typy = entTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string t in typy)
                 {
-                    errors.Add($"[HALUCYNACJA - SELECT] Nieznana klasa obiektu: '{entType}'.");
+                    string cleanType = t.Trim();
+                    // Przepuszczamy Entity, wirtualne wildcardy (zaczynające się od *) oraz sprawdzone klasy z bazy
+                    if (!cleanType.Equals("Entity", StringComparison.OrdinalIgnoreCase) &&
+                        !cleanType.StartsWith("*") &&
+                        !apiCache.ContainsKey(cleanType))
+                    {
+                        errors.Add($"[HALUCYNACJA - SELECT] Nieznana klasa obiektu: '{cleanType}'.");
+                    }
                 }
+
+                // Przypisanie pierwszej napotkanej klasy jako "szefa" dla dalszej walidacji właściwości
+                string entType = typy.Length > 0 ? typy[0].Replace("*", "") : "Entity";
+                // ------------------------------------------------
 
                 var mCond = Regex.Match(json, @"""Conditions""\s*:\s*\[(.*?)\]", RegexOptions.Singleline | RegexOptions.IgnoreCase);
                 if (mCond.Success)

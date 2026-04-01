@@ -26,8 +26,16 @@ namespace BricsCAD_Agent
 
             string mode = Regex.Match(jsonArgs, @"\""Mode\""\s*:\s*\""(.*?)\""").Groups[1].Value;
             string text = Regex.Match(jsonArgs, @"\""Text\""\s*:\s*\""(.*?)\""").Groups[1].Value;
-            string findText = Regex.Match(jsonArgs, @"\""FindText\""\s*:\s*\""(.*?)\""").Groups[1].Value;
-            string colorStr = Regex.Match(jsonArgs, @"\""Color\""\s*:\s*(\d+)").Groups[1].Value;
+
+            // --- NOWOŚĆ: OBSŁUGA RPN ---
+            if (text.StartsWith("RPN:"))
+            {
+                try { text = RpnCalculator.Evaluate(text.Substring(4).Trim(), null, null, ed); }
+                catch (Exception ex) { return $"[Błąd RPN w MTEXT_EDIT]: {ex.Message}"; }
+            }
+            // -------------------------
+
+            string findText = Regex.Match(jsonArgs, @"\""FindText\""\s*:\s*\""(.*?)\""").Groups[1].Value; string colorStr = Regex.Match(jsonArgs, @"\""Color\""\s*:\s*(\d+)").Groups[1].Value;
             bool underline = Regex.IsMatch(jsonArgs, @"\""Underline\""\s*:\s*true", RegexOptions.IgnoreCase);
             bool bold = Regex.IsMatch(jsonArgs, @"\""Bold\""\s*:\s*true", RegexOptions.IgnoreCase);
             bool italic = Regex.IsMatch(jsonArgs, @"\""Italic\""\s*:\s*true", RegexOptions.IgnoreCase);

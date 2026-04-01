@@ -293,21 +293,21 @@ namespace BricsCAD_Agent
                 "3. Komentuj swoje intencje! Dodawaj opcjonalny parametr \"Comment\": \"Twój komentarz\" do każdego JSONa w tagach SELECT i ACTION, by wyjaśnić swój proces myślowy.\n" +
                 "4. ZAKAZ ŁĄCZENIA TAGÓW! W jednej odpowiedzi możesz wygenerować TYLKO JEDEN tag [ACTION] lub [SELECT]. Zawsze czekaj na słowo 'WYNIK' z pierwszego narzędzia, zanim użyjesz kolejnego!\n" +
                 "5. SZYBKIE WYŚWIETLANIE (DIRECT PRINT): Jeśli użytkownik prosi o samo WYŚWIETLENIE lub WYPISANIE długiej listy/właściwości (np. GET_PROPERTIES, LIST_BLOCKS), dodaj do argumentów narzędzia parametr \"DirectPrint\": true (np. [ACTION:GET_PROPERTIES {\"DirectPrint\": true}]). System natychmiast zrzuci wynik bezpośrednio na ekran i zakończy zadanie, oszczędzając Twój czas i tokeny!\n" +
-                "6. WSTRZYKIWANIE W WARTOŚCI I MATEMATYKA: Jeśli użytkownik w trakcie rysowania pyta o obliczenie jakiejś wartości (np. równanie matematyczne, pole, obwód), ZAWSZE deleguj to do wbudowanego kalkulatora RPN! Użyj narzędzia [ACTION:SEND_TO_CMD] i dodaj prefiks 'RPN:' do wartości (np. [ACTION:SEND_TO_CMD {\"Value\": \"RPN: 50 3.14 *\"}]). System sam bezbłędnie obliczy wynik i wstrzyknie go bezpośrednio do paska poleceń CADa jako odpowiedź dla użytkownika!\n\n" +
                 "6. WSTRZYKIWANIE W WARTOŚCI W TRAKCIE RYSOWANIA: Jeśli użytkownik ma AKTYWNE polecenie w CAD (np. rysuje okrąg i pyta o promień), ZAWSZE wstrzykuj wartość przez [ACTION:SEND_TO_CMD {\"Value\": \"RPN: wyrażenie\"}]. Używaj jednostek z podłogą, np. RPN: 10_m 2 /. System sam bezbłędnie obliczy wynik i wstrzyknie go bezpośrednio do paska poleceń CADa jako odpowiedź dla użytkownika!\n" +
-                "7. OBLICZENIA INŻYNIERSKIE W CZACIE: Jesteś zintegrowany z potężnym silnikiem analizy wymiarowej (SI). NIGDY nie wykonuj skomplikowanych obliczeń fizycznych ani matematycznych samodzielnie! Zawsze używaj narzędzia [ACTION:CALC_RPN {\"Expression\": \"wyrażenie_RPN\"}].\n" +
-                "Zasady Twojego kalkulatora:\n" +
-                "- Stosuj Odwrotną Notację Polską (np. dodanie 2 i 3 to: 2 3 +).\n" +
-                "- Dołączaj jednostki do liczb używając znaku podłogi, np.: 10_m, 500_kg, 15_kPa, 20_m/s, 9.81_m/s2.\n" +
-                "- Silnik sam złoży wektory SI! Jeśli pomnożysz masę i przyspieszenie (np. 50_kg 9.81_m/s2 *), silnik odda Ci wynik w Niutonach (_N).\n" +
-                "- Jeśli chcesz przeliczyć wynik na inną jednostkę, użyj komendy CONVE. Przykład przeliczenia 1 cala na mm: 1_in 'mm' CONVE.\n" +
-                "- Obsługiwane operatory: +, -, *, /, ^, SQRT, ROUND, ABS.\n" +
-                "- Pamiętaj, że silnik RPN odłoży ten wynik na globalny stos użytkownika w jego pliku DWG!\n\n" +
-                "- Jeśli chcesz przeliczyć wynik na inną jednostkę, użyj komendy CONVE. Przykład przeliczenia 1 cala na mm: 1_in 'mm' CONVE.\n" +
-                "- Obsługiwane operatory: +, -, *, /, ^, SQRT, ROUND, ABS.\n" +
-                "- Pamiętaj, że silnik RPN odłoży ten wynik na globalny stos użytkownika w jego pliku DWG!\n\n" +
+                "7. OBLICZENIA INŻYNIERSKIE I RPN: Zawsze używaj kalkulatora do fizyki/matematyki. Wyrażenia RPN możesz wstrzykiwać bezpośrednio do parametrów w [ACTION:CREATE_OBJECT] (zaczynając od 'RPN: ') lub używać [ACTION:CALC_RPN].\n" +
+                "Zasady Twojego kalkulatora (RYGOR TRYBU INŻYNIERSKIEGO):\n" +
+                "- Odwrotna Notacja Polska: 2 3 + (dodawanie), 10_m 2 / (dzielenie).\n" +
+                "- Jednostki: ZAWSZE używaj podłogi dla wektorów, np. 10_m, 500_kg, 15_kPa. Silnik obsługuje potęgi i ułamki algebraiczne (np. 1_kJ/(kg*K), 5_m3/h, 10_m2).\n" +
+                "- Zabezpieczenie pętli FOREACH: ZAWSZE stawiaj słowo CLEAR na samym początku wyrażenia RPN wewnątrz pętli, aby chronić stos przed zabrudzeniem!\n" +
+                "- Stałe fizyczne: ZAWSZE używaj stałych ze znakiem # (nigdy nie wpisuj wartości z palca!): #G (grawitacja 9.81), #PI, #C (prędkość światła), #R_GAS.\n" +
+                "- Autodetekcja jednostek CAD: ZAWSZE używaj stałych #UNITA (jednostka pola) i #UNITL (jednostka długości) przy pobieraniu suchych liczb wymiarowych z rysunku (np. $ITEM2 #UNITA +UNIT lub $ITEM1 #UNITL +UNIT).\n" +
+                "- Zmienne tymczasowe: Zapis do pamięci: 'V' STO. Odczyt (WYMAGA DOLARA!): $V. Przykład: 10_m 'DL' STO $DL 2 *\n" +
+                "- UVAL (Wyciąganie liczby): Jeśli chcesz wyświetlić wektor jako tekst, ZAWSZE używaj UVAL, aby zdjąć z niego jednostkę przed zaokrągleniem, np: $V UVAL 2 ROUND.\n" +
+                "- Przeliczanie: Do wymuszenia zmiany wyświetlanej jednostki (np. z m3/s na m3/h) używaj komendy CONVE: np. 5_m/s 'm3/h' CONVE.\n" +
+                "- Operatory tekstowe: Łańcuchy znaków otaczaj apostrofami. Używaj CONCAT do łączenia (np. 'P=' 5.5 CONCAT ' kPa' CONCAT). NUM_ADD dodaje wartość do liczb wewnątrz tekstu (np. 'DN50' 20 NUM_ADD da 'DN70').\n\n" +
+                "- Formatowanie końcowe: Aby wstawić na rysunek ładny wynik ze spacją (np. '141 m3/h' zamiast '141_m3/h'), używaj operatora PRETTY. Przykład: $V 2 PRETTY. Zamienia on wektor na tekst i automatycznie rozdziela liczbę od jednostki.\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
-        
+
         [CommandMethod("AGENT_UI")]
         public void UruchomInterfejsAgenta()
         {
@@ -1102,7 +1102,11 @@ namespace BricsCAD_Agent
                                 { rzeczywistaWlasciwosc = "ColorIndex"; }
                                 else if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
                                 else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
-
+                                else if (rzeczywistaWlasciwosc.Equals("Value", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (ent is DBText) rzeczywistaWlasciwosc = "TextString";
+                                    else if (ent is MText) rzeczywistaWlasciwosc = "Text";
+                                }
                                 string[] zagniezdzenia = rzeczywistaWlasciwosc.Split('.');
                                 object wartoscObiektu = ent;
                                 System.Reflection.PropertyInfo propInfo = null;
