@@ -47,6 +47,9 @@ namespace Bricscad_AgentAI
         // ---- Statystyki
         private Label lblStats;
 
+        // --- DODANA LINIJKA: Globalny dostęp do okna ---
+        public static AgentControl Instance { get; private set; }
+
         public AgentControl()
         {
             LoadSettingsFromRegistry();
@@ -57,6 +60,7 @@ namespace Bricscad_AgentAI
             BricsCAD_Agent.Komendy.OnTagGenerated -= CatchTagForTraining;
             BricsCAD_Agent.Komendy.OnTagGenerated += CatchTagForTraining;
             BricsCAD_Agent.Komendy.OnModelStatsUpdated += UpdateStatsUI;
+            Instance = this;
         }
 
         private void InitializeModernUI()
@@ -104,6 +108,9 @@ namespace Bricscad_AgentAI
             };
             btnSend.FlatAppearance.BorderSize = 0;
             btnSend.Click += btnSend_Click;
+
+
+
 
             // --- NOWY PRZYCISK RESET ---
             btnReset = new Button
@@ -594,6 +601,25 @@ namespace Bricscad_AgentAI
                 e.Handled = true;
                 btnSend_Click(btnSend, EventArgs.Empty);
             }
+        }
+
+        // ==========================================================
+        // POMOST MIĘDZY KONSOLĄ BricsCADa (@AI) A OKIENKIEM CZATU
+        // ==========================================================
+        public void WyslijZapytanieZKonsoli(string prompt)
+        {
+            // Ponieważ CAD może to wysłać z innego wątku, musimy to zabezpieczyć przez Invoke
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => WyslijZapytanieZKonsoli(prompt)));
+                return;
+            }
+
+            // Wpisujemy tekst użytkownika w okienko
+            txtInput.Text = prompt;
+
+            // Wywołujemy dokładnie to samo zdarzenie, jakby użytkownik kliknął przycisk WYŚLIJ!
+            btnSend_Click(null, null);
         }
 
         // =========================================================

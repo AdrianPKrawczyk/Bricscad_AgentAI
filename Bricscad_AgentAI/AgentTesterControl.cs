@@ -31,19 +31,29 @@ namespace BricsCAD_Agent
 
         // Elementy UI
         private ListBox listTests;
-        private TextBox txtQuestion, txtExpected, txtTag, txtUserReply, txtComment;
+        private TextBox txtQuestion, txtExpected, txtCapturedTags, txtAgentResponse, txtUserReply, txtComment;
         private CheckBox chkPassed;
-        private Label lblStatus, lblScore, lblQ;
-        private Button btnRunTest, btnReply, btnSaveEvaluation;
-        private ComboBox cmbModels; // Rozwijana lista z modelami!
+        private Label lblStatus, lblScore, lblTotalTime, lblQ;
+        private Button btnRunTest, btnReply, btnSaveEvaluation, btnRunExpected;
+        private NumericUpDown numWeight;
+        private ComboBox cmbModels;
         private Label lblStats;
-        private double lastResponseTime = 0; // Zmienna tymczasowa do łapania czasu z Mózgu
+        private double lastResponseTime = 0;
+
+        private bool isUpdatingUI = false;
 
         public AgentTesterControl()
         {
             InitializeUI();
-            LoadModelsAsync(); // Od razu ładujemy listę z LM Studio
+            LoadModelsAsync();
             BricsCAD_Agent.Komendy.OnModelStatsUpdated += UpdateStatsUI;
+
+            string autoSavePath = GetAutoSavePath();
+            if (File.Exists(autoSavePath))
+            {
+                try { LoadJson(autoSavePath); lblStatus.Text = "Wznowiono sesję z autozapisu!"; }
+                catch { }
+            }
         }
 
         private void InitializeUI()
@@ -54,72 +64,131 @@ namespace BricsCAD_Agent
             this.ForeColor = Color.White;
             this.Font = new Font("Segoe UI", 9f);
 
+            // ==============================================================
             // --- GÓRNY PASEK NARZĘDZI ---
-            Panel panTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(2) };
+            // ==============================================================
+            Panel panTop = new Panel { Dock = DockStyle.Top, Height = 75, Padding = new Padding(2), BackColor = Color.FromArgb(45, 45, 45) };
 
-            Button btnLoad = new Button { Text = "Wczytaj Pytania", Width = 110, Dock = DockStyle.Left, BackColor = Color.LightGray, ForeColor = Color.Black, Cursor = Cursors.Hand };
-            Button btnSave = new Button { Text = "Zapisz Raport", Width = 110, Dock = DockStyle.Left, BackColor = Color.PaleGreen, ForeColor = Color.Black, Cursor = Cursors.Hand };
+            // LEWA STRONA (Przyciski + Modele)
+            Panel panTopLeft = new Panel { Dock = DockStyle.Left, Width = 390 };
 
-            Label lblModel = new Label { Text = " Model:", Width = 50, Dock = DockStyle.Left, TextAlign = ContentAlignment.MiddleRight };
-            cmbModels = new ComboBox { Width = 160, Dock = DockStyle.Left, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 5, 0, 0) };
-            cmbModels.SelectedIndexChanged += (s, e) => { Komendy.wybranyModel = cmbModels.SelectedItem.ToString(); };
-
-            Button btnRefreshModels = new Button { Text = "↻", Width = 30, Dock = DockStyle.Left, Cursor = Cursors.Hand, BackColor = Color.LightYellow, ForeColor = Color.Black };
-            btnRefreshModels.Click += (s, e) => LoadModelsAsync();
-
-            lblScore = new Label { Text = "Wynik: 0/0 pkt", Dock = DockStyle.Right, Width = 150, TextAlign = ContentAlignment.MiddleRight, Font = new Font(this.Font, FontStyle.Bold), ForeColor = Color.Gold };
-            lblStatus = new Label { Text = "Gotowy.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.LightSkyBlue };
+            FlowLayoutPanel flpButtons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
+            Button btnLoad = new Button { Text = "Wczytaj JSON", Width = 95, Height = 28, BackColor = Color.LightGray, ForeColor = Color.Black, Cursor = Cursors.Hand };
+            Button btnImportJsonl = new Button { Text = "+ Import JSONL", Width = 110, Height = 28, BackColor = Color.LightSkyBlue, ForeColor = Color.Black, Cursor = Cursors.Hand };
+            Button btnSave = new Button { Text = "Zapisz Raport", Width = 100, Height = 28, BackColor = Color.PaleGreen, ForeColor = Color.Black, Cursor = Cursors.Hand };
+            Button btnClear = new Button { Text = "Wyczyść", Width = 70, Height = 28, BackColor = Color.LightCoral, ForeColor = Color.Black, Cursor = Cursors.Hand };
 
             btnLoad.Click += BtnLoad_Click;
+            btnImportJsonl.Click += BtnImportJsonl_Click;
             btnSave.Click += BtnSave_Click;
+            btnClear.Click += (s, e) => { tests.Clear(); RefreshList(); SaveAutoSave(); };
+
+            flpButtons.Controls.Add(btnLoad);
+            flpButtons.Controls.Add(btnImportJsonl);
+            flpButtons.Controls.Add(btnSave);
+            flpButtons.Controls.Add(btnClear);
+
+            Panel panModels = new Panel { Dock = DockStyle.Top, Height = 30, Padding = new Padding(0, 4, 0, 0) };
+            Label lblModel = new Label { Text = "Model AI:", Width = 60, Dock = DockStyle.Left, TextAlign = ContentAlignment.MiddleRight };
+            Button btnRefreshModels = new Button { Text = "↻", Width = 30, Dock = DockStyle.Left, Cursor = Cursors.Hand, BackColor = Color.LightYellow, ForeColor = Color.Black };
+            btnRefreshModels.Click += (s, e) => LoadModelsAsync();
+            cmbModels = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbModels.SelectedIndexChanged += (s, e) => { Komendy.wybranyModel = cmbModels.SelectedItem.ToString(); };
+
+            panModels.Controls.Add(cmbModels);
+            panModels.Controls.Add(btnRefreshModels);
+            panModels.Controls.Add(lblModel);
+
+            panTopLeft.Controls.Add(panModels);
+            panTopLeft.Controls.Add(flpButtons);
+
+            // PRAWA STRONA (Punkty i Czas)
+            Panel panTopRight = new Panel { Dock = DockStyle.Right, Width = 220 };
+            lblScore = new Label { Text = "Wynik: 0/0 pkt", Dock = DockStyle.Top, Height = 25, TextAlign = ContentAlignment.MiddleRight, Font = new Font(this.Font, FontStyle.Bold), ForeColor = Color.Gold };
+            lblTotalTime = new Label { Text = "Całkowity czas: 0.0 s", Dock = DockStyle.Top, Height = 25, TextAlign = ContentAlignment.MiddleRight, Font = new Font(this.Font, FontStyle.Bold), ForeColor = Color.LightSkyBlue };
+            panTopRight.Controls.Add(lblTotalTime);
+            panTopRight.Controls.Add(lblScore);
+
+            // ŚRODEK (Status)
+            lblStatus = new Label { Text = "Gotowy.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.LightGreen, Font = new Font(this.Font, FontStyle.Bold) };
 
             panTop.Controls.Add(lblStatus);
-            panTop.Controls.Add(lblScore);
-            panTop.Controls.Add(btnRefreshModels);
-            panTop.Controls.Add(cmbModels);
-            panTop.Controls.Add(lblModel);
-            panTop.Controls.Add(btnSave);
-            panTop.Controls.Add(btnLoad);
+            panTop.Controls.Add(panTopRight);
+            panTop.Controls.Add(panTopLeft);
 
-            // --- LISTA PYTAŃ (LEWA STRONA) ---
-            listTests = new ListBox { Dock = DockStyle.Left, Width = 250, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.White, Font = new Font("Consolas", 9) };
+            // ==============================================================
+            // --- GŁÓWNY PODZIAŁ (Lista Zadań vs Szczegóły) ---
+            // ==============================================================
+            SplitContainer splitMain = new SplitContainer { Orientation = Orientation.Vertical, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
+            splitMain.Panel1.BackColor = Color.FromArgb(30, 30, 30);
+            splitMain.Panel2.BackColor = Color.FromArgb(40, 40, 40);
+
+            listTests = new ListBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.White, Font = new Font("Consolas", 9), IntegralHeight = false };
             listTests.SelectedIndexChanged += ListTests_SelectedIndexChanged;
+            splitMain.Panel1.Controls.Add(listTests);
 
-            // --- PANEL SZCZEGÓŁÓW (PRAWA STRONA) - BUDOWA OPARTA O ROZCIĄGALNE SPLITCONTAINERY ---
-
-            // 1. Zewnętrzny SplitContainer (Pytanie vs Reszta)
+            // ==============================================================
+            // --- PANEL SZCZEGÓŁÓW (Prawa strona - 5 poziomów) ---
+            // ==============================================================
             SplitContainer split1 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
+            SplitContainer split2 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
+            SplitContainer split3 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
+            SplitContainer split4 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
+
             split1.Panel1.BackColor = Color.FromArgb(40, 40, 40);
-            split1.Panel2.BackColor = Color.FromArgb(40, 40, 40);
+            split2.Panel1.BackColor = Color.FromArgb(40, 40, 40);
+            split3.Panel1.BackColor = Color.FromArgb(40, 40, 40);
+            split4.Panel1.BackColor = Color.FromArgb(40, 40, 40);
+            split4.Panel2.BackColor = Color.FromArgb(40, 40, 40);
+
+            splitMain.Panel2.Controls.Add(split1);
+            split1.Panel2.Controls.Add(split2);
+            split2.Panel2.Controls.Add(split3);
+            split3.Panel2.Controls.Add(split4);
+
+            // 1. Pytanie z wagą
+            Panel panQHeader = new Panel { Dock = DockStyle.Top, Height = 25 };
+            lblQ = new Label { Text = "Treść polecenia dla Agenta:", Dock = DockStyle.Left, Width = 250, TextAlign = ContentAlignment.MiddleLeft };
+            numWeight = new NumericUpDown { Dock = DockStyle.Right, Width = 50, Minimum = 1, Maximum = 100, Value = 1, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            numWeight.ValueChanged += NumWeight_ValueChanged;
+            Label lblW = new Label { Text = "Waga:", Dock = DockStyle.Right, Width = 45, TextAlign = ContentAlignment.MiddleRight };
+            panQHeader.Controls.Add(numWeight);
+            panQHeader.Controls.Add(lblW);
+            panQHeader.Controls.Add(lblQ);
 
             txtQuestion = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
-            lblQ = new Label { Text = "Treść polecenia dla Agenta:", Dock = DockStyle.Top, Height = 20 };
             split1.Panel1.Controls.Add(txtQuestion);
-            split1.Panel1.Controls.Add(lblQ);
+            split1.Panel1.Controls.Add(panQHeader);
 
-            // 2. Wewnętrzny SplitContainer (Oczekiwane vs Tag z dołem)
-            SplitContainer split2 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
-            split2.Panel1.BackColor = Color.FromArgb(40, 40, 40);
-            split2.Panel2.BackColor = Color.FromArgb(40, 40, 40);
-            split1.Panel2.Controls.Add(split2);
+            // 2. Wzorzec
+            Panel panExpHeader = new Panel { Dock = DockStyle.Top, Height = 30 };
+            Label lblExpected = new Label { Text = "Prawidłowe Makro (Wzorzec):", Dock = DockStyle.Left, Width = 200, TextAlign = ContentAlignment.MiddleLeft };
+            btnRunExpected = new Button { Text = "▶ Uruchom Wzorzec", Dock = DockStyle.Right, Width = 140, BackColor = Color.MediumSeaGreen, ForeColor = Color.White, Cursor = Cursors.Hand, Font = new Font(this.Font, FontStyle.Bold) };
+            btnRunExpected.Click += BtnRunExpected_Click;
+            panExpHeader.Controls.Add(btnRunExpected);
+            panExpHeader.Controls.Add(lblExpected);
 
-            txtExpected = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGoldenrodYellow, Font = new Font("Consolas", 9) };
-            Label lblExpected = new Label { Text = "Prawidłowe Makro (Wzorzec):", Dock = DockStyle.Top, Height = 20 };
+            txtExpected = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = false, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGoldenrodYellow, Font = new Font("Consolas", 9) };
+            txtExpected.TextChanged += (s, e) => { if (!isUpdatingUI && listTests.SelectedIndex >= 0) tests[listTests.SelectedIndex].ExpectedTag = txtExpected.Text; };
             split2.Panel1.Controls.Add(txtExpected);
-            split2.Panel1.Controls.Add(lblExpected);
+            split2.Panel1.Controls.Add(panExpHeader);
 
-            // 3. Najgłębszy SplitContainer (Odpowiedź Agenta vs Oceny i Komentarz)
-            SplitContainer split3 = new SplitContainer { Orientation = Orientation.Horizontal, Dock = DockStyle.Fill, SplitterWidth = 6, BackColor = Color.DimGray };
-            split3.Panel1.BackColor = Color.FromArgb(40, 40, 40);
-            split3.Panel2.BackColor = Color.FromArgb(40, 40, 40);
-            split2.Panel2.Controls.Add(split3);
+            // 3. Przechwycone Tagi (Tylko czyste akcje)
+            Panel panCapHeader = new Panel { Dock = DockStyle.Top, Height = 25 };
+            Label lblCaptured = new Label { Text = "Przechwycone Tagi (Do oceny):", Dock = DockStyle.Left, Width = 250, TextAlign = ContentAlignment.MiddleLeft };
+            panCapHeader.Controls.Add(lblCaptured);
+            txtCapturedTags = new TextBox { Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.LimeGreen, Font = new Font("Consolas", 10) };
+            txtCapturedTags.TextChanged += (s, e) => { if (!isUpdatingUI && listTests.SelectedIndex >= 0) tests[listTests.SelectedIndex].GeneratedTag = txtCapturedTags.Text; };
+            split3.Panel1.Controls.Add(txtCapturedTags);
+            split3.Panel1.Controls.Add(panCapHeader);
 
-            txtTag = new TextBox { Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.LimeGreen, Font = new Font("Consolas", 10) };
-            Label lblTag = new Label { Text = "Odpowiedź Agenta / Przechwycony Tag:", Dock = DockStyle.Top, Height = 20 };
+            // 4. Historia / Odpowiedź Agenta (Pełny łańcuch myślowy)
+            Label lblAgentResp = new Label { Text = "Historia Konwersacji (Logi):", Dock = DockStyle.Top, Height = 20 };
+            txtAgentResponse = new TextBox { Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightSkyBlue, Font = new Font("Consolas", 9) };
 
             Panel panAgentControls = new Panel { Dock = DockStyle.Top, Height = 75 };
             btnRunTest = new Button { Text = "🚀 WYŚLIJ POLECENIE DO AGENTA (Start Testu)", Dock = DockStyle.Top, Height = 40, BackColor = Color.LightSkyBlue, ForeColor = Color.Black, Cursor = Cursors.Hand, Font = new Font(this.Font, FontStyle.Bold) };
-            btnRunTest.Click += BtnRunTest_Click; // <--- DODAJ TĘ LINIJKĘ
+            btnRunTest.Click += BtnRunTest_Click;
 
             Panel panReply = new Panel { Dock = DockStyle.Bottom, Height = 30, Padding = new Padding(0, 5, 0, 0) };
             btnReply = new Button { Text = "Wyślij odpowiedź", Dock = DockStyle.Right, Width = 120, BackColor = Color.Khaki, ForeColor = Color.Black, Cursor = Cursors.Hand };
@@ -131,11 +200,13 @@ namespace BricsCAD_Agent
             panAgentControls.Controls.Add(btnRunTest);
             panAgentControls.Controls.Add(panReply);
 
-            split3.Panel1.Controls.Add(txtTag);
-            split3.Panel1.Controls.Add(panAgentControls);
-            split3.Panel1.Controls.Add(lblTag);
+            split4.Panel1.Controls.Add(txtAgentResponse);
+            split4.Panel1.Controls.Add(panAgentControls);
+            split4.Panel1.Controls.Add(lblAgentResp);
 
+            // 5. Komentarz i Ocena 
             txtComment = new TextBox { Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            txtComment.TextChanged += (s, e) => { if (!isUpdatingUI && listTests.SelectedIndex >= 0) tests[listTests.SelectedIndex].Comment = txtComment.Text; };
             Label lblComm = new Label { Text = "Twój komentarz / Analiza błędu:", Dock = DockStyle.Top, Height = 20 };
 
             Panel panEval = new Panel { Dock = DockStyle.Bottom, Height = 45, Padding = new Padding(0, 10, 0, 0) };
@@ -145,49 +216,171 @@ namespace BricsCAD_Agent
             panEval.Controls.Add(btnSaveEvaluation);
             panEval.Controls.Add(chkPassed);
 
-            split3.Panel2.Controls.Add(txtComment);
-            split3.Panel2.Controls.Add(lblComm);
-            split3.Panel2.Controls.Add(panEval);
+            split4.Panel2.Controls.Add(txtComment);
+            split4.Panel2.Controls.Add(lblComm);
+            split4.Panel2.Controls.Add(panEval);
 
-            // --- PASEK STATYSTYK (HUD) ---
+            // --- PASEK STATYSTYK DOLNY ---
             Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 22, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 0, 0, 0) };
-            lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Color.LightGray, Font = new Font("Consolas", 8), TextAlign = ContentAlignment.MiddleLeft, Text = "Gotowy. Czekam na połączenie z LM Studio..." };
+            lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Color.LightGray, Font = new Font("Consolas", 8), TextAlign = ContentAlignment.MiddleLeft, Text = "Gotowy." };
             panStats.Controls.Add(lblStats);
 
-            // Składanie w całość
-            this.Controls.Add(split1);
-            this.Controls.Add(listTests);
+            this.Controls.Add(splitMain);
             this.Controls.Add(panTop);
             this.Controls.Add(panStats);
 
-            // Automatyczne ustawienie proporcji okien (10% - 10% - 60% - 20%)
             bool proporcjeUstawione = false;
             this.SizeChanged += (s, e) =>
             {
-                // Wykonujemy skalowanie tylko raz, gdy okno zyska już swój właściwy rozmiar w BricsCAD
-                if (!proporcjeUstawione && this.Height > 200)
+                if (!proporcjeUstawione && this.Height > 300)
                 {
                     try
                     {
-                        // 1. Pytanie i Wzorzec otrzymują po 10% całkowitej wysokości okna.
-                        // Używamy Math.Max(55, ...), aby w razie bardzo małego okna zostawić minimum 55px na tekst.
-                        split1.SplitterDistance = Math.Max(55, (int)(this.Height * 0.10));
-                        split2.SplitterDistance = Math.Max(55, (int)(this.Height * 0.10));
-
-                        // 2. Pozostała część to 80% całego ekranu. Dzielimy ją między Agenta (60%) a Komentarz (20%).
-                        // Proporcja 60 do 20 to inaczej 3:1, czyli górny panel zajmuje równe 75% tego obszaru.
-                        split3.SplitterDistance = (int)(split3.Height * 0.75);
-
+                        splitMain.SplitterDistance = 280; // Szerokość listy
+                        split1.SplitterDistance = Math.Max(50, (int)(splitMain.Height * 0.10));
+                        split2.SplitterDistance = Math.Max(60, (int)(splitMain.Height * 0.15));
+                        split3.SplitterDistance = Math.Max(80, (int)(splitMain.Height * 0.20));
+                        split4.SplitterDistance = (int)(split4.Height * 0.70);
                         proporcjeUstawione = true;
                     }
-                    catch { } // Ciche ignorowanie ewentualnych konfliktów podczas renderowania
+                    catch { }
                 }
             };
         }
 
         // ==========================================
-        // POBIERANIE MODELI Z LM STUDIO BEZPOŚREDNIO
+        // AUTOZAPIS
         // ==========================================
+        private string GetAutoSavePath()
+        {
+            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BricsCAD_Agent");
+            Directory.CreateDirectory(folder);
+            return Path.Combine(folder, "autosave_tester.json");
+        }
+
+        private void SaveAutoSave()
+        {
+            if (tests.Count > 0) SaveJson(GetAutoSavePath(), true);
+        }
+
+        // ==========================================
+        // EDYCJA WAGI
+        // ==========================================
+        private void NumWeight_ValueChanged(object sender, EventArgs e)
+        {
+            if (isUpdatingUI || listTests.SelectedIndex < 0) return;
+
+            int idx = listTests.SelectedIndex;
+            tests[idx].Weight = (int)numWeight.Value;
+            CalculateScore();
+
+            TestCase t = tests[idx];
+            string status = t.IsTested ? (t.Passed ? "[OK] " : "[FAIL] ") : "[?] ";
+            listTests.Items[idx] = $"{status} {t.Id}. {t.Question.Substring(0, Math.Min(t.Question.Length, 20))}... ({t.Weight}p)";
+
+            SaveAutoSave();
+        }
+
+        // ==========================================
+        // URUCHAMIANIE WZORCA
+        // ==========================================
+        private async void BtnRunExpected_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtExpected.Text)) return;
+            Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+
+            string tag = txtExpected.Text;
+            lblStatus.Text = "Uruchamiam wzorzec...";
+
+            try
+            {
+                string wynik = await Komendy.WykonajWCADAsync(() => {
+                    if (tag.Contains("[SELECT:"))
+                    {
+                        int cnt = Komendy.WykonajInteligentneZaznaczenie(doc, tag);
+                        return $"Zaznaczono {cnt} obiektów.";
+                    }
+                    else
+                    {
+                        return TrainingStudio.WykonywaczTagow(doc, tag);
+                    }
+                });
+
+                txtAgentResponse.Text = $"[WYNIK WZORCA]:\r\n{wynik}";
+                lblStatus.Text = "Wzorzec wykonany pomyślnie.";
+            }
+            catch (Exception ex)
+            {
+                lblStatus.Text = "Błąd wykonywania wzorca!";
+                txtAgentResponse.Text = $"[BŁĄD WZORCA]: {ex.Message}";
+            }
+        }
+
+        // ==========================================
+        // IMPORT JSONL
+        // ==========================================
+        private void BtnImportJsonl_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog { Filter = "JSONL Files (*.jsonl)|*.jsonl", Title = "Importuj zbiór JSONL" })
+            {
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        string[] lines = File.ReadAllLines(ofd.FileName, Encoding.UTF8);
+                        int dodane = 0;
+                        string currentQuestion = "";
+
+                        string pattern = @"\""role\""\s*:\s*\""(user|assistant)\"".*?\""content\""\s*:\s*\""((?:[^""\\]|\\.)*)\""";
+
+                        foreach (string line in lines)
+                        {
+                            if (string.IsNullOrWhiteSpace(line)) continue;
+
+                            MatchCollection matches = Regex.Matches(line, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+                            foreach (Match m in matches)
+                            {
+                                string role = m.Groups[1].Value.ToLower();
+                                string content = UnescapeJson(m.Groups[2].Value);
+
+                                if (role == "user")
+                                {
+                                    currentQuestion = content;
+                                }
+                                else if (role == "assistant" && !string.IsNullOrEmpty(currentQuestion))
+                                {
+                                    tests.Add(new TestCase
+                                    {
+                                        Id = tests.Count + 1,
+                                        Weight = 1,
+                                        Question = currentQuestion,
+                                        ExpectedTag = content,
+                                        GeneratedTag = "",
+                                        Comment = "",
+                                        Passed = false,
+                                        IsTested = false,
+                                        ResponseTimeSec = 0
+                                    });
+                                    dodane++;
+                                    currentQuestion = "";
+                                }
+                            }
+                        }
+
+                        RefreshList();
+                        SaveAutoSave();
+                        lblStatus.Text = $"Zaimportowano {dodane} testów z pliku JSONL.";
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Błąd importu JSONL: " + ex.Message);
+                    }
+                }
+            }
+        }
+
         private async void LoadModelsAsync()
         {
             try
@@ -215,9 +408,7 @@ namespace BricsCAD_Agent
                     else
                         cmbModels.SelectedIndex = 0;
 
-                    // ZABEZPIECZENIE: Wymuszamy aktualizację zmiennej modelu tuż po pobraniu!
                     Komendy.wybranyModel = cmbModels.SelectedItem.ToString();
-
                     lblStatus.Text = "Pobrano listę modeli z LM Studio.";
                 }
             }
@@ -226,6 +417,7 @@ namespace BricsCAD_Agent
 
         private void RefreshList()
         {
+            isUpdatingUI = true;
             int selected = listTests.SelectedIndex;
             listTests.Items.Clear();
             foreach (var t in tests)
@@ -234,6 +426,7 @@ namespace BricsCAD_Agent
                 listTests.Items.Add($"{status} {t.Id}. {t.Question.Substring(0, Math.Min(t.Question.Length, 20))}... ({t.Weight}p)");
             }
             if (selected >= 0 && selected < listTests.Items.Count) listTests.SelectedIndex = selected;
+            isUpdatingUI = false;
 
             CalculateScore();
         }
@@ -243,6 +436,7 @@ namespace BricsCAD_Agent
             int maxScore = 0;
             int earnedScore = 0;
             int testedCount = 0;
+            double totalTime = 0;
 
             foreach (var t in tests)
             {
@@ -251,28 +445,34 @@ namespace BricsCAD_Agent
                 {
                     testedCount++;
                     if (t.Passed) earnedScore += t.Weight;
+                    totalTime += t.ResponseTimeSec;
                 }
             }
             lblScore.Text = $"Postęp: {testedCount}/{tests.Count} | Wynik: {earnedScore}/{maxScore} pkt";
+            lblTotalTime.Text = $"Całkowity czas: {totalTime.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)} s";
         }
 
         private void ListTests_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (listTests.SelectedIndex < 0) return;
+
+            isUpdatingUI = true;
             TestCase t = tests[listTests.SelectedIndex];
 
-            lblQ.Text = $"Treść polecenia dla Agenta (Wartość: {t.Weight} pkt):";
+            numWeight.Value = t.Weight;
             txtQuestion.Text = t.Question;
             txtExpected.Text = t.ExpectedTag;
-            txtTag.Text = t.GeneratedTag;
+            txtCapturedTags.Text = t.GeneratedTag;
+            txtAgentResponse.Text = ""; // Czyścimy historię przy przełączaniu zadań
             txtComment.Text = t.Comment;
             chkPassed.Checked = t.Passed;
-
             chkPassed.ForeColor = t.Passed ? Color.LimeGreen : Color.LightCoral;
+
+            isUpdatingUI = false;
         }
 
         // ==========================================
-        // SILNIK TESTOWANIA I INTERAKCJI
+        // SILNIK TESTOWANIA I INTELIGENTNE WYCIĄGANIE TAGÓW
         // ==========================================
         private async void BtnRunTest_Click(object sender, EventArgs e)
         {
@@ -288,31 +488,20 @@ namespace BricsCAD_Agent
             try
             {
                 Komendy.historiaRozmowy.Clear();
-
-                // WŁĄCZAMY TRYB TESTOWY, ABY AGENT NIE WYKONYWAŁ FIZYCZNIE AKCJI
-                //Komendy.TrybTestowy = true;
-
-                //   using (DocumentLock loc = doc.LockDocument())
-                //   {
-                //       if (Komendy.AktywneZaznaczenie != null) Komendy.AktywneZaznaczenie = new Teigha.DatabaseServices.ObjectId[0];
-                //       doc.Editor.SetImpliedSelection(new Teigha.DatabaseServices.ObjectId[0]);
-                //   }
-
                 string odpowiedz = await Komendy.ZapytajAgentaAsync(t.Question, doc, null);
-                t.ResponseTimeSec = lastResponseTime; // <--- Zapisujemy czas do raportu!
-                txtTag.Text = $"[Polecenie]: {t.Question}\r\n--- AGENT ---\r\n{odpowiedz}";
+
+                t.ResponseTimeSec = lastResponseTime;
+                ZaktualizujWidokPoOdpowiedzi(t, odpowiedz);
+
                 lblStatus.Text = "Agent odpowiedział.";
             }
             catch (Exception ex)
             {
-                txtTag.Text = $"BŁĄD: {ex.Message}";
+                txtAgentResponse.Text = $"BŁĄD: {ex.Message}";
                 lblStatus.Text = "Wystąpił błąd przed wysłaniem!";
             }
             finally
             {
-                // OBOWIĄZKOWO WYŁĄCZAMY TRYB TESTOWY PO ZAKOŃCZENIU
-                //Komendy.TrybTestowy = false;
-
                 btnRunTest.Text = "🚀 WYŚLIJ POLECENIE DO AGENTA (Start Testu)";
                 btnRunTest.Enabled = true;
             }
@@ -321,6 +510,7 @@ namespace BricsCAD_Agent
         private async void BtnReply_Click(object sender, EventArgs e)
         {
             if (listTests.SelectedIndex < 0 || string.IsNullOrWhiteSpace(txtUserReply.Text)) return;
+            TestCase t = tests[listTests.SelectedIndex];
 
             string reply = txtUserReply.Text;
             txtUserReply.Clear();
@@ -333,12 +523,11 @@ namespace BricsCAD_Agent
 
             try
             {
-                txtTag.Text += $"\r\n--- TY ---\r\n{reply}\r\n--- AGENT ---\r\n";
                 string odpowiedz = await Komendy.ZapytajAgentaAsync(reply, doc, Komendy.AktywneZaznaczenie);
-                txtTag.Text += odpowiedz;
+                ZaktualizujWidokPoOdpowiedzi(t, odpowiedz);
                 lblStatus.Text = "Odpowiedź odebrana.";
             }
-            catch (Exception ex) { txtTag.Text += $"BŁĄD: {ex.Message}"; }
+            catch (Exception ex) { txtAgentResponse.Text += $"BŁĄD: {ex.Message}"; }
             finally
             {
                 btnReply.Text = "Wyślij odpowiedź";
@@ -346,22 +535,107 @@ namespace BricsCAD_Agent
             }
         }
 
+        // Metoda odpowiedzialna za budowanie logicznej historii i separację czystych tagów operacyjnych
+        private void ZaktualizujWidokPoOdpowiedzi(TestCase t, string ostatniaOdpowiedz)
+        {
+            StringBuilder pelnaHistoria = new StringBuilder();
+            string allTags = "";
+
+            // Zaawansowany Regex wyciągający TYLKO [ACTION...] i [SELECT...] z uwzględnieniem zagnieżdżeń JSON!
+            // Automatycznie ignoruje [MSG: ...]
+            string tagPattern = @"\[(ACTION|SELECT)(?>[^\[\]]+|\[(?<Depth>)|\](?<-Depth>))*(?(Depth)(?!))\]";
+
+            bool zacznijZapis = false;
+
+            // Pobieramy początek pytania testowego, aby odnaleźć moment startu właściwej konwersacji 
+            // (omijamy tym samym wstrzyknięte przykłady szkoleniowe LLM)
+            string cleanQuestion = t.Question.Trim();
+            if (cleanQuestion.Length > 20) cleanQuestion = cleanQuestion.Substring(0, 20);
+
+            foreach (string wpis in Komendy.historiaRozmowy)
+            {
+                Match mRole = Regex.Match(wpis, @"\""role\""\s*:\s*\""([^\""]+)\""");
+                Match mContent = Regex.Match(wpis, @"\""content\""\s*:\s*\""((?:[^""\\]|\\.)*)\""");
+
+                if (mRole.Success && mContent.Success)
+                {
+                    string role = mRole.Groups[1].Value.ToLower();
+                    string content = UnescapeJson(mContent.Groups[1].Value);
+
+                    // Detekcja momentu, w którym kończą się przykłady systemowe, a zaczyna właściwe pytanie testowe
+                    if (!zacznijZapis && role == "user")
+                    {
+                        if (content.Replace("\r\n", "\n").Contains(cleanQuestion.Replace("\r\n", "\n")))
+                        {
+                            zacznijZapis = true;
+                        }
+                    }
+
+                    if (zacznijZapis)
+                    {
+                        if (role == "system")
+                        {
+                            // Ignorujemy "czyste" tagi systemowe, żeby nie śmiecić w UI testera
+                        }
+                        else if (role == "user")
+                        {
+                            if (content.StartsWith("Oto dane z narzędzia:") || content.StartsWith("[SYSTEM]"))
+                                pelnaHistoria.AppendLine($"\r\n--- WYNIK NARZĘDZIA / SYSTEM ---\r\n{content}");
+                            else
+                                pelnaHistoria.AppendLine($"\r\n--- TY ---\r\n{content}");
+                        }
+                        else if (role == "assistant")
+                        {
+                            pelnaHistoria.AppendLine($"\r\n--- AGENT ---\r\n{content}");
+
+                            // Wyodrębnienie TYLKO poleceń wykonawczych dla okna "Przechwycone Tagi"
+                            MatchCollection matches = Regex.Matches(content, tagPattern, RegexOptions.Singleline);
+                            foreach (Match m in matches)
+                            {
+                                allTags += m.Value + "\r\n";
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback (zabezpieczenie na wypadek braku tagów wykonawczych)
+            if (string.IsNullOrWhiteSpace(allTags) && !string.IsNullOrWhiteSpace(ostatniaOdpowiedz))
+            {
+                MatchCollection matches = Regex.Matches(ostatniaOdpowiedz, tagPattern, RegexOptions.Singleline);
+                foreach (Match m in matches)
+                {
+                    allTags += m.Value + "\r\n";
+                }
+            }
+
+            allTags = allTags.Trim();
+            t.GeneratedTag = allTags;
+            txtCapturedTags.Text = allTags;
+            txtAgentResponse.Text = pelnaHistoria.ToString().Trim();
+
+            // Automatyczne przewijanie na dół logów
+            txtAgentResponse.SelectionStart = txtAgentResponse.Text.Length;
+            txtAgentResponse.ScrollToCaret();
+        }
+
         private void BtnSaveEvaluation_Click(object sender, EventArgs e)
         {
             if (listTests.SelectedIndex < 0) return;
             TestCase t = tests[listTests.SelectedIndex];
 
-            t.GeneratedTag = txtTag.Text.Replace("\r\n", " ").Replace("\n", " ");
+            t.GeneratedTag = txtCapturedTags.Text.Replace("\r\n", " ").Replace("\n", " ");
             t.Comment = txtComment.Text.Replace("\r\n", " ").Replace("\n", " ");
             t.Passed = chkPassed.Checked;
             t.IsTested = true;
 
             lblStatus.Text = $"Zapisano ocenę dla testu {t.Id}.";
             RefreshList();
+            SaveAutoSave(); // Wymuszenie autozapisu po każdej ocenie
         }
 
         // ==========================================
-        // ROZBUDOWANY PARSER JSON 
+        // PARSER JSON 
         // ==========================================
         private void BtnLoad_Click(object sender, EventArgs e)
         {
@@ -371,6 +645,7 @@ namespace BricsCAD_Agent
                 {
                     baseFileName = Path.GetFileNameWithoutExtension(ofd.FileName);
                     LoadJson(ofd.FileName);
+                    SaveAutoSave();
                 }
             }
         }
@@ -379,7 +654,6 @@ namespace BricsCAD_Agent
         {
             if (tests.Count == 0) return;
 
-            // DYNAMICZNA NAZWA Z NAZWĄ MODELU POBRANĄ BEZPOŚREDNIO Z COMBOBOXA
             string modelName = cmbModels.SelectedItem != null ? cmbModels.SelectedItem.ToString() : Komendy.wybranyModel;
             string safeModelName = string.Join("_", modelName.Split(Path.GetInvalidFileNameChars()));
             string dateStr = DateTime.Now.ToString("yyyy-MM-dd");
@@ -389,7 +663,7 @@ namespace BricsCAD_Agent
             {
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
-                    SaveJson(sfd.FileName);
+                    SaveJson(sfd.FileName, false);
                     lblStatus.Text = "Zapisano raport ewaluacyjny!";
                 }
             }
@@ -413,7 +687,7 @@ namespace BricsCAD_Agent
                     @"\""Comment\""\s*:\s*\""" + strPattern + @"\""\s*,\s*" +
                     @"\""Passed\""\s*:\s*(true|false)\s*,\s*" +
                     @"\""IsTested\""\s*:\s*(true|false)" +
-                    @"(?:\s*,\s*\""ResponseTimeSec\""\s*:\s*([0-9.]+))?\s*" + // Opcjonalny odczyt z pliku!
+                    @"(?:\s*,\s*\""ResponseTimeSec\""\s*:\s*([0-9.]+))?\s*" +
                     @"\}";
 
                 MatchCollection matches = Regex.Matches(content, pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
@@ -436,7 +710,7 @@ namespace BricsCAD_Agent
                         Comment = UnescapeJson(m.Groups[6].Value),
                         Passed = m.Groups[7].Value.ToLower() == "true",
                         IsTested = m.Groups[8].Value.ToLower() == "true",
-                        ResponseTimeSec = responseTime // <--- Ładujemy czas!
+                        ResponseTimeSec = responseTime
                     });
                 }
                 RefreshList();
@@ -445,7 +719,7 @@ namespace BricsCAD_Agent
             catch (Exception ex) { MessageBox.Show("Błąd wczytywania: " + ex.Message); }
         }
 
-        private void SaveJson(string path)
+        private void SaveJson(string path, bool isAutoSave = false)
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("[");
@@ -462,12 +736,20 @@ namespace BricsCAD_Agent
                 sb.AppendLine($"    \"GeneratedTag\": \"{EscapeJson(t.GeneratedTag)}\",");
                 sb.AppendLine($"    \"Comment\": \"{EscapeJson(t.Comment)}\",");
                 sb.AppendLine($"    \"Passed\": {t.Passed.ToString().ToLower()},");
-                sb.AppendLine($"    \"IsTested\": {t.IsTested.ToString().ToLower()},"); // Zwróć uwagę na dodany przecinek na końcu tej linijki!
+                sb.AppendLine($"    \"IsTested\": {t.IsTested.ToString().ToLower()},");
                 sb.AppendLine($"    \"ResponseTimeSec\": {t.ResponseTimeSec.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
                 sb.AppendLine($"  }}{comma}");
             }
             sb.AppendLine("]");
-            File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+
+            if (isAutoSave)
+            {
+                try { File.WriteAllText(path, sb.ToString(), Encoding.UTF8); } catch { }
+            }
+            else
+            {
+                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+            }
         }
 
         private void UpdateStatsUI(int promptTokens, int completionTokens, double timeSec)
@@ -483,7 +765,7 @@ namespace BricsCAD_Agent
 
             lblStats.Text = $"⏱ Czas: {timeSec:F1}s | 🧠 Kontekst: {promptTokens} tk | ⚡ Prędkość: {speed:F1} t/s | 📝 Wysłano: {completionTokens} tk";
 
-            lastResponseTime = timeSec; // Zapisujemy do zmiennej tymczasowej!
+            lastResponseTime = timeSec;
         }
         private string EscapeJson(string s) => (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r\n", "\\n").Replace("\n", "\\n");
         private string UnescapeJson(string s) => s.Replace("\\\"", "\"").Replace("\\n", "\r\n").Replace("\\\\", "\\");

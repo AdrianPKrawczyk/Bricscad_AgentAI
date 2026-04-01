@@ -197,7 +197,7 @@ namespace BricsCAD_Agent
                         {
                             // Genialne zastosowanie USER_CHOICE do wyciągnięcia listy dostępnych bloków!
                             string ucTag = $"[ACTION:USER_CHOICE {{\"Question\": \"Wybierz blok do wstawienia:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Database\", \"FetchProperty\": \"Name\"}}]";
-                            
+
                             ed.WriteMessage($"\n\n[System] --- WSTRZYKIWANIE KROKU POŚREDNIEGO (Skanowanie rysunku w poszukiwaniu bloków) ---");
                             string wynikUC = WykonywaczTagow(doc, ucTag);
 
@@ -1030,21 +1030,31 @@ namespace BricsCAD_Agent
 
                         finalTag = $"[ACTION:EDIT_BLOCK {{{string.Join(", ", argsList)}}}]";
                     }
-                    // --- [GET_PROPERTIES_LITE] ---
+
+                    // --- [GET_PROPERTIES_LITE] --- NOWOŚĆ DIRECTPRINT
                     else if (pr.StringResult == "GetPropsLite")
                     {
-                        finalTag = "[ACTION:GET_PROPERTIES_LITE]";
+                        PromptKeywordOptions pkoDirect = new PromptKeywordOptions("\nCzy uzyc trybu DirectPrint (bezposrednie wyswietlanie omijajace LLM)? [Tak/Nie]: ");
+                        pkoDirect.Keywords.Add("Tak"); pkoDirect.Keywords.Add("Nie"); pkoDirect.Keywords.Default = "Tak";
+                        if (ed.GetKeywords(pkoDirect).StringResult == "Tak") finalTag = "[ACTION:GET_PROPERTIES_LITE {\"DirectPrint\": true}]";
+                        else finalTag = "[ACTION:GET_PROPERTIES_LITE {}]";
                     }
-                    // --- [GET_PROPERTIES FULL] ---
+                    // --- [GET_PROPERTIES FULL] --- NOWOŚĆ DIRECTPRINT
                     else if (pr.StringResult == "FULLGETProps")
                     {
-                        finalTag = "[ACTION:GET_PROPERTIES]";
+                        PromptKeywordOptions pkoDirect = new PromptKeywordOptions("\nCzy uzyc trybu DirectPrint (bezposrednie wyswietlanie omijajace LLM)? [Tak/Nie]: ");
+                        pkoDirect.Keywords.Add("Tak"); pkoDirect.Keywords.Add("Nie"); pkoDirect.Keywords.Default = "Tak";
+                        if (ed.GetKeywords(pkoDirect).StringResult == "Tak") finalTag = "[ACTION:GET_PROPERTIES {\"DirectPrint\": true}]";
+                        else finalTag = "[ACTION:GET_PROPERTIES {}]";
                     }
 
-                    // --- [LIST_BLOCKS] ---
+                    // --- [LIST_BLOCKS] --- NOWOŚĆ DIRECTPRINT
                     else if (pr.StringResult == "ListBlocks")
                     {
-                        finalTag = "[ACTION:LIST_BLOCKS]";
+                        PromptKeywordOptions pkoDirect = new PromptKeywordOptions("\nCzy uzyc trybu DirectPrint (bezposrednie wyswietlanie omijajace LLM)? [Tak/Nie]: ");
+                        pkoDirect.Keywords.Add("Tak"); pkoDirect.Keywords.Add("Nie"); pkoDirect.Keywords.Default = "Tak";
+                        if (ed.GetKeywords(pkoDirect).StringResult == "Tak") finalTag = "[ACTION:LIST_BLOCKS {\"DirectPrint\": true}]";
+                        else finalTag = "[ACTION:LIST_BLOCKS {}]";
                     }
 
                     // --- [ADD_ANNO_SCALE] ---
@@ -1069,7 +1079,7 @@ namespace BricsCAD_Agent
                         finalTag = $"[ACTION:READ_ANNO_SCALES {{\"Mode\": \"{mode}\"}}]";
                     }
 
-                    // --- [LIST_UNIQUE] ---
+                    // --- [LIST_UNIQUE] --- NOWOŚĆ DIRECTPRINT
                     else if (pr.StringResult.Equals("LISTUnique", StringComparison.OrdinalIgnoreCase))
                     {
                         PromptKeywordOptions pkoTarget = new PromptKeywordOptions("\nWybierz cel analizy (Target) [Class/Property]: ");
@@ -1085,16 +1095,20 @@ namespace BricsCAD_Agent
                         pkoScope.Keywords.Default = "Selection";
                         string scope = ed.GetKeywords(pkoScope).StringResult;
 
+                        PromptKeywordOptions pkoDirect = new PromptKeywordOptions("\nCzy uzyc trybu DirectPrint (bezposrednie wyswietlanie omijajace LLM)? [Tak/Nie]: ");
+                        pkoDirect.Keywords.Add("Tak"); pkoDirect.Keywords.Add("Nie"); pkoDirect.Keywords.Default = "Tak";
+                        string directParam = (ed.GetKeywords(pkoDirect).StringResult == "Tak") ? ", \"DirectPrint\": true" : "";
+
                         if (target == "Property")
                         {
                             PromptStringOptions psoProp = new PromptStringOptions("\nPodaj nazwę właściwości do zgrupowania (np. Name, Layer, Color): ");
                             psoProp.AllowSpaces = false;
                             string prop = ed.GetString(psoProp).StringResult;
-                            finalTag = $"[ACTION:LIST_UNIQUE {{\"Target\": \"Property\", \"Scope\": \"{scope}\", \"Property\": \"{prop}\"}}]";
+                            finalTag = $"[ACTION:LIST_UNIQUE {{\"Target\": \"Property\", \"Scope\": \"{scope}\", \"Property\": \"{prop}\"{directParam}}}]";
                         }
                         else
                         {
-                            finalTag = $"[ACTION:LIST_UNIQUE {{\"Target\": \"Class\", \"Scope\": \"{scope}\"}}]";
+                            finalTag = $"[ACTION:LIST_UNIQUE {{\"Target\": \"Class\", \"Scope\": \"{scope}\"{directParam}}}]";
                         }
                     }
 
@@ -1925,6 +1939,13 @@ namespace BricsCAD_Agent
                     return tool.Execute(doc, wklejonyTag);
                 }
 
+                // --- DODANE NARZĘDZIE DO WSTRZYKIWANIA W KONSOLĘ ---
+                else if (wklejonyTag.Contains("[ACTION:SEND_TO_CMD"))
+                {
+                    SendCommandTool tool = new SendCommandTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 return "Brak rozpoznanego tagu narzędzia w wygenerowanym stringu.";
             }
             catch (System.Exception ex)
@@ -1949,6 +1970,5 @@ namespace BricsCAD_Agent
             }
             dbManagerPalette.Visible = true;
         }
-
     }
 }

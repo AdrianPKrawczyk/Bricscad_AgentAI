@@ -17,10 +17,14 @@ namespace BricsCAD_Agent
         public string Execute(Document doc, string jsonArgs)
         {
             ObjectId[] ids = Komendy.AktywneZaznaczenie;
-            if (ids == null || ids.Length == 0) return "[Błąd]: Nie mam w pamięci żadnych obiektów! Użyj najpierw tagu SELECT.";
+
+            // POPRAWKA: Musi zaczynać się od "BŁĄD" 
+            if (ids == null || ids.Length == 0) return "BŁĄD: Nie mam w pamięci żadnych obiektów! Użyj najpierw tagu SELECT.";
 
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("--- WŁAŚCIWOŚCI ZAZNACZONYCH OBIEKTÓW ---");
+
+            // POPRAWKA: Musi zaczynać się od "WYNIK"
+            sb.AppendLine("WYNIK: --- WŁAŚCIWOŚCI ZAZNACZONYCH OBIEKTÓW ---");
 
             // Zabezpieczenie przed zapchaniem pamięci - jeśli ktoś zaznaczy 1000 linii, zbadamy tylko pierwsze 5 sztuk
             int limitSkanowania = Math.Min(ids.Length, 5);

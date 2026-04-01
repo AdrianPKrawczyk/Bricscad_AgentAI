@@ -3,9 +3,9 @@ using BricsCAD_Agent;
 using System;
 using Teigha.DatabaseServices;
 
-public class GetPropertiesToolLite : ITool // <--- ZMIANA NAZWY KLASY
+public class GetPropertiesToolLite : ITool
 {
-    public string ActionTag => "[ACTION:GET_PROPERTIES_LITE]"; // <--- ZMIANA TAGU
+    public string ActionTag => "[ACTION:GET_PROPERTIES_LITE]";
 
     public string Description =>
         "Odczytuje podstawowe właściwości zaznaczonych obiektów (Warstwa, Kolor, itp.).";
@@ -52,6 +52,16 @@ public class GetPropertiesToolLite : ITool // <--- ZMIANA NAZWY KLASY
                     sb.AppendLine($"  -> Text: \"{mtxt.Text}\", Height: {Math.Round(mtxt.TextHeight, 3)}, Style: {mtxt.TextStyleName}");
                 else if (ent is Dimension dim)
                     sb.AppendLine($"  -> Measurement: {Math.Round(dim.Measurement, 3)}, DimText: \"{dim.DimensionText}\", Style: {dim.DimensionStyleName}");
+
+                // POPRAWKA: Dodane wsparcie dla odnośników (Leader / MLeader)
+                else if (ent is MLeader mleader)
+                {
+                    string textData = mleader.ContentType == ContentType.MTextContent && mleader.MText != null ? mleader.MText.Text : "[Brak Tekstu/Blok]";
+                    sb.AppendLine($"  -> ContentType: {mleader.ContentType}, Text: \"{textData}\", TextHeight: {Math.Round(mleader.TextHeight, 3)}");
+                }
+                else if (ent is Leader leader)
+                    sb.AppendLine($"  -> NumVertices: {leader.NumVertices}, Style: {leader.DimensionStyleName}, HasArrowHead: {leader.HasArrowHead}");
+
                 else if (ent is BlockReference br)
                     sb.AppendLine($"  -> BlockName: {br.Name}, Position: {FormatPt(br.Position)}, Rotation: {Math.Round(br.Rotation, 3)}");
                 else if (ent is Hatch hatch)

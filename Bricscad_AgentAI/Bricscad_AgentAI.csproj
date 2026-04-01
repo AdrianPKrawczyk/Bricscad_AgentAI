@@ -53,6 +53,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SendCommandTool.cs" />
     <Compile Include="AddAnnoScaleTool.cs" />
     <Compile Include="AgentCommand.cs" />
     <Compile Include="AgentControl.cs">
@@ -62,6 +63,7 @@
       <DependentUpon>AgentControl.cs</DependentUpon>
     </Compile>
     <Compile Include="AgentMemory.cs" />
+    <Compile Include="AgentStartupAndCLI.cs" />
     <Compile Include="AgentTesterControl.cs" />
     <Compile Include="AnalyzeSelectionTool.cs" />
     <Compile Include="CreateBlockTool.cs" />

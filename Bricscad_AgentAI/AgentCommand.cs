@@ -142,6 +142,7 @@ namespace BricsCAD_Agent
         new CreateBlockTool(),
         new InsertBlockTool(),
         new ForeachTool(),
+        new SendCommandTool(),
 
 
         };
@@ -289,11 +290,11 @@ namespace BricsCAD_Agent
                 "--- KRYTYCZNE ZASADY BEZPIECZEŃSTWA: ---\n" +
                 "1. ZAKAZ ZMYŚLANIA ZAZNACZEŃ! ZAWSZE użyj [SELECT: ...], zanim cokolwiek edytujesz lub odczytasz za pomocą ACTION.\n" +
                 "2. ZAKAZ RYSOWANIA, GDY UŻYTKOWNIK CHCE ZAZNACZYĆ! Słowa 'dodaj do zaznaczenia' (add to selection) to komenda [SELECT: ... {\"Mode\": \"Add\"}].\n" +
-                "3. Komentuj swoje intencje! Dodawaj opcjonalny parametr \"Comment\": \"Twój komentarz\" do każdego JSONa w tagach SELECT i ACTION, by wyjaśnić swój proces myślowy.\n\n" +
-                "4. ZAKAZ ŁĄCZENIA TAGÓW! W jednej odpowiedzi możesz wygenerować TYLKO JEDEN tag [ACTION] lub [SELECT]. Zawsze czekaj na słowo 'WYNIK' z pierwszego narzędzia, zanim użyjesz kolejnego!\n\n" +
+                "3. Komentuj swoje intencje! Dodawaj opcjonalny parametr \"Comment\": \"Twój komentarz\" do każdego JSONa w tagach SELECT i ACTION, by wyjaśnić swój proces myślowy.\n" +
+                "4. ZAKAZ ŁĄCZENIA TAGÓW! W jednej odpowiedzi możesz wygenerować TYLKO JEDEN tag [ACTION] lub [SELECT]. Zawsze czekaj na słowo 'WYNIK' z pierwszego narzędzia, zanim użyjesz kolejnego!\n" +
+                "5. SZYBKIE WYŚWIETLANIE (DIRECT PRINT): Jeśli użytkownik prosi o samo WYŚWIETLENIE lub WYPISANIE długiej listy/właściwości (np. GET_PROPERTIES, LIST_BLOCKS), dodaj do argumentów narzędzia parametr \"DirectPrint\": true (np. [ACTION:GET_PROPERTIES {\"DirectPrint\": true}]). System natychmiast zrzuci wynik bezpośrednio na ekran i zakończy zadanie, oszczędzając Twój czas i tokeny!\n" +
+                "6. WSTRZYKIWANIE W WARTOŚCI I MATEMATYKA: Jeśli użytkownik w trakcie rysowania pyta o obliczenie jakiejś wartości (np. równanie matematyczne, pole, obwód), ZAWSZE deleguj to do wbudowanego kalkulatora RPN! Użyj narzędzia [ACTION:SEND_TO_CMD] i dodaj prefiks 'RPN:' do wartości (np. [ACTION:SEND_TO_CMD {\"Value\": \"RPN: 50 3.14 *\"}]). System sam bezbłędnie obliczy wynik i wstrzyknie go bezpośrednio do paska poleceń CADa jako odpowiedź dla użytkownika!\n\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
-
-
         [CommandMethod("AGENT_UI")]
         public void UruchomInterfejsAgenta()
         {
@@ -597,24 +598,30 @@ namespace BricsCAD_Agent
                                     // ==========================================================
                                     // 3. DOPIERO TERAZ WYKONUJEMY KOD (MAJĄC ZMIENNE)
                                     // ==========================================================
-                                    string wynikNarzedzia = await WykonajWCADAsync(() => {
+                                    string wynikNarzedzia = "";
 
-                                        // Oddanie focusu (wymagaInterakcji jest obliczane wyżej przed pętlą)
-                                        if (wymagaInterakcji)
-                                        {
-                                            try { Bricscad.ApplicationServices.Application.MainWindow.Focus(); } catch { }
-                                        }
+                                    // OMIJAMY "Magiczny Wrapper" dla wstrzykiwania do konsoli, by nie wpisać _AGENT_RUN_TOOL do pytania o promień!
+                                    if (aiMsg.Contains("SEND_TO_CMD"))
+                                    {
+                                        // Wykonanie natychmiastowe w tle
+                                        wynikNarzedzia = BricsCAD_Agent.TrainingStudio.WykonywaczTagow(doc, aiMsg);
+                                    }
+                                    else
+                                    {
+                                        // Standardowe narzędzia wciąż potrzebują Wrappera
+                                        wynikNarzedzia = await WykonajWCADAsync(() => {
+                                            return BricsCAD_Agent.TrainingStudio.WykonywaczTagow(doc, aiMsg);
+                                        });
+                                    }
 
-                                        // Wykonanie narzędzia
-                                        if (methodInfo != null)
-                                        {
-                                            return (string)methodInfo.Invoke(tool, new object[] { doc, args });
-                                        }
-                                        else
-                                        {
-                                            return tool.Execute(doc);
-                                        }
-                                    });
+                                    // ==========================================================
+                                    // 3.5. GLOBALNY DIRECT PRINT LUB SZYBKIE WYJŚCIE (Ominięcie LLM)
+                                    // ==========================================================
+                                    if (aiMsg.Contains("SEND_TO_CMD") || Regex.IsMatch(args, @"\""DirectPrint\""\s*:\s*(true|\""true\"")", RegexOptions.IgnoreCase))
+                                    {
+                                        string czystyWynik = wynikNarzedzia.Replace("WYNIK: ", "").Replace("[ZAPISANO", "[INFO");
+                                        return $"[MSG: Zakończono. {czystyWynik}]";
+                                    }
 
                                     // ==========================================================
                                     // 4. OBSŁUGA WYNIKU I REKURENCJA
@@ -623,8 +630,7 @@ namespace BricsCAD_Agent
                                     if (wynikNarzedzia.StartsWith("WYNIK") || wynikNarzedzia.StartsWith("Pobrano") || wynikNarzedzia.StartsWith("BŁĄD") || wynikNarzedzia.StartsWith("[ZAPISANO"))
                                     {
                                         // Ulepszony Prompt Rekursywny: Uczy Agenta, że może używać kolejnych narzędzi w łańcuchu!
-                                        string zacheta = $"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie krok po kroku. Jeśli musisz wykonać kolejną akcję, użyj tagu [ACTION: ...]. Jeśli zadanie jest w pełni zakończone, opisz wynik za pomocą [MSG: ...].";
-
+                                        string zacheta = $"Oto dane z narzędzia:\n{wynikNarzedzia}\n\nKontynuuj zadanie krok po kroku. Jeśli musisz wykonać kolejną akcję, użyj tagu [ACTION: ...]. Jeśli zadanie jest w pełni zakończone, sformułuj ostateczną odpowiedź w tagu [MSG: ...]. UWAGA: Jeśli użytkownik prosił o wypisanie danych lub właściwości, BEZWZGLĘDNIE wypisz je w treści tagu MSG! Nie używaj ogólników typu 'oto właściwości'.";
                                         historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(zacheta) + "\"}");
                                         return await ZapytajAgentaAsync("", doc, przechwyconeZaznaczenie);
                                     }
