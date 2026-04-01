@@ -1946,6 +1946,13 @@ namespace BricsCAD_Agent
                     return tool.Execute(doc, wklejonyTag);
                 }
 
+                // --- NARZĘDZIE DO ZADAWANIA ZAPYTAŃ MATEMATYCZNYCH PRZEZ AI ---
+                else if (wklejonyTag.Contains("[ACTION:CALC_RPN"))
+                {
+                    CalculateRpnTool tool = new CalculateRpnTool();
+                    return tool.Execute(doc, wklejonyTag);
+                }
+
                 return "Brak rozpoznanego tagu narzędzia w wygenerowanym stringu.";
             }
             catch (System.Exception ex)

@@ -105,21 +105,22 @@ namespace BricsCAD_Agent
             ed.WriteMessage("\nWciśnij pusty [ENTER] lub wpisz '=', aby WSTRZYKNĄĆ wynik i zamknąć.");
             ed.WriteMessage("\n-----------------------------------\n");
 
+            // --- NOWOŚĆ: Próba wczytania stosu przypisanego do tego pliku ---
+            RpnCalculator.LoadFromDWG(doc);
             while (true)
             {
                 if (RpnCalculator.AutoPreview)
                 {
                     ed.WriteMessage("\n========================");
-                    // Pobieramy max 6 poziomów stosu do podglądu (aby było widać więcej)
                     ed.WriteMessage("\n" + RpnCalculator.GetHPStackView(6));
                     ed.WriteMessage("\n========================");
                 }
 
-                PromptStringOptions pso = new PromptStringOptions("\n[RPN] Wejście (lub '=' / [ENTER] by zakończyć): ");
+                PromptStringOptions pso = new PromptStringOptions("\n[RPN] Wejście (lub '=' / [ENTER] by zakończyć, '?' pomoc): ");
                 pso.AllowSpaces = true;
                 PromptResult pr = ed.GetString(pso);
 
-                // Reakcja na ESC (Anulowanie całkowite, bez wstrzykiwania)
+                // Reakcja na ESC (Anulowanie)
                 if (pr.Status == PromptStatus.Cancel)
                 {
                     ed.WriteMessage("\n[Kalkulator]: Przerwano działanie (ESC).");
@@ -127,6 +128,13 @@ namespace BricsCAD_Agent
                 }
 
                 string input = pr.StringResult?.Trim() ?? "";
+
+                // --- NOWOŚĆ: Wywoływanie pomocy ---
+                if (input == "?")
+                {
+                    WypiszSciageRpn(ed);
+                    continue; // Pomija obliczenia i wraca na początek pętli
+                }
 
                 // Wyjście z pętli (Zatwierdzenie)
                 if (input == "=" || input == "")
@@ -136,14 +144,17 @@ namespace BricsCAD_Agent
 
                 try
                 {
-                    // Obliczamy wyrażenie w locie
-                    RpnCalculator.Evaluate(input);
+                    // Obliczamy wyrażenie w locie (wymaga 4 argumentów z Etapu 2)
+                    RpnCalculator.Evaluate(input, null, null, ed);
                 }
                 catch (System.Exception ex)
                 {
                     ed.WriteMessage($"\n[Błąd RPN]: {ex.Message}");
                 }
             }
+
+            // --- NOWOŚĆ: Po zatwierdzeniu Enterem (wyjściu z pętli), robimy "cichy zapis" całego stosu na dysk ---
+            RpnCalculator.SaveToDWG(doc);
 
             // PO WYJŚCIU Z PĘTLI -> Wstrzykiwanie wyniku na ekran
             string result = RpnCalculator.GetTopAsString();
@@ -171,34 +182,57 @@ namespace BricsCAD_Agent
             ed.WriteMessage("\n\n--- INTERAKTYWNY KALKULATOR (ODCZYT) ---");
             ed.WriteMessage("\nWpisuj liczby/operatory. Wciśnij pusty [ENTER] by po prostu wyjść.");
 
+            // --- NOWOŚĆ: Próba wczytania stosu przypisanego do tego pliku ---
+            RpnCalculator.LoadFromDWG(doc);
+
             while (true)
             {
                 if (RpnCalculator.AutoPreview)
                 {
                     ed.WriteMessage("\n========================");
-                    // Pobieramy max 6 poziomów stosu do podglądu (aby było widać więcej)
                     ed.WriteMessage("\n" + RpnCalculator.GetHPStackView(6));
                     ed.WriteMessage("\n========================");
                 }
 
-                PromptStringOptions pso = new PromptStringOptions("\n[CALC] Wejście (lub [ENTER] by wyjść): ");
+                PromptStringOptions pso = new PromptStringOptions("\n[RPN] Wejście (lub '=' / [ENTER] by zakończyć, '?' pomoc): ");
                 pso.AllowSpaces = true;
                 PromptResult pr = ed.GetString(pso);
 
-                if (pr.Status == PromptStatus.Cancel || pr.StringResult?.Trim() == "" || pr.StringResult?.Trim() == "=")
+                // Reakcja na ESC (Anulowanie)
+                if (pr.Status == PromptStatus.Cancel)
                 {
-                    break; // Wychodzimy i nic nie wstrzykujemy
+                    ed.WriteMessage("\n[Kalkulator]: Przerwano działanie (ESC).");
+                    return;
+                }
+
+                string input = pr.StringResult?.Trim() ?? "";
+
+                // --- NOWOŚĆ: Wywoływanie pomocy ---
+                if (input == "?")
+                {
+                    WypiszSciageRpn(ed);
+                    continue; // Pomija obliczenia i wraca na początek pętli
+                }
+
+                // Wyjście z pętli (Zatwierdzenie)
+                if (input == "=" || input == "")
+                {
+                    break;
                 }
 
                 try
                 {
-                    RpnCalculator.Evaluate(pr.StringResult.Trim());
+                    // Obliczamy wyrażenie w locie (wymaga 4 argumentów z Etapu 2)
+                    RpnCalculator.Evaluate(input, null, null, ed);
                 }
                 catch (System.Exception ex)
                 {
-                    ed.WriteMessage($"\n[Błąd]: {ex.Message}");
+                    ed.WriteMessage($"\n[Błąd RPN]: {ex.Message}");
                 }
             }
+
+            // --- NOWOŚĆ: Po zatwierdzeniu Enterem (wyjściu z pętli), robimy "cichy zapis" całego stosu na dysk ---
+            RpnCalculator.SaveToDWG(doc);
 
             ed.WriteMessage($"\n--- Konic pracy. Wynik na szczycie: {RpnCalculator.GetTopAsString()} ---\n");
         }
@@ -229,6 +263,50 @@ namespace BricsCAD_Agent
             RpnCalculator.AutoPreview = !RpnCalculator.AutoPreview;
             string status = RpnCalculator.AutoPreview ? "WŁĄCZONY" : "WYŁĄCZONY";
             Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n[Kalkulator]: Automatyczny podgląd stosu jest teraz {status}.\n");
+        }
+
+        // ==============================================================
+        // EKRAN POMOCY KALKULATORA RPN (ROZBUDOWANY O FUNKCJE TEKSTOWE)
+        // ==============================================================
+        private void WypiszSciageRpn(Editor ed)
+        {
+            ed.WriteMessage("\n\n=======================================================");
+            ed.WriteMessage("\n                 ŚCIĄGA KALKULATORA RPN                  ");
+            ed.WriteMessage("\n=======================================================");
+            ed.WriteMessage("\n [GEOMETRIA] DL (dystans 3D), DX, DY, DZ (odległości w osiach)");
+            ed.WriteMessage("\n             -> Wstrzymują kalkulator i proszą o kliknięcie");
+            ed.WriteMessage("\n [STOS]      SWAP (zamień 1 z 2), DUP (kopiuj szczyt)");
+            ed.WriteMessage("\n             DROP (usuń szczyt), CLEAR (czyść stos)");
+            ed.WriteMessage("\n             PICK (kopiuj n-ty element, np. 3 PICK)");
+            ed.WriteMessage("\n [MATEMA]    +, -, *, /, ^, SQRT, SIN, COS, ROUND, ABS");
+            ed.WriteMessage("\n [LOGIKA]    ==, !=, >, <, IFTE (Warunek Prawda Falsz IFTE)");
+            ed.WriteMessage("\n [TEKSTOWE]  Szczegółowy opis operacji na ciągach znaków:");
+            ed.WriteMessage("\n   CONCAT / &  : Łączy 2 teksty (np. 'A' 'B' & -> 'AB')");
+            ed.WriteMessage("\n   UPPER/LOWER : Zmienia wielkość liter ('abc' UPPER -> 'ABC')");
+            ed.WriteMessage("\n   TRIM        : Usuwa białe znaki z początku i końca tekstu");
+            ed.WriteMessage("\n   LEN         : Zwraca długość tekstu (ilość znaków)");
+            ed.WriteMessage("\n   REPLACE     : [Tekst_bazowy] [Co_szukać] [Na_co_zamienić] REPLACE");
+            ed.WriteMessage("\n   SUBSTR      : [Tekst_bazowy] [Indeks_startu] [Długość] SUBSTR");
+            ed.WriteMessage("\n                 (Pamiętaj: indeksowanie zaczyna się od 0!)");
+            ed.WriteMessage("\n   FIND        : [Tekst_bazowy] [Szukany_fragment] FIND");
+            ed.WriteMessage("\n                 (Zwraca pozycję startową lub -1 gdy nie znajdzie)");
+            ed.WriteMessage("\n   SPLIT       : [Tekst_bazowy] [Separator] [Indeks_wyniku] SPLIT");
+            ed.WriteMessage("\n                 (np. 'A_B_C' '_' 1 SPLIT -> zwróci 'B')");
+            ed.WriteMessage("\n [JEDNOSTKI] Możesz wpisywać liczby z wymiarami SI.");
+            ed.WriteMessage("\n             Format: '10_m', '50_kg', '20_kPa', '15_cm2'.");
+            ed.WriteMessage("\n             Kalkulator sam przelicza mm na metry, a N * m na J.");
+            ed.WriteMessage("\n   CONVE  : [Wartość] [Nowa_Jednostka] CONVE (np. 10_m 'cm' CONVE)");
+            ed.WriteMessage("\n   UNBASE : [Wartość] UNBASE (Konwertuje do bazowego wektora SI)");
+            ed.WriteMessage("\n   UVAL   : [Wartość] UVAL (Usuwa jednostkę, zostawia samą liczbę)");
+            ed.WriteMessage("\n   +UNIT  : [Liczba] [Jednostka] +UNIT (Dodaje wymiar do czystej liczby)");
+            ed.WriteMessage("\n   UFACT  : Podobne do CONVE, ujednolica zapis do docelowej struktury");
+            ed.WriteMessage("\n [ZMIENNE]   Wymagają znaku $ na początku (np. $MASA, $V1)!");
+            ed.WriteMessage("\n             Zapis:   15_m '$DLUGOSC' STO (lub 'DLUGOSC' STO)");
+            ed.WriteMessage("\n             Odczyt:  $DLUGOSC (wpisanie nazwy z dolarem)");
+            ed.WriteMessage("\n             Czyszcz: VARS_CLEAR (usuwa pamięć zmiennych rysunku)");
+            ed.WriteMessage("\n [STAŁE]     Poprzedzaj znakiem # : #PI, #G (grawitacja), #C, #R_GAS");
+            ed.WriteMessage("\n [INFO]      Wpisz '=' lub wciśnij pusty [ENTER], by wyjść.");
+            ed.WriteMessage("\n=======================================================\n");
         }
 
         // ==============================================================

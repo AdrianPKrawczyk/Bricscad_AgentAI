@@ -40,13 +40,28 @@ namespace BricsCAD_Agent
                 else if (entityType.Equals("Circle", StringComparison.OrdinalIgnoreCase))
                 {
                     string cenStr = Regex.Match(argsJson, @"\""Center\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
-                    string diaRaw = Regex.Match(argsJson, @"\""Diameter\""\s*:\s*(\""[^\""]+\""|[0-9.]+)").Groups[1].Value.Trim('\"');
                     Point3d cen = cenStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase) ? ed.GetPoint("\nŚrodek: ").Value : ParsePoint(cenStr);
 
                     double radius = 1.0;
-                    if (diaRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) radius = ed.GetDistance("\nŚrednica: ").Value / 2.0;
-                    else if (diaRaw.Contains("RPN:")) { if (double.TryParse(RpnCalculator.Evaluate(diaRaw.Replace("RPN:", "").Trim()).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r)) radius = r / 2.0; }
-                    else { if (double.TryParse(diaRaw.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r)) radius = r / 2.0; }
+
+                    // Szukamy w JSON-ie i Promienia (Radius) i Średnicy (Diameter)
+                    Match radMatch = Regex.Match(argsJson, @"\""Radius\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
+                    Match diaMatch = Regex.Match(argsJson, @"\""Diameter\""\s*:\s*(\""[^\""]+\""|[0-9.]+)");
+
+                    if (radMatch.Success)
+                    {
+                        string radRaw = radMatch.Groups[1].Value.Trim('\"');
+                        if (radRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) radius = ed.GetDistance("\nPromień: ").Value;
+                        else if (radRaw.Contains("RPN:")) { if (double.TryParse(RpnCalculator.Evaluate(radRaw.Replace("RPN:", "").Trim()).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r)) radius = r; }
+                        else { if (double.TryParse(radRaw.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r)) radius = r; }
+                    }
+                    else if (diaMatch.Success)
+                    {
+                        string diaRaw = diaMatch.Groups[1].Value.Trim('\"');
+                        if (diaRaw.Equals("AskUser", StringComparison.OrdinalIgnoreCase)) radius = ed.GetDistance("\nŚrednica: ").Value / 2.0;
+                        else if (diaRaw.Contains("RPN:")) { if (double.TryParse(RpnCalculator.Evaluate(diaRaw.Replace("RPN:", "").Trim()).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r)) radius = r / 2.0; }
+                        else { if (double.TryParse(diaRaw.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r)) radius = r / 2.0; }
+                    }
 
                     newEnt = new Circle(cen, Vector3d.ZAxis, radius);
                 }

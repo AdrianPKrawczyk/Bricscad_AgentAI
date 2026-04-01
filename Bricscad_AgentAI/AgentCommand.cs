@@ -294,7 +294,20 @@ namespace BricsCAD_Agent
                 "4. ZAKAZ ŁĄCZENIA TAGÓW! W jednej odpowiedzi możesz wygenerować TYLKO JEDEN tag [ACTION] lub [SELECT]. Zawsze czekaj na słowo 'WYNIK' z pierwszego narzędzia, zanim użyjesz kolejnego!\n" +
                 "5. SZYBKIE WYŚWIETLANIE (DIRECT PRINT): Jeśli użytkownik prosi o samo WYŚWIETLENIE lub WYPISANIE długiej listy/właściwości (np. GET_PROPERTIES, LIST_BLOCKS), dodaj do argumentów narzędzia parametr \"DirectPrint\": true (np. [ACTION:GET_PROPERTIES {\"DirectPrint\": true}]). System natychmiast zrzuci wynik bezpośrednio na ekran i zakończy zadanie, oszczędzając Twój czas i tokeny!\n" +
                 "6. WSTRZYKIWANIE W WARTOŚCI I MATEMATYKA: Jeśli użytkownik w trakcie rysowania pyta o obliczenie jakiejś wartości (np. równanie matematyczne, pole, obwód), ZAWSZE deleguj to do wbudowanego kalkulatora RPN! Użyj narzędzia [ACTION:SEND_TO_CMD] i dodaj prefiks 'RPN:' do wartości (np. [ACTION:SEND_TO_CMD {\"Value\": \"RPN: 50 3.14 *\"}]). System sam bezbłędnie obliczy wynik i wstrzyknie go bezpośrednio do paska poleceń CADa jako odpowiedź dla użytkownika!\n\n" +
+                "6. WSTRZYKIWANIE W WARTOŚCI W TRAKCIE RYSOWANIA: Jeśli użytkownik ma AKTYWNE polecenie w CAD (np. rysuje okrąg i pyta o promień), ZAWSZE wstrzykuj wartość przez [ACTION:SEND_TO_CMD {\"Value\": \"RPN: wyrażenie\"}]. Używaj jednostek z podłogą, np. RPN: 10_m 2 /. System sam bezbłędnie obliczy wynik i wstrzyknie go bezpośrednio do paska poleceń CADa jako odpowiedź dla użytkownika!\n" +
+                "7. OBLICZENIA INŻYNIERSKIE W CZACIE: Jesteś zintegrowany z potężnym silnikiem analizy wymiarowej (SI). NIGDY nie wykonuj skomplikowanych obliczeń fizycznych ani matematycznych samodzielnie! Zawsze używaj narzędzia [ACTION:CALC_RPN {\"Expression\": \"wyrażenie_RPN\"}].\n" +
+                "Zasady Twojego kalkulatora:\n" +
+                "- Stosuj Odwrotną Notację Polską (np. dodanie 2 i 3 to: 2 3 +).\n" +
+                "- Dołączaj jednostki do liczb używając znaku podłogi, np.: 10_m, 500_kg, 15_kPa, 20_m/s, 9.81_m/s2.\n" +
+                "- Silnik sam złoży wektory SI! Jeśli pomnożysz masę i przyspieszenie (np. 50_kg 9.81_m/s2 *), silnik odda Ci wynik w Niutonach (_N).\n" +
+                "- Jeśli chcesz przeliczyć wynik na inną jednostkę, użyj komendy CONVE. Przykład przeliczenia 1 cala na mm: 1_in 'mm' CONVE.\n" +
+                "- Obsługiwane operatory: +, -, *, /, ^, SQRT, ROUND, ABS.\n" +
+                "- Pamiętaj, że silnik RPN odłoży ten wynik na globalny stos użytkownika w jego pliku DWG!\n\n" +
+                "- Jeśli chcesz przeliczyć wynik na inną jednostkę, użyj komendy CONVE. Przykład przeliczenia 1 cala na mm: 1_in 'mm' CONVE.\n" +
+                "- Obsługiwane operatory: +, -, *, /, ^, SQRT, ROUND, ABS.\n" +
+                "- Pamiętaj, że silnik RPN odłoży ten wynik na globalny stos użytkownika w jego pliku DWG!\n\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
+        
         [CommandMethod("AGENT_UI")]
         public void UruchomInterfejsAgenta()
         {
@@ -364,12 +377,23 @@ namespace BricsCAD_Agent
         {
             if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
             {
-                // Odczytujemy jednostkę w tle
+                // --- POBIERANIE JEDNOSTEK RYSUNKU DLA AGENTA ---
                 short insunits = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
-                string unitName = insunits == 4 ? "Milimetry (mm)" : insunits == 5 ? "Centymetry (cm)" : insunits == 6 ? "Metry (m)" : "Inne";
+                string jednostkiRysunku = "bezwymiarowe (jednostki rysunku)";
+                if (insunits == 4) jednostkiRysunku = "mm (milimetry)";
+                else if (insunits == 5) jednostkiRysunku = "cm (centymetry)";
+                else if (insunits == 6) jednostkiRysunku = "m (metry)";
+                else if (insunits == 1) jednostkiRysunku = "in (cale)";
 
-                // Doklejamy informację do promptu
-                string zaktualizowanyPrompt = systemPrompt + $"\n\n[INFO SYSTEMOWE]: Aktualne jednostki otwartego rysunku to: {unitName}. ZAWSZE przeliczaj wymiary podane przez użytkownika na te jednostki przed wygenerowaniem tagu SELECT.";
+                // --- DYNAMICZNE DOKLEJANIE ZASADY 8 DO PROMPTU ---
+                string zasada8 = "8. ŚWIADOMOŚĆ JEDNOSTEK FIZYCZNYCH:\n" +
+                $"- UWAGA: Aktualny plik CAD w którym pracuje użytkownik ma ustawione jednostki: {jednostkiRysunku}. Jeśli użytkownik podaje w pytaniu gołą liczbę oznaczającą dystans z rysunku (np. 'ramię ma długość 150'), ZAWSZE przypisz jej tę jednostkę bazową rysunku!\n" +
+                "- Jeśli użytkownik wprost używa jednostek w pytaniu (np. '15 kg', '20 Pa', '3 minuty'), ZAWSZE dołączaj je do liczb używając znaku podłogi, np.: 15_kg, 20_Pa, 3_min.\n" +
+                "- Silnik sam złoży wektory SI! (np. 50_kg 9.81_m/s2 * automatycznie da wynik w _N).\n" +
+                "- Jeśli użytkownik prosi o wynik w innej jednostce, użyj komendy CONVE. Przykład: 1_in 'mm' CONVE.\n\n";
+
+                // Łączymy "twardy" system prompt z dynamiczną zasadą 8
+                string zaktualizowanyPrompt = systemPrompt + zasada8;
 
                 // 1. Dodajemy główne zasady gry (System Prompt)
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + Komendy.SafeJson(zaktualizowanyPrompt) + "\"}");

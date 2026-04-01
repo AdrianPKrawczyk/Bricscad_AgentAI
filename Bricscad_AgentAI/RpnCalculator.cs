@@ -2,191 +2,623 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Teigha.DatabaseServices;
+using Bricscad.EditorInput;
+using Teigha.Geometry;
+using Bricscad.ApplicationServices;
+using System.Linq;
 
 namespace BricsCAD_Agent
 {
+    // ==============================================================
+    // SILNIK ANALIZY WYMIAROWEJ (STYL HP-50g)
+    // ==============================================================
+    public struct UnitDim : IEquatable<UnitDim>
+    {
+        public int L, M, T, I, Theta, N, J; // Długość(m), Masa(kg), Czas(s), Prąd(A), Temp(K), Mol(mol), Światło(cd)
+
+        public static UnitDim operator +(UnitDim a, UnitDim b) =>
+            new UnitDim { L = a.L + b.L, M = a.M + b.M, T = a.T + b.T, I = a.I + b.I, Theta = a.Theta + b.Theta, N = a.N + b.N, J = a.J + b.J };
+
+        public static UnitDim operator -(UnitDim a, UnitDim b) =>
+            new UnitDim { L = a.L - b.L, M = a.M - b.M, T = a.T - b.T, I = a.I - b.I, Theta = a.Theta - b.Theta, N = a.N - b.N, J = a.J - b.J };
+
+        public static UnitDim operator *(UnitDim a, int mult) =>
+            new UnitDim { L = a.L * mult, M = a.M * mult, T = a.T * mult, I = a.I * mult, Theta = a.Theta * mult, N = a.N * mult, J = a.J * mult };
+
+        public bool Equals(UnitDim other) => L == other.L && M == other.M && T == other.T && I == other.I && Theta == other.Theta && N == other.N && J == other.J;
+        public override bool Equals(object obj) => obj is UnitDim other && Equals(other);
+        public override int GetHashCode() => (L, M, T, I, Theta, N, J).GetHashCode();
+        public static bool operator ==(UnitDim a, UnitDim b) => a.Equals(b);
+        public static bool operator !=(UnitDim a, UnitDim b) => !a.Equals(b);
+
+        public bool IsDimensionless() => this == new UnitDim();
+
+        public override string ToString()
+        {
+            if (IsDimensionless()) return "";
+            string explicitName = UnitEngine.GetUnitName(this);
+            if (explicitName != null) return explicitName;
+
+            // Generowanie awaryjne, np. m^2*kg/s^3
+            List<string> pos = new List<string>(), neg = new List<string>();
+            Action<int, string> add = (val, sym) => {
+                if (val > 0) pos.Add(val == 1 ? sym : $"{sym}^{val}");
+                else if (val < 0) neg.Add(val == -1 ? sym : $"{sym}^{-val}");
+            };
+            add(L, "m"); add(M, "kg"); add(T, "s"); add(I, "A"); add(Theta, "K"); add(N, "mol"); add(J, "cd");
+
+            string num = pos.Count > 0 ? string.Join("*", pos) : "1";
+            string den = neg.Count > 0 ? "/" + string.Join("*", neg) : "";
+            return num + den;
+        }
+    }
+
+    public struct PhysicalValue
+    {
+        public double Value;
+        public UnitDim Dim;
+        public string PrefUnit;
+
+        public PhysicalValue(double v, UnitDim d, string pref = null) { Value = v; Dim = d; PrefUnit = pref; }
+
+        public override string ToString()
+        {
+            if (Dim.IsDimensionless()) return Math.Round(Value, 6).ToString(CultureInfo.InvariantCulture);
+
+            if (!string.IsNullOrEmpty(PrefUnit))
+            {
+                try
+                {
+                    // Wykorzystujemy nasz nowy parser do ładnego renderowania złożonych jednostek
+                    var pUnit = UnitEngine.ParseUnit(PrefUnit);
+                    if (this.Dim == pUnit.Dim)
+                    {
+                        double displayVal = this.Value / pUnit.Value;
+                        return $"{Math.Round(displayVal, 6).ToString(CultureInfo.InvariantCulture)}_{PrefUnit}";
+                    }
+                }
+                catch { }
+            }
+            return $"{Math.Round(Value, 6).ToString(CultureInfo.InvariantCulture)}_{Dim.ToString()}";
+        }
+    }
+
+    public static class UnitEngine
+    {
+        public static Dictionary<string, PhysicalValue> Units = new Dictionary<string, PhysicalValue>(StringComparer.OrdinalIgnoreCase);
+
+        static UnitEngine()
+        {
+            // BAZOWE SI
+            Units["m"] = new PhysicalValue(1.0, new UnitDim { L = 1 });
+            Units["kg"] = new PhysicalValue(1.0, new UnitDim { M = 1 });
+            Units["s"] = new PhysicalValue(1.0, new UnitDim { T = 1 });
+            Units["A"] = new PhysicalValue(1.0, new UnitDim { I = 1 });
+            Units["K"] = new PhysicalValue(1.0, new UnitDim { Theta = 1 });
+            Units["mol"] = new PhysicalValue(1.0, new UnitDim { N = 1 });
+
+            // DŁUGOŚĆ / POLE / OBJĘTOŚĆ
+            Units["mm"] = new PhysicalValue(1e-3, new UnitDim { L = 1 });
+            Units["cm"] = new PhysicalValue(1e-2, new UnitDim { L = 1 });
+            Units["km"] = new PhysicalValue(1e3, new UnitDim { L = 1 });
+            Units["in"] = new PhysicalValue(0.0254, new UnitDim { L = 1 }); // cale
+            Units["mm2"] = new PhysicalValue(1e-6, new UnitDim { L = 2 });
+            Units["cm2"] = new PhysicalValue(1e-4, new UnitDim { L = 2 });
+            Units["m2"] = new PhysicalValue(1.0, new UnitDim { L = 2 });
+            Units["ha"] = new PhysicalValue(10000.0, new UnitDim { L = 2 }); // hektary
+            Units["m3"] = new PhysicalValue(1.0, new UnitDim { L = 3 });
+            Units["L"] = new PhysicalValue(1e-3, new UnitDim { L = 3 }); // litry
+
+            // MASA I CZAS
+            Units["g"] = new PhysicalValue(1e-3, new UnitDim { M = 1 });
+            Units["t"] = new PhysicalValue(1000.0, new UnitDim { M = 1 }); // tony
+            Units["min"] = new PhysicalValue(60.0, new UnitDim { T = 1 });
+            Units["h"] = new PhysicalValue(3600.0, new UnitDim { T = 1 });
+
+            // MECHANIKA (Siła, Ciśnienie, Praca, Moc)
+            Units["N"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 1, T = -2 });
+            Units["kN"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 1, T = -2 });
+            Units["Pa"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = -1, T = -2 });
+            Units["kPa"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = -1, T = -2 });
+            Units["MPa"] = new PhysicalValue(1e6, new UnitDim { M = 1, L = -1, T = -2 });
+            Units["bar"] = new PhysicalValue(1e5, new UnitDim { M = 1, L = -1, T = -2 });
+            Units["J"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["kJ"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 2, T = -2 });
+            Units["W"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = 2, T = -3 });
+            Units["kW"] = new PhysicalValue(1e3, new UnitDim { M = 1, L = 2, T = -3 });
+
+            // PŁYNY I TERMODYNAMIKA
+            Units["Hz"] = new PhysicalValue(1.0, new UnitDim { T = -1 });
+            Units["kg/m3"] = new PhysicalValue(1.0, new UnitDim { M = 1, L = -3 }); // gęstość
+            Units["m/s"] = new PhysicalValue(1.0, new UnitDim { L = 1, T = -1 }); // prędkość
+            Units["m/s2"] = new PhysicalValue(1.0, new UnitDim { L = 1, T = -2 }); // przyspieszenie
+            Units["J/kgK"] = new PhysicalValue(1.0, new UnitDim { L = 2, T = -2, Theta = -1 }); // ciepło właściwe
+
+            // PRZEPŁYWY (Objętościowe i Masowe)
+            Units["m3/h"] = new PhysicalValue(1.0 / 3600.0, new UnitDim { L = 3, T = -1 });
+            Units["kg/h"] = new PhysicalValue(1.0 / 3600.0, new UnitDim { M = 1, T = -1 });
+            Units["dm3/s"] = new PhysicalValue(1e-3, new UnitDim { L = 3, T = -1 }); // Odpowiednik l/s
+            Units["g/h"] = new PhysicalValue(1e-3 / 3600.0, new UnitDim { M = 1, T = -1 });
+        }
+        // --- NOWOŚĆ: ALGEBRAICZNY PARSER JEDNOSTEK ---
+        public static PhysicalValue ParseUnit(string expr)
+        {
+            // --- SZYBKA ŚCIEŻKA: Zabezpiecza gotowe jednostki takie jak m2, m3, m3/h ---
+            if (Units.TryGetValue(expr, out var exactMatch)) return exactMatch;
+
+            // Rozbija ciąg np. kJ/(kg*K) na tokeny
+            var tokens = Regex.Matches(expr, @"[a-zA-Z]+|-?\d+|[/*^()]")
+                              .Cast<Match>().Select(m => m.Value).ToList();
+
+            var output = new List<string>();
+            var ops = new Stack<string>();
+            int Precedence(string op) => op == "^" ? 3 : (op == "*" || op == "/" ? 2 : 0);
+
+            // Shunting Yard (Przejście na ONP w locie)
+            foreach (var t in tokens)
+            {
+                if (char.IsLetter(t[0]) || char.IsDigit(t[0]) || (t.Length > 1 && t[0] == '-')) output.Add(t);
+                else if (t == "(") ops.Push(t);
+                else if (t == ")")
+                {
+                    while (ops.Count > 0 && ops.Peek() != "(") output.Add(ops.Pop());
+                    if (ops.Count > 0) ops.Pop();
+                }
+                else
+                {
+                    while (ops.Count > 0 && Precedence(ops.Peek()) >= Precedence(t)) output.Add(ops.Pop());
+                    ops.Push(t);
+                }
+            }
+            while (ops.Count > 0) output.Add(ops.Pop());
+
+            // Matematyka na jednostkach
+            var stack = new Stack<PhysicalValue>();
+            foreach (var t in output)
+            {
+                if (t == "*") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(a.Value * b.Value, a.Dim + b.Dim)); }
+                else if (t == "/") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(a.Value / b.Value, a.Dim - b.Dim)); }
+                else if (t == "^") { var b = stack.Pop(); var a = stack.Pop(); stack.Push(new PhysicalValue(Math.Pow(a.Value, b.Value), a.Dim * (int)Math.Round(b.Value))); }
+                else if (char.IsDigit(t[0]) || t.StartsWith("-")) stack.Push(new PhysicalValue(double.Parse(t, CultureInfo.InvariantCulture), new UnitDim()));
+                else
+                {
+                    if (Units.TryGetValue(t, out var u)) stack.Push(u);
+                    else throw new Exception(t); // Zwraca konkretną nazwę błędnej, składowej jednostki
+                }
+            }
+            if (stack.Count != 1) throw new Exception("Błąd składni jednostki.");
+            return stack.Pop();
+        }
+
+
+        public static string GetUnitName(UnitDim dim)
+        {
+            if (dim == new UnitDim { M = 1, L = 1, T = -2 }) return "N";
+            if (dim == new UnitDim { M = 1, L = -1, T = -2 }) return "Pa";
+            if (dim == new UnitDim { M = 1, L = 2, T = -2 }) return "J";
+            if (dim == new UnitDim { M = 1, L = 2, T = -3 }) return "W";
+            if (dim == new UnitDim { T = -1 }) return "Hz";
+            if (dim == new UnitDim { L = 1, T = -1 }) return "m/s";
+            if (dim == new UnitDim { L = 1, T = -2 }) return "m/s2";
+            if (dim == new UnitDim { M = 1, L = -3 }) return "kg/m3";
+            return null;
+        }
+    }
+
     public static class RpnCalculator
     {
-        // ==============================================================
-        // ETAP 1: TRWAŁA PAMIĘĆ STOSU I USTAWIENIA
-        // ==============================================================
-        private static List<object> _stack = new List<object>();
-        private const int MaxStackSize = 50; // Zabezpieczenie (Punkt 5)
+        private static Dictionary<Document, List<object>> _stacks = new Dictionary<Document, List<object>>();
 
-        public static bool AutoPreview { get; set; } = true; // Tryb podglądu (Punkt 6)
+        // --- NOWOŚĆ: Pamięć zmiennych użytkownika ---
+        private static Dictionary<Document, Dictionary<string, PhysicalValue>> _variables = new Dictionary<Document, Dictionary<string, PhysicalValue>>();
 
-        // API DLA AGENTA AI (Punkt 7)
+        private static Dictionary<string, PhysicalValue> CurrentVariables
+        {
+            get
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc == null) return new Dictionary<string, PhysicalValue>();
+                if (!_variables.ContainsKey(doc)) _variables[doc] = new Dictionary<string, PhysicalValue>();
+                return _variables[doc];
+            }
+        }
+
+        private static HashSet<Document> _loadedDocs = new HashSet<Document>();
+        private const int MaxStackSize = 50;
+        public static bool AutoPreview { get; set; } = true;
+
+        private static List<object> CurrentStack
+        {
+            get
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc == null) return new List<object>();
+                if (!_stacks.ContainsKey(doc)) _stacks[doc] = new List<object>();
+                return _stacks[doc];
+            }
+        }
+
+        // ==============================================================
+        // ZAPIS/ODCZYT DWG
+        // ==============================================================
+        public static void LoadFromDWG(Document doc)
+        {
+            if (doc == null || _loadedDocs.Contains(doc)) return;
+            try
+            {
+                using (Transaction tr = doc.TransactionManager.StartTransaction())
+                {
+                    DBDictionary nod = (DBDictionary)tr.GetObject(doc.Database.NamedObjectsDictionaryId, OpenMode.ForRead);
+                    if (nod.Contains("BIELIK_RPN_MEMORY"))
+                    {
+                        DBDictionary dict = (DBDictionary)tr.GetObject(nod.GetAt("BIELIK_RPN_MEMORY"), OpenMode.ForRead);
+                        if (dict.Contains("STACK"))
+                        {
+                            Xrecord xRec = (Xrecord)tr.GetObject(dict.GetAt("STACK"), OpenMode.ForRead);
+                            if (xRec.Data != null)
+                            {
+                                var stack = CurrentStack;
+                                stack.Clear();
+                                foreach (TypedValue tv in xRec.Data)
+                                {
+                                    if (tv.Value.ToString() != "EMPTY_STACK") stack.Add(tv.Value.ToString());
+                                }
+                            }
+                        }
+                    }
+                    tr.Commit();
+                }
+            }
+            catch { }
+            finally { _loadedDocs.Add(doc); }
+        }
+
+        public static void SaveToDWG(Document doc)
+        {
+            if (doc == null || doc.IsReadOnly) return;
+            try
+            {
+                using (DocumentLock loc = doc.LockDocument())
+                using (Transaction tr = doc.TransactionManager.StartTransaction())
+                {
+                    DBDictionary nod = (DBDictionary)tr.GetObject(doc.Database.NamedObjectsDictionaryId, OpenMode.ForWrite);
+                    DBDictionary dict;
+                    if (nod.Contains("BIELIK_RPN_MEMORY")) dict = (DBDictionary)tr.GetObject(nod.GetAt("BIELIK_RPN_MEMORY"), OpenMode.ForWrite);
+                    else { dict = new DBDictionary(); nod.SetAt("BIELIK_RPN_MEMORY", dict); tr.AddNewlyCreatedDBObject(dict, true); }
+
+                    Xrecord xRec = new Xrecord();
+                    ResultBuffer rb = new ResultBuffer();
+                    var stack = CurrentStack;
+                    if (stack.Count == 0) rb.Add(new TypedValue((int)DxfCode.Text, "EMPTY_STACK"));
+                    else foreach (var item in stack) rb.Add(new TypedValue((int)DxfCode.XTextString, GetString(item)));
+                    xRec.Data = rb;
+
+                    if (dict.Contains("STACK")) { Object oldObj = tr.GetObject(dict.GetAt("STACK"), OpenMode.ForWrite); ((DBObject)oldObj).Erase(); }
+                    dict.SetAt("STACK", xRec); tr.AddNewlyCreatedDBObject(xRec, true); tr.Commit();
+                }
+            }
+            catch { }
+        }
+
+        // ==============================================================
+        // MECHANIKA I PODGLĄD STOSU
+        // ==============================================================
         public static string GetStackState()
         {
-            if (_stack.Count == 0) return "Stos jest pusty.";
+            var stack = CurrentStack;
+            if (stack.Count == 0) return "Stos jest pusty.";
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < _stack.Count; i++)
-            {
-                // Wyświetla od góry (1:) do dołu
-                sb.AppendLine($"  {_stack.Count - i}: {GetString(_stack[_stack.Count - 1 - i])}");
-            }
+            for (int i = 0; i < stack.Count; i++) sb.AppendLine($"  {stack.Count - i}: {GetString(stack[stack.Count - 1 - i])}");
             return sb.ToString();
         }
 
-        // ==============================================================
-        // MECHANIKA STOSU
-        // ==============================================================
-        public static void ClearStack() => _stack.Clear();
+        public static string GetTopAsString() { var s = CurrentStack; return s.Count > 0 ? GetString(s[s.Count - 1]) : ""; }
 
-        private static void Push(object item)
-        {
-            _stack.Add(item);
-            if (_stack.Count > MaxStackSize)
-            {
-                _stack.RemoveAt(0); // Wypychanie najstarszych danych z dna stosu
-            }
-        }
-
-        private static object Pop()
-        {
-            if (_stack.Count == 0) throw new Exception("Stos jest pusty!");
-            object item = _stack[_stack.Count - 1];
-            _stack.RemoveAt(_stack.Count - 1);
-            return item;
-        }
-
-        private static object Peek()
-        {
-            if (_stack.Count == 0) throw new Exception("Stos jest pusty!");
-            return _stack[_stack.Count - 1];
-        }
-
-        // Pobiera wartość ze szczytu stosu bez jej usuwania
-        public static string GetTopAsString()
-        {
-            if (_stack.Count > 0) return GetString(_stack[_stack.Count - 1]);
-            return "";
-        }
-
-        // Kompaktowy widok stosu do wyświetlania w pętli (pokazuje max 5 ostatnich elementów w jednej linii)
         public static string GetHPStackView(int maxLevels = 5)
         {
-            if (_stack.Count == 0) return " 1: [Pusty]"; // Pusty stos wciąż ma poziom 1
-
+            var stack = CurrentStack;
+            if (stack.Count == 0) return " 1: [Pusty]";
             StringBuilder sb = new StringBuilder();
+            int levelsToShow = Math.Min(stack.Count, maxLevels);
+            for (int i = levelsToShow; i >= 1; i--) sb.AppendLine($" {i}: {GetString(stack[stack.Count - i])}");
+            return sb.ToString().TrimEnd();
+        }
 
-            // Ograniczamy wyświetlanie, by nie zalać paska poleceń, np. do 5-6 poziomów
-            int levelsToShow = Math.Min(_stack.Count, maxLevels);
+        public static void ClearStack() => CurrentStack.Clear();
+        private static void Push(object item) { var s = CurrentStack; s.Add(item); if (s.Count > MaxStackSize) s.RemoveAt(0); }
+        private static object Pop() { var s = CurrentStack; if (s.Count == 0) throw new Exception("Stos jest pusty!"); object item = s[s.Count - 1]; s.RemoveAt(s.Count - 1); return item; }
+        private static object Peek() { var s = CurrentStack; if (s.Count == 0) throw new Exception("Stos jest pusty!"); return s[s.Count - 1]; }
 
-            // Pętla iteruje "od góry ekranu" (najwyższy numer) w dół do poziomu 1:
-            for (int i = levelsToShow; i >= 1; i--)
-            {
-                int stackIndex = _stack.Count - i;
-                sb.AppendLine($" {i}: {GetString(_stack[stackIndex])}");
-            }
+        // ==============================================================
+        // INTEGRACJA BricsCAD (DL, DX, DY, DZ) + SCALOWANIE INSUNITS
+        // ==============================================================
+        private static PhysicalValue GetDistanceFromCad(Editor ed, string mode)
+        {
+            if (ed == null) throw new Exception("Pobieranie punktów jest dostępne tylko w CADzie!");
 
-            return sb.ToString().TrimEnd(); // Zwracamy piękny pionowy stos bez ostatniego entera
+            PromptPointOptions ppo1 = new PromptPointOptions($"\n[{mode}] Wskaż pierwszy punkt: ");
+            PromptPointResult ppr1 = ed.GetPoint(ppo1);
+            if (ppr1.Status != PromptStatus.OK) throw new Exception("Anulowano wskazywanie.");
+
+            PromptPointOptions ppo2 = new PromptPointOptions($"\n[{mode}] Wskaż drugi punkt: ");
+            ppo2.UseBasePoint = true; ppo2.BasePoint = ppr1.Value;
+            if (mode == "DX" || mode == "DY") ppo2.UseDashedLine = true;
+
+            PromptPointResult ppr2 = ed.GetPoint(ppo2);
+            if (ppr2.Status != PromptStatus.OK) throw new Exception("Anulowano wskazywanie.");
+
+            Point3d p1 = ppr1.Value; Point3d p2 = ppr2.Value;
+            double dist = mode == "DX" ? Math.Abs(p2.X - p1.X) : mode == "DY" ? Math.Abs(p2.Y - p1.Y) : mode == "DZ" ? Math.Abs(p2.Z - p1.Z) : p1.DistanceTo(p2);
+
+            // Automatyczne dopasowanie do jednostek BricsCADa!
+            short insunits = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
+            string prefUnit = "m";
+            if (insunits == 4) prefUnit = "mm";
+            else if (insunits == 5) prefUnit = "cm";
+
+            if (UnitEngine.Units.TryGetValue(prefUnit, out var uDef))
+                return new PhysicalValue(dist * uDef.Value, uDef.Dim, prefUnit);
+
+            return new PhysicalValue(dist, new UnitDim());
         }
 
         // ==============================================================
-        // GŁÓWNY SILNIK OBLICZENIOWY
+        // GŁÓWNY SILNIK RPN Z OBSŁUGĄ WZORCÓW FIZYCZNYCH
         // ==============================================================
-        public static string Evaluate(string expression, object initialValue = null, Entity context = null)
+        public static string Evaluate(string expression, object initialValue = null, Entity context = null, Editor ed = null)
         {
             if (initialValue != null) Push(initialValue);
-
             List<string> tokens = Tokenize(expression);
 
             foreach (string t in tokens)
             {
                 string token = t.Trim();
                 if (string.IsNullOrEmpty(token)) continue;
-
                 string upperToken = token.ToUpperInvariant();
 
                 try
                 {
                     switch (upperToken)
                     {
-                        // Nowe komendy stosu (Punkt 1 i 5)
+                        case "DL": case "DX": case "DY": case "DZ": Push(GetDistanceFromCad(ed, upperToken)); break;
                         case "CLEAR": ClearStack(); break;
                         case "SWAP": { object b = Pop(); object a = Pop(); Push(b); Push(a); break; }
                         case "DUP": { Push(Peek()); break; }
                         case "DROP": { Pop(); break; }
-                        case "PICK":
-                            {
-                                int index = (int)GetNum(Pop());
-                                if (index < 1 || index > _stack.Count) throw new Exception($"Brak elementu na pozycji {index}");
-                                // 1 PICK kopiuje sam szczyt, 2 PICK kopiuje element pod nim itd.
-                                Push(_stack[_stack.Count - index]);
-                                break;
-                            }
+                        case "PICK": { int idx = (int)GetNum(Pop()); var s = CurrentStack; if (idx < 1 || idx > s.Count) throw new Exception("Brak elementu"); Push(s[s.Count - idx]); break; }
 
-                        // Matematyka i Logika
+                        // FIZYKA MATEMATYCZNA
                         case "+":
                             {
-                                object b = Pop(); object a = Pop();
-                                if (IsNumber(a) && IsNumber(b)) Push(GetNum(a) + GetNum(b));
-                                else Push(GetString(a) + GetString(b));
+                                var pb = GetPhys(Pop()); var pa = GetPhys(Pop());
+                                if (pa.Dim != pb.Dim && !pa.Dim.IsDimensionless() && !pb.Dim.IsDimensionless()) throw new Exception($"Niezgodność: {pa.Dim} + {pb.Dim}");
+                                Push(new PhysicalValue(pa.Value + pb.Value, pa.Dim != new UnitDim() ? pa.Dim : pb.Dim, pa.PrefUnit));
                                 break;
                             }
-                        case "-": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a - b); break; }
-                        case "*": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a * b); break; }
-                        case "/": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a / b); break; }
-                        case "^": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(Math.Pow(a, b)); break; }
-                        case "SQRT": Push(Math.Sqrt(GetNum(Pop()))); break;
-                        case "SIN": Push(Math.Sin(GetNum(Pop()) * Math.PI / 180.0)); break;
-                        case "COS": Push(Math.Cos(GetNum(Pop()) * Math.PI / 180.0)); break;
-                        case "ROUND": { int d = (int)GetNum(Pop()); double v = GetNum(Pop()); Push(Math.Round(v, d)); break; }
-                        case "==": case "=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0); break; }
-                        case "!=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0); break; }
-                        case ">": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a > b ? 1.0 : 0.0); break; }
-                        case "<": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(a < b ? 1.0 : 0.0); break; }
-                        case "IFTE": { object f = Pop(); object tr = Pop(); double c = GetNum(Pop()); Push(c != 0 ? tr : f); break; }
+                        case "-":
+                            {
+                                var pb = GetPhys(Pop()); var pa = GetPhys(Pop());
+                                if (pa.Dim != pb.Dim && !pa.Dim.IsDimensionless() && !pb.Dim.IsDimensionless()) throw new Exception($"Niezgodność: {pa.Dim} - {pb.Dim}");
+                                Push(new PhysicalValue(pa.Value - pb.Value, pa.Dim != new UnitDim() ? pa.Dim : pb.Dim, pa.PrefUnit));
+                                break;
+                            }
+                        case "*":
+                            {
+                                var pb = GetPhys(Pop()); var pa = GetPhys(Pop());
+                                Push(new PhysicalValue(pa.Value * pb.Value, pa.Dim + pb.Dim));
+                                break;
+                            }
+                        case "/":
+                            {
+                                var pb = GetPhys(Pop()); var pa = GetPhys(Pop());
+                                Push(new PhysicalValue(pa.Value / pb.Value, pa.Dim - pb.Dim));
+                                break;
+                            }
+                        case "^":
+                            {
+                                var pb = GetPhys(Pop()); var pa = GetPhys(Pop());
+                                if (!pb.Dim.IsDimensionless()) throw new Exception("Wykładnik musi być bezwymiarowy!");
+                                int exp = (int)Math.Round(pb.Value);
+                                Push(new PhysicalValue(Math.Pow(pa.Value, pb.Value), pa.Dim * exp));
+                                break;
+                            }
 
-                        // Operacje na Tekstach
+                        // --- KOMENDY JEDNOSTKOWE HP-50g ---
+                        // --- KOMENDY JEDNOSTKOWE HP-50g ---
+                        case "CONVE":
+                            {
+                                object tgtObj = Pop();
+                                // Wyciągamy docelową jednostkę (nawet jeśli użytkownik podał "1_mm" zamiast "'mm'")
+                                string tgtUnit = tgtObj is PhysicalValue pvTgt ? (pvTgt.PrefUnit ?? pvTgt.Dim.ToString()) : GetString(tgtObj).Replace("'", "").Replace("\"", "");
+                                var pv = GetPhys(Pop());
+
+                                try
+                                {
+                                    PhysicalValue uDef = UnitEngine.ParseUnit(tgtUnit);
+                                    if (pv.Dim != uDef.Dim && !pv.Dim.IsDimensionless()) throw new Exception($"Niezgodność wymiarów: {pv.Dim} a {uDef.Dim}");
+                                    Push(new PhysicalValue(pv.Value, uDef.Dim, tgtUnit));
+                                }
+                                catch (Exception ex) { throw new Exception($"Nieznana jednostka docelowa: {tgtUnit} (brak: {ex.Message})"); }
+                                break;
+                            }
+                        case "+UNIT":
+                            {
+                                object tgtObj = Pop();
+                                string unitStr = tgtObj is PhysicalValue pvTgt ? (pvTgt.PrefUnit ?? pvTgt.Dim.ToString()) : GetString(tgtObj).Replace("'", "").Replace("\"", "");
+                                var pv = GetPhys(Pop());
+                                if (!pv.Dim.IsDimensionless()) throw new Exception("Wartość ma już wymiar. Użyj CONVE.");
+
+                                try
+                                {
+                                    PhysicalValue uDef = UnitEngine.ParseUnit(unitStr);
+                                    Push(new PhysicalValue(pv.Value * uDef.Value, uDef.Dim, unitStr));
+                                }
+                                catch (Exception ex) { throw new Exception($"Nieznana jednostka docelowa: {unitStr} (brak: {ex.Message})"); }
+                                break;
+                            }
+                        case "UNBASE":
+                            {
+                                var pv = GetPhys(Pop());
+                                Push(new PhysicalValue(pv.Value, pv.Dim, null));
+                                break;
+                            }
+                        case "UVAL":
+                            {
+                                var pv = GetPhys(Pop());
+                                double displayVal = pv.Value;
+                                if (!string.IsNullOrEmpty(pv.PrefUnit))
+                                {
+                                    try { displayVal /= UnitEngine.ParseUnit(pv.PrefUnit).Value; } catch { }
+                                }
+                                Push(new PhysicalValue(displayVal, new UnitDim()));
+                                break;
+                            }
+                        case "UFACT":
+                            {
+                                string tgtUnit = GetString(Pop());
+                                var pv = GetPhys(Pop());
+                                if (!UnitEngine.Units.TryGetValue(tgtUnit, out var uDef)) throw new Exception($"Nieznana jednostka: {tgtUnit}");
+                                // W systemie wektorowym UFACT działa jak CONVE, ale pozwala wymusić wyświetlanie wybranej etykiety nadrzędnej
+                                Push(new PhysicalValue(pv.Value, pv.Dim, tgtUnit));
+                                break;
+                            }
+                        // --- ZMIENNE UŻYTKOWNIKA ---
+                        case "STO":
+                            {
+                                string vName = GetString(Pop()).Replace("'", "").Replace("\"", "").ToUpperInvariant();
+                                if (!vName.StartsWith("$")) vName = "$" + vName; // Wymuszamy dolara!
+                                var vVal = GetPhys(Pop());
+                                CurrentVariables[vName] = vVal;
+                                break;
+                            }
+                        case "RCL":
+                            {
+                                string vName = GetString(Pop()).Replace("'", "").Replace("\"", "").ToUpperInvariant();
+                                if (!vName.StartsWith("$")) vName = "$" + vName; // Wymuszamy dolara!
+                                if (CurrentVariables.TryGetValue(vName, out var val)) Push(val);
+                                else throw new Exception($"Brak zmiennej o nazwie: {vName}");
+                                break;
+                            }
+                        case "VARS_CLEAR":
+                            {
+                                CurrentVariables.Clear();
+                                break;
+                            }
+
+                        // MATEMATYKA / TEKST
+                        case "SQRT": { var p = GetPhys(Pop()); Push(new PhysicalValue(Math.Sqrt(p.Value), new UnitDim())); break; } // Uproszczone do bezwymiarowych
+                        case "ROUND": { int d = (int)GetNum(Pop()); var p = GetPhys(Pop()); Push(new PhysicalValue(Math.Round(p.Value, d), p.Dim, p.PrefUnit)); break; }
+                        case "ABS": { var p = GetPhys(Pop()); Push(new PhysicalValue(Math.Abs(p.Value), p.Dim, p.PrefUnit)); break; }
+
+                        case "==": case "=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(new PhysicalValue(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0, new UnitDim())); break; }
+                        case "!=": { string b = GetString(Pop()); string a = GetString(Pop()); Push(new PhysicalValue(a.Equals(b, StringComparison.OrdinalIgnoreCase) ? 0.0 : 1.0, new UnitDim())); break; }
+                        case ">": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(new PhysicalValue(a > b ? 1.0 : 0.0, new UnitDim())); break; }
+                        case "<": { double b = GetNum(Pop()); double a = GetNum(Pop()); Push(new PhysicalValue(a < b ? 1.0 : 0.0, new UnitDim())); break; }
+
                         case "CONCAT": case "&": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a + b); break; }
-                        case "UPPER": Push(GetString(Pop()).ToUpper()); break;
-                        case "LOWER": Push(GetString(Pop()).ToLower()); break;
-                        case "TRIM": Push(GetString(Pop()).Trim()); break;
-                        case "LEN": Push((double)GetString(Pop()).Length); break;
                         case "REPLACE": { string n = GetString(Pop()); string o = GetString(Pop()); string tg = GetString(Pop()); Push(tg.Replace(o, n)); break; }
-                        case "SUBSTR": { int l = (int)GetNum(Pop()); int s = (int)GetNum(Pop()); string tg = GetString(Pop()); if (s < 0) s = 0; Push(s >= tg.Length ? "" : tg.Substring(s, Math.Min(l, tg.Length - s))); break; }
-                        case "FIND": { string s = GetString(Pop()); string tg = GetString(Pop()); Push((double)tg.IndexOf(s)); break; }
-                        case "ABS": Push(Math.Abs(GetNum(Pop()))); break;
                         case "SPLIT": { int idx = (int)GetNum(Pop()); string sep = GetString(Pop()); string tg = GetString(Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
 
-                        // Ekstrakcja właściwości CAD
-                        case "GET":
+                        default:
+                            if (token.StartsWith("$"))
                             {
-                                string pName = GetString(Pop());
-                                if (context != null)
-                                {
-                                    var pi = context.GetType().GetProperty(pName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
-                                    Push(pi != null ? pi.GetValue(context) : 0);
-                                }
-                                else Push(0);
+                                string vName = upperToken;
+                                if (CurrentVariables.TryGetValue(vName, out var storedVal)) Push(storedVal);
+                                else throw new Exception($"Brak zmiennej: {vName}");
                                 break;
                             }
-                        default: Push(token); break;
+
+                            if (token.StartsWith("#"))
+                            {
+                                if (upperToken == "#PI") { Push(new PhysicalValue(Math.PI, new UnitDim())); break; }
+                                if (upperToken == "#G") { Push(new PhysicalValue(9.81, new UnitDim { L = 1, T = -2 }, "m/s2")); break; }
+                                if (upperToken == "#C") { Push(new PhysicalValue(299792458.0, new UnitDim { L = 1, T = -1 }, "m/s")); break; }
+                                if (upperToken == "#R_GAS") { Push(new PhysicalValue(8.314, new UnitDim { M = 1, L = 2, T = -2, Theta = -1, N = -1 }, "J/molK")); break; }
+                                throw new Exception($"Nieznana stała fizyczna: {token}");
+                            }
+
+                            // Inteligentny parser jednostek z potęgami i nawiasami!
+                            Match m = Regex.Match(token, @"^([-0-9.,]+)_?([a-zA-Z(][a-zA-Z0-9/*^()-]*)$");
+                            if (m.Success)
+                            {
+                                try
+                                {
+                                    double val = double.Parse(m.Groups[1].Value.Replace(",", "."), CultureInfo.InvariantCulture);
+                                    string unitStr = m.Groups[2].Value;
+                                    PhysicalValue uVal = UnitEngine.ParseUnit(unitStr);
+                                    Push(new PhysicalValue(val * uVal.Value, uVal.Dim, unitStr));
+                                    break;
+                                }
+                                catch (Exception ex)
+                                {
+                                    throw new Exception($"Nieznana składnia jednostki w: {token} (Brak: {ex.Message})");
+                                }
+                            }
+
+                            if (double.TryParse(token.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double num)) { Push(new PhysicalValue(num, new UnitDim())); }
+                            else { Push(token); }
+                            break;
                     }
                 }
-                catch (Exception ex) { throw new Exception($"Błąd RPN przy '{token}': {ex.Message}"); }
+                catch (Exception ex) { throw new Exception($"Błąd przy '{token}': {ex.Message}"); }
             }
-
-            // UWAGA: Zamiast Pop(), używamy Peek(). Wynik ZOSTANIE na stosie do użycia w kolejnych komendach!
-            return _stack.Count > 0 ? GetString(Peek()) : "";
+            return CurrentStack.Count > 0 ? GetString(Peek()) : "";
         }
 
         // ==============================================================
-        // NARZĘDZIA POMOCNICZE
+        // POMOCNICZE
         // ==============================================================
-        private static bool IsNumber(object o) => double.TryParse(GetString(o).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out _);
-        private static double GetNum(object o) => double.TryParse(GetString(o).Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double r) ? r : 0;
-        private static string GetString(object o) => o?.ToString() ?? "";
+        private static PhysicalValue GetPhys(object o)
+        {
+            if (o is PhysicalValue p) return p;
+            string s = GetString(o); // <-- ZMIANA: Bezpiecznie odpakowuje ewentualne cudzysłowy
+
+            // NOWY REGEX: obsługuje nawiasy, gwiazdki i potęgi!
+            Match m = Regex.Match(s, @"^([-0-9.,]+)_?([a-zA-Z(][a-zA-Z0-9/*^()-]*)$");
+            if (m.Success)
+            {
+                try
+                {
+                    double val = double.Parse(m.Groups[1].Value.Replace(",", "."), CultureInfo.InvariantCulture);
+                    PhysicalValue uVal = UnitEngine.ParseUnit(m.Groups[2].Value);
+                    return new PhysicalValue(val * uVal.Value, uVal.Dim, m.Groups[2].Value);
+                }
+                catch { }
+            }
+
+            // Czysta liczba
+            double.TryParse(s.Replace("_", "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double num);
+            return new PhysicalValue(num, new UnitDim());
+        }
+
+        private static double GetNum(object o)
+        {
+            if (o is PhysicalValue p) return p.Value;
+            double.TryParse(GetString(o).Replace("_", "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double num);
+            return num;
+        }
+
+        private static string GetString(object o)
+        {
+            string s = o?.ToString() ?? "";
+            // <-- ZMIANA: Dopiero tutaj, na samym końcu, "zdejmujemy" apostrofy, jeśli obudowują tekst!
+            if (s.StartsWith("'") && s.EndsWith("'") && s.Length >= 2) return s.Substring(1, s.Length - 2);
+            if (s.StartsWith("\"") && s.EndsWith("\"") && s.Length >= 2) return s.Substring(1, s.Length - 2);
+            return s;
+        }
 
         private static List<string> Tokenize(string expr)
         {
             List<string> ts = new List<string>(); StringBuilder sb = new StringBuilder(); bool q = false;
             foreach (char c in expr)
             {
-                if (c == '\'' || c == '\"') q = !q;
+                if (c == '\'' || c == '\"')
+                {
+                    q = !q;
+                    sb.Append(c); // <-- ZMIANA: Zostawiamy cudzysłowy w tekście, by silnik wiedział, że to String!
+                }
                 else if (char.IsWhiteSpace(c) && !q) { if (sb.Length > 0) { ts.Add(sb.ToString()); sb.Clear(); } }
                 else sb.Append(c);
             }
