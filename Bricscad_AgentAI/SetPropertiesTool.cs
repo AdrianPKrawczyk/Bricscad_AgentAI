@@ -247,6 +247,29 @@ namespace BricsCAD_Agent
                                                 { propInfo.SetValue(ent, Teigha.Colors.Color.FromRgb(r, g, b), null); czyZmienionoCosWObiekcie = true; }
                                             }
                                         }
+                                        // --- OBSŁUGA STRZAŁEK WYMIAROWYCH (DIMBLK) ---
+                                        else if (t == typeof(ObjectId) && propName.StartsWith("Dimblk", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string arrowName = valStr;
+                                            if (!string.IsNullOrEmpty(arrowName) && !arrowName.StartsWith("_"))
+                                                arrowName = "_" + arrowName.ToUpper();
+
+                                            ObjectId arrowId = ObjectId.Null;
+                                            if (!string.IsNullOrEmpty(arrowName))
+                                            {
+                                                try
+                                                {
+                                                    object oldDimblk = Bricscad.ApplicationServices.Application.GetSystemVariable("DIMBLK");
+                                                    Bricscad.ApplicationServices.Application.SetSystemVariable("DIMBLK", arrowName);
+                                                    arrowId = doc.Database.Dimblk;
+                                                    Bricscad.ApplicationServices.Application.SetSystemVariable("DIMBLK", oldDimblk);
+                                                }
+                                                catch { throw new Exception($"Brak takiej strzałki wymiarowej w bazie: {arrowName}"); }
+                                            }
+                                            propInfo.SetValue(ent, arrowId, null);
+                                            czyZmienionoCosWObiekcie = true;
+                                        }
+                                        // ----------------------------------------------
                                         else
                                         {
                                             if (opSign != "=" && (t == typeof(double) || t == typeof(int) || t == typeof(short) || t == typeof(float)))

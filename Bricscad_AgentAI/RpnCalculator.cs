@@ -248,6 +248,9 @@ namespace BricsCAD_Agent
 
         public static string GetUnitName(UnitDim dim)
         {
+            if (dim == new UnitDim { L = 1 }) return "m";
+            if (dim == new UnitDim { L = 2 }) return "m2";
+            if (dim == new UnitDim { L = 3 }) return "m3";
             if (dim == new UnitDim { M = 1, L = 1, T = -2 }) return "N";
             if (dim == new UnitDim { M = 1, L = -1, T = -2 }) return "Pa";
             if (dim == new UnitDim { M = 1, L = 2, T = -2 }) return "J";
@@ -539,31 +542,77 @@ namespace BricsCAD_Agent
 
                         case "PRETTY":
                             {
-                                int d = (int)GetNum(Pop()); // Precyzja (np. 2 dla 2 miejsc po przecinku)
+                                int d = (int)GetNum(Pop()); // Pożądana precyzja
                                 var p = GetPhys(Pop());
 
-                                double displayVal = p.Value;
-                                string unitStr = p.PrefUnit ?? p.Dim.ToString();
+                                double baseValue = p.Value;
+                                string unitStr = p.PrefUnit;
 
-                                // Jeśli wektor ma jednostkę, przeliczamy na nią i uwzględniamy offset (np. dla degC)
-                                if (!string.IsNullOrEmpty(p.PrefUnit))
+                                // --- LOGIKA SMART SCALING (Tylko jeśli jednostka nie jest narzucona) ---
+                                if (string.IsNullOrEmpty(unitStr))
                                 {
-                                    try
+                                    // 1. DŁUGOŚĆ (L=1)
+                                    if (p.Dim == new UnitDim { L = 1 })
                                     {
-                                        var u = UnitEngine.ParseUnit(p.PrefUnit);
-                                        displayVal = (p.Value / u.Value) - u.Offset;
+                                        if (baseValue >= 1000) unitStr = "km";
+                                        else if (baseValue >= 1.0) unitStr = "m";
+                                        else if (baseValue >= 0.01) unitStr = "cm";
+                                        else unitStr = "mm";
                                     }
-                                    catch { }
+                                    // 2. CZAS (T=1)
+                                    else if (p.Dim == new UnitDim { T = 1 })
+                                    {
+                                        if (baseValue >= 31557600) unitStr = "rok";
+                                        else if (baseValue >= 86400) unitStr = "dzień";
+                                        else if (baseValue >= 3600) unitStr = "h";
+                                        else if (baseValue >= 60) unitStr = "min";
+                                        else unitStr = "s";
+                                    }
+                                    // 3. ENERGIA (M=1, L=2, T=-2)
+                                    else if (p.Dim == new UnitDim { M = 1, L = 2, T = -2 })
+                                    {
+                                        if (baseValue >= 1e9) unitStr = "GJ";
+                                        else if (baseValue >= 1e6) unitStr = "MJ";
+                                        else if (baseValue >= 1000) unitStr = "kJ";
+                                        else unitStr = "J";
+                                    }
+                                    // 4. CIŚNIENIE (M=1, L=-1, T=-2)
+                                    else if (p.Dim == new UnitDim { M = 1, L = -1, T = -2 })
+                                    {
+                                        if (baseValue >= 1e6) unitStr = "MPa";
+                                        else if (baseValue >= 1000) unitStr = "kPa";
+                                        else unitStr = "Pa";
+                                    }
+                                    // 5. OBJĘTOŚĆ (L=3) - bonus z poprzedniej rozmowy
+                                    else if (p.Dim == new UnitDim { L = 3 })
+                                    {
+                                        if (baseValue >= 1.0) unitStr = "m3";
+                                        else if (baseValue >= 0.001) unitStr = "dm3";
+                                        else unitStr = "ml";
+                                    }
+                                    else
+                                    {
+                                        unitStr = p.Dim.ToString();
+                                    }
                                 }
 
-                                // Używamy naszej logiki "Smart Round" (3 cyfry znaczące)
+                                // Przeliczenie wartości na wybraną jednostkę
+                                double displayVal = baseValue;
+                                try
+                                {
+                                    var u = UnitEngine.ParseUnit(unitStr);
+                                    displayVal = (baseValue / u.Value) - u.Offset;
+                                }
+                                catch { }
+
+                                // Inteligentne zaokrąglanie (Smart Round - 3 cyfry znaczące)
                                 int requiredSigFigs = 3;
                                 int sigPlaces = displayVal != 0 ? requiredSigFigs - 1 - (int)Math.Floor(Math.Log10(Math.Abs(displayVal))) : 0;
                                 int finalD = Math.Max(d, Math.Max(0, sigPlaces));
 
                                 string formattedNum = Math.Round(displayVal, finalD).ToString(CultureInfo.InvariantCulture);
 
-                                // Zwracamy ładny tekst: "Liczba Jednostka"
+                                // Zwracamy wynik ze spacją
                                 Push($"{formattedNum} {unitStr}");
                                 break;
                             }
@@ -642,6 +691,14 @@ namespace BricsCAD_Agent
 
                         case "CONCAT": case "&": { string b = GetString(Pop()); string a = GetString(Pop()); Push(a + b); break; }
                         case "REPLACE": { string n = GetString(Pop()); string o = GetString(Pop()); string tg = GetString(Pop()); Push(tg.Replace(o, n)); break; }
+
+                        case "IFEMPTY":
+                            {
+                                string fallback = GetString(Pop());
+                                string val = GetString(Pop());
+                                Push(string.IsNullOrEmpty(val) ? fallback : val);
+                                break;
+                            }
                         case "SPLIT": { int idx = (int)GetNum(Pop()); string sep = GetString(Pop()); string tg = GetString(Pop()); string[] p = tg.Split(new[] { sep }, StringSplitOptions.None); Push(idx >= 0 && idx < p.Length ? p[idx] : ""); break; }
                         case "NUM_ADD":
                             {
@@ -664,9 +721,25 @@ namespace BricsCAD_Agent
                         default:
                             if (token.StartsWith("$"))
                             {
-                                string vName = upperToken;
-                                if (CurrentVariables.TryGetValue(vName, out var storedVal)) Push(storedVal);
-                                else throw new Exception($"Brak zmiennej: {vName}");
+                                string vName = upperToken; // np. "$POLE"
+
+                                // 1. Najpierw szukamy w lokalnych zmiennych RPN (PhysicalValue)
+                                if (CurrentVariables.TryGetValue(vName, out var storedVal))
+                                {
+                                    Push(storedVal);
+                                }
+                                // 2. Jeśli nie ma, szukamy w globalnej pamięci Agenta (String)
+                                else
+                                {
+                                    // Usuwamy symbol $ i szukamy samej nazwy (np. "POLE")
+                                    string agentKey = vName.Substring(1);
+                                    if (AgentMemory.Variables.TryGetValue(agentKey, out string agentVal))
+                                    {
+                                        // Pobieramy tekst, zamieniamy go na PhysicalValue i wrzucamy na stos
+                                        Push(GetPhys(agentVal));
+                                    }
+                                    else throw new Exception($"Brak zmiennej: {vName}");
+                                }
                                 break;
                             }
 

@@ -306,6 +306,7 @@ namespace BricsCAD_Agent
                 "- Przeliczanie: Do wymuszenia zmiany wyświetlanej jednostki (np. z m3/s na m3/h) używaj komendy CONVE: np. 5_m/s 'm3/h' CONVE.\n" +
                 "- Operatory tekstowe: Łańcuchy znaków otaczaj apostrofami. Używaj CONCAT do łączenia (np. 'P=' 5.5 CONCAT ' kPa' CONCAT). NUM_ADD dodaje wartość do liczb wewnątrz tekstu (np. 'DN50' 20 NUM_ADD da 'DN70').\n\n" +
                 "- Formatowanie końcowe: Aby wstawić na rysunek ładny wynik ze spacją (np. '141 m3/h' zamiast '141_m3/h'), używaj operatora PRETTY. Przykład: $V 2 PRETTY. Zamienia on wektor na tekst i automatycznie rozdziela liczbę od jednostki.\n" +
+                "- Operatory tekstowe: Łańcuchy znaków otaczaj apostrofami. Używaj CONCAT do łączenia (np. 'P=' 5.5 CONCAT ' kPa' CONCAT). NUM_ADD dodaje wartość do liczb wewnątrz tekstu (np. 'DN50' 20 NUM_ADD da 'DN70'). IFEMPTY zastępuje pusty ciąg podanym tekstem awaryjnym (krytyczne dla ochrony wymiarów! np. '<>' IFEMPTY przed dodaniem RTF).\n\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
         [CommandMethod("AGENT_UI")]
