@@ -361,3 +361,22 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# --- BricsCAD / CAD Specific ---
+# Pliki blokad i kopie zapasowe tworzone przez BricsCAD podczas pracy
+*.bak
+*.dwl
+*.dwl2
+*.log
+*.err
+
+# --- Antigravity AI Agent ---
+# Chcemy śledzić definicje reguł i skilli, ale niekoniecznie logi z sesji
+.agents/logs/
+# Jeśli Agent generuje tymczasowe nagrania przeglądarki (Browser Recordings)
+.agents/recordings/
+
+# --- Projektowe V1/V2 ---
+# Ignoruj rysunki testowe, jeśli nie chcesz ich w historii zmian
+# Rysunek_testowy.dwg
+# Rysunek_testowy.dxf
