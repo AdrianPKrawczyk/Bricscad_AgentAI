@@ -1,0 +1,98 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Benchmark-Etap5",
+    "RunDate": "2026-04-03T17:00:00Z",
+    "LMStudioConfig": { "Notes": "Etap 5: Pamięć kontekstowa, łańcuchy i pętle FOREACH" }
+  },
+  "Tests": [
+    {
+      "Id": 501,
+      "Category": "Chains",
+      "Difficulty": 2,
+      "TestName": "Klasyczny Łańcuch (SELECT -> READ -> FOREACH)",
+      "UserPrompt": "Zaznacz wszystkie okręgi. Pobierz ich promienie. Dla każdego okręgu wstaw tekst z wartością jego promienia. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 3 obiekty.",
+        "WYNIK: @Promienie = 10.0 | 15.5 | 20.0"
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "SELECT,READ_PROPERTY,FOREACH", "ErrorMessage": "Model przerwał łańcuch operacji lub pomylił kolejność." },
+        { "RuleType": "MustContain", "Value": "\"Action\": \"CREATE_OBJECT\"" }
+      ]
+    },
+    {
+      "Id": 502,
+      "Category": "Chains",
+      "Difficulty": 3,
+      "TestName": "Przerwanie łańcucha (Brak obiektów)",
+      "UserPrompt": "Zaznacz polilinie na warstwie 'Fundamenty' i odczytaj ich pola powierzchni.",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 0 obiektów."
+      ],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[MSG:", "ErrorMessage": "Gdy CAD zwrócił 0 obiektów, model powinien przerwać akcję i poinformować o tym użytkownika tekstem." },
+        { "RuleType": "MustNotContain", "Value": "[ACTION:READ_PROPERTY", "ErrorMessage": "Model spróbował odczytać właściwości z pustego zaznaczenia!" }
+      ]
+    },
+    {
+      "Id": 503,
+      "Category": "Chains",
+      "Difficulty": 4,
+      "TestName": "Wiele zmiennych w pętli (@Poczatki, @Dlugosci)",
+      "UserPrompt": "Zaznacz linie. Odczytaj ich punkty startowe (StartPoint) oraz długości (Length). Potem narysuj tekst w punkcie startowym każdej linii z jej długością. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 2 obiekty.",
+        "WYNIK: @StartPoint = (0,0,0) | (10,10,0)\nWYNIK: @Length = 100.5 | 200.0"
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "SELECT,READ_PROPERTY,FOREACH" },
+        { "RuleType": "MustContain", "Value": "StartPoint" },
+        { "RuleType": "MustContain", "Value": "$ITEM2", "ErrorMessage": "Model nie użył drugiej zmiennej w pętli (Długości) zadeklarowanej pod $ITEM2." }
+      ]
+    },
+    {
+      "Id": 504,
+      "Category": "Chains",
+      "Difficulty": 3,
+      "TestName": "Wyszukiwanie warstw i zaznaczanie",
+      "UserPrompt": "Znajdź w rysunku warstwy zawierające słowo 'STARE'. Następnie zaznacz wszystkie obiekty na tych warstwach i je usuń. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [
+        "WYNIK: Znaleziono warstwy: 'STARE_MUR', 'STARE_OKNA'",
+        "WYNIK: Zaznaczono 14 obiektów na podanych warstwach."
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "SEARCH_LAYERS,SELECT,REMOVE_OBJECTS" }
+      ]
+    },
+    {
+      "Id": 505,
+      "Category": "Chains",
+      "Difficulty": 5,
+      "TestName": "Łańcuch z USER_INPUT i MTEXT_EDIT",
+      "UserPrompt": "Zapytaj mnie o nowy status rewizji (tekst: 'Podaj status:'). Następnie zaznacz wszystkie MTexty na warstwie 'Tabelka' i dopisz ten status na ich końcu. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [
+        "WYNIK: @StatusRewizji = 'ZATWIERDZONO'",
+        "WYNIK: Zaznaczono 1 obiekt."
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "USER_INPUT,SELECT,MTEXT_EDIT" },
+        { "RuleType": "MustContain", "Value": "@StatusRewizji" }
+      ]
+    },
+    {
+      "Id": 506,
+      "Category": "Chains",
+      "Difficulty": 5,
+      "TestName": "RPN wewnątrz pętli FOREACH",
+      "UserPrompt": "Zaznacz okręgi. Odczytaj ich pola powierzchni w mm2. Wstaw etykiety z polem przeliczonym na m2 (podziel przez 1000000 w RPN). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 2 obiekty.",
+        "WYNIK: @Pola = 1500000 | 2000000"
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "SELECT,READ_PROPERTY,FOREACH" },
+        { "RuleType": "MustContain", "Value": "1000000 /", "ErrorMessage": "Model nie umieścił dzielenia przez milion wewnątrz pętli FOREACH." }
+      ]
+    }
+  ]
+}

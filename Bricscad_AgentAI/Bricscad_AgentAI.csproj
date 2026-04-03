@@ -44,6 +44,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -57,6 +58,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AutoBenchmark.cs" />
+    <Compile Include="AutoBenchmarkControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="CalculateRpnTool.cs" />
     <Compile Include="SendCommandTool.cs" />
     <Compile Include="AddAnnoScaleTool.cs" />

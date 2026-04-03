@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -135,7 +135,7 @@ namespace BricsCAD_Agent
             btnClone.Click += BtnClone_Click;
 
             // --- NASZ NOWY PRZYCISK: Kopiuj do przykładów ---
-            Button btnCopyToExamples = new Button { Text = "Kopiuj do przykładów", Dock = DockStyle.Left, Width = 140, BackColor = Color.PaleTurquoise };
+            btnCopyToExamples = new Button { Text = "Kopiuj do przykładów", Dock = DockStyle.Left, Width = 140, BackColor = Color.PaleTurquoise };
             btnCopyToExamples.Click += BtnCopyToExamples_Click;
             // ----------------------
 

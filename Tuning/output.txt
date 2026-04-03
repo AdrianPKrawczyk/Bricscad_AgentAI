@@ -1,0 +1,16 @@
+﻿Znaleziono 15 problemˇw:
+Linia 20: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 96: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 100: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 106: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 112: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 143: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 165: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 166: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 185: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 190: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 191: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 315: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 316: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 402: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase
+Linia 448: Zasada 4 (Usuwanie): Znaleziono ACTION:MODIFY_GEOMETRY z trybem Erase

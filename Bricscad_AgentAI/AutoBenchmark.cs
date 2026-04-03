@@ -1,4 +1,4 @@
-﻿using Bricscad.ApplicationServices;
+using Bricscad.ApplicationServices;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using Teigha.DatabaseServices;
+using System.Diagnostics;
 
 namespace BricsCAD_Agent
 {
@@ -28,6 +29,8 @@ namespace BricsCAD_Agent
         public JObject LMStudioConfig { get; set; }
         public double GlobalScore { get; set; }
         public Dictionary<string, double> CategoriesScores { get; set; } = new Dictionary<string, double>();
+        public double AverageExecutionTimeMs { get; set; }
+        public string Comment { get; set; }
     }
 
     public class BenchmarkTest
@@ -44,7 +47,10 @@ namespace BricsCAD_Agent
         // Zmienne wynikowe (wypełniane podczas testu)
         [JsonIgnore] public bool Passed { get; set; }
         public string GeneratedTag { get; set; }
+        public string CreatedTag { get; set; }
         [JsonIgnore] public List<string> FailedRulesErrors { get; set; } = new List<string>();
+
+        public long ExecutionTimeMs { get; set; }
     }
 
     public class ValidationRule
@@ -59,58 +65,164 @@ namespace BricsCAD_Agent
     // ==========================================
     // 2. GŁÓWNY SILNIK BENCHMARKU
     // ==========================================
+    public class BenchmarkProgressEventArgs : EventArgs
+    {
+        public int CurrentTestIndex { get; set; }
+        public int TotalTests { get; set; }
+        public BenchmarkTest TestResult { get; set; }
+    }
+
+    public class BenchmarkCompletedEventArgs : EventArgs
+    {
+        public BenchmarkConfig FinalConfig { get; set; }
+        public int PassedCount { get; set; }
+        public bool WasCancelled { get; set; }
+    }
+
     public class AutoBenchmarkEngine
     {
-        public async Task UruchomBenchmarkAsync(string sciezkaDoJson)
+        public event EventHandler<BenchmarkProgressEventArgs> OnTestFinished;
+        public event EventHandler<BenchmarkCompletedEventArgs> OnBenchmarkCompleted;
+        public event EventHandler<string> OnLogMessage;
+
+        public async Task<BenchmarkConfig> UruchomBenchmarkAsync(string sciezkaDoJson, System.Threading.CancellationToken ct = default, bool pominZapisBledow = false)
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\n[AutoBenchmark]: Rozpoczynam wieloetapowy test inteligencji...");
+            OnLogMessage?.Invoke(this, "Rozpoczynam wieloetapowy test LLM...");
 
             string jsonContent = File.ReadAllText(sciezkaDoJson);
             BenchmarkConfig config = JsonConvert.DeserializeObject<BenchmarkConfig>(jsonContent);
 
             int passedCount = 0;
+            long totalTimeMs = 0; 
+            int currentIndex = 0;
+            bool isCancelled = false;
 
             foreach (var test in config.Tests)
             {
-                // --- 1. RESET PRZED KAŻDYM TESTEM ---
+                if (ct.IsCancellationRequested)
+                {
+                    OnLogMessage?.Invoke(this, "Test został przerwany przez użytkownika!");
+                    doc.Editor.WriteMessage("\n[AutoBenchmark]: PRZERWANO.");
+                    isCancelled = true;
+                    break;
+                }
+
+                currentIndex++;
+                OnLogMessage?.Invoke(this, $"Uruchamianie testu {currentIndex}/{config.Tests.Count}: {test.TestName}");
+
+                // 1. RESET PRZED KAŻDYM TESTEM
                 Komendy.historiaRozmowy.Clear();
                 string calyLogOdpowiedziAI = "";
 
-                // --- 2. PIERWSZE PYTANIE (USER PROMPT) ---
+                // ⏱️ START STOPERA
+                Stopwatch sw = Stopwatch.StartNew();
+
+                // 2. PIERWSZE PYTANIE
                 string aiResponse = await SymulujPytanieDoModelu(test.UserPrompt);
                 calyLogOdpowiedziAI = aiResponse;
 
-                // --- 3. SYMULACJA KOLEJNYCH ETAPÓW (CAD RESPONSES) ---
-                // Jeśli w JSON są odpowiedzi typu "WYNIK: ...", wysyłamy je po kolei
+                // 3. SYMULACJA KOLEJNYCH ETAPÓW
                 if (test.SimulatedCADResponses != null && test.SimulatedCADResponses.Count > 0)
                 {
                     foreach (var cadMsg in test.SimulatedCADResponses)
                     {
+                        if (ct.IsCancellationRequested) break;
                         doc.Editor.WriteMessage($"\n   [Symulacja CAD]: {cadMsg}");
-
-                        // Wysyłamy odpowiedź z CAD jako kolejną wiadomość od użytkownika
+                        OnLogMessage?.Invoke(this, $"[Symulacja CAD]: {cadMsg}");
                         string kolejnaReakcjaAI = await SymulujPytanieDoModelu(cadMsg);
-
-                        // Łączymy wszystkie odpowiedzi modelu, aby sędzia mógł sprawdzić całą sekwencję tagów
                         calyLogOdpowiedziAI += " | " + kolejnaReakcjaAI;
                     }
                 }
 
-                // --- 4. WALIDACJA CAŁEGO ŁAŃCUCHA ---
+                if (ct.IsCancellationRequested)
+                {
+                    isCancelled = true;
+                    break;
+                }
+
+                // ⏱️ STOP STOPERA
+                sw.Stop();
+                test.ExecutionTimeMs = sw.ElapsedMilliseconds;
+                totalTimeMs += test.ExecutionTimeMs; 
+
+                // 4. WALIDACJA CAŁEGO ŁAŃCUCHA
+                test.CreatedTag = calyLogOdpowiedziAI; // W pliku oryginalnym zmienic nazwe - ale zostawmy oryginal dla swietego spokoju
                 test.GeneratedTag = calyLogOdpowiedziAI;
                 test.Passed = WalidujOdpowiedz(test, calyLogOdpowiedziAI);
 
                 if (test.Passed) passedCount++;
-                else doc.Editor.WriteMessage($"\n[AutoBenchmark] OBLANO Test {test.Id}: {test.TestName}");
+                else 
+                {
+                    doc.Editor.WriteMessage($"\n[AutoBenchmark] OBLANO Test {test.Id}: {test.TestName}");
+                    OnLogMessage?.Invoke(this, $"OBLANO Test {test.Id} ({test.Category})!");
+                }
+
+                // Wysłanie eventu dla interfejsu GUI (postęp, aktualizacja tabeli/wykresów po jednym kroku)
+                OnTestFinished?.Invoke(this, new BenchmarkProgressEventArgs 
+                { 
+                    CurrentTestIndex = currentIndex, 
+                    TotalTests = config.Tests.Count, 
+                    TestResult = test 
+                });
             }
 
-            // --- 5. RAPORTOWANIE ---
-            config.RunMetadata.GlobalScore = Math.Round(((double)passedCount / config.Tests.Count) * 100, 2);
-            string raportPath = sciezkaDoJson.Replace(".json", $"_RAPORT_{DateTime.Now:yyyyMMdd_HHmm}.json");
-            File.WriteAllText(raportPath, JsonConvert.SerializeObject(config, Newtonsoft.Json.Formatting.Indented));
+            // 5. OBLICZENIA KOŃCOWE (Tego brakowało!)
+            if (config.Tests.Count > 0)
+            {
+                // Obliczamy ogólny procent sukcesu
+                config.RunMetadata.GlobalScore = Math.Round((double)passedCount / config.Tests.Count * 100, 2);
 
-            doc.Editor.WriteMessage($"\n[AutoBenchmark]: Zakończono! Skuteczność: {config.RunMetadata.GlobalScore}%");
+                // Obliczamy średni czas wykonania
+                config.RunMetadata.AverageExecutionTimeMs = Math.Round((double)totalTimeMs / config.Tests.Count, 0);
+
+                // Obliczamy wyniki dla poszczególnych kategorii (opcjonalne, ale super przydatne)
+                config.RunMetadata.CategoriesScores = config.Tests
+                    .GroupBy(t => t.Category)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => Math.Round((double)g.Count(t => t.Passed) / g.Count() * 100, 2)
+                    );
+            }
+
+            // 6. RAPORTOWANIE - ZAPIS GŁÓWNEGO PLIKU
+            string resultJson = JsonConvert.SerializeObject(config, Newtonsoft.Json.Formatting.Indented);
+
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+            string rootDirectory = Path.GetDirectoryName(sciezkaDoJson);
+            string originalFileName = Path.GetFileNameWithoutExtension(sciezkaDoJson);
+
+            // Pobieramy nazwę modelu i czyścimy ją ze znaków specjalnych dla systemu plików
+            string modelName = !string.IsNullOrEmpty(Komendy.wybranyModel) ? Komendy.wybranyModel : "UnknownModel";
+            string safeModelName = string.Join("_", modelName.Split(Path.GetInvalidFileNameChars()));
+
+            // Tworzymy podfolder modelu
+            string modelDirectory = Path.Combine(rootDirectory, safeModelName);
+            if (!Directory.Exists(modelDirectory)) Directory.CreateDirectory(modelDirectory);
+
+            // Zapisujemy raport FULL z nazwą modelu
+            string mainReportPath = Path.Combine(modelDirectory, $"{originalFileName}_{safeModelName}_FULL_{timestamp}.json");
+            File.WriteAllText(mainReportPath, resultJson, System.Text.Encoding.UTF8);
+
+            doc.Editor.WriteMessage($"\n[AutoBenchmark]: ZAKOŃCZONO. Wynik: {config.RunMetadata.GlobalScore}%");
+            doc.Editor.WriteMessage($"\n[AutoBenchmark]: Raport zapisany w folderze: {safeModelName}");
+
+            // 7. RAPORTOWANIE - TYLKO BŁĘDY (jeśli nie pominięto dla testów zbiorczych)
+            var oblaneTesty = config.Tests.Where(t => !t.Passed).ToList();
+            if (oblaneTesty.Count > 0 && !pominZapisBledow)
+            {
+                BenchmarkConfig raportBledow = new BenchmarkConfig
+                {
+                    RunMetadata = config.RunMetadata,
+                    Tests = oblaneTesty
+                };
+                string errJson = JsonConvert.SerializeObject(raportBledow, Newtonsoft.Json.Formatting.Indented);
+                string errReportPath = Path.Combine(modelDirectory, $"{originalFileName}_{safeModelName}_ERRORS_{timestamp}.json");
+                File.WriteAllText(errReportPath, errJson, System.Text.Encoding.UTF8);
+            }
+
+            return config;
         }
 
         // ==========================================

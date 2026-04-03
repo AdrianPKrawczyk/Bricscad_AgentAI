@@ -1,0 +1,106 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Benchmark-Etap2",
+    "RunDate": "2026-04-03T15:00:00Z",
+    "LMStudioConfig": { "Notes": "Etap 2: Reguły Systemowe i Halucynacje" }
+  },
+  "Tests": [
+    {
+      "Id": 201,
+      "Category": "Rules",
+      "Difficulty": 1,
+      "TestName": "Wymuszenie CREATE_BLOCK",
+      "UserPrompt": "Zrób nowy blok o nazwie 'Drzwi'. Użyj zaznaczonych obiektów. Punkt bazowy to 0,0. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:CREATE_BLOCK", "ErrorMessage": "Model nie użył dedykowanego tagu CREATE_BLOCK." },
+        { "RuleType": "MustNotContain", "Value": "CREATE_OBJECT", "ErrorMessage": "Model spróbował użyć CREATE_OBJECT dla utworzenia bloku." }
+      ]
+    },
+    {
+      "Id": 202,
+      "Category": "Rules",
+      "Difficulty": 1,
+      "TestName": "Wymuszenie INSERT_BLOCK",
+      "UserPrompt": "Wstaw blok 'Krzew' w punkcie 15,15 z rotacją 45 stopni. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:INSERT_BLOCK" },
+        { "RuleType": "MustContain", "Value": "\"Name\": \"Krzew\"" }
+      ]
+    },
+    {
+      "Id": 203,
+      "Category": "Rules",
+      "Difficulty": 2,
+      "TestName": "Anti-Hallucination: *Entity (Wybór wszystkiego)",
+      "UserPrompt": "Zaznacz absolutnie wszystkie obiekty w obszarze modelu. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"EntityType\": \"Entity\"" },
+        { "RuleType": "MustNotContain", "Value": "*Entity", "ErrorMessage": "Model halucynuje zakazany parametr *Entity." }
+      ]
+    },
+    {
+      "Id": 204,
+      "Category": "Rules",
+      "Difficulty": 2,
+      "TestName": "Właściwa obsługa pustego polecenia",
+      "UserPrompt": "Cześć, jestem Adrian.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[MSG:", "ErrorMessage": "Model nie przywitał się używając tagu MSG." },
+        { "RuleType": "MustNotContain", "Value": "[ACTION:", "ErrorMessage": "Zwykłe przywitanie wywołało akcję CAD." }
+      ]
+    },
+    {
+      "Id": 205,
+      "Category": "Rules",
+      "Difficulty": 3,
+      "TestName": "Czytanie danych zamiast akcji (READ_PROPERTY)",
+      "UserPrompt": "Powiedz mi, jaką długość mają zaznaczone linie. Zapamiętaj to jako @Dlugosci.",
+      "SimulatedCADResponses": [
+        "WYNIK: @Dlugosci = 12.5 | 10.0"
+      ],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:READ_PROPERTY" },
+        { "RuleType": "MustContain", "Value": "\"Property\": \"Length\"" }
+      ]
+    },
+    {
+      "Id": 206,
+      "Category": "Rules",
+      "Difficulty": 4,
+      "TestName": "Halucynacja Macro (Test zmyślonego narzędzia)",
+      "UserPrompt": "Uruchom wbudowane makro do robienia kawy. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[MSG:", "ErrorMessage": "Zamiast przyznać, że makro nie istnieje, model wygenerował fałszywy kod." },
+        { "RuleType": "MustNotContain", "Value": "[ACTION:RUN_MACRO" }
+      ]
+    },
+    {
+      "Id": 207,
+      "Category": "Rules",
+      "Difficulty": 3,
+      "TestName": "Wymuszenie GetPropertiesLite",
+      "UserPrompt": "Wypisz podstawowe (zwykłe) właściwości dla zaznaczonego obiektu, chcę tylko zobaczyć warstwę i kolor.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:GET_PROPERTIES_LITE", "ErrorMessage": "Model nie użył wersji LITE właściwości." }
+      ]
+    },
+    {
+      "Id": 208,
+      "Category": "Rules",
+      "Difficulty": 4,
+      "TestName": "Zabezpieczenie MText (Zły Tag)",
+      "UserPrompt": "Wyedytuj zaznaczony tekst wielowierszowy (MText). Dopisz na końcu 'SPRAWDZIĆ'. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:MTEXT_EDIT", "ErrorMessage": "Model użył SET_PROPERTIES dla MTextu zamiast dedykowanego MTEXT_EDIT." },
+        { "RuleType": "MustNotContain", "Value": "SET_PROPERTIES" }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿using Bricscad.ApplicationServices;
+using Bricscad.ApplicationServices;
 using Bricscad.EditorInput;
 using Bricscad.Windows;
 using System;
@@ -12,6 +12,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
 using Teigha.Runtime;
@@ -149,8 +151,8 @@ namespace BricsCAD_Agent
 
         private static PaletteSet oknoAgenta = null;
         private static Bricscad_AgentAI.AgentControl interfejsAgenta = null;
-
-        private static string systemPrompt = "Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
+        // --- SYSTEM PROMPT START ---
+        private static string systemPrompt = @"Jesteś autonomicznym Agentem Bielik w BricsCAD. Steruj programem ZA POMOCĄ TAGÓW. NIE JESTEŚ chatbotem do pisania kodu w markdown!\n\n" +
                 "Analizuj zadania w 5 tagach.\n\n" +
                 "MUSISZ odpowiedzieć jednym z tagów:\n" +
                 "1. [SEARCH: Klasa] - ZAWSZE używaj tego, gdy nie znasz dokładnej nazwy właściwości! ZAKAZ ZGADYWANIA. \"Pamiętaj, że wszystkie obiekty graficzne (Line, Circle, Text, MText, itp) dziedziczą po klasie bazowej Entity. Zatem każdy obiekt zawsze posiada właściwości: Layer (warstwa), ColorIndex (1-255), Linetype, Transparency (0-90), Visible (True/False), LineWeight\"\n" +
@@ -316,7 +318,7 @@ namespace BricsCAD_Agent
                 "2. Wstawianie bloków: Do wstawiania obiektów typu BlockReference ZAWSZE używaj tagu [ACTION:INSERT_BLOCK]. ZAKAZ używania CREATE_OBJECT do wstawiania bloków.\n" +
                 "3. Działanie hurtowe: Narzędzia SET_PROPERTIES, MODIFY_GEOMETRY, MTEXT_FORMAT oraz EDIT_BLOCK działają automatycznie na WSZYSTKICH zaznaczonych obiektach naraz. ZAKAZ używania pętli FOREACH do prostych zmian właściwości (np. zmiana koloru, warstwy czy skali).\n\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
-
+                // --- SYSTEM PROMPT END ---
         [CommandMethod("AGENT_UI")]
         public void UruchomInterfejsAgenta()
         {
@@ -367,7 +369,11 @@ namespace BricsCAD_Agent
 
                 // --- NOWA ZAKŁADKA TESTOWANIA MODELI ---
                 AgentTesterControl testerAgenta = new AgentTesterControl();
-                oknoAgenta.Add("Benchmarking LLM", testerAgenta);
+                oknoAgenta.Add("Manualne Testy", testerAgenta);
+
+                // --- ZAKŁADKA AUTOBENCHMARKU ---
+                AutoBenchmarkControl autoBenchmarkUI = new AutoBenchmarkControl();
+                oknoAgenta.Add("AutoBenchmark", autoBenchmarkUI);
             }
 
             // Pokazujemy paletę na ekranie
@@ -1013,41 +1019,132 @@ namespace BricsCAD_Agent
         }
 
         [CommandMethod("AGENT_BENCHMARK")]
-        [CommandMethod("AGENT_BENCHMARK")]
         public async void UruchomZautomatyzowaneTesty()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
-            // 1. Okienko dialogowe do wyboru pliku
             System.Windows.Forms.OpenFileDialog ofd = new System.Windows.Forms.OpenFileDialog();
-            ofd.Title = "Wybierz plik testowy JSON dla AutoBenchmarku";
+            ofd.Title = "Wybierz pliki testowe JSON dla AutoBenchmarku (możesz zaznaczyć kilka)";
             ofd.Filter = "Pliki JSON (*.json)|*.json|Wszystkie pliki (*.*)|*.*";
+            ofd.Multiselect = true;
 
-            // Jeśli użytkownik anuluje wybór, przerywamy
             if (ofd.ShowDialog() != System.Windows.Forms.DialogResult.OK)
             {
-                doc.Editor.WriteMessage("\n[AutoBenchmark]: Anulowano wybór pliku.");
+                doc.Editor.WriteMessage("\n[AutoBenchmark]: Anulowano wybór plików.");
                 return;
             }
 
-            string sciezkaDoTestow = ofd.FileName;
-
-            // 2. WŁĄCZAMY TRYB TESTOWY
             Komendy.TrybTestowy = true;
 
             try
             {
                 AutoBenchmarkEngine engine = new AutoBenchmarkEngine();
-                await engine.UruchomBenchmarkAsync(sciezkaDoTestow);
+
+                // Zmienne do zbierania statystyk
+                List<string> podsumowanieWynikow = new List<string>();
+                List<BenchmarkTest> zbiorczeBledy = new List<BenchmarkTest>();
+                List<string> skrotyPlikow = new List<string>();
+                
+                double sumaWszystkichWynikow = 0;
+                int iloscPlikow = 0;
+                long calkowityCzasMs = 0;
+                string baseDir = "";
+
+                foreach (string plik in ofd.FileNames)
+                {
+                    if (string.IsNullOrEmpty(baseDir)) baseDir = Path.GetDirectoryName(plik);
+                    
+                    string fileName = Path.GetFileNameWithoutExtension(plik);
+                    skrotyPlikow.Add(fileName.Length > 4 ? fileName.Substring(0, 4) : fileName);
+
+                    doc.Editor.WriteMessage($"\n\n=======================================================");
+                    doc.Editor.WriteMessage($"\n[AutoBenchmark]: URUCHAMIAM TEST: {fileName}");
+                    doc.Editor.WriteMessage($"\n=======================================================");
+
+                    // Pobieramy wynik testu (z flagą pominZapisBledow: true, bo zrobimy zbiorczy na końcu)
+                    var wynik = await engine.UruchomBenchmarkAsync(plik, default, pominZapisBledow: true);
+
+                    if (wynik != null && wynik.RunMetadata != null)
+                    {
+                        double wynikProcent = wynik.RunMetadata.GlobalScore;
+
+                        // Dodajemy wynik do listy podsumowującej
+                        podsumowanieWynikow.Add($"- {fileName}: {wynikProcent}%");
+                        sumaWszystkichWynikow += wynikProcent;
+
+                        // Zbieramy błędy do raportu zbiorczego
+                        var failed = wynik.Tests.Where(t => !t.Passed).ToList();
+                        zbiorczeBledy.AddRange(failed);
+
+                        // Jeśli dodałeś stoper w Etapie 4, podliczy też czas!
+                        calkowityCzasMs += (long)(wynik.RunMetadata.AverageExecutionTimeMs * wynik.Tests.Count);
+
+                        iloscPlikow++;
+                    }
+                }
+
+                // ==========================================
+                // ZAPIS ZBIORCZEGO RAPORTU BŁĘDÓW
+                // ==========================================
+                if (zbiorczeBledy.Count > 0)
+                {
+                    string safeModel = string.Join("_", wybranyModel.Split(Path.GetInvalidFileNameChars()));
+                    string abbr = string.Join("_", skrotyPlikow);
+                    if (abbr.Length > 50) abbr = abbr.Substring(0, 50) + "..."; // Bezpieczeństwo długości ścieżki
+                    
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                    string errorFileName = $"ERRORS_CONSOLIDATED_{safeModel}_{abbr}_{timestamp}.json";
+                    
+                    // Folder modelu (taki sam jak w AutoBenchmark.cs)
+                    string modelDir = Path.Combine(baseDir, safeModel);
+                    if (!Directory.Exists(modelDir)) Directory.CreateDirectory(modelDir);
+                    
+                    string fullPath = Path.Combine(modelDir, errorFileName);
+                    
+                    var consolidatedReport = new BenchmarkConfig
+                    {
+                        RunMetadata = new RunMetadata 
+                        { 
+                            GlobalScore = Math.Round(sumaWszystkichWynikow / (iloscPlikow > 0 ? iloscPlikow : 1), 2),
+                            Comment = $"Raport zbiorczy z plików: {string.Join(", ", ofd.SafeFileNames)}"
+                        },
+                        Tests = zbiorczeBledy
+                    };
+                    
+                    File.WriteAllText(fullPath, JsonConvert.SerializeObject(consolidatedReport, Newtonsoft.Json.Formatting.Indented), System.Text.Encoding.UTF8);
+                    doc.Editor.WriteMessage($"\n[AutoBenchmark]: Zapisano ZBIORCZY RAPORT BŁĘDÓW: {errorFileName}");
+                }
+
+                // ==========================================
+                // DRUKOWANIE ZBIORCZEGO PODSUMOWANIA
+                // ==========================================
+                doc.Editor.WriteMessage("\n\n=======================================================");
+                doc.Editor.WriteMessage("\n             PODSUMOWANIE MASTER BENCHMARK");
+                doc.Editor.WriteMessage("\n=======================================================");
+
+                foreach (var linia in podsumowanieWynikow)
+                {
+                    doc.Editor.WriteMessage($"\n {linia}");
+                }
+
+                if (iloscPlikow > 0)
+                {
+                    double sredniaCalkowita = Math.Round(sumaWszystkichWynikow / iloscPlikow, 2);
+                    doc.Editor.WriteMessage($"\n-------------------------------------------------------");
+                    doc.Editor.WriteMessage($"\n CAŁKOWITA ŚREDNIA SKUTECZNOŚĆ: {sredniaCalkowita}%");
+                    if (calkowityCzasMs > 0)
+                    {
+                        doc.Editor.WriteMessage($"\n CAŁKOWITY CZAS WYKONANIA: {Math.Round(calkowityCzasMs / 1000.0, 1)} sek.");
+                    }
+                }
+                doc.Editor.WriteMessage("\n=======================================================\n");
             }
             catch (System.Exception ex)
             {
-                // Łapiemy ewentualne inne błędy (np. uszkodzony JSON), żeby nie wywalać CADa
                 doc.Editor.WriteMessage($"\n[BŁĄD BENCHMARKU]: {ex.Message}");
             }
             finally
             {
-                // 3. ZAWSZE WYŁĄCZAMY TRYB TESTOWY
                 Komendy.TrybTestowy = false;
             }
         }

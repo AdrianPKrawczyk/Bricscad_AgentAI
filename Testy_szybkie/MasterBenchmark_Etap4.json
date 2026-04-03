@@ -1,0 +1,169 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Benchmark-Etap4",
+    "RunDate": "2026-04-03T16:30:00Z",
+    "LMStudioConfig": { "Notes": "Etap 4: Zaawansowana matematyka i składnia RPN" }
+  },
+  "Tests": [
+    {
+      "Id": 401,
+      "Category": "RPN",
+      "Difficulty": 1,
+      "TestName": "Proste dodawanie (+)",
+      "UserPrompt": "Użyj RPN w tagu CREATE_OBJECT (DBText). Weź zmienną $ITEM1 i dodaj do niej zmienną $ITEM2. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "15", "$ITEM2": "25" },
+          "ExpectedOutput": "40",
+          "ErrorMessage": "Błąd podstawowego dodawania w RPN."
+        }
+      ]
+    },
+    {
+      "Id": 402,
+      "Category": "RPN",
+      "Difficulty": 2,
+      "TestName": "Odejmowanie i wartość bezwzględna (ABS)",
+      "UserPrompt": "W tagu CREATE_OBJECT użyj RPN: odejmij $ITEM2 od $ITEM1, a następnie nałóż na wynik ABS, by uniknąć minusa. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "10", "$ITEM2": "50" },
+          "ExpectedOutput": "40",
+          "ErrorMessage": "Model nie potrafi poprawnie zastosować operatora ABS po odejmowaniu."
+        }
+      ]
+    },
+    {
+      "Id": 403,
+      "Category": "RPN",
+      "Difficulty": 2,
+      "TestName": "Mnożenie przez stałą (*)",
+      "UserPrompt": "Narysuj DBText. W użyciu RPN: weź zmienną $ITEM1 i pomnóż ją przez 2.5. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "10" },
+          "ExpectedOutput": "25",
+          "ErrorMessage": "Błąd mnożenia przez wartość stałą (sprawdź, czy użył kropki czy przecinka)."
+        }
+      ]
+    },
+    {
+      "Id": 404,
+      "Category": "RPN",
+      "Difficulty": 3,
+      "TestName": "Dzielenie i zaokrąglanie (ROUND)",
+      "UserPrompt": "Narysuj tekst RPN: Weź $ITEM1, podziel przez 3, a wynik zaokrąglij do 2 miejsc po przecinku (ROUND). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "10" },
+          "ExpectedOutput": "3.33",
+          "ErrorMessage": "Błąd dzielenia lub zaokrąglania (ROUND) ułamków okresowych."
+        }
+      ]
+    },
+    {
+      "Id": 405,
+      "Category": "RPN",
+      "Difficulty": 4,
+      "TestName": "Sklejanie tekstów (CONCAT)",
+      "UserPrompt": "Użyj RPN w tekście: Weź zmienną $ITEM1, zaokrąglij ją do 1 miejsca (ROUND), a następnie dodaj (doklej) na końcu tekst ' mm' używając CONCAT. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "145.678" },
+          "ExpectedOutput": "145.7 mm",
+          "ErrorMessage": "Błąd łączenia ciągów znaków (sprawdź spację przed 'mm' w wygenerowanym tagu)."
+        }
+      ]
+    },
+    {
+      "Id": 406,
+      "Category": "RPN",
+      "Difficulty": 4,
+      "TestName": "Zabezpieczenie przed pustym (IFEMPTY)",
+      "UserPrompt": "Stwórz tekst RPN: Weź $ITEM1. Jeśli jest puste (IFEMPTY), wypisz słowo 'NIEZNANE'. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "" },
+          "ExpectedOutput": "NIEZNANE",
+          "ErrorMessage": "Model nie zastosował prawidłowo instrukcji warunkowej IFEMPTY."
+        }
+      ]
+    },
+    {
+      "Id": 407,
+      "Category": "RPN",
+      "Difficulty": 5,
+      "TestName": "Przeliczanie jednostek (mm2 na m2)",
+      "UserPrompt": "Użyj RPN: Zmienna $ITEM1 to pole w mm2. Podziel to przez 1000000, aby uzyskać m2, zaokrąglij do 2 miejsc i doklej ' m2'. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "2550000" },
+          "ExpectedOutput": "2.55 m2",
+          "ErrorMessage": "Model poległ na pełnym łańcuchu: matematyka -> zaokrąglenie -> formatowanie."
+        }
+      ]
+    },
+    {
+      "Id": 408,
+      "Category": "RPN",
+      "Difficulty": 4,
+      "TestName": "Obliczanie procentów (%)",
+      "UserPrompt": "Użyj RPN: Oblicz 15% z wartości zmiennej $ITEM1. Wynik zaokrąglij do zera (0). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "200" },
+          "ExpectedOutput": "30",
+          "ErrorMessage": "Błąd w logice wyliczania procentów na stosie."
+        }
+      ]
+    },
+    {
+      "Id": 409,
+      "Category": "RPN",
+      "Difficulty": 5,
+      "TestName": "Dwa stringi (Złożony CONCAT)",
+      "UserPrompt": "Zbuduj tekst RPN: Na początku wstaw statyczny tekst 'Powierzchnia: ', dołóż zmienną $ITEM1, dołóż ' m2' i połącz to używając CONCAT. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "150" },
+          "ExpectedOutput": "Powierzchnia: 150 m2",
+          "ErrorMessage": "Błąd układania elementów tekstowych w poprawnej kolejności przed sklejeniem."
+        }
+      ]
+    },
+    {
+      "Id": 410,
+      "Category": "RPN",
+      "Difficulty": 3,
+      "TestName": "Test indeksu pętli ($INDEX)",
+      "UserPrompt": "Wygeneruj etykietę RPN. Weź słowo 'Punkt nr ', pobierz systemową zmienną $INDEX (która w pętli rośnie), i połącz je (CONCAT). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$INDEX": "5" },
+          "ExpectedOutput": "Punkt nr 5",
+          "ErrorMessage": "Model zignorował istnienie zmiennej $INDEX pomimo prośby."
+        }
+      ]
+    }
+  ]
+}

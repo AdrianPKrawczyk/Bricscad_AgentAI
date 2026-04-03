@@ -1,0 +1,132 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Benchmark-Etap3",
+    "RunDate": "2026-04-03T16:00:00Z",
+    "LMStudioConfig": { "Notes": "Etap 3: Zaawansowane zaznaczanie, warunki i tryby" }
+  },
+  "Tests": [
+    {
+      "Id": 301,
+      "Category": "Select",
+      "Difficulty": 1,
+      "TestName": "Prosty SELECT (Warstwa)",
+      "UserPrompt": "Zaznacz wszystkie obiekty, które leżą na warstwie 'Zbrojenie'. ZAKAZ [MSG]. ODPOWIEDZ TYLKO TAGIEM.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[SELECT:" },
+        { "RuleType": "MustContain", "Value": "\"Property\": \"Layer\"" },
+        { "RuleType": "MustContain", "Value": "\"Value\": \"Zbrojenie\"" }
+      ]
+    },
+    {
+      "Id": 302,
+      "Category": "Select",
+      "Difficulty": 2,
+      "TestName": "Złożony SELECT (Kolor i Typ)",
+      "UserPrompt": "Zaznacz tylko Polilinie (Polyline), które mają kolor czerwony (1). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"EntityType\": \"Polyline\"" },
+        { "RuleType": "MustContain", "Value": "\"Property\": \"Color\"" },
+        { "RuleType": "MustContain", "Value": "\"Value\": 1" }
+      ]
+    },
+    {
+      "Id": 303,
+      "Category": "Select",
+      "Difficulty": 3,
+      "TestName": "Logika negacji (!=)",
+      "UserPrompt": "Zaznacz wszystkie obiekty, z WYJĄTKIEM tych na warstwie '0'. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Operator\": \"!=\"" },
+        { "RuleType": "MustContain", "Value": "\"Value\": \"0\"" }
+      ]
+    },
+    {
+      "Id": 304,
+      "Category": "Select",
+      "Difficulty": 2,
+      "TestName": "Tryb zaznaczania: Remove",
+      "UserPrompt": "Usuń z obecnego zaznaczenia wszystkie okręgi (Circle). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Mode\": \"Remove\"" },
+        { "RuleType": "MustContain", "Value": "\"EntityType\": \"Circle\"" }
+      ]
+    },
+    {
+      "Id": 305,
+      "Category": "Select",
+      "Difficulty": 2,
+      "TestName": "Tryb zaznaczania: Add",
+      "UserPrompt": "Dodaj do aktualnego zaznaczenia linie (Line) z warstwy 'Osie'. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Mode\": \"Add\"" },
+        { "RuleType": "MustContain", "Value": "\"Layer\"" }
+      ]
+    },
+    {
+      "Id": 306,
+      "Category": "Logic",
+      "Difficulty": 1,
+      "TestName": "Usuwanie zaznaczonych (RemoveObjects)",
+      "UserPrompt": "Skasuj aktualnie zaznaczone obiekty. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:REMOVE_OBJECTS]" }
+      ]
+    },
+    {
+      "Id": 307,
+      "Category": "Logic",
+      "Difficulty": 3,
+      "TestName": "SELECT z filtrowaniem po długości (>)",
+      "UserPrompt": "Zaznacz linie, których długość (Length) jest większa niż 100. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Operator\": \">\"" },
+        { "RuleType": "MustContain", "Value": "100" }
+      ]
+    },
+    {
+      "Id": 308,
+      "Category": "Logic",
+      "Difficulty": 4,
+      "TestName": "Analiza selekcji (AnalyzeSelection)",
+      "UserPrompt": "Sprawdź i zgrupuj dla mnie obiekty, które są obecnie zaznaczone (chcę analizę po warstwach i typach). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:ANALYZE_SELECTION" },
+        { "RuleType": "MustNotContain", "Value": "[ACTION:GET_PROPERTIES" }
+      ]
+    },
+    {
+      "Id": 309,
+      "Category": "Select",
+      "Difficulty": 3,
+      "TestName": "Zapytanie użytkownika i SELECT",
+      "UserPrompt": "Zaznacz obiekty na warstwie, której nazwę poda użytkownik w okienku (zapytaj go: 'Podaj nazwę warstwy:'). Zapisz jako @NazwaWarstwy.",
+      "SimulatedCADResponses": [
+        "WYNIK: @NazwaWarstwy = 'Projekt'"
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "USER_INPUT,SELECT" },
+        { "RuleType": "MustContain", "Value": "\"Value\": \"@NazwaWarstwy\"" }
+      ]
+    },
+    {
+      "Id": 310,
+      "Category": "Logic",
+      "Difficulty": 2,
+      "TestName": "Zakres zaznaczenia (Scope)",
+      "UserPrompt": "Zaznacz wszystkie wymiary (Dimension) na całym rysunku, ignorując to, co mam teraz wybrane. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Scope\": \"Model\"" },
+        { "RuleType": "MustContain", "Value": "\"Mode\": \"New\"" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Benchmark-Etap1",
+    "RunDate": "2026-04-03T14:00:00Z",
+    "LMStudioConfig": { "Notes": "Etap 1: Podstawy tworzenia obiektów i składnia JSON" }
+  },
+  "Tests": [
+    {
+      "Id": 101,
+      "Category": "Basics",
+      "TestName": "Zwykła linia",
+      "UserPrompt": "Narysuj linię od punktu 0,0,0 do 100,100,0. ZAKAZ [MSG]. ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        { "RuleType": "ValidJsonInsideTag", "Value": "true", "ErrorMessage": "Wygenerowany ciąg nie jest poprawnym JSON-em." },
+        { "RuleType": "MustContain", "Value": "\"StartPoint\": \"(0,0,0)\"" },
+        { "RuleType": "MustContain", "Value": "\"EndPoint\": \"(100,100,0)\"" }
+      ]
+    },
+    {
+      "Id": 102,
+      "Category": "Basics",
+      "TestName": "Okrąg z promieniem i kolorem",
+      "UserPrompt": "Narysuj okrąg w punkcie 50,50 o promieniu 25 i kolorze zielonym (3). ZAKAZ [MSG]. ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Radius\": 25" },
+        { "RuleType": "MustContain", "Value": "\"Color\": 3" },
+        { "RuleType": "MustContain", "Value": "\"Center\": \"(50,50,0)\"" }
+      ]
+    },
+    {
+      "Id": 103,
+      "Category": "Syntax",
+      "TestName": "Poprawność MText (Podwójne slashe RTF)",
+      "UserPrompt": "Narysuj MText o treści 'UWAGA'. Tekst musi być na żółto (C2). Użyj formatowania wewnątrz tagu. ZAKAZ [MSG]. ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "{\\\\C2;UWAGA}", "ErrorMessage": "Model nie użył podwójnego ukośnika do formatowania RTF." }
+      ]
+    },
+    {
+      "Id": 104,
+      "Category": "Basics",
+      "TestName": "Tworzenie nowej warstwy",
+      "UserPrompt": "Utwórz nową warstwę o nazwie 'WODA', nadaj jej kolor niebieski (5). ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:MANAGE_LAYERS" },
+        { "RuleType": "MustContain", "Value": "\"Name\": \"WODA\"" },
+        { "RuleType": "MustContain", "Value": "\"Color\": 5" }
+      ]
+    },
+    {
+      "Id": 105,
+      "Category": "Basics",
+      "TestName": "Polecenie wiersza poleceń",
+      "UserPrompt": "Zrób 'Zoom Extents' żeby powiększyć widok na wszystko. ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:SEND_COMMAND" },
+        { "RuleType": "MustContain", "Value": "ZOOM\\nE\\n" }
+      ]
+    },
+    {
+      "Id": 106,
+      "Category": "Syntax",
+      "TestName": "Zapytanie użytkownika (AskUser)",
+      "UserPrompt": "Chcę wstawić tekst, ale nie znam jego treści. Zapytaj mnie w oknie (podaj treść: 'Wpisz tekst ostrzeżenia:'). Zapisz to jako @TrescAlertu. ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:USER_INPUT" },
+        { "RuleType": "MustContain", "Value": "\"SaveAs\": \"TrescAlertu\"" }
+      ]
+    },
+    {
+      "Id": 107,
+      "Category": "Basics",
+      "TestName": "Zmiana globalnej szerokości polilinii",
+      "UserPrompt": "Narysuj kwadratową polilinię od 0,0 przez 10,0 i 10,10 i 0,10 i zamknij ją. Ustaw jej GlobalWidth na 2.0. ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Closed\": true", "ErrorMessage": "Model nie zamknął polilinii parametrem Closed: true." },
+        { "RuleType": "MustContain", "Value": "\"ConstantWidth\": 2" }
+      ]
+    },
+    {
+      "Id": 108,
+      "Category": "Basics",
+      "TestName": "Wypełnienie (Hatch)",
+      "UserPrompt": "Narysuj kreskowanie (Hatch). Użyj wzoru 'ANSI31'. Skala wzoru 5.0. Wskaż punkt wewnątrz: 20,20. ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"PatternName\": \"ANSI31\"" },
+        { "RuleType": "MustContain", "Value": "\"PatternScale\": 5" }
+      ]
+    },
+    {
+      "Id": 109,
+      "Category": "Syntax",
+      "TestName": "DBText z rotacją i justyfikacją",
+      "UserPrompt": "Narysuj zwykły DBText z treścią 'PROJEKT'. Obrót 90 stopni (podaj w radianach). Wyrównanie do środka (MiddleCenter). ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "ValidJsonInsideTag", "Value": "true" },
+        { "RuleType": "MustContain", "Value": "\"Rotation\": 1.57", "ErrorMessage": "Model nie przeliczył 90 stopni na radiany (około 1.57) lub użył złego klucza." },
+        { "RuleType": "MustContain", "Value": "\"MiddleCenter\": true" }
+      ]
+    },
+    {
+      "Id": 110,
+      "Category": "Syntax",
+      "TestName": "Usuwanie skal opisowych",
+      "UserPrompt": "Usuń wszystkie przypisane skale opisowe (AnnoScales) z zaznaczonych obiektów, zostaw tylko skalę 1:50. ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:REMOVE_ANNO_SCALE" },
+        { "RuleType": "MustContain", "Value": "\"ScaleToRemove\": \"*\"" },
+        { "RuleType": "MustContain", "Value": "\"KeepScale\": \"1:50\"" }
+      ]
+    }
+  ]
+}
