@@ -1,0 +1,52 @@
+[
+  {
+    "Id": 1,
+    "Weight": 2,
+    "Question": "Zaznacz wszystkie okręgi i zmień ich kolor na zielony (3).",
+    "ExpectedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Circle\"}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Color\", \"Value\": 3}]}]",
+    "GeneratedTag": "",
+    "Comment": "Test sprawdza, czy model wie, że SET_PROPERTIES jest hurtowe i nie używa tu FOREACH.",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 2,
+    "Weight": 5,
+    "Question": "Znajdź zamknięte polilinie. Pobierz ich środki ciężkości i powierzchnię. Następnie wstaw w ich środkach napis 'Pole: [obliczona_powierzchnia] m2', zaokrąglając wynik do 2 miejsc po przecinku.",
+    "ExpectedTag": "[SELECT...] -> [ACTION:READ_PROPERTY Centroid] -> [ACTION:READ_PROPERTY Area] -> [ACTION:FOREACH {\"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Text\": \"RPN: 'Pole: ' $ITEM2 2 ROUND CONCAT ' m2' CONCAT\"}}]",
+    "GeneratedTag": "",
+    "Comment": "Wielki test RPN i FOREACH. Sprawdzamy, czy model potrafi wyciągnąć dane z LISP-owych prostokątów i wypisać 2500 m2 oraz 900 m2.",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 3,
+    "Weight": 3,
+    "Question": "Wstaw blok o nazwie 'Silnik' w punkcie 100,100.",
+    "ExpectedTag": "[ACTION:INSERT_BLOCK {\"Name\": \"Silnik\", \"Position\": \"100,100,0\"}]",
+    "GeneratedTag": "",
+    "Comment": "Test Złotego Fixu. Jeśli model użyje CREATE_OBJECT, to znaczy, że zignorował nasz zakaz z promptu.",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 4,
+    "Weight": 2,
+    "Question": "Zaznacz teksty i zmień słowo PVC na czerwone (kolor 1).",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"DBText\"}] -> [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1}]",
+    "GeneratedTag": "",
+    "Comment": "Test formatowania tekstu. Zobaczymy, czy zignoruje 'Rura' i pokoloruje tylko 'PVC'.",
+    "Passed": false,
+    "IsTested": false
+  },
+  {
+    "Id": 5,
+    "Weight": 3,
+    "Question": "Zaznacz absolutnie wszystkie obiekty na rysunku i przenieś je na warstwę 'Archiwum'.",
+    "ExpectedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Entity\"}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Archiwum\"}]}]",
+    "GeneratedTag": "",
+    "Comment": "Test pułapki '*Entity'. Model musi użyć czystego słowa 'Entity'.",
+    "Passed": false,
+    "IsTested": false
+  }
+]

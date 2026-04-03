@@ -310,6 +310,11 @@ namespace BricsCAD_Agent
                 "- Operatory tekstowe: Łańcuchy znaków otaczaj apostrofami. Używaj CONCAT do łączenia (np. 'P=' 5.5 CONCAT ' kPa' CONCAT). NUM_ADD dodaje wartość do liczb wewnątrz tekstu (np. 'DN50' 20 NUM_ADD da 'DN70').\n\n" +
                 "- Formatowanie końcowe: Aby wstawić na rysunek ładny wynik ze spacją (np. '141 m3/h' zamiast '141_m3/h'), używaj operatora PRETTY. Przykład: $V 2 PRETTY. Zamienia on wektor na tekst i automatycznie rozdziela liczbę od jednostki.\n" +
                 "- Operatory tekstowe: Łańcuchy znaków otaczaj apostrofami. Używaj CONCAT do łączenia (np. 'P=' 5.5 CONCAT ' kPa' CONCAT). NUM_ADD dodaje wartość do liczb wewnątrz tekstu (np. 'DN50' 20 NUM_ADD da 'DN70'). IFEMPTY zastępuje pusty ciąg podanym tekstem awaryjnym (krytyczne dla ochrony wymiarów! np. '<>' IFEMPTY przed dodaniem RTF).\n\n" +
+                "- Operatory tekstowe: Łańcuchy znaków otaczaj apostrofami. Używaj CONCAT do łączenia (np. 'P=' 5.5 CONCAT ' kPa' CONCAT). NUM_ADD dodaje wartość do liczb wewnątrz tekstu (np. 'DN50' 20 NUM_ADD da 'DN70'). IFEMPTY zastępuje pusty ciąg podanym tekstem awaryjnym (krytyczne dla ochrony wymiarów! np. '<>' IFEMPTY przed dodaniem RTF).\n\n" +
+                "--- DODATKOWE REGUŁY PRECYZJI (KRYTYCZNE): ---\n" +
+                "1. Zaznaczanie wszystkiego: Aby zaznaczyć absolutnie wszystkie obiekty, w parametrze \"EntityType\" wpisz \"Entity\". ZAKAZ używania \"*Entity\" lub \"*\".\n" +
+                "2. Wstawianie bloków: Do wstawiania obiektów typu BlockReference ZAWSZE używaj tagu [ACTION:INSERT_BLOCK]. ZAKAZ używania CREATE_OBJECT do wstawiania bloków.\n" +
+                "3. Działanie hurtowe: Narzędzia SET_PROPERTIES, MODIFY_GEOMETRY, MTEXT_FORMAT oraz EDIT_BLOCK działają automatycznie na WSZYSTKICH zaznaczonych obiektach naraz. ZAKAZ używania pętli FOREACH do prostych zmian właściwości (np. zmiana koloru, warstwy czy skali).\n\n" +
                 "ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.";
 
         [CommandMethod("AGENT_UI")]
@@ -452,6 +457,20 @@ namespace BricsCAD_Agent
                 // Wyciągamy samą wiadomość
                 string aiMsg = new Komendy().WyciagnijContentZJson(jsonResponse);
 
+                // --- 🛡️ TARCZA ANTY-HALUCYNACYJNA (FIX TEST 18) ---
+                // Jeśli model wypluł potok tekstu (ponad 1500 znaków), to znaczy, że wpadł w pętlę.
+                if (aiMsg.Length > 1500)
+                {
+                    doc.Editor.WriteMessage("\n[Tarcza AI]: Wykryto halucynację (potok tekstu). Przerywam i resetuję...");
+
+                    // Usuwamy ostatnią wiadomość użytkownika z historii, żeby nie zapętlać błędu
+                    if (historiaRozmowy.Count > 0) historiaRozmowy.RemoveAt(historiaRozmowy.Count - 1);
+
+                    // Zwracamy komunikat błędu zamiast próbować parsuć gigantyczny tekst
+                    return "[BŁĄD] Model wygenerował zbyt długą odpowiedź. Spróbuj zadać pytanie prościej.";
+                }
+
+
                 // --- WYCIĄGANIE STATYSTYK Z LM STUDIO ---
                 int pTokens = 0, cTokens = 0;
                 var mPrompt = Regex.Match(jsonResponse, @"""prompt_tokens""\s*:\s*(\d+)");
@@ -463,6 +482,15 @@ namespace BricsCAD_Agent
                 if (pTokens > 0) OnModelStatsUpdated?.Invoke(pTokens, cTokens, elapsedSec);
 
                 if (aiMsg.Contains("</think>")) aiMsg = aiMsg.Substring(aiMsg.LastIndexOf("</think>") + 8).Trim();
+
+                // --- 🛡️ TARCZA ANTY-HALUCYNACYJNA (FIX TEST 18) ---
+                if (aiMsg.Length > 1500)
+                {
+                    doc.Editor.WriteMessage("\n[Tarcza AI]: Wykryto halucynację (potok tekstu). Przerywam i resetuję...");
+                    if (historiaRozmowy.Count > 0) historiaRozmowy.RemoveAt(historiaRozmowy.Count - 1);
+                    return "[BŁĄD] Model wygenerował zbyt długą odpowiedź. Spróbuj zadać pytanie prościej.";
+                }
+                // ---------------------------------------------------
 
                 if (!string.IsNullOrEmpty(aiMsg))
                 {
@@ -1005,6 +1033,9 @@ namespace BricsCAD_Agent
             try
             {
                 string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
+
+                // --- DODAJ TĘ LINIJKĘ: Ciche tłumaczenie halucynacji modelu na poprawny kod API ---
+                if (entityTypeStr.Contains("*Entity") || entityTypeStr == "*") entityTypeStr = "Entity";
 
                 string trybStr = "New";
                 Match trybMatch = Regex.Match(json, @"\""Mode\""\s*:\s*\""([^\""]+)\""");

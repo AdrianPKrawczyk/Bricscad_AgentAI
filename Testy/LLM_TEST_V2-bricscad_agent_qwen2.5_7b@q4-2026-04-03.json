@@ -1,0 +1,57 @@
+﻿[
+  {
+    "Id": 1,
+    "Weight": 2,
+    "Question": "Zaznacz wszystkie okręgi i zmień ich kolor na zielony (3).",
+    "ExpectedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Circle\"}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Color\", \"Value\": 3}]}]",
+    "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Circle\"}] [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Color\", \"Value\": 3}]}]",
+    "Comment": "Test sprawdza, czy model wie, że SET_PROPERTIES jest hurtowe i nie używa tu FOREACH.",
+    "Passed": true,
+    "IsTested": true,
+    "ResponseTimeSec": 0.743914
+  },
+  {
+    "Id": 2,
+    "Weight": 5,
+    "Question": "Znajdź zamknięte polilinie. Pobierz ich środki ciężkości i powierzchnię. Następnie wstaw w ich środkach napis 'Pole: [obliczona_powierzchnia] m2', zaokrąglając wynik do 2 miejsc po przecinku.",
+    "ExpectedTag": "[SELECT...] -> [ACTION:READ_PROPERTY Centroid] -> [ACTION:READ_PROPERTY Area] -> [ACTION:FOREACH {\"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Text\": \"RPN: 'Pole: ' $ITEM2 2 ROUND CONCAT ' m2' CONCAT\"}}]",
+    "GeneratedTag": "[ACTION:USER_INPUT {\"Type\": \"String\", \"Prompt\": \"Podaj wysokość opisów pomieszczeń:\", \"SaveAs\": \"HPom\"}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Polyline\", \"Conditions\": [{\"Property\": \"Closed\", \"Operator\": \"==\", \"Value\": true}]}] [ACTION:READ_PROPERTY {\"Property\": \"StartPoint\", \"SaveAs\": \"Poczatki\"}] [ACTION:READ_PROPERTY {\"Property\": \"Area\", \"SaveAs\": \"Pola\"}] [ACTION:FOREACH {\"Iterable\": \"@Poczatki, @Pola\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"MText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: 'Pomieszczenie nr ' $INDEX CONCAT '\\\\P A=' CONCAT $ITEM2 ABS 2 ROUND CONCAT ' m²' CONCAT\", \"Height\": \"@HPom\", \"MiddleCenter\": true}}] [ACTION:USER_INPUT {\"Type\": \"String\", \"Prompt\": \"Podaj wysokość tekstu:\", \"SaveAs\": \"Wys\"}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"==\", \"Value\": \"_HCR\"}]}] [ACTION:READ_PROPERTY {\"Property\": \"MidPoint\", \"SaveAs\": \"Srodki\"}] [ACTION:READ_PROPERTY {\"Property\": \"Length\", \"SaveAs\": \"Dlugosci\"}] [ACTION:READ_PROPERTY {\"Property\": \"Angle\", \"SaveAs\": \"Katy\"}] [ACTION:FOREACH {\"Iterable\": \"@Srodki, @Dlugosci, @Katy\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: 'L=' $ITEM2 2 ROUND CONCAT ' cm' CONCAT\", \"Height\": \"@Wys\", \"Rotation\": \"$ITEM3\", \"BottomCenter\": true}}] [ACTION:USER_INPUT {\"Type\": \"Points\", \"Prompt\": \"Klikaj punkty wstawienia\", \"SaveAs\": \"Pkt\"}] [ACTION:FOREACH {\"Iterable\": \"@Pkt\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"MLeader\", \"ArrowPoint\": \"$ITEM1\", \"LandingPoint\": \"AskUser\", \"Text\": \"Góra:\\\\PAskUser\", \"Height\": 25}}] [ACTION:USER_CHOICE {\"Question\": \"Wybierz docelową warstwę:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Model\", \"FetchProperty\": \"Layer\", \"SaveAs\": \"WybranaWarstwa\"}] [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"@WybranaWarstwa\"}]}] [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"TextString\", \"Operator\": \"RPN\", \"Value\": \"'UWAGA: ' SWAP CONCAT\"}]}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"BlockReference\", \"Conditions\": [{\"Property\": \"Name\", \"Operator\": \"==\", \"Value\": \"Drzwi\"}]}] [ACTION:EDIT_BLOCK {\"Color\": 1, \"FindText\": \"D1\", \"ReplaceText\": \"D2\"}] [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Center.Z\", \"Operator\": \"RPN\", \"Value\": \"DUP 150 +\"}, {\"Property\": \"Layer\", \"Value\": \"Widok\"}]}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"*Text\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"==\", \"Value\": \"Opisy\"}]}] [ACTION:READ_SAMPLE {}] [ACTION:TEXT_EDIT {\"Mode\": \"Replace\", \"FindText\": \"Projekt\", \"Text\": \"Koncepcja\"}] [ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"2DL\", \"SaveAs\": \"SzukaneWarstwy\"}] [ACTION:FOREACH {\"Iterable\": \"@SzukaneWarstwy\", \"Action\": \"MANAGE_LAYERS\", \"TemplateArgs\": {\"Mode\": \"Modify\", \"Layer\": \"$ITEM1\", \"NewName\": \"RPN: 'STARE_' '$ITEM1' CONCAT\"}}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Circle\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"==\", \"Value\": \"_SLUPY\"}]}] [ACTION:READ_PROPERTY {\"Property\": \"Center\", \"SaveAs\": \"Srodki\"}] [ACTION:READ_PROPERTY {\"Property\": \"Area\", \"SaveAs\": \"Pola\"}] [ACTION:FOREACH {\"Iterable\": \"@Srodki, @Pola\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: 'm = ' 250_kPa $ITEM2 'cm2' +UNIT * 9.81_m/s2 / 't' CONVE 2 ROUND CONCAT\", \"Height\": 15, \"MiddleCenter\": true}}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Polyline\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"==\", \"Value\": \"nawiew\"}]}] [ACTION:READ_PROPERTY {\"Property\": \"StartPoint\", \"SaveAs\": \"Punkty\"}] [ACTION:READ_PROPERTY {\"Property\": \"ConstantWidth\", \"SaveAs\": \"Srednice\"}] [ACTION:FOREACH {\"Iterable\": \"@Punkty, @Srednice\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: CLEAR 'Q = ' $ITEM2 #UNITL +UNIT 2 / 2 ^ #PI * 5_m/s * 'm3/h' CONVE 0 ROUND CONCAT\", \"Height\": 20}}] [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Polyline\", \"Conditions\": [{\"Property\": \"Closed\", \"Operator\": \"==\", \"Value\": true}]}] [ACTION:READ_PROPERTY {\"Property\": \"MidPoint\", \"SaveAs\": \"Srodki\"}] [ACTION:READ_PROPERTY {\"Property\": \"Area\", \"SaveAs\": \"Pola\"}] [ACTION:FOREACH {\"Iterable\": \"@Srodki, @Pola\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"MText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: 'Pole: ' $ITEM2 2 ROUND CONCAT ' m2' CONCAT\", \"Height\": 20, \"MiddleCenter\": true}}]",
+    "Comment": "Wielki test RPN i FOREACH. Sprawdzamy, czy model potrafi wyciągnąć dane z LISP-owych prostokątów i wypisać 2500 m2 oraz 900 m2.",
+    "Passed": true,
+    "IsTested": true,
+    "ResponseTimeSec": 0.9050162
+  },
+  {
+    "Id": 3,
+    "Weight": 3,
+    "Question": "Wstaw blok o nazwie 'Silnik' w punkcie 100,100.",
+    "ExpectedTag": "[ACTION:INSERT_BLOCK {\"Name\": \"Silnik\", \"Position\": \"100,100,0\"}]",
+    "GeneratedTag": "[ACTION:INSERT_BLOCK {\"Name\": \"Silnik\", \"Position\": \"100,100,0\"}] [ACTION:INSERT_BLOCK {\"Name\": \"Silnik\", \"Position\": \"100,100,0\"}]",
+    "Comment": "Test Złotego Fixu. Jeśli model użyje CREATE_OBJECT, to znaczy, że zignorował nasz zakaz z promptu.",
+    "Passed": true,
+    "IsTested": true,
+    "ResponseTimeSec": 1.4116624
+  },
+  {
+    "Id": 4,
+    "Weight": 2,
+    "Question": "Zaznacz teksty i zmień słowo PVC na czerwone (kolor 1).",
+    "ExpectedTag": "[SELECT: {\"EntityType\": \"DBText\"}] -> [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1}]",
+    "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"*Text\", \"Conditions\": [{\"Property\": \"Color\", \"Operator\": \"==\", \"Value\": 256}]}] [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]",
+    "Comment": "TDobrze to zrobił, bo na rysunku niema mtextów.",
+    "Passed": true,
+    "IsTested": true,
+    "ResponseTimeSec": 1.2263135
+  },
+  {
+    "Id": 5,
+    "Weight": 3,
+    "Question": "Zaznacz absolutnie wszystkie obiekty na rysunku i przenieś je na warstwę 'Archiwum'.",
+    "ExpectedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Entity\"}] -> [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Archiwum\"}]}]",
+    "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Entity\"}] [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Layer\", \"Value\": \"Archiwum\"}]}]",
+    "Comment": "Test pułapki '*Entity'. Model musi użyć czystego słowa 'Entity'.",
+    "Passed": true,
+    "IsTested": true,
+    "ResponseTimeSec": 0.8445761
+  }
+]
