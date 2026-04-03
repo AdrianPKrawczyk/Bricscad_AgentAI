@@ -1,0 +1,31 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Chain-Test",
+    "RunDate": "2026-04-03T14:00:00Z",
+    "LMStudioConfig": { "Notes": "Test wieloetapowy: Zmienne i pętla" }
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Chains",
+      "TestName": "Zliczanie i opisywanie",
+      "UserPrompt": "Zaznacz okręgi. Odczytaj ich promienie (Radius) i zapisz jako @Promienie. Potem dla każdego wstaw tekst z wartością promienia.",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 2 obiekty.",
+        "WYNIK: @Promienie = 15.5 | 20.0"
+      ],
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "Value": "SELECT,READ_PROPERTY,FOREACH",
+          "ErrorMessage": "Model nie zachował sekwencji: najpierw wybór, potem odczyt, potem pętla."
+        },
+        {
+          "RuleType": "MustContain",
+          "Value": "\"SaveAs\": \"Promienie\"",
+          "ErrorMessage": "Model zapomniał zapisać promienie do zmiennej @Promienie."
+        }
+      ]
+    }
+  ]
+}

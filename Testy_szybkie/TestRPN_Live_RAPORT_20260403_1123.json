@@ -1,0 +1,42 @@
+{
+  "RunMetadata": {
+    "ModelName": "Qwen-Test-RPN",
+    "RunDate": "2026-04-03T12:00:00Z",
+    "LMStudioConfig": {
+      "Notes": "Integracja Auto-Sędziego z silnikiem RpnCalculator"
+    },
+    "GlobalScore": 0.0,
+    "CategoriesScores": {
+      "RPN_Logic": 0.0
+    }
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "RPN_Logic",
+      "Difficulty": 5,
+      "TestName": "Obliczanie powierzchni - ABS i ROUND",
+      "Description": "Sprawdza, czy wygenerowany przez model wzór RPN zadziała w C# i usunie minus z wartości.",
+      "UserPrompt": "Dla zaznaczonej polilinii stwórz tekst. Wymagam użycia RPN! Wartość powierzchni zabezpiecz używając ABS, zaokrąglij do 2 miejsc po przecinku i doklej tekst ' m2'.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "RPN:",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model w ogóle nie użył flagi RPN w odpowiedzi."
+        },
+        {
+          "RuleType": "EvaluateRPN",
+          "Value": null,
+          "MockData": {
+            "$ITEM1": "-2543.887"
+          },
+          "ExpectedOutput": "2543.89 m2",
+          "ErrorMessage": "Nie znaleziono wzoru zaczynającego się od 'RPN:' wewnątrz tagu."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-Chain-Test",
+    "RunDate": "2026-04-03T14:00:00Z",
+    "LMStudioConfig": {
+      "Notes": "Test wieloetapowy: Zmienne i pętla"
+    },
+    "GlobalScore": 100.0,
+    "CategoriesScores": {}
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Chains",
+      "Difficulty": 0,
+      "TestName": "Zliczanie i opisywanie",
+      "Description": null,
+      "UserPrompt": "Zaznacz okręgi. Odczytaj ich promienie (Radius) i zapisz jako @Promienie. Potem dla każdego wstaw tekst z wartością promienia.",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 2 obiekty.",
+        "WYNIK: @Promienie = 15.5 | 20.0"
+      ],
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "Value": "SELECT,READ_PROPERTY,FOREACH",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model nie zachował sekwencji: najpierw wybór, potem odczyt, potem pętla."
+        },
+        {
+          "RuleType": "MustContain",
+          "Value": "\"SaveAs\": \"Promienie\"",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model zapomniał zapisać promienie do zmiennej @Promienie."
+        }
+      ],
+      "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Circle\"}] | [ACTION:READ_PROPERTY {\"Property\": \"Radius\", \"SaveAs\": \"Promienie\"}] | [ACTION:FOREACH {\"Iterable\": \"@Promienie\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Position\": \"AskUser\", \"Text\": \"RPN: 'R = ' $ITEM1 2 PRETTY CONCAT ' m' CONCAT\", \"Height\": 20}}]"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "RunMetadata": {
+    "ModelName": "Qwen-Test-AutoBenchmark",
+    "RunDate": "2026-04-03T12:00:00Z",
+    "LMStudioConfig": {
+      "Notes": "Pierwszy test AutoBenchmarku"
+    },
+    "GlobalScore": 0.0,
+    "CategoriesScores": {
+      "Zasady": 0.0,
+      "Skladnia": 0.0
+    }
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Zasady",
+      "Difficulty": 1,
+      "TestName": "Test zakazu dla bloków",
+      "Description": "Sprawdza, czy AI użyje INSERT_BLOCK.",
+      "UserPrompt": "Wstaw blok o nazwie 'Silnik' w punkcie 0,0.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "[ACTION:INSERT_BLOCK",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model użył złego tagu. Miał być INSERT_BLOCK."
+        },
+        {
+          "RuleType": "MustNotContain",
+          "Value": "CREATE_OBJECT",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model złamał Złotą Regułę i użył CREATE_OBJECT dla bloku."
+        }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "Skladnia",
+      "Difficulty": 2,
+      "TestName": "Poprawność JSON",
+      "Description": "Sprawdza czy model nie gubi znaków w prostej komendzie.",
+      "UserPrompt": "Narysuj linię z 0,0 do 100,100.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "ValidJsonInsideTag",
+          "Value": "true",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Wygenerowany ciąg nie jest poprawnym formatem JSON."
+        }
+      ]
+    }
+  ]
+}

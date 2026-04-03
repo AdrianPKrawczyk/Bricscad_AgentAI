@@ -1,0 +1,298 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-7B-Master-Test",
+    "RunDate": "2026-04-03T12:00:00Z",
+    "LMStudioConfig": {
+      "Temperature": 0.0,
+      "ContextLength": 16384,
+      "Notes": "Kompletna baza testowa V1"
+    },
+    "GlobalScore": 33.33,
+    "CategoriesScores": {}
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Rules",
+      "Difficulty": 0,
+      "TestName": "Blok - Zakaz CREATE_OBJECT",
+      "Description": null,
+      "UserPrompt": "Wstaw blok 'Pompa_A1' w punkcie 100,100,0. Zastosuj się do instrukcji dotyczącej wstawiania bloków. ZAKAZ [MSG]. ODPOWIEDZ TYLKO TAGIEM.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "[ACTION:INSERT_BLOCK",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "MustNotContain",
+          "Value": "CREATE_OBJECT",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model użył CREATE_OBJECT zamiast dedykowanego narzędzia do bloków."
+        }
+      ],
+      "GeneratedTag": "[ACTION:INSERT_BLOCK {\"Name\": \"Pompa_A1\", \"Position\": \"100,100,0\"}]"
+    },
+    {
+      "Id": 2,
+      "Category": "Rules",
+      "Difficulty": 0,
+      "TestName": "Anti-Hallucination - *Entity",
+      "Description": null,
+      "UserPrompt": "Wybierz absolutnie wszystkie obiekty w całym rysunku. Zastosuj się do zakazu używania gwiazdek w nazwach typów. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "\"EntityType\": \"Entity\"",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "MustNotContain",
+          "Value": "*Entity",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model użył zakazanego wyrażenia *Entity."
+        }
+      ],
+      "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Entity\"}]"
+    },
+    {
+      "Id": 3,
+      "Category": "Syntax",
+      "Difficulty": 0,
+      "TestName": "Poprawność JSON - Warstwy",
+      "Description": null,
+      "UserPrompt": "Stwórz nową warstwę o nazwie 'INSTALACJE' i kolorze czerwonym (1). ODPOWIEDZ TYLKO TAGIEM.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "ValidJsonInsideTag",
+          "Value": "true",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Błąd składni JSON w parametrach warstwy."
+        },
+        {
+          "RuleType": "MustContain",
+          "Value": "\"Color\": 1",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "GeneratedTag": "[ACTION:MANAGE_LAYERS {\"Mode\": \"Create\", \"Layer\": \"INSTALACJE\", \"Color\": 1}]"
+    },
+    {
+      "Id": 4,
+      "Category": "Logic",
+      "Difficulty": 0,
+      "TestName": "Złożony SELECT (Filtrowanie)",
+      "Description": null,
+      "UserPrompt": "Zaznacz wszystkie linie, które NIE leżą na warstwie '0' i mają kolor zielony (3). ODPOWIEDZ TYLKO TAGIEM.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "\"Operator\": \"!=\"",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "MustContain",
+          "Value": "\"Color\": 3",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"!=\", \"Value\": \"0\"}, {\"Property\": \"ColorIndex\", \"Operator\": \"==\", \"Value\": 3}]}]"
+    },
+    {
+      "Id": 5,
+      "Category": "RPN",
+      "Difficulty": 0,
+      "TestName": "Matematyka - Suma długości",
+      "Description": null,
+      "UserPrompt": "Wygeneruj tag CREATE_OBJECT (DBText). W polu Text użyj RPN: weź zmienne $ITEM1 i $ITEM2, dodaj je do siebie, zaokrąglij do 1 miejsca i dodaj ' m'. ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "Value": null,
+          "MockData": {
+            "$ITEM1": "12.44",
+            "$ITEM2": "10.11"
+          },
+          "ExpectedOutput": "22.6 m",
+          "ErrorMessage": "Błąd obliczeń. Oczekiwano '22.6 m', a silnik AI/RPN wygenerował '22.5 m'. Wzór po podstawieniu: 12.44 10.11 + 1 ROUND ' m' CONCAT"
+        }
+      ],
+      "GeneratedTag": "[ACTION:CREATE_OBJECT {\"EntityType\": \"DBText\", \"Position\": \"AskUser\", \"Text\": \"RPN: $ITEM1 $ITEM2 + 1 ROUND ' m' CONCAT\", \"Height\": 20}]"
+    },
+    {
+      "Id": 6,
+      "Category": "RPN",
+      "Difficulty": 0,
+      "TestName": "Zabezpieczenie IFEMPTY",
+      "Description": null,
+      "UserPrompt": "Stwórz tekst używając RPN. Weź zmienną $ITEM1, jeśli jest pusta (IFEMPTY) wstaw 'BRAK', dodaj przedrostek 'ID: '. ODPOWIEDZ TYLKO TAGIEM.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "Value": null,
+          "MockData": {
+            "$ITEM1": ""
+          },
+          "ExpectedOutput": "ID: BRAK",
+          "ErrorMessage": "Nie znaleziono wzoru zaczynającego się od 'RPN:' wewnątrz tagu."
+        }
+      ],
+      "GeneratedTag": "[MSG: 'ID: ' $ITEM1 IFEMPTY CONCAT]"
+    },
+    {
+      "Id": 7,
+      "Category": "Chains",
+      "Difficulty": 0,
+      "TestName": "Łańcuch - Zmiana wysokości tekstu",
+      "Description": null,
+      "UserPrompt": "Zaznacz wszystkie teksty (DBText). Odczytaj ich aktualną wysokość (Height). Następnie dla każdego ustaw nową wysokość mnożąc starą przez 2.",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 1 obiekt.",
+        "WYNIK: @Height = 2.5"
+      ],
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "Value": "SELECT,READ_PROPERTY,FOREACH",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "MustContain",
+          "Value": "2 *",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model nie zawarł mnożnika wysokości w pętli."
+        }
+      ],
+      "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"DBText\"}] | [ACTION:READ_PROPERTY {\"Property\": \"Height\", \"SaveAs\": \"StareWys\"}] | [ACTION:SET_PROPERTIES {\"Properties\": [{\"Property\": \"Height\", \"Operator\": \"RPN\", \"Value\": \"2 *\"}]}]"
+    },
+    {
+      "Id": 8,
+      "Category": "Chains",
+      "Difficulty": 0,
+      "TestName": "Łańcuch - Szukanie i usuwanie",
+      "Description": null,
+      "UserPrompt": "Znajdź wszystkie warstwy zawierające w nazwie słowo 'TEMP'. Zaznacz wszystkie obiekty na tych warstwach i skasuj je.",
+      "SimulatedCADResponses": [
+        "WYNIK: Znaleziono warstwy: 'TEMP_01', 'STARE_TEMP'.",
+        "WYNIK: Zaznaczono 15 obiektów na podanych warstwach."
+      ],
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "Value": "SEARCH_LAYERS,SELECT,REMOVE_OBJECTS",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "GeneratedTag": "[ACTION:SEARCH_LAYERS {\"Condition\": \"Contains\", \"Value\": \"TEMP\", \"SaveAs\": \"SzukaneWarstwy\"}] | [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"*Entity\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"IN\", \"Value\": \"@SzukaneWarstwy\"}]}] | [ACTION:MODIFY_GEOMETRY {\"Mode\": \"Erase\"}]\n[MSG: Usunięto zaznaczone obiekty z wybranych warstw.]"
+    },
+    {
+      "Id": 9,
+      "Category": "RPN",
+      "Difficulty": 0,
+      "TestName": "RPN - Przeliczanie jednostek (Scale)",
+      "Description": null,
+      "UserPrompt": "Stwórz tekst z polem powierzchni. Weź $ITEM1 (w mm2), podziel przez 1000000 by uzyskać m2, zaokrąglij do 3 miejsc. ODPOWIEDZ TYLKO TAGIEM.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "Value": null,
+          "MockData": {
+            "$ITEM1": "1500000"
+          },
+          "ExpectedOutput": "1.500",
+          "ErrorMessage": "Nie znaleziono wzoru zaczynającego się od 'RPN:' wewnątrz tagu."
+        }
+      ],
+      "GeneratedTag": "[MSG: RPN: $ITEM1 1000000 / 3 ROUND]"
+    },
+    {
+      "Id": 10,
+      "Category": "Syntax",
+      "Difficulty": 0,
+      "TestName": "MText - Formatowanie koloru API",
+      "Description": null,
+      "UserPrompt": "Narysuj MText o treści 'ALARM'. Treść musi być sformatowana wewnątrz tagu tak, aby w CAD wyświetlała się na czerwono (C1). ZAKAZ [MSG].",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "{\\\\C1;ALARM}",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model nie zastosował formatowania RTF dla MText."
+        }
+      ],
+      "GeneratedTag": "[ACTION:CREATE_OBJECT {\"EntityType\": \"MText\", \"Position\": \"AskUser\", \"Text\": \"<C1>ALARM</C1>\", \"Height\": 25, \"Comment\": \"Tworzę tekst MText z formatowaniem RTF\"}]"
+    },
+    {
+      "Id": 11,
+      "Category": "Logic",
+      "Difficulty": 0,
+      "TestName": "Wybór - Mode: Add",
+      "Description": null,
+      "UserPrompt": "Najpierw zaznacz linie na warstwie 'A', a potem DODAJ do tego zaznaczenia okręgi z warstwy 'B'.",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "\"Mode\": \"Add\"",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model nie użył trybu 'Add' do rozszerzenia zaznaczenia."
+        }
+      ],
+      "GeneratedTag": "[SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"Layer\", \"Operator\": \"==\", \"Value\": \"A\"}]}]"
+    },
+    {
+      "Id": 12,
+      "Category": "Rules",
+      "Difficulty": 0,
+      "TestName": "Zasada czystego kontekstu",
+      "Description": null,
+      "UserPrompt": "Dzień dobry, czy możesz mi pomóc?",
+      "SimulatedCADResponses": [],
+      "ValidationRules": [
+        {
+          "RuleType": "MustContain",
+          "Value": "[MSG:",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model powinien odpowiedzieć tekstem przy zwykłym przywitaniu."
+        },
+        {
+          "RuleType": "MustNotContain",
+          "Value": "[ACTION:",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "Model wygenerował akcję bez potrzeby."
+        }
+      ],
+      "GeneratedTag": "[MSG: Dzień dobry! Jako Agent BricsCAD jestem tutaj, aby Ci pomóc w edycji i tworzeniu rysunków CAD. Zawsze odpowiadam na Twoje pytania używając odpowiednich tagów, takich jak [MSG], [SELECT], [ACTION] lub [USER_INPUT]. NIE JESTEM chatbotem do pisania kodu w markdown! Jeśli nie zrozumiesz jak użyć danego narzędzia, ZAKAZ ZGADYWANIA, ZAWSZE użyj [SEARCH: Klasa]. Pamiętaj, że każdy obiekt CAD dziedziczy z klasy bazowej Entity, więc posiada uniwersalne właściwości jak ColorIndex lub Layer. Zawsze stosuj uniwersalne słownictwo wartości (np. kolor 256 = JakWarstwa, grubość -1 = JakWarstwa). ZROZUMIANO. BĘDĘ ODPOWIADAŁ TYLKO TAGAMI.]"
+    }
+  ]
+}

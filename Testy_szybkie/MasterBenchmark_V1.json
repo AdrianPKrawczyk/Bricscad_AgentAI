@@ -1,0 +1,150 @@
+{
+  "RunMetadata": {
+    "ModelName": "Bielik-7B-Master-Test",
+    "RunDate": "2026-04-03T12:00:00Z",
+    "LMStudioConfig": {
+      "Temperature": 0.0,
+      "ContextLength": 16384,
+      "Notes": "Kompletna baza testowa V1"
+    }
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Rules",
+      "TestName": "Blok - Zakaz CREATE_OBJECT",
+      "UserPrompt": "Wstaw blok 'Pompa_A1' w punkcie 100,100,0. Zastosuj się do instrukcji dotyczącej wstawiania bloków. ZAKAZ [MSG]. ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[ACTION:INSERT_BLOCK" },
+        { "RuleType": "MustNotContain", "Value": "CREATE_OBJECT", "ErrorMessage": "Model użył CREATE_OBJECT zamiast dedykowanego narzędzia do bloków." }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "Rules",
+      "TestName": "Anti-Hallucination - *Entity",
+      "UserPrompt": "Wybierz absolutnie wszystkie obiekty w całym rysunku. Zastosuj się do zakazu używania gwiazdek w nazwach typów. ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"EntityType\": \"Entity\"" },
+        { "RuleType": "MustNotContain", "Value": "*Entity", "ErrorMessage": "Model użył zakazanego wyrażenia *Entity." }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "Syntax",
+      "TestName": "Poprawność JSON - Warstwy",
+      "UserPrompt": "Stwórz nową warstwę o nazwie 'INSTALACJE' i kolorze czerwonym (1). ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        { "RuleType": "ValidJsonInsideTag", "Value": "true", "ErrorMessage": "Błąd składni JSON w parametrach warstwy." },
+        { "RuleType": "MustContain", "Value": "\"Color\": 1" }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "Logic",
+      "TestName": "Złożony SELECT (Filtrowanie)",
+      "UserPrompt": "Zaznacz wszystkie linie, które NIE leżą na warstwie '0' i mają kolor zielony (3). ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Operator\": \"!=\"" },
+        { "RuleType": "MustContain", "Value": "\"Color\": 3" }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "RPN",
+      "TestName": "Matematyka - Suma długości",
+      "UserPrompt": "Wygeneruj tag CREATE_OBJECT (DBText). W polu Text użyj RPN: weź zmienne $ITEM1 i $ITEM2, dodaj je do siebie, zaokrąglij do 1 miejsca i dodaj ' m'. ZAKAZ [MSG].",
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "12.44", "$ITEM2": "10.11" },
+          "ExpectedOutput": "22.6 m",
+          "ErrorMessage": "Błąd logiki sumowania lub zaokrąglania w RPN."
+        }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "RPN",
+      "TestName": "Zabezpieczenie IFEMPTY",
+      "UserPrompt": "Stwórz tekst używając RPN. Weź zmienną $ITEM1, jeśli jest pusta (IFEMPTY) wstaw 'BRAK', dodaj przedrostek 'ID: '. ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "" },
+          "ExpectedOutput": "ID: BRAK",
+          "ErrorMessage": "Model nie użył poprawnie operatora IFEMPTY."
+        }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "Chains",
+      "TestName": "Łańcuch - Zmiana wysokości tekstu",
+      "UserPrompt": "Zaznacz wszystkie teksty (DBText). Odczytaj ich aktualną wysokość (Height). Następnie dla każdego ustaw nową wysokość mnożąc starą przez 2.",
+      "SimulatedCADResponses": [
+        "WYNIK: Zaznaczono 1 obiekt.",
+        "WYNIK: @Height = 2.5"
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "SELECT,READ_PROPERTY,FOREACH" },
+        { "RuleType": "MustContain", "Value": "2 *", "ErrorMessage": "Model nie zawarł mnożnika wysokości w pętli." }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "Chains",
+      "TestName": "Łańcuch - Szukanie i usuwanie",
+      "UserPrompt": "Znajdź wszystkie warstwy zawierające w nazwie słowo 'TEMP'. Zaznacz wszystkie obiekty na tych warstwach i skasuj je.",
+      "SimulatedCADResponses": [
+        "WYNIK: Znaleziono warstwy: 'TEMP_01', 'STARE_TEMP'.",
+        "WYNIK: Zaznaczono 15 obiektów na podanych warstwach."
+      ],
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "Value": "SEARCH_LAYERS,SELECT,REMOVE_OBJECTS" }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "RPN",
+      "TestName": "RPN - Przeliczanie jednostek (Scale)",
+      "UserPrompt": "Stwórz tekst z polem powierzchni. Weź $ITEM1 (w mm2), podziel przez 1000000 by uzyskać m2, zaokrąglij do 3 miejsc. ODPOWIEDZ TYLKO TAGIEM.",
+      "ValidationRules": [
+        {
+          "RuleType": "EvaluateRPN",
+          "MockData": { "$ITEM1": "1500000" },
+          "ExpectedOutput": "1.500",
+          "ErrorMessage": "Błąd w skalowaniu jednostek (dzielenie przez milion)."
+        }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "Syntax",
+      "TestName": "MText - Formatowanie koloru API",
+      "UserPrompt": "Narysuj MText o treści 'ALARM'. Treść musi być sformatowana wewnątrz tagu tak, aby w CAD wyświetlała się na czerwono (C1). ZAKAZ [MSG].",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "{\\\\C1;ALARM}" , "ErrorMessage": "Model nie zastosował formatowania RTF dla MText." }
+      ]
+    },
+    {
+      "Id": 11,
+      "Category": "Logic",
+      "TestName": "Wybór - Mode: Add",
+      "UserPrompt": "Najpierw zaznacz linie na warstwie 'A', a potem DODAJ do tego zaznaczenia okręgi z warstwy 'B'.",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "\"Mode\": \"Add\"", "ErrorMessage": "Model nie użył trybu 'Add' do rozszerzenia zaznaczenia." }
+      ]
+    },
+    {
+      "Id": 12,
+      "Category": "Rules",
+      "TestName": "Zasada czystego kontekstu",
+      "UserPrompt": "Dzień dobry, czy możesz mi pomóc?",
+      "ValidationRules": [
+        { "RuleType": "MustContain", "Value": "[MSG:", "ErrorMessage": "Model powinien odpowiedzieć tekstem przy zwykłym przywitaniu." },
+        { "RuleType": "MustNotContain", "Value": "[ACTION:", "ErrorMessage": "Model wygenerował akcję bez potrzeby." }
+      ]
+    }
+  ]
+}

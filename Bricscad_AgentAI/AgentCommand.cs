@@ -553,6 +553,14 @@ namespace BricsCAD_Agent
                         OnTagGenerated?.Invoke(aiMsg);
                     }
                     // =======================================================================
+                    // --- 🛡️ ZABEZPIECZENIE DLA AUTOBENCHMARKU ---
+                    // Jeśli jesteśmy w trybie testowym, przerywamy działanie tuż po walidacji składni!
+                    // Zwracamy surowy tag bezpośrednio do sędziego, bez uruchamiania go w BricsCADzie.
+                    if (TrybTestowy)
+                    {
+                        return aiMsg;
+                    }
+                    // -----------------------------------------------------------------------
 
                     // 1. OBSŁUGA WYSZUKIWANIA W BAZIE (SEARCH)
                     if (aiMsg.Contains("[SEARCH:"))
@@ -1001,6 +1009,46 @@ namespace BricsCAD_Agent
 
                 if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK) return txt.Text;
                 return null;
+            }
+        }
+
+        [CommandMethod("AGENT_BENCHMARK")]
+        [CommandMethod("AGENT_BENCHMARK")]
+        public async void UruchomZautomatyzowaneTesty()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+
+            // 1. Okienko dialogowe do wyboru pliku
+            System.Windows.Forms.OpenFileDialog ofd = new System.Windows.Forms.OpenFileDialog();
+            ofd.Title = "Wybierz plik testowy JSON dla AutoBenchmarku";
+            ofd.Filter = "Pliki JSON (*.json)|*.json|Wszystkie pliki (*.*)|*.*";
+
+            // Jeśli użytkownik anuluje wybór, przerywamy
+            if (ofd.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            {
+                doc.Editor.WriteMessage("\n[AutoBenchmark]: Anulowano wybór pliku.");
+                return;
+            }
+
+            string sciezkaDoTestow = ofd.FileName;
+
+            // 2. WŁĄCZAMY TRYB TESTOWY
+            Komendy.TrybTestowy = true;
+
+            try
+            {
+                AutoBenchmarkEngine engine = new AutoBenchmarkEngine();
+                await engine.UruchomBenchmarkAsync(sciezkaDoTestow);
+            }
+            catch (System.Exception ex)
+            {
+                // Łapiemy ewentualne inne błędy (np. uszkodzony JSON), żeby nie wywalać CADa
+                doc.Editor.WriteMessage($"\n[BŁĄD BENCHMARKU]: {ex.Message}");
+            }
+            finally
+            {
+                // 3. ZAWSZE WYŁĄCZAMY TRYB TESTOWY
+                Komendy.TrybTestowy = false;
             }
         }
 
