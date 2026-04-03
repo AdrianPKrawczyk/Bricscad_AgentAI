@@ -18,6 +18,10 @@ Klasa statyczna przechowująca stan sesji Agenta. Izoluje kolekcję `ActiveSelec
 - **Remove(ids)**: Odejmowanie idków ze zbioru.
 - **Clear()**: Resetowanie pamięci.
 
+### Variables (`AgentMemoryState.Variables`)
+Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
+- **InjectVariables(input)**: Automatycznie zamienia wystąpienia `@nazwa` na wartości ze słownika przed przekazaniem do narzędzi lub silnika RPN.
+
 ## Rejestr Narzędzi (Registered Tools)
 
 ### SelectEntitiesTool
@@ -26,5 +30,15 @@ Klasa statyczna przechowująca stan sesji Agenta. Izoluje kolekcję `ActiveSelec
 **Parametry**:
 - `EntityType` (string, Required): Nazwa klasy (np. "Line") lub wildcard (np. "*Line").
 - `Mode` (enum): "New", "Add", "Remove", "Clear". Określa sposób interakcji z `AgentMemoryState`.
-- `Scope` (enum): "Model" (cała przestrzeń), "Blocks" (przeszukiwanie tylko wewnątrz uprzednio zaznaczonych bloków).
-- `Conditions` (array of objects): Lista warunków filtrowania właściwości (`Prop`, `Op`, `Val`).
+- `Scope` (enum): "Model", "Blocks".
+- `Conditions` (array): Warunki filtrowania (`Prop`, `Op`, `Val`).
+
+### CreateObjectTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.CreateObjectTool`
+**Cel**: Tworzenie nowych obiektów CAD z obsługą RPN i interakcji z użytkownikiem.
+**Parametry**:
+- `EntityType` (string, Required): "Line", "Circle", "DBText", "MText", "MLeader".
+- `Layer` (string): Docelowa warstwa.
+- `SelectObject` (boolean): Czy dodać nowy obiekt do `ActiveSelection` (Auto-Selection).
+- `StartPoint`, `EndPoint`, `Center`, `Position`, `ArrowPoint`, `LandingPoint` (string): Współrzędne (x,y,z) lub "AskUser".
+- `Radius`, `Height`, `Rotation`, `Text` (string): Wartości liczbowe/tekstowe wspierające prefix "RPN:".

@@ -10,9 +10,10 @@
 - [KROK-1.2] Zaimplementowano klasę `ToolOrchestrator`. Odpowiada ona za automatyczne wykrywanie narzędzi (Reflection) oraz orkiestrację wywołań w formacie JSON rzuconym przez LLM.
 - [KROK-1.3] Wdrożono `LLMClient.cs` wyposażonego w rekurencyjną pętlę decyzyjną (ReAct). System automatycznie mapuje i przetwarza ustrukturyzowaną tablicę `tool_calls` w JSON, izolując stan konwersacji od działania Orkiestratora.
 - [KROK-3.1] Zaimplementowano `AgentMemoryState` do zarządzania stanem, przeniesiono logikę zaznaczania BricsCAD do pliku `SelectEntitiesTool.cs` wraz z silnie typowanym ToolSchema. Stworzono test walidujący logikę "Conditions".
+- [KROK-4.1] Portowano "Ręce Agenta": Utworzono `CreateObjectTool.cs` oraz silnik `RpnCalculator.cs`. Wdrożono mechanizm Auto-Selection oraz obsługę zmiennych `@` w `AgentMemoryState`. Zaktualizowano dokumentację System_Blueprint oraz USER_GUIDE.
 ### [STAN_SYSTEMU]
-- System posiada strukturę bazową obsługująca operacje z modelem LLM. Agent odzyskał swój potężny zmysł wyszukiwania (SelectEntitiesTool), z którym jest powiązany model pamięci `Update`, `Append`, `Remove`. 
+- System posiada w pełni funkcjonalne „Oczy” (Select) i „Ręce” (Create). Wspiera zaawansowane obliczenia RPN oraz interakcje `AskUser`. Wszystkie komponenty kompilują się poprawnie (Build Success).
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- [KROK-4.1] Portowanie "Rąk Agenta": Utworzenie `CreateObjectTool.cs` ze starego V1, z zastąpieniem Regex modelem `ParametersSchema` (Etap 4 Planu Migracji).
+- [KROK-5.1] Implementacja narzędzi do modyfikacji właściwości (`ModifyPropertiesTool.cs`) – zmiana warstwy, koloru, grubości linii dla obiektów w `ActiveSelection`.

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Teigha.DatabaseServices;
@@ -14,9 +15,29 @@ namespace Bricscad_AgentAI_V2.Core
         private static ObjectId[] _activeSelection = new ObjectId[0];
 
         /// <summary>
+        /// Globalny słownik przechowujący zmienne sesji Agenta (@zmienna).
+        /// </summary>
+        public static Dictionary<string, string> Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Zbiór referencji do aktualnie wyizolowanych (lub zaznaczonych) obiektów w dokumencie.
         /// </summary>
         public static ObjectId[] ActiveSelection => _activeSelection;
+
+        /// <summary>
+        /// Funkcja zastępująca wzorce @zmienna wartościami ze słownika Variables.
+        /// </summary>
+        public static string InjectVariables(string input)
+        {
+            if (string.IsNullOrEmpty(input) || Variables == null || Variables.Count == 0) return input;
+            string output = input;
+            var keys = Variables.Keys.OrderByDescending(k => k.Length).ToList();
+            foreach (var key in keys)
+            {
+                output = output.Replace("@" + key, Variables[key]);
+            }
+            return output;
+        }
 
         /// <summary>
         /// Całkowicie zastępuje aktualną pamięć zaznaczenia nową tablicą ID.
