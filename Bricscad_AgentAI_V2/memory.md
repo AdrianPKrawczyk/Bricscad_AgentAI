@@ -11,9 +11,10 @@
 - [KROK-1.3] Wdrożono `LLMClient.cs` wyposażonego w rekurencyjną pętlę decyzyjną (ReAct). System automatycznie mapuje i przetwarza ustrukturyzowaną tablicę `tool_calls` w JSON, izolując stan konwersacji od działania Orkiestratora.
 - [KROK-3.1] Zaimplementowano `AgentMemoryState` do zarządzania stanem, przeniesiono logikę zaznaczania BricsCAD do pliku `SelectEntitiesTool.cs` wraz z silnie typowanym ToolSchema. Stworzono test walidujący logikę "Conditions".
 - [KROK-4.1] Portowano "Ręce Agenta": Utworzono `CreateObjectTool.cs` oraz silnik `RpnCalculator.cs`. Wdrożono mechanizm Auto-Selection oraz obsługę zmiennych `@` w `AgentMemoryState`. Zaktualizowano dokumentację System_Blueprint oraz USER_GUIDE.
+- [KROK-5.1] Portowanie ModifyPropertiesTool: Zaimplementowano narzędzie `ModifyPropertiesTool.cs` z pełnym wykorzystaniem RPN i obsługą transakcji. Spełniono rygorystyczny check-flow DoD (Definition of Done) uwzględniający pomyślny `dotnet build`, wygenerowanie statycznych testów ToolSchema, aktualizację Blueprintu i USER_GUIDE.md.
 ### [STAN_SYSTEMU]
-- System posiada w pełni funkcjonalne „Oczy” (Select) i „Ręce” (Create). Wspiera zaawansowane obliczenia RPN oraz interakcje `AskUser`. Wszystkie komponenty kompilują się poprawnie (Build Success).
+- System potrafi wyszukiwać, rysować oraz dynamicznie modyfikować obiekty (Select, Create, Modify Properties). Posiada ustabilizowany schemat pracy deweloperskiej w oparciu o DoD. Testy jednostkowe chronią integralność ToolSchem.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- [KROK-5.1] Implementacja narzędzi do modyfikacji właściwości (`ModifyPropertiesTool.cs`) – zmiana warstwy, koloru, grubości linii dla obiektów w `ActiveSelection`.
+- [KROK-5.2] Portowanie `ManageLayersTool.cs` – Wdrożenie zarządzania strukturą dokumentu (Tworzenie, Usuwanie, Łączenie warstw) zgodnego ze standardem V2.

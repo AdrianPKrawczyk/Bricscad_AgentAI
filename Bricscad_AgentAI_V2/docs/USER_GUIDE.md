@@ -18,18 +18,24 @@ Agent potrafi rysować podstawowe elementy graficzne. Możesz poprosić go o:
 - **Teksty (MText/DBText):** "Napisz 'Projekt łazienki' w punkcie 10,10"
 - **Multileadery:** "Dodaj opis 'Przyłącze wody' ze strzałką w 0,0 i tekstem obok"
 
-### 2. Silnik Obliczeniowy RPN
+### 3. Modyfikacja Właściwości (ModifyProperties)
+Możesz zmieniać właściwości ujętych w pamięci/wyselekcjonowanych elementów wspierając zaawansowane zależności. Pamiętaj, że wpierw musisz zaznaczyć docelową grupę obiektów za pomocą komendy z pkt 1, bądź polecenie zostanie zaaplikowane na świeżo narysowanym obiekcie.
+- **Co robi:** Zmienia parametry wybranych wcześniej obiektów na podane w prompt. W przypadku pomyłek pomija niezgodne pojęcia (np Promień dla Linii).
+- **Jak o to zapytać:** "Zmień kolor na niebieski a warstwę na Instalacje". "Obróć tekst o 15 stopni".
+- **Wykorzystanie matematyki na starych wartościach (RPN):** Kiedy chcesz zmienić obecną liczbę np. o 10. Powiedz "Zwiększ promień zaznaczonych okręgów o 10" lub opisz mu z użyciem frazy "Użyj RPN dla starego promienia $OLD_RADIUS dodając 10" by go poinstruować. Np. "Zmień grubość wszystkich linii by była o 2.5 mniejsza od obecnej". Przykładowo Agent stworzy wyrażenie `RPN: $OLD_LINEWEIGHT 2.5 -`.
+
+### 4. Silnik Obliczeniowy RPN
 Możesz wykonywać obliczenia bezpośrednio w poleceniach używając prefiksu `RPN:`. Format ten używa Odwrotnej Notacji Polskiej (liczby idą przed operatorem).
 
 **Przykłady:**
 - "Narysuj okrąg o promieniu RPN: 5 5 +" (stworzy okrąg o promieniu 10)
 - "Dodaj tekst 'Wynik: RPN: 100 2 /'" (wstawi tekst 'Wynik: 50.0')
 
-### 3. Interakcja AskUser
+### 5. Interakcja AskUser
 Jeśli nie znasz współrzędnych lub wymiarów, możesz kazać Agentowi zapytać Ciebie o nie na rysunku.
 - **Przykład:** "Narysuj okrąg w centrum AskUser" -> Agent zatrzyma się i poprosi Cię o kliknięcie punktu w BricsCAD.
 
-### 4. Pamięć Agenta i Automatyczne Zaznaczanie
+### 6. Pamięć Agenta i Automatyczne Zaznaczanie
 Każdy nowy obiekt, który stworzysz, zostaje automatycznie dodany do "pamięci podręcznej" Agenta.
 - **Flow pracy:** 
   1. Ty: "Narysuj kwadrat z linii"
