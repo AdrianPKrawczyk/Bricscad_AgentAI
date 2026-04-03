@@ -9,9 +9,10 @@
 - [KROK-1.1] Utworzono fundament V2 (`Bricscad_AgentAI_V2.csproj`) w .NET 4.8. Zdefiniowano bazowe modele danych `ToolDefinition`, `FunctionSchema`, `ToolParameter` dla OpenAI Tool Calling oraz główny interfejs agenta `IToolV2`.
 - [KROK-1.2] Zaimplementowano klasę `ToolOrchestrator`. Odpowiada ona za automatyczne wykrywanie narzędzi (Reflection) oraz orkiestrację wywołań w formacie JSON rzuconym przez LLM.
 - [KROK-1.3] Wdrożono `LLMClient.cs` wyposażonego w rekurencyjną pętlę decyzyjną (ReAct). System automatycznie mapuje i przetwarza ustrukturyzowaną tablicę `tool_calls` w JSON, izolując stan konwersacji od działania Orkiestratora.
+- [KROK-3.1] Zaimplementowano `AgentMemoryState` do zarządzania stanem, przeniesiono logikę zaznaczania BricsCAD do pliku `SelectEntitiesTool.cs` wraz z silnie typowanym ToolSchema. Stworzono test walidujący logikę "Conditions".
 ### [STAN_SYSTEMU]
-- System jest gotowy na przyjęcie rzeczywistych implementacji narzędzi (`IToolV2`). "Mózg" potrafi interpretować komendy (ReAct loop) i wymuszać formaty funkcjonalne, odrzucając starą logikę Regex (V1).
+- System posiada strukturę bazową obsługująca operacje z modelem LLM. Agent odzyskał swój potężny zmysł wyszukiwania (SelectEntitiesTool), z którym jest powiązany model pamięci `Update`, `Append`, `Remove`. 
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- [KROK-3.1] Portowanie "Oczu Agenta": utworzenie `SelectEntitiesTool.cs` na podstawie starego algorytmu tagu `[SELECT]` (Zgodnie z Etapem 3 Planu Migracji).
+- [KROK-4.1] Portowanie "Rąk Agenta": Utworzenie `CreateObjectTool.cs` ze starego V1, z zastąpieniem Regex modelem `ParametersSchema` (Etap 4 Planu Migracji).

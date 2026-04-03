@@ -64,6 +64,9 @@
     <Compile Include="src\Core\IToolV2.cs" />
     <Compile Include="src\Core\ToolOrchestrator.cs" />
     <Compile Include="src\Core\LLMClient.cs" />
+    <Compile Include="src\Core\AgentMemoryState.cs" />
+    <Compile Include="src\Tools\SelectEntitiesTool.cs" />
+    <Compile Include="tests\Tools\SelectEntitiesToolTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
