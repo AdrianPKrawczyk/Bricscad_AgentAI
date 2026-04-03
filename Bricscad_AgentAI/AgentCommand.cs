@@ -178,18 +178,18 @@ namespace BricsCAD_Agent
                 "Tag: [ACTION:FOREACH]\n" +
                 "Opis: Wykonuje podaną akcję wielokrotnie, pobierając dane z list w pamięci (zmienne @). Idealne do seryjnego tworzenia opisów (CREATE_OBJECT).\n" +
                 "Argumenty: \"Iterable\" (wymień nazwy zmiennych oddzielone przecinkami, np. \"@Srodki, @Dlugosci\"), \"Action\" (nazwa tagu docelowego, np. \"CREATE_OBJECT\"), \"TemplateArgs\" (parametry akcji, używaj $ITEM1, $ITEM2, $INDEX).\n" +
-                "Przykład: [ACTION:FOREACH {\"Iterable\": \"@Srodki, @Pola\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: 'Pole: ' $ITEM2 2 ROUND CONCAT\", \"Height\": 25}}]\n\n" +
+                "Przykład: [ACTION:FOREACH {\"Iterable\": \"@Srodki, @Pola\", \"Action\": \"CREATE_OBJECT\", \"TemplateArgs\": {\"EntityType\": \"DBText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: 'Pole: ' $ITEM2 2 ROUND CONCAT\", \"Height\": 25}, \"Comment\": \"Seryjne generowanie tekstów z polami powierzchni w środkach obiektów\"}]\n\n" +
 
                 "Tag: [ACTION:USER_INPUT]\n" +
                 "Opis: Prosi użytkownika o wpisanie zwykłego tekstu lub wskazanie punktów na rysunku.\n" +
                 "Argumenty: \"Type\": \"String\" (tekst), \"Point\" (jeden punkt) lub \"Points\" (wiele punktów), \"Prompt\" (wiadomość dla użytkownika), \"SaveAs\" (opcjonalna nazwa zmiennej do zapisu w pamięci, bez @).\n" +
-                "Przykład: [ACTION:USER_INPUT {\"Type\": \"String\", \"Prompt\": \"Podaj wysokość:\", \"SaveAs\": \"Wys\"}]\n\n" +
+                "Przykład: [ACTION:USER_INPUT {\"Type\": \"String\", \"Prompt\": \"Podaj wysokość:\", \"SaveAs\": \"Wys\", \"Comment\": \"Pobranie od użytkownika wartości wysokości do zmiennej globalnej\"}]\n\n" +
 
                 "Tag: [ACTION:READ_PROPERTY]\n" +
                 "Opis: Odczytuje pojedynczą właściwość z zaznaczonych obiektów (przydatne do pętli FOREACH). Obsługuje unikalne wirtualne parametry geometryczne, bez względu na typ obiektu!\n" +
                 "Obsługiwane uniwersalne właściwości API: \"MidPoint\" (środek linii/polilinii/łuku), \"Length\" (długość krzywej), \"Area\" (powierzchnia zamkniętych figur), \"Volume\", \"Centroid\", \"StartPoint\", \"EndPoint\", \"Center\".\n" +
                 "Argumenty: \"Property\" (nazwa właściwości), \"SaveAs\" (nazwa zmiennej do zapisu na liście, bez @).\n" +
-                "Przykład: [ACTION:READ_PROPERTY {\"Property\": \"MidPoint\", \"SaveAs\": \"Srodki\"}]\n\n" +
+                "Przykład: [ACTION:READ_PROPERTY {\"Property\": \"MidPoint\", \"SaveAs\": \"Srodki\", \"Comment\": \"Pobieram punkty środkowe zaznaczonych obiektów do zmiennej zbiorczej\"}]\n\n" +
 
                 "Tag: [ACTION:CREATE_OBJECT]\n" +
                 "Opis: Rysuje obiekty w przestrzeni rysunku.\n" +
@@ -202,12 +202,12 @@ namespace BricsCAD_Agent
                 " - Dla Circle: \"Center\", \"Diameter\".\n" +
                 " - Dla DBText/MText: \"Position\", \"Text\", \"Height\".\n" +
                 " - Dla MLeader: \"ArrowPoint\", \"LandingPoint\", \"Text\", \"Height\".\n" +
-                "Przykład: [ACTION:CREATE_OBJECT {\"EntityType\": \"MLeader\", \"ArrowPoint\": \"AskUser\", \"LandingPoint\": \"AskUser\", \"Text\": \"AskUser\", \"Height\": 25}]\n\n" +
-
+                "Przykład: [ACTION:CREATE_OBJECT {\"EntityType\": \"MLeader\", \"ArrowPoint\": \"AskUser\", \"LandingPoint\": \"AskUser\", \"Text\": \"AskUser\", \"Height\": 25, \"Comment\": \"Tworzę linię odniesienia MLeader\"}]\\n\\n" +
+                
                 "Tag: [ACTION:SET_PROPERTIES]\n" +
                 "Opis: Uniwersalne narzędzie do zmiany właściwości (Koloru, Warstwy, itp.).\n" +
                 "Operator RPN: Zaawansowany kalkulator stosowy. Dostępne operatory: +, -, *, /, ^, SQRT, SIN, COS, ROUND, ABS (wartość bezwzględna), SWAP, DUP, DROP, CONCAT (łączy teksty), REPLACE, SUBSTR, UPPER, LOWER.\n" +
-                "Przykład RPN (Odległość od 0 i absolutna powierzchnia): \"RPN: $ITEM2 ABS 2 ROUND CONCAT ' m²' CONCAT\"\n\n" +
+                "Przykład RPN: [ACTION:CREATE_OBJECT {\"EntityType\": \"DBText\", \"Position\": \"$ITEM1\", \"Text\": \"RPN: $ITEM2 ABS 2 ROUND ' m²' CONCAT\", \"Height\": 20, \"Comment\": \"Wstawienie sformatowanej wartości powierzchni\"}]\\n\\n" +
 
                 "Tag: [ACTION:MTEXT_FORMAT]\n" +
                 "Opis: Zmienia formatowanie MText.\n" +
@@ -258,8 +258,8 @@ namespace BricsCAD_Agent
 
                 "Tag: [ACTION:USER_CHOICE]\n" +
                 "Opis: Wyświetla interaktywną listę jednokrotnego/wielokrotnego wyboru.\n" +
-                "Przykład z auto-pobieraniem z rysunku: [ACTION:USER_CHOICE {\"Question\": \"Wybierz warstwę:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Model\", \"FetchProperty\": \"Layer\", \"SaveAs\": \"WybranaWarstwa\"}]\n\n" +
-
+                "Przykład: [ACTION:USER_CHOICE {\"Question\": \"Wybierz warstwę:\", \"FetchTarget\": \"Property\", \"FetchScope\": \"Model\", \"FetchProperty\": \"Layer\", \"SaveAs\": \"WybranaWarstwa\", \"Comment\": \"Pobranie unikalnych warstw z rysunku do wyboru\"}]\\n\\n" +
+               
                 "Tag: [ACTION:SEARCH_LAYERS]\n" +
                 "Opis: Automatyczna wyszukiwarka warstw (Condition: Contains, StartsWith, EndsWith, Equals). Obsługuje \"SaveAs\" do zapisania w pamięci wyników.\n\n" +
 
@@ -268,7 +268,8 @@ namespace BricsCAD_Agent
                 " - Dla Modify/Create: Wymaga \"Layer\" (nazwa warstwy). Opcjonalne: \"NewName\" (wspiera RPN!), \"Color\", \"LineWeight\", \"Linetype\", \"IsOff\", \"IsFrozen\", \"IsLocked\", \"Transparency\".\n" +
                 " - Dla Delete: Wymaga podania listy \"SourceLayers\": [\"W1\", \"W2\"].\n" +
                 " - Dla Merge: Wymaga \"SourceLayers\" oraz docelowej warstwy \"TargetLayer\".\n" +
-                "Przykład modyfikacji: [ACTION:MANAGE_LAYERS {\"Mode\": \"Modify\", \"Layer\": \"_HCR\", \"NewName\": \"STARE__HCR\", \"Color\": 1}]\n\n" +
+                "Przykład: [ACTION:MANAGE_LAYERS {\"Mode\": \"Modify\", \"Layer\": \"_HCR\", \"NewName\": \"STARE__HCR\", \"Color\": 1, \"Comment\": \"Zmiana nazwy i koloru warstwy\"}]\\n\\n" +
+
                 "Tag: [ACTION:CREATE_BLOCK]\n" +
                 "Opis: Tworzy nowy blok z zaznaczonych obiektów.\n" +
                 "Argumenty: \"Name\" (nazwa), \"BasePoint\". Możesz użyć \"AskUser\".\n\n" +
@@ -279,18 +280,20 @@ namespace BricsCAD_Agent
 
                 "--- PRZYKŁADOWE ROZMOWY (ZASADA DZIAŁANIA): ---\n" +
                 "User: Wyrzuć z zaznaczenia teksty wyższe niż 10\n" +
-                "Bielik: [SELECT: {\"Mode\": \"Remove\", \"Scope\": \"Model\", \"EntityType\": \"DBText\", \"Conditions\": [{\"Property\": \"Height\", \"Operator\": \">\", \"Value\": 10}]}]\n\n" +
+                "Bielik: [SELECT: {\"Mode\": \"Remove\", \"Scope\": \"Model\", \"EntityType\": \"DBText\", \"Conditions\": [{\"Property\": \"Height\", \"Operator\": \">\", \"Value\": 10}], \"Comment\": \"Usuwam z zaznaczenia teksty, których wysokość przekracza 10 jednostek\"}]\n\n" +
 
                 "User: Zaznacz linie, które nie zaczynają się w (0,0,0)\n" +
-                "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"(0,0,0)\"}]}]\n\n" +
+                "Bielik: [SELECT: {\"Mode\": \"New\", \"Scope\": \"Model\", \"EntityType\": \"Line\", \"Conditions\": [{\"Property\": \"StartPoint\", \"Operator\": \"!=\", \"Value\": \"0,0,0\"}], \"Comment\": \"Szukam linii zaczynających się poza punktem bazowym 0,0,0\"}]\n\n" +
 
                 "User: Zmień słowo PVC na czerwone w zaznaczonych tekstach\n" +
-                "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false}]\n\n" +
+                "Bielik: [ACTION:MTEXT_FORMAT {\"Mode\": \"HighlightWord\", \"Word\": \"PVC\", \"Color\": 1, \"Bold\": false, \"Comment\": \"Formatowanie koloru słowa PVC na czerwony w wybranych obiektach MText\"}]\n\n" +
 
                 "--- KRYTYCZNE ZASADY BEZPIECZEŃSTWA: ---\n" +
+                "0. KAŻDY JSON MUSI ZAWIERAĆ POLE \"Comment\". JEŚLI GO BRAKNIE, SYSTEM NIE URUCHOMI KOMENDY. \n" +
+                "ZAKAZ ODPOWIADANIA W MSG, JEŚLI UŻYWASZ ACTION. WYBIERZ TYLKO JEDEN TAG." +
                 "1. ZAKAZ ZMYŚLANIA ZAZNACZEŃ! ZAWSZE użyj [SELECT: ...], zanim cokolwiek edytujesz lub odczytasz za pomocą ACTION.\n" +
                 "2. ZAKAZ RYSOWANIA, GDY UŻYTKOWNIK CHCE ZAZNACZYĆ! Słowa 'dodaj do zaznaczenia' (add to selection) to komenda [SELECT: ... {\"Mode\": \"Add\"}].\n" +
-                "3. Komentuj swoje intencje! Dodawaj opcjonalny parametr \"Comment\": \"Twój komentarz\" do każdego JSONa w tagach SELECT i ACTION, by wyjaśnić swój proces myślowy.\n" +
+                "3. Komentuj swoje intencje! Dodawaj obowiązkowy parametr \"Comment\": \"Twój komentarz\" do każdego JSONa w tagach SELECT i ACTION, by wyjaśnić swój proces myślowy.\n" +
                 "4. ZAKAZ ŁĄCZENIA TAGÓW! W jednej odpowiedzi możesz wygenerować TYLKO JEDEN tag [ACTION] lub [SELECT]. Zawsze czekaj na słowo 'WYNIK' z pierwszego narzędzia, zanim użyjesz kolejnego!\n" +
                 "5. SZYBKIE WYŚWIETLANIE (DIRECT PRINT): Jeśli użytkownik prosi o samo WYŚWIETLENIE lub WYPISANIE długiej listy/właściwości (np. GET_PROPERTIES, LIST_BLOCKS), dodaj do argumentów narzędzia parametr \"DirectPrint\": true (np. [ACTION:GET_PROPERTIES {\"DirectPrint\": true}]). System natychmiast zrzuci wynik bezpośrednio na ekran i zakończy zadanie, oszczędzając Twój czas i tokeny!\n" +
                 "6. WSTRZYKIWANIE W WARTOŚCI W TRAKCIE RYSOWANIA: Jeśli użytkownik ma AKTYWNE polecenie w CAD (np. rysuje okrąg i pyta o promień), ZAWSZE wstrzykuj wartość przez [ACTION:SEND_TO_CMD {\"Value\": \"RPN: wyrażenie\"}]. Używaj jednostek z podłogą, np. RPN: 10_m 2 /. System sam bezbłędnie obliczy wynik i wstrzyknie go bezpośrednio do paska poleceń CADa jako odpowiedź dla użytkownika!\n" +
@@ -313,7 +316,7 @@ namespace BricsCAD_Agent
         public void UruchomInterfejsAgenta()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-
+            //historiaRozmowy.Clear();
             // PODSŁUCH ZAZNACZENIA: Działa w tle i zapisuje wszystko co klikniesz!
             // PODSŁUCH ZAZNACZENIA (MULTI-DOCUMENT): Działa w tle na każdym rysunku!
             if (!isSelectionHooked)
@@ -376,9 +379,15 @@ namespace BricsCAD_Agent
         // =========================================================================================
         public static async Task<string> ZapytajAgentaAsync(string userMsg, Document doc, ObjectId[] przechwyconeZaznaczenie = null, int licznikNapraw = 0)
         {
-            if (historiaRozmowy.Count == 0 || !historiaRozmowy[0].Contains("system"))
+            // =========================================================================
+            // INICJALIZACJA KONTEKSTU (SYSTEM PROMPT + JEDNOSTKI + PRZYKŁADY)
+            // =========================================================================
+            if (historiaRozmowy.Count == 0 || !historiaRozmowy.Any(m => m.Contains("\"role\": \"system\"")))
             {
-                // --- POBIERANIE JEDNOSTEK RYSUNKU DLA AGENTA ---
+                // 1. Czyścimy listę, aby uniknąć dublowania (Śnieżna kula tokenów)
+                historiaRozmowy.Clear();
+
+                // 2. POBIERANIE JEDNOSTEK RYSUNKU (Twoja świetna logika)
                 short insunits = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
                 string jednostkiRysunku = "bezwymiarowe (jednostki rysunku)";
                 if (insunits == 4) jednostkiRysunku = "mm (milimetry)";
@@ -386,29 +395,39 @@ namespace BricsCAD_Agent
                 else if (insunits == 6) jednostkiRysunku = "m (metry)";
                 else if (insunits == 1) jednostkiRysunku = "in (cale)";
 
-                // --- DYNAMICZNE DOKLEJANIE ZASADY 8 DO PROMPTU ---
-                string zasada8 = "8. ŚWIADOMOŚĆ JEDNOSTEK FIZYCZNYCH:\n" +
-                $"- UWAGA: Aktualny plik CAD w którym pracuje użytkownik ma ustawione jednostki: {jednostkiRysunku}. Jeśli użytkownik podaje w pytaniu gołą liczbę oznaczającą dystans z rysunku (np. 'ramię ma długość 150'), ZAWSZE przypisz jej tę jednostkę bazową rysunku!\n" +
-                "- Jeśli użytkownik wprost używa jednostek w pytaniu (np. '15 kg', '20 Pa', '3 minuty'), ZAWSZE dołączaj je do liczb używając znaku podłogi, np.: 15_kg, 20_Pa, 3_min.\n" +
-                "- Silnik sam złoży wektory SI! (np. 50_kg 9.81_m/s2 * automatycznie da wynik w _N).\n" +
-                "- Jeśli użytkownik prosi o wynik w innej jednostce, użyj komendy CONVE. Przykład: 1_in 'mm' CONVE.\n\n";
+                // 3. DYNAMICZNA ZASADA 8 (Świadomość jednostek)
+                string zasada8 = "\n\n8. ŚWIADOMOŚĆ JEDNOSTEK FIZYCZNYCH:\n" +
+                $"- UWAGA: Aktualny plik CAD ma ustawione jednostki: {jednostkiRysunku}. Jeśli użytkownik podaje gołą liczbę (np. '150'), przypisz jej tę jednostkę bazową!\n" +
+                "- Jeśli użytkownik używa jednostek (np. '15 kg'), dołączaj je ze znakiem podłogi: 15_kg.\n" +
+                "- Silnik złoży wektory SI (np. 50_kg 9.81_m/s2 * = _N).\n" +
+                "- Do przeliczeń używaj CONVE. Przykład: 1_in 'mm' CONVE.\n";
 
-                // Łączymy "twardy" system prompt z dynamiczną zasadą 8
+                // 4. SKŁADANIE PEŁNEGO PROMPTU
                 string zaktualizowanyPrompt = systemPrompt + zasada8;
 
-                // 1. Dodajemy główne zasady gry (System Prompt)
+                // 5. WSTRZYKNIĘCIE DO HISTORII (Rola System)
                 historiaRozmowy.Insert(0, "{\"role\": \"system\", \"content\": \"" + Komendy.SafeJson(zaktualizowanyPrompt) + "\"}");
 
-                // 2. ŁADUJEMY PRZYKŁADY Z PLIKU DYSKOWEGO DO PAMIĘCI
+                // 6. ŁADUJEMY PRZYKŁADY (To one dają modelowi "doświadczenie")
+                // Skoro Twój model przy nich działa najlepiej - zostawiamy je!
                 WczytajPrzykladyTreningowe();
+
+                // Diagnostyka dla Ciebie w konsoli CAD
+                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n[System]: Załadowano pełny kontekst (Jednostki: {jednostkiRysunku}).");
             }
 
             // Zapobiega dodawaniu pustych wiadomości przy automatycznej rekurencji (chaining)
             if (!string.IsNullOrEmpty(userMsg))
             {
                 // --- POPRAWKA 1: CONTEXT INJECTION ---
-                // Doklejamy przypomnienie, by Agent trzymał się roli, niezależnie od tego o co pyta użytkownik.
-                string przypomnienie = "\\n\\n[SYSTEM]: Pamiętaj, jesteś Agentem BricsCAD. ZAWSZE odpowiadaj używając tagów (np. [MSG: ...], [SELECT: ...], [ACTION: ...]). NIGDY nie używaj czystego tekstu.";
+                string przypomnienie = "";
+
+                // Doklejamy przypomnienie TYLKO dla modeli, które nie były przez nas trenowane
+                string sprawdzanyModel = wybranyModel.ToLower();
+                if (!sprawdzanyModel.Contains("bricscad") && !sprawdzanyModel.Contains("bielik") && !sprawdzanyModel.Contains("agent"))
+                {
+                    przypomnienie = "\\n\\n[SYSTEM]: Pamiętaj, jesteś Agentem BricsCAD. ZAWSZE odpowiadaj używając tagów (np. [MSG: ...], [SELECT: ...], [ACTION: ...]). NIGDY nie używaj czystego tekstu.";
+                }
 
                 historiaRozmowy.Add("{\"role\": \"user\", \"content\": \"" + Komendy.SafeJson(userMsg + przypomnienie) + "\"}");
             }
@@ -798,13 +817,21 @@ namespace BricsCAD_Agent
             catch { }
         }
 
+        // W metodzie WczytajPamiec dodaj ogranicznik:
         private void WczytajPamiec(Document doc)
         {
             try
             {
-                string gp = GetGlobalPath(); string lp = GetLocalPath(doc);
+                string gp = GetGlobalPath();
+                string lp = GetLocalPath(doc);
                 string p = (lp != null && File.Exists(lp)) ? lp : gp;
-                if (File.Exists(p)) historiaRozmowy.AddRange(File.ReadAllLines(p));
+                if (File.Exists(p))
+                {
+                    var linie = File.ReadAllLines(p);
+                    // Bierzemy tylko ostatnie 10 linii rozmowy, żeby nie zapchać modelu
+                    var ostatnieLinie = linie.Skip(Math.Max(0, linie.Length - 10)).ToList();
+                    historiaRozmowy.AddRange(ostatnieLinie);
+                }
             }
             catch { }
         }
