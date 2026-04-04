@@ -66,6 +66,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
             int odrzucone = 0;
             int udane = 0;
+            var ostrzezenia = new HashSet<string>();
 
             try
             {
@@ -78,28 +79,40 @@ namespace Bricscad_AgentAI_V2.Tools
                         if (ent == null) continue;
 
                         bool czyObiektZmodyfikowany = false;
+                        string className = ent.GetType().Name;
 
                         foreach (var mod in modyfikacje)
                         {
                             object wartoscDoZapisania = null;
                             string rP = mod.Prop;
+
+                            // TARCZA ANTY-HALUCYNACYJNA V2
+                            if (!PropertyValidator.IsPropertyValid(className, rP))
+                            {
+                                ostrzezenia.Add($"[OSTRZEŻENIE]: Pominięto właściwość '{rP}', ponieważ obiekt klasy '{className}' jej nie posiada.");
+                                odrzucone++;
+                                continue;
+                            }
+
                             string newVal = AgentMemoryState.InjectVariables(mod.Val); // Wstrzykiwanie zmiennych
                             
-                            // Mapowanie wizualnych własności
-                            if (rP.Equals("Color", StringComparison.OrdinalIgnoreCase) || rP.Equals("ColorIndex", StringComparison.OrdinalIgnoreCase)) rP = "ColorIndex";
-                            if (ent is MText && rP.Equals("Height", StringComparison.OrdinalIgnoreCase)) rP = "TextHeight";
-                            if (ent is Dimension && (rP.Equals("Height", StringComparison.OrdinalIgnoreCase) || rP.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rP = "Dimtxt";
-                            if (rP.Equals("Value", StringComparison.OrdinalIgnoreCase))
+                            // Mapowanie wizualnych własności (Normalizacja nazw)
+                            string targetPropName = rP;
+                            if (targetPropName.Equals("Color", StringComparison.OrdinalIgnoreCase) || targetPropName.Equals("ColorIndex", StringComparison.OrdinalIgnoreCase)) targetPropName = "ColorIndex";
+                            if (ent is MText && targetPropName.Equals("Height", StringComparison.OrdinalIgnoreCase)) targetPropName = "TextHeight";
+                            if (ent is Dimension && (targetPropName.Equals("Height", StringComparison.OrdinalIgnoreCase) || targetPropName.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) targetPropName = "Dimtxt";
+                            if (targetPropName.Equals("Value", StringComparison.OrdinalIgnoreCase))
                             {
-                                if (ent is DBText) rP = "TextString";
-                                else if (ent is MText) rP = "Text";
+                                if (ent is DBText) targetPropName = "TextString";
+                                else if (ent is MText) targetPropName = "Text";
                             }
 
                             // Szukanie właściwości przez Reflection
-                            PropertyInfo propInfo = ent.GetType().GetProperty(rP, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                            PropertyInfo propInfo = ent.GetType().GetProperty(targetPropName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
                             
                             if (propInfo == null || !propInfo.CanWrite || !propInfo.CanRead)
                             {
+                                ostrzezenia.Add($"[OSTRZEŻENIE]: Nie można zapisać właściwości '{rP}' dla {className} (brak dostępu lub błąd refleksji).");
                                 odrzucone++;
                                 continue;
                             }
@@ -128,7 +141,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 else if (targetType == typeof(int)) wartoscDoZapisania = int.Parse(newVal, CultureInfo.InvariantCulture);
                                 else if (targetType == typeof(double)) wartoscDoZapisania = double.Parse(newVal.Replace(",", "."), CultureInfo.InvariantCulture);
                                 else if (targetType == typeof(bool)) wartoscDoZapisania = bool.Parse(newVal);
-                                else if (rP == "ColorIndex" && targetType == typeof(Teigha.Colors.Color))
+                                else if (targetPropName == "ColorIndex" && targetType == typeof(Teigha.Colors.Color))
                                 {
                                     if (int.TryParse(newVal, out int cIndex))
                                         wartoscDoZapisania = Teigha.Colors.Color.FromColorIndex(Teigha.Colors.ColorMethod.ByAci, (short)cIndex);
@@ -144,8 +157,9 @@ namespace Bricscad_AgentAI_V2.Tools
                                     odrzucone++;
                                 }
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                ostrzezenia.Add($"[BŁĄD]: Nie udało się przekonwertować wartości '{newVal}' na typ {targetType.Name} dla właściwości {rP}.");
                                 odrzucone++;
                             }
                         }
@@ -154,16 +168,22 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
 
                     tr.Commit();
-                    
-                    if (udane > 0)
-                        return $"SUKCES: Zmodyfikowano obiektów: {udane}. Odrzucono atrybutów niedopasowanych do encji: {odrzucone}.";
-                    else
-                        return $"BŁĄD: Żaden obiekt nie przyjął nowych właściwości (np. zła nazwa atrybutu).";
                 }
+
+                string raport = udane > 0 
+                    ? $"SUKCES: Zmodyfikowano obiektów: {udane}. Odrzucono atrybutów: {odrzucone}."
+                    : $"BŁĄD: Żaden obiekt nie został zmodyfikowany.";
+
+                if (ostrzezenia.Count > 0)
+                {
+                    raport += "\n\nLOGI WALIDATORA:\n" + string.Join("\n", ostrzezenia);
+                }
+
+                return raport;
             }
             catch (Exception ex)
             {
-                return $"BŁĄD WEWNĘTRZNY CAD: {ex.Message}";
+                return $"BŁĄD KRYTYCZNY CAD: {ex.Message}";
             }
         }
     }

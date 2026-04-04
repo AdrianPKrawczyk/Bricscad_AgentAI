@@ -25,6 +25,11 @@ Klasa statyczna przechowująca stan sesji Agenta. Izoluje kolekcję `ActiveSelec
 Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - **InjectVariables(input)**: Automatycznie zamienia wystąpienia `@nazwa` na wartości ze słownika przed przekazaniem do narzędzi lub silnika RPN.
 
+### Core Services
+- `AgentMemoryState.cs`: Przechowuje globalny stan zaznaczenia (`ActiveSelection`) oraz słownik zmiennych (`Variables`). Elementy te są wstrzykiwane do argumentów narzędzi przed ich wykonaniem.
+- `PropertyValidator.cs`: Tarcza anty-halucynacyjna. Skanuje pliki bazy wiedzy API BricsCAD i weryfikuje poprawność atrybutów dla danej klasy obiektu. Chroni przed błędami refleksji.
+- `RpnCalculator.cs`: Silnik matematyczny obsługujący wyrażenia odwrotnej notacji polskiej, pozwalający na dynamiczne przeliczanie wartości (np. `$OLD_RADIUS 10 +`).
+
 ## Rejestr Narzędzi (Registered Tools)
 
 ### SelectEntitiesTool

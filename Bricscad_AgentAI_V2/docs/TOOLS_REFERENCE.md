@@ -43,10 +43,13 @@ Komunikat o sukcesie z podaniem Handle nowego obiektu. Obiekt jest automatycznie
 ### Parametry Wejściowe
 | Parametr | Typ | Wymagany | Opis |
 |----------|-----|----------|------|
-| `Properties` | `object` | **Tak** | Słownik właściwości do zmiany (np. `Color`, `Layer`, `Radius`). Wspiera RPN oraz zmienne `@OLD_...`. |
+| `Modifications` | `array` | **Tak** | Lista obiektów zawierających klucze `Prop` (nazwa właściwości) oraz `Val` (nowa wartość lub wyrażenie RPN). |
+
+### Uwagi i Zabezpieczenia (API Shield)
+Narzędzie posiada wbudowaną **tarczę anty-halucynacyjną (PropertyValidator)**. Każda próba modyfikacji właściwości (np. `Radius`) jest weryfikowana pod kątem dopasowania do klasy obiektu (np. `Line` vs `Circle`). Jeśli właściwość nie istnieje w oficjalnym API BricsCAD, modyfikacja zostanie pominięta, a Agent otrzyma stosowne ostrzeżenie w logach.
 
 ### Zwracany wynik
-Zestawienie zmodyfikowanych obiektów lub lista błędów (np. brak właściwości w danym typie obiektu).
+Summary z liczbą zmodyfikowanych obiektów oraz listą ewentualnych ostrzeżeń z walidatora (jeśli model próbował użyć nieprawidłowych nazw właściwości).
 
 ---
 

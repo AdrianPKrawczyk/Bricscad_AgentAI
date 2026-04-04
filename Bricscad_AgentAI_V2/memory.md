@@ -17,9 +17,10 @@
 - [KROK-6.2] Finalizacja V2.1.0 GOLD: Wdrożono `ExecuteMacroTool.cs`, `InspectEntityTool.cs`, mechanizm `TrimHistory` oraz entry-pointy BricsCAD (`AGENT_V2`, `AI_V2`) in `AgentStartup.cs`. Wygenerowano techniczne katalogi referencyjne `COMMANDS_REFERENCE.md` oraz `TOOLS_REFERENCE.md`. Zaktualizowano `System_Blueprint.md` i `USER_GUIDE.md`. System w pełni udokumentowany i gotowy do wdrożenia.
 - [ETAP 1 - Oczy Agenta] Skonsolidowano i zmigrowano `AnalyzeSelectionTool.cs`, łącząc funkcjonalność zliczania typów oraz wyciągania unikalnych wartości właściwości. Narzędzie obsługuje inteligentny zapis do pamięci (separator ` | ` tylko dla wartości unikalnych). [KROK-1.3]
 - [ETAP 1 - Oczy Agenta] Zmigrowano `ReadTextSampleTool.cs`, wdrażając algorytm inteligentnego próbkowania tekstów (`sqrt(n)`, max 15) z oczyszczaniem treści MText z kodów RTF. Narzędzie sfinalizowało ETAP 1. [KROK-1.4]
+- [ETAP 2 - Fundamenty Ochronne] Wdrożono `PropertyValidator.cs` jako systemową tarczę API Shield. Zintegrowano walidację z `ModifyPropertiesTool.cs`, co zapobiega halucynacjom modelu LLM i zapewnia czytelne logi błędów bez przerywania transakcji. [KROK-2.1]
 ### [STAN_SYSTEMU]
-- **WERSJA GOLD (v2.1.3)**: Zakończono ETAP 1 (Oczy Agenta). System posiada pełny zestaw narzędzi do analizy, ekstrakcji i próbkowania danych z rysunku DWG.
+- **WERSJA GOLD (v2.2.0)**: System posiada aktywną tarczę ochronną API. Zakończono pierwszy krok ETAPU 2.
 ### [BLOKADY / PROBLEMY]
 - BRAK. Pomyślna kompilacja projektu.
 ### [KOLEJNY_KROK]
-- Przejście do ETAPU 2 zgodnie z harmonogramem migracji (np. narzędzia edycyjne lub analityka bloków).
+- ETAP 2 KROK 2: Implementacja walidacji typów danych (Type Checking) dla parametrów wejściowych narzędzi.
