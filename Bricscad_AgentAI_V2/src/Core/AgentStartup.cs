@@ -57,5 +57,15 @@ namespace Bricscad_AgentAI_V2.Core
                 ed.WriteMessage($"\nWysłano zapytanie do Bielik V2: {res.StringResult}");
             }
         }
+
+        [CommandMethod("AGENT_BENCHMARK_V2")]
+        public void ShowBenchmarkPanel()
+        {
+            ShowAgentPanel();
+            if (AgentControl.Instance != null)
+            {
+                AgentControl.Instance.SwitchToBenchmark();
+            }
+        }
     }
 }

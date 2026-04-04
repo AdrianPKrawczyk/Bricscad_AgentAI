@@ -92,6 +92,9 @@
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="src\UI\AutoBenchmarkControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="tests\Tools\SelectEntitiesToolTests.cs" />
     <Compile Include="tests\Tools\ModifyPropertiesToolTests.cs" />
     <Compile Include="tests\Tools\ManageLayersToolTests.cs" />

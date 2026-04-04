@@ -179,6 +179,17 @@ User Prompt → [PRAWDZIWY LLM] → tool_calls
 
 #### `LLMClient.SendMessageBenchmarkAsync`
 Nowa metoda (OCP — stara niezmieniona). Zastępuje realne wywołania CAD mockowanymi odpowiedziami ze słownika.
+
+### Warstwa UI (Interfejs Użytkownika)
+
+#### `AutoBenchmarkControl.cs`
+Nowoczesny panel WinForms (Dark Mode) zintegrowany z `AgentControl`.
+- **Zasoby**: `DataGridView` (lista testów), `ProgressBar` (postęp), `RichTextBox` (logi i szczegóły JSON).
+- **Thread Safety**: Wykorzystuje mechanizm `Invoke/BeginInvoke` do bezpiecznej aktualizacji kontrolek z wątków asynchronicznych silnika.
+- **Interakcja**: Pozwala na wczytywanie plików JSON, uruchamianie/zatrzymywanie testów oraz inspekcję szczegółowych wyników po kliknięciu w wiersz tabeli.
+
+#### `AgentStartup.cs`
+- Komenda `AGENT_BENCHMARK_V2`: Otwiera natywną paletę BricsCAD i automatycznie przełącza widok na trzecią zakładkę (Benchmark), inicjując środowisko testowe.
 **Parametry**:
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
 **Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.

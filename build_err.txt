@@ -1,0 +1,13 @@
+  Trwa okre??lanie projekt??w do przywr??cenia...
+  Brak czynno??ci do wykonania. ??aden z wybranych projekt??w nie zawiera pakiet??w do przywr??cenia.
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Tools\ModifyPropertiesTool.cs(90,34): error CS0103: Nazwa ???PropertyValidator??? nie istnieje w bie????cym kontek??cie [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Tools\ModifyPropertiesTool.cs(160,46): warning CS0168: Zmienna ???ex??? jest zadeklarowana, lecz nie jest nigdy u??ywana [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+
+Kompilacja NIE POWIOD??A SI??.
+
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Tools\ModifyPropertiesTool.cs(160,46): warning CS0168: Zmienna ???ex??? jest zadeklarowana, lecz nie jest nigdy u??ywana [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Tools\ModifyPropertiesTool.cs(90,34): error CS0103: Nazwa ???PropertyValidator??? nie istnieje w bie????cym kontek??cie [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+    Ostrze??enia: 1
+    Liczba b????d??w: 1
+
+Czas, kt??ry up??yn????: 00:00:00.24

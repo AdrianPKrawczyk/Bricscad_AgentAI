@@ -20,8 +20,8 @@ W V2 LLM musi wiedzieć, z czym pracuje, żeby wygenerować poprawne argumenty J
 
 #### ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu
 * [x] **Migracja `UserInputTool` & `UserChoiceTool`**: Generowanie promptów dla człowieka, pauzujących pętlę ReAct.
-* [ ] **Narzędzie Pętli (`ForeachTool`)**: Konwersja starego systemu iteracji po listach pamięci na mechanikę zrozumiałą dla modeli funkcyjnych.
+* [x] **Narzędzie Pętli (`ForeachTool`)**: Konwersja starego systemu iteracji po listach pamięci na mechanikę zrozumiałą dla modeli funkcyjnych.
 
 #### ETAP 6: Ekosystem Testowy
-* [ ] **Wdrożenie `AutoBenchmark.cs` do V2**: Przepisanie silnika weryfikacji na obiekty JObject (zamiast szukania stringów).
+* [] **Wdrożenie `AutoBenchmark.cs` do V2**: Przepisanie silnika weryfikacji na obiekty JObject (zamiast szukania stringów).
 * [ ] **Wdrożenie `AgentTesterControl.cs` & `DatasetManagerControl`**.

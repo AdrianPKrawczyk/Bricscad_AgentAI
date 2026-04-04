@@ -33,6 +33,8 @@ namespace Bricscad_AgentAI_V2.UI
         private List<ChatMessage> _conversationHistory;
         private bool isDarkMode = true;
         private string _activeModel = "LM Studio / local-model"; // Domyślny model
+        private AutoBenchmarkEngine _benchmarkEngine;
+        private TabPage tabBenchmark;
 
         public static AgentControl Instance { get; private set; }
 
@@ -57,6 +59,8 @@ namespace Bricscad_AgentAI_V2.UI
             
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
+
+            _benchmarkEngine = new AutoBenchmarkEngine(_llmClient);
 
             _conversationHistory = new List<ChatMessage>
             {
@@ -176,10 +180,25 @@ namespace Bricscad_AgentAI_V2.UI
             tabDev.Controls.Add(txtToolLogs);
             tabDev.Controls.Add(btnCopyLogs);
 
+            // ==========================================
+            // ZAKŁADKA 3: BENCHMARK (OCENA LLM)
+            // ==========================================
+            tabBenchmark = new TabPage("📊 Benchmark");
+            tabBenchmark.Controls.Add(new AutoBenchmarkControl(_benchmarkEngine));
+
             // Dodajemy widoki
             tabControl.TabPages.Add(tabChat);
             tabControl.TabPages.Add(tabDev);
+            tabControl.TabPages.Add(tabBenchmark);
             this.Controls.Add(tabControl);
+        }
+
+        public void SwitchToBenchmark()
+        {
+            if (tabControl != null && tabBenchmark != null)
+            {
+                tabControl.SelectedTab = tabBenchmark;
+            }
         }
 
         private void ApplyTheme()
