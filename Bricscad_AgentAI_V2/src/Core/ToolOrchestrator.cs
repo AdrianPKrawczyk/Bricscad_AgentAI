@@ -78,5 +78,16 @@ namespace Bricscad_AgentAI_V2.Core
                 return $"Błąd wykonania narzędzia '{toolName}': {ex.Message}";
             }
         }
+
+        public string GetRegisteredToolsInfo()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Dostępne Narzędzia V2:");
+            foreach (var kvp in _tools)
+            {
+                sb.AppendLine($"- {kvp.Key}: {kvp.Value.GetToolSchema()?.Function?.Description}");
+            }
+            return sb.ToString();
+        }
     }
 }

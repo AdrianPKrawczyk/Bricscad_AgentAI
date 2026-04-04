@@ -1,0 +1,7 @@
+﻿D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(45,124): error CS1061: Element ÔÇ×ToolOrchestratorÔÇŁ nie zawiera definicji ÔÇ×GetRegisteredToolsInfoÔÇŁ i nie odnaleziono dost─Öpnej metody rozszerzenia ÔÇ×GetRegisteredToolsInfoÔÇŁ, kt├│ra przyjmuje pierwszy argument typu ÔÇ×ToolOrchestratorÔÇŁ (czy nie brakuje dyrektywy using lub odwo┼éania do zestawu?). [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+
+Kompilacja NIE POWIOD┼üA SI─ś.
+    Ostrze┼╝enia: 0
+    Liczba b┼é─Öd├│w: 1
+
+Czas, kt├│ry up┼éyn─ů┼é: 00:00:00.27
