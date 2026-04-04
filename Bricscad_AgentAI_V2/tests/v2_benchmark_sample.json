@@ -1,0 +1,78 @@
+{
+  "RunMetadata": {
+    "ModelName": "Llama3-70b-instruct-V2-Benchmark",
+    "RunDate": "2026-04-04 23:15",
+    "Comment": "Wzorcowy zestaw testowy dla architektury Tool Calling V2.",
+    "GlobalScore": 0.0,
+    "CategoriesScores": {},
+    "AverageExecutionTimeMs": 0.0
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Exploration",
+      "Difficulty": 1,
+      "TestName": "ReadTextSample_Basic_Test",
+      "Description": "Sprawdzenie, czy model potrafi wywołać narzędzie ReadTextSampleTool do zbadania zawartości rysunku.",
+      "UserPrompt": "Pobierz próbkę tekstów z zaznaczonych obiektów, aby zrozumieć ich treść.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadTextSampleTool": "WYNIK: Próbka tekstów: POMIESZCZENIE 101 | POMIESZCZENIE 102 | WC. Zapisano jako @Probka."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ReadTextSampleTool",
+          "ErrorMessage": "BŁĄD: Model nie wywołał narzędzia ReadTextSampleTool."
+        }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "Memory",
+      "Difficulty": 2,
+      "TestName": "Foreach_Variable_Unpacking",
+      "Description": "Test izolacji pamięci. Model musi rozpakować zmienną @Liczniki wstrzykniętą przez Sandbox.",
+      "UserPrompt": "Wylistuj mi proszę wszystkie wartości zapisane w zmiennej @Liczniki.",
+      "MockMemoryVariables": {
+        "Liczniki": "L-01 | L-02 | L-03 | L-04"
+      },
+      "SimulatedCADResponses": {
+        "Foreach": "WYNIK: Rozpakowano 4 elementy ze zmiennej @Liczniki:\n1. L-01\n2. L-02\n3. L-03\n4. L-04"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "ErrorMessage": "BŁĄD: Model nie użył narzędzia Foreach do analizy listy."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "TargetVariable",
+          "TargetValue": "Liczniki",
+          "ErrorMessage": "BŁĄD: Model nie przekazał właściwej nazwy zmiennej (oczekiwano 'Liczniki')."
+        }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "Chain",
+      "Difficulty": 4,
+      "TestName": "Analyze_Then_Foreach_Chain",
+      "Description": "Test łańcuchowy (Multi-turn). Model musi najpierw przeanalizować warstwy, a następnie wylistować unikalne wyniki.",
+      "UserPrompt": "Sprawdź jakie unikalne warstwy występują w rysunku i pokaż mi ich listę.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "AnalyzeSelectionTool": "WYNIK: Znaleziono unikalne warstwy: Przegrody | Stolarka | Wyposażenie. Wynik zapisano w @Warstwy.",
+        "Foreach": "WYNIK: Elementy zmiennej @Warstwy:\n1. Przegrody\n2. Stolarka\n3. Wyposażenie"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "AnalyzeSelectionTool, Foreach",
+          "ErrorMessage": "BŁĄD: Model nie zachował poprawnej kolejności logicznej (AnalyzeSelectionTool -> Foreach)."
+        }
+      ]
+    }
+  ]
+}
