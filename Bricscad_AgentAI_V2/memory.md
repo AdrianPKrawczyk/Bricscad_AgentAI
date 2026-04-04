@@ -23,11 +23,11 @@
 - [ETAP 4 - Bloki i Atrybuty] Wdrożono `EditBlockTool.cs` z obsługą rekurencyjnej edycji definicji bloków oraz filtrów atrybutów. [KROK-4.1]
 
 ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-04: v2.6.0 - Implementacja AutoBenchmarkEngine V2 (Pre-flight, Sandbox, Walidator, LLM Mock), zamknięcie KROK-6.1.
 - 2026-04-04: v2.5.1 - Implementacja ForeachTool, zamknięcie ETAPU 5.
 - 2026-04-04: v2.5.0 - Implementacja narzędzi interakcji (UserInput, UserChoice).
-- 2026-04-04: v2.4.0 GOLD - Implementacja Block Triptych (List, Insert, Create), zamknięcie ETAPU 4.
-- 2026-04-04: v2.3.1 - Implementacja EditAttributesTool (KROK-4.2), atrybuty wielowierszowe.
-- 2026-04-04: v2.3.0 - Implementacja EditBlockTool (KROK-4.1).
+- 2026-04-04: v2.4.0 GOLD - Implementacja Block Triptych, zamknięcie ETAPU 4.
+- 2026-04-04: v2.3.1 - Implementacja EditAttributesTool.
 
 ## Status Etapów Migracji
 - [x] ETAP 1: Oczy Agenta (ReadProperty, GetProperties, AnalyzeSelection, ReadTextSample) - **ZAKOŃCZONE**
@@ -35,7 +35,7 @@
 - [x] ETAP 3: Zaawansowana Geometria i Tekst (TextEdit, ManageAnnoScales) - **ZAKOŃCZONE**
 - [x] ETAP 4: Bloki i Atrybuty (EditBlock, EditAttributes, InsertBlock, CreateBlock, ListBlocks) - **ZAKOŃCZONE**
 - [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach) - **ZAKOŃCZONE**
-- [ ] ETAP 6: Ekosystem Testowy i Optymalizacja - **PLANOWANE**
+- [/] ETAP 6: Ekosystem Testowy (AutoBenchmarkEngine) - **W TRAKCIE (50%)**
 
 ### [STAN_SYSTEMU]
 - **WERSJA GOLD (v2.3.0)**: System w pełni obsługuje edycję bloków i atrybutów. ETAP 4 w toku.

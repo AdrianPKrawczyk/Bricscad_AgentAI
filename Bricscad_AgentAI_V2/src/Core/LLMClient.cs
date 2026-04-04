@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Models;
@@ -155,9 +156,106 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 if (message.Role == "tool" && message.Content?.Length > maxLength)
                 {
-                    // Skracamy treść wyniku narzędzia
                     int originalLength = message.Content.Length;
                     message.Content = $"{message.Content.Substring(0, 100)}... [PRZYCIĘTO {originalLength - 100} znaków dla oszczędności tokenów]";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Benchmark Mode: Wysyła konwersację do prawdziwego LLM, ale zamiast wywoływać realne narzędzia CAD,
+        /// wstrzykuje z góry przygotowane odpowiedzi (SimulatedCADResponses) jako wiadomości roli "tool".
+        /// Rejestruje wszystkie wywołania w liście recordedCalls dla późniejszej walidacji.
+        /// </summary>
+        public async Task SendMessageBenchmarkAsync(
+            List<ChatMessage> history,
+            Dictionary<string, string> simulatedResponses,
+            List<RecordedToolCall> recordedCalls,
+            Document doc,
+            int maxIterations = 10,
+            CancellationToken ct = default)
+        {
+            simulatedResponses = simulatedResponses ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            int iterations = 0;
+
+            while (iterations < maxIterations)
+            {
+                if (ct.IsCancellationRequested) break;
+                iterations++;
+
+                // 1. Buduj i wyślij payload do prawdziwego LLM
+                var requestPayload = new
+                {
+                    model = "local-model",
+                    messages = history,
+                    tools = _orchestrator.GetToolsPayload(),
+                    tool_choice = "auto"
+                };
+
+                string jsonContent = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore
+                });
+
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, _endpointUrl);
+                request.Headers.Add("Authorization", $"Bearer {_apiKey}");
+                request.Content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                System.Net.Http.HttpResponseMessage response;
+                try
+                {
+                    response = await _httpClient.SendAsync(request, ct);
+                    response.EnsureSuccessStatusCode();
+                }
+                catch (Exception ex)
+                {
+                    OnStatusUpdate?.Invoke($"[Benchmark] Błąd połączenia z LLM: {ex.Message}");
+                    return;
+                }
+
+                string responseBody = await response.Content.ReadAsStringAsync();
+                var jsonResponse = JObject.Parse(responseBody);
+                var messageNode = jsonResponse["choices"]?[0]?["message"];
+                if (messageNode == null) return;
+
+                var assistantMessage = messageNode.ToObject<ChatMessage>();
+                history.Add(assistantMessage);
+
+                // 2. Sprawdź warunek zakończenia – LLM nie chce wywoływać narzędzi
+                if (assistantMessage.ToolCalls == null || !assistantMessage.ToolCalls.Any())
+                    return;
+
+                // 3. LLM chce wywołać narzędzia – przechwytujemy i mockujemy zamiast wykonywać
+                foreach (var toolCall in assistantMessage.ToolCalls)
+                {
+                    if (ct.IsCancellationRequested) break;
+
+                    string toolName = toolCall.Function.Name;
+                    JObject arguments = null;
+                    try
+                    {
+                        arguments = string.IsNullOrWhiteSpace(toolCall.Function.Arguments)
+                            ? new JObject()
+                            : JObject.Parse(toolCall.Function.Arguments);
+                    }
+                    catch { arguments = new JObject(); }
+
+                    // Rejestrujemy wywołanie (materiał dowodowy dla walidatora)
+                    recordedCalls.Add(new RecordedToolCall { ToolName = toolName, Arguments = arguments });
+                    OnStatusUpdate?.Invoke($"[Benchmark] Przechwycono wywołanie: {toolName}");
+
+                    // Szukamy mockowanej odpowiedzi – jeśli brak, zwracamy domyślny string
+                    string mockContent;
+                    if (!simulatedResponses.TryGetValue(toolName, out mockContent))
+                        mockContent = $"[MOCK] Narzędzie '{toolName}' zostało wywołane.";
+
+                    // 4. Wstrzykujemy odpowiedź jako wiadomość roli "tool" (standard OpenAI)
+                    history.Add(new ChatMessage
+                    {
+                        Role = "tool",
+                        ToolCallId = toolCall.Id,
+                        Content = mockContent
+                    });
                 }
             }
         }

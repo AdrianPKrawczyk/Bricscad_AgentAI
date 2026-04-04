@@ -68,6 +68,8 @@
     <Compile Include="src\Core\AgentMemoryState.cs" />
     <Compile Include="src\Core\PropertyValidator.cs" />
     <Compile Include="src\Core\RpnCalculator.cs" />
+    <Compile Include="src\Core\BenchmarkModels.cs" />
+    <Compile Include="src\Core\AutoBenchmarkEngine.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />

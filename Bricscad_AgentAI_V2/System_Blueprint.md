@@ -136,6 +136,49 @@ Narzędzie do wyświetlania listy opcji (słów kluczowych) do wyboru przez uży
 
 ### ForeachTool
 Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w zmiennych Agenta (@Variables). Pozwala modelowi LLM na przejrzysty wgląd w dane przed iteracją.
+
+---
+
+## Ekosystem Testowy (AutoBenchmark V2)
+
+### Architektura
+
+Izolowane laboratorium analityczne do walidacji modeli LLM. Celowo **nie zawiera** mechanizmu eksportu do JSONL — stanowi wyizolowany Test Set (zapobiega Data Leakage).
+
+### Przepływ
+
+```
+User Prompt → [PRAWDZIWY LLM] → tool_calls
+                                     ↓
+                    [Benchmark] przechwytuje wywołanie
+                                     ↓
+                 SimulatedCADResponses[ToolName] → wiadomość roli "tool"
+                                     ↓
+                    [PRAWDZIWY LLM] kontynuuje / kończy
+```
+
+### Komponenty
+
+#### `BenchmarkModels.cs` (POCO)
+- `BenchmarkConfig` — korzeń pliku testowego JSON.
+- `BenchmarkTest` — definicja testu z `MockMemoryVariables`, `SimulatedCADResponses`, `ValidationRules`.
+- `RecordedToolCall` — materiał dowodowy (zapisane wywołanie LLM).
+- `ValidationRule` — reguła walidacji (patrz typy poniżej).
+
+#### `AutoBenchmarkEngine.cs` (Silnik)
+- **Pre-flight Schema Check** — instancjonuje wszystkie `IToolV2`, weryfikuje `Name` i `Description`. Jeden błąd = halt całego benchmarku.
+- **Memory Sandbox** — czyści `AgentMemoryState.Variables` i `ActiveSelection` przed każdym testem; wstrzykuje `MockMemoryVariables`.
+- **Stopwatch** — mierzy `ExecutionTimeMs` per test (od pierwszego promptu do końca odpowiedzi LLM).
+- **Multi-Turn Loop** — przechwytuje `tool_calls` i wstrzykuje mocki jako wiadomości roli `"tool"` (standard OpenAI).
+- **Walidator (Auto-Sędzia)** — 4 typy reguł:
+  - `ToolCalled` — sprawdza, czy LLM wywołał oczekiwane narzędzie.
+  - `ArgumentMatch` — sprawdza wartość argumentu JSON przez prostą ścieżkę (np. `Properties[0].PropertyName`).
+  - `SequenceMatch` — weryfikuje kolejność wywołań narzędzi.
+  - `EvaluateRPN_Argument` — ewaluuje formułę RPN z argumentu przez `RpnCalculator`.
+- **Raportowanie** — zapisuje `*_FULL_*.json` i `*_ERRORS_*.json` w podfolderze modelu.
+
+#### `LLMClient.SendMessageBenchmarkAsync`
+Nowa metoda (OCP — stara niezmieniona). Zastępuje realne wywołania CAD mockowanymi odpowiedziami ze słownika.
 **Parametry**:
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
 **Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.
