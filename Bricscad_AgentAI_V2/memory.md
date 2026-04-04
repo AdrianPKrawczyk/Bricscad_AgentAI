@@ -15,11 +15,11 @@
 - [KROK-5.2] Portowanie `ManageLayersTool.cs`: Wdrożono narzędzie do bezpiecznego zarządzania warstwami z obsługą masek nazw (Wildcards), blokadą usuwania warstw chronionych ("0", "Defpoints") i aktualnych. Spełniono DoD (Build, Testy Schema, Blueprint, User Guide).
 - [KROK-6.1] Integracja UI (V2): Przeniesiono `AgentControl.cs` do wewnątrz V2. Wyczyszczono zastałą logikę `TagValidator` i Regex. Zastosowano asynchroniczną pętlę narzędziową z nowym wyświetlaczem HUD powiadomień.
 - [KROK-6.2] Finalizacja V2.1.0 GOLD: Wdrożono `ExecuteMacroTool.cs`, `InspectEntityTool.cs`, mechanizm `TrimHistory` oraz entry-pointy BricsCAD (`AGENT_V2`, `AI_V2`) in `AgentStartup.cs`. Wygenerowano techniczne katalogi referencyjne `COMMANDS_REFERENCE.md` oraz `TOOLS_REFERENCE.md`. Zaktualizowano `System_Blueprint.md` i `USER_GUIDE.md`. System w pełni udokumentowany i gotowy do wdrożenia.
-- [ETAP 1 - Oczy Agenta] Zmigrowano `GetPropertiesTool.cs` unifikując wersje "Lite" oraz "Full" i obsługując transakcje BricsCAD przez interfejs `IToolV2`. Narzędzie bezpiecznie raportuje błędy i działa na ActiveSelection (`AgentMemoryState`). Naprawiono również krytyczny błąd kompilacji w `AgentStartup.cs` z ambiguity `Exception`.
 - [ETAP 1 - Oczy Agenta] Zmigrowano `ReadPropertyTool.cs`, wprowadzając obsługę właściwości wirtualnych (`MidPoint`, `Area`, `Volume` etc.) oraz mechanizm zapisu wartości do pamięci Agenta (`SaveAs`). Zaimplementowano bezpieczną refleksję dla właściwości zagnieżdżonych. [KROK-1.2]
+- [ETAP 1 - Oczy Agenta] Skonsolidowano i zmigrowano `AnalyzeSelectionTool.cs`, łącząc funkcjonalność zliczania typów oraz wyciągania unikalnych wartości właściwości. Narzędzie obsługuje inteligentny zapis do pamięci (separator ` | ` tylko dla wartości unikalnych). [KROK-1.3]
 ### [STAN_SYSTEMU]
-- **WERSJA GOLD (v2.1.1)**: System wzbogacony o pełną analitykę właściwości i mechanizm pamięci krótkotrwałej elementów.
+- **WERSJA GOLD (v2.1.2)**: System posiada zaawansowane narzędzia do analizy statystycznej i agregacji danych z rysunku.
 ### [BLOKADY / PROBLEMY]
 - BRAK. Pomyślna kompilacja projektu.
 ### [KOLEJNY_KROK]
-- Rozpoczęcie migracji kolejnego narzędzia z ETAPU 1: `AnalyzeSelectionTool`.
+- Rozpoczęcie migracji kolejnego narzędzia z ETAPU 1: `ReadTextSampleTool` (lub `ListUniqueTool` jeśli uznano by to za osobny krok, ale został skonsolidowany). Kolejnym logicznym krokiem jest `ReadTextSampleTool`.

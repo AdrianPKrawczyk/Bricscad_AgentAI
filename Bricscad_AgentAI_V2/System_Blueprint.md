@@ -88,3 +88,12 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - `Property` (string, Required): Nazwa właściwości (np. `Length`, `Area`, `MidPoint`, `Angle`, `Position.X`).
 - `SaveAs` (string, Optional): Nazwa zmiennej (np. `MojaDlugosc`), pod którą wynik zostanie zapisany w `AgentMemoryState.Variables`.
 **Uwagi**: Wspiera wirtualne właściwości (`MidPoint`, `Centroid`, `Volume`, `Angle`, `Value`) oraz zagnieżdżoną refleksję. W przypadku zapisu wielu obiektów, wartości są łączone separatorem ` | `.
+
+### AnalyzeSelectionTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.AnalyzeSelectionTool`
+**Cel**: Agregacja i statystyka obiektów w pamięci `ActiveSelection`. Zastępuje V1 Analyze i ListUnique.
+**Parametry**:
+- `Mode` (enum, Required): `CountTypes` (zliczanie wystąpień klas) lub `ListUniqueValues` (wykaz unikalnych wartości właściwości).
+- `TargetProperty` (string): Wymagane dla trybu `ListUniqueValues` (np. `Layer`, `Color`).
+- `SaveAs` (string, Optional): Nazwa zmiennej do zapisu wyniku.
+**Uwagi**: W trybie `ListUniqueValues` wartości w pamięci są łączone operatorem ` | `. Tryb `CountTypes` zapisuje pełny string raportu. Braki parametrów są obsługiwane przez komunikaty błędów bez przerywania transakcji.

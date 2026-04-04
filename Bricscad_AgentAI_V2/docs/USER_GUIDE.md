@@ -59,6 +59,7 @@ Agent potrafi wywoływać gotowe procedury oraz interpretować skrypty LISP.
 Agent potrafi "czytać" i podsumowywać właściwości (takie jak kolor, warstwa, geometria) zaznaczonych obiektów z poziomu pamięci.
 - **Odczyt bazowy:** "Jakie parametry mają te zaznaczone linie?" (Agent zwróci podstawowe informacje o maksymalnie 15 obiektach używając `GetPropertiesTool`).
 - **Precyzyjny odczyt i Pamięć:** "Odczytaj długość tych linii i zapisz jako @Dlugosci" (Agent użyje `ReadPropertyTool`). Ta funkcja pozwala na wyciągnięcie konkretnej wartości (np. pola powierzchni, punktu środkowego) i zapamiętanie jej do późniejszego wykorzystania w obliczeniach RPN.
+- **Agregacja i Statystyka:** "Zlicz typy obiektów w zaznaczeniu" lub "Pokaż unikalne warstwy w tym rysunku" (Agent użyje `AnalyzeSelectionTool`). To potężny kombajn do szybkiego przeglądu dużych zbiorów danych bez konieczności czytania każdego obiektu z osobna.
 - **Właściwości wirtualne:** Możesz pytać o rzeczy, których nie ma wprost we właściwościach CAD, np. `MidPoint` (środek linii/łuku) czy `Centroid` (środek ciężkości bryły).
 
 ## Interfejs Agenta (V2 GOLD)

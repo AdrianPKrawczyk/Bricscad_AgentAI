@@ -121,3 +121,19 @@ Sformatowany łańcuch tekstowy zawierający listę właściwości dla każdego 
 
 ### Zwracany wynik
 Lista odczytanych wartości dla każdego obiektu. Jeśli użyto `SaveAs`, zwraca również potwierdzenie zapisu w formacie `ZAPISANO W PAMIĘCI JAKO: @Nazwa`. Wiele wartości jest łączonych separatorem ` | `.
+
+---
+
+## 9. AnalyzeSelection
+**Nazwa systemowa:** `AnalyzeSelectionTool`  
+**Opis:** Agreguje i statystycznie analizuje obiekty w `ActiveSelection`. Pozwala na zliczanie typów obiektów lub wyciąganie unikalnych wartości właściwości.
+
+### Parametry Wejściowe
+| Parametr | Typ | Wymagany | Opis |
+|----------|-----|----------|------|
+| `Mode` | `string` | **Tak** | Tryb pracy: `"CountTypes"` (zlicza ile jest linii, okręgów itp.) lub `"ListUniqueValues"` (wyciąga niepowtarzalne wartości danej właściwości). |
+| `TargetProperty` | `string` | Nie | Nazwa właściwości do analizy (wymagane tylko dla trybu `"ListUniqueValues"`, np. `"Layer"`, `"Color"`, `"Linetype"`). |
+| `SaveAs` | `string` | Nie | Nazwa zmiennej (bez @), pod którą wynik zostanie zapisany w pamięci Agenta. |
+
+### Zwracany wynik
+Raport tekstowy z wynikami analizy. W trybie `ListUniqueValues` unikalne elementy są sortowane alfabetycznie i łączone przecinkami (w pamięci Agenta separatorem `" | "`).
