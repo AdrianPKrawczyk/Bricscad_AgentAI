@@ -23,5 +23,5 @@ W V2 LLM musi wiedzieć, z czym pracuje, żeby wygenerować poprawne argumenty J
 * [x] **Narzędzie Pętli (`ForeachTool`)**: Konwersja starego systemu iteracji po listach pamięci na mechanikę zrozumiałą dla modeli funkcyjnych.
 
 #### ETAP 6: Ekosystem Testowy
-* [] **Wdrożenie `AutoBenchmark.cs` do V2**: Przepisanie silnika weryfikacji na obiekty JObject (zamiast szukania stringów).
+* [x] **Wdrożenie `AutoBenchmark.cs` do V2**: Przepisanie silnika weryfikacji na obiekty JObject (zamiast szukania stringów).
 * [ ] **Wdrożenie `AgentTesterControl.cs` & `DatasetManagerControl`**.

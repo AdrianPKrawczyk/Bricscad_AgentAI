@@ -21,7 +21,7 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 if (_paletteSet == null)
                 {
-                    _paletteSet = new PaletteSet("Bielik AI V2 GOLD", new Guid("A1B2C3D4-E5F6-4789-8A9B-0C1D2E3F4G5H"));
+                    _paletteSet = new PaletteSet("Bielik AI V2 GOLD", new Guid("B2A1C4D3-F5E6-4879-9A8B-1C2D3E4F5A6B"));
                     _paletteSet.Add("Asystent", new AgentControl());
                     _paletteSet.Dock = DockSides.Right;
                     _paletteSet.Size = new System.Drawing.Size(400, 600);
