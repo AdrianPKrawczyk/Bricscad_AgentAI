@@ -48,3 +48,17 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 **Cel**: Edycja cech obiektów w pamięci `ActiveSelection`. Zapewnia wsparcie dla iniekcji zmiennych `$OLD_...` i obliczeń matematycznych.
 **Parametry**:
 - `Modifications` (array, Required): Lista słowników z kluczami `Prop` (nazwa właściwości do edycji m.in. Layer, Color, Linetype, ConstantWidth, TextString, Height, Radius) i `Val` (nowa wartość. Może zawierać wyrażenia matematyczne przez prefiks `RPN:` tj. `RPN: $OLD_RADIUS 10 +`).
+
+### ManageLayersTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.ManageLayersTool`
+**Cel**: Zarządzanie warstwami (Create, Modify, Delete) z obsługą masek i blokadami bezpieczeństwa.
+**Parametry**:
+- `Action` (string, Required): "Create", "Modify", "Delete".
+- `LayerName` (string, Required): Nazwa lub maska (np. "INST_*").
+- `ColorIndex` (int): Kolor ACI.
+- `IsOff`, `IsFrozen`, `IsLocked` (boolean): Stany warstwy.
+- `Linetype` (string): Rodzaj linii.
+**Zasady Bezpieczeństwa**:
+- Blokada usuwania warstw "0" oraz "Defpoints".
+- Blokada usuwania warstwy aktualnej (Clayer).
+- Automatyczne zgłaszanie błędów przy próbie usunięcia warstwy zawierającej obiekty.

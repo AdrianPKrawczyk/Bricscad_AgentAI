@@ -12,9 +12,10 @@
 - [KROK-3.1] Zaimplementowano `AgentMemoryState` do zarządzania stanem, przeniesiono logikę zaznaczania BricsCAD do pliku `SelectEntitiesTool.cs` wraz z silnie typowanym ToolSchema. Stworzono test walidujący logikę "Conditions".
 - [KROK-4.1] Portowano "Ręce Agenta": Utworzono `CreateObjectTool.cs` oraz silnik `RpnCalculator.cs`. Wdrożono mechanizm Auto-Selection oraz obsługę zmiennych `@` w `AgentMemoryState`. Zaktualizowano dokumentację System_Blueprint oraz USER_GUIDE.
 - [KROK-5.1] Portowanie ModifyPropertiesTool: Zaimplementowano narzędzie `ModifyPropertiesTool.cs` z pełnym wykorzystaniem RPN i obsługą transakcji. Spełniono rygorystyczny check-flow DoD (Definition of Done) uwzględniający pomyślny `dotnet build`, wygenerowanie statycznych testów ToolSchema, aktualizację Blueprintu i USER_GUIDE.md.
+- [KROK-5.2] Portowanie `ManageLayersTool.cs`: Wdrożono narzędzie do bezpiecznego zarządzania warstwami z obsługą masek nazw (Wildcards), blokadą usuwania warstw chronionych ("0", "Defpoints") i aktualnych. Spełniono DoD (Build, Testy Schema, Blueprint, User Guide).
 ### [STAN_SYSTEMU]
-- System potrafi wyszukiwać, rysować oraz dynamicznie modyfikować obiekty (Select, Create, Modify Properties). Posiada ustabilizowany schemat pracy deweloperskiej w oparciu o DoD. Testy jednostkowe chronią integralność ToolSchem.
+- Agent posiada kompletny zestaw narzędzi do manipulacji strukturą rysunku (Select, Create, Modify Properties, Manage Layers). System jest stabilny, przetestowany i udokumentowany zgodnie z nowymi standardami jakości.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- [KROK-5.2] Portowanie `ManageLayersTool.cs` – Wdrożenie zarządzania strukturą dokumentu (Tworzenie, Usuwanie, Łączenie warstw) zgodnego ze standardem V2.
+- [KROK-6.1] Integracja UI (Etap 5 Planu Migracji): Podpięcie nowego orkiestratora V2 pod interfejs użytkownika `AgentControl.cs` i usunięcie starej logiki `TagValidator`.

@@ -24,18 +24,25 @@ Możesz zmieniać właściwości ujętych w pamięci/wyselekcjonowanych element�
 - **Jak o to zapytać:** "Zmień kolor na niebieski a warstwę na Instalacje". "Obróć tekst o 15 stopni".
 - **Wykorzystanie matematyki na starych wartościach (RPN):** Kiedy chcesz zmienić obecną liczbę np. o 10. Powiedz "Zwiększ promień zaznaczonych okręgów o 10" lub opisz mu z użyciem frazy "Użyj RPN dla starego promienia $OLD_RADIUS dodając 10" by go poinstruować. Np. "Zmień grubość wszystkich linii by była o 2.5 mniejsza od obecnej". Przykładowo Agent stworzy wyrażenie `RPN: $OLD_LINEWEIGHT 2.5 -`.
 
-### 4. Silnik Obliczeniowy RPN
+### 4. Zarządzanie Strukturą (Warstwy)
+Narzędzie `ManageLayers` pozwala na pełną kontrolę nad warstwami projektu, w tym operacje masowe dzięki użyciu gwiazdki (*).
+- **Tworzenie:** "Stwórz nową warstwę KONSTRUKCJA o kolorze czerwonym".
+- **Modyfikacja masowa:** "Zmień kolor wszystkich warstw zaczynających się od INST_ na niebieski" (Agent użyje maski `INST_*`).
+- **Usuwanie:** "Usuń warstwę POMOCNICZA". Jeśli warstwa zawiera obiekty, Agent poinformuje Cię o tym, zamiast usuwać je na siłę.
+- **Zasady:** Warstwy "0" oraz "Defpoints" są chronione i nie mogą zostać usunięte.
+
+### 5. Silnik Obliczeniowy RPN
 Możesz wykonywać obliczenia bezpośrednio w poleceniach używając prefiksu `RPN:`. Format ten używa Odwrotnej Notacji Polskiej (liczby idą przed operatorem).
 
 **Przykłady:**
 - "Narysuj okrąg o promieniu RPN: 5 5 +" (stworzy okrąg o promieniu 10)
 - "Dodaj tekst 'Wynik: RPN: 100 2 /'" (wstawi tekst 'Wynik: 50.0')
 
-### 5. Interakcja AskUser
+### 6. Interakcja AskUser
 Jeśli nie znasz współrzędnych lub wymiarów, możesz kazać Agentowi zapytać Ciebie o nie na rysunku.
 - **Przykład:** "Narysuj okrąg w centrum AskUser" -> Agent zatrzyma się i poprosi Cię o kliknięcie punktu w BricsCAD.
 
-### 6. Pamięć Agenta i Automatyczne Zaznaczanie
+### 7. Pamięć Agenta i Automatyczne Zaznaczanie
 Każdy nowy obiekt, który stworzysz, zostaje automatycznie dodany do "pamięci podręcznej" Agenta.
 - **Flow pracy:** 
   1. Ty: "Narysuj kwadrat z linii"
