@@ -80,3 +80,11 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 **Parametry**:
 - `Mode` (string, Required): "Lite" lub "Full". Ogranicza limit obiektów i ilość zwracanych właściwości (np. Lite do 15 obiektów, Full do 5 obiektów ze szczegółową geometrią).
 **Uwagi**: Narzędzie działa wyłącznie na pamięci bieżących obiektów ustawionych w `AgentMemoryState.ActiveSelection`. LLM nie przekazuje list ID, bazuje na automatycznym dostępie do wyselekcjonowanej bazy.
+
+### ReadPropertyTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.ReadPropertyTool`
+**Cel**: Odczyt konkretnej właściwości (natywnej lub wirtualnej) z obiektów w zaznaczeniu z opcją zapisu do pamięci Agenta.
+**Parametry**:
+- `Property` (string, Required): Nazwa właściwości (np. `Length`, `Area`, `MidPoint`, `Angle`, `Position.X`).
+- `SaveAs` (string, Optional): Nazwa zmiennej (np. `MojaDlugosc`), pod którą wynik zostanie zapisany w `AgentMemoryState.Variables`.
+**Uwagi**: Wspiera wirtualne właściwości (`MidPoint`, `Centroid`, `Volume`, `Angle`, `Value`) oraz zagnieżdżoną refleksję. W przypadku zapisu wielu obiektów, wartości są łączone separatorem ` | `.

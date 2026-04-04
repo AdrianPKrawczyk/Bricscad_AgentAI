@@ -106,3 +106,18 @@ Struktura JSON zawierająca typ obiektu, warstwę, geometrię (punkty, promienie
 
 ### Zwracany wynik
 Sformatowany łańcuch tekstowy zawierający listę właściwości dla każdego z obiektów z `ActiveSelection`. Zwraca błąd, jeśli brak jest zaznaczonych elementów, lub powiadomienie o osiągnięciu limitu liczby analizowanych obiektów w danym trybie. LLM powinien używać tego narzędzia bez przekazywania długich zestawów ID, delegując zarządzanie zaznaczeniem do odpowiednich narzędzi Select.
+
+---
+
+## 8. ReadProperty
+**Nazwa systemowa:** `ReadPropertyTool`  
+**Opis:** Odczytuje jedną wybraną właściwość (np. `Length`, `MidPoint`, `Color`) ze wszystkich obiektów w `ActiveSelection`. Pozwala zapisać wynik do nazwanej zmiennej w pamięci Agenta (np. `@MojaWartosc`).
+
+### Parametry Wejściowe
+| Parametr | Typ | Wymagany | Opis |
+|----------|-----|----------|------|
+| `Property` | `string` | **Tak** | Nazwa właściwości. Wspiera właściwości natywne (np. `Layer`), zagnieżdżone (np. `Position.X`) oraz wirtualne (`MidPoint`, `Length`, `Area`, `Volume`, `Centroid`, `Angle`, `Value`). |
+| `SaveAs` | `string` | Nie | Nazwa zmiennej (bez @), pod którą wynik zostanie zapisany w pamięci Agenta. |
+
+### Zwracany wynik
+Lista odczytanych wartości dla każdego obiektu. Jeśli użyto `SaveAs`, zwraca również potwierdzenie zapisu w formacie `ZAPISANO W PAMIĘCI JAKO: @Nazwa`. Wiele wartości jest łączonych separatorem ` | `.
