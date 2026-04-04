@@ -1,0 +1,36 @@
+### 1. Inicjalizacja i Interfejs Wiersza Poleceń (`AgentStartupAndCLI.cs`)
+Ten plik to punkt wejścia wtyczki (implementuje interfejs `IExtensionApplication` z API BricsCAD). Odpowiada za zagnieżdżenie Agenta w środowisku CAD.
+* **Ciche "Rozgrzewanie" (VRAM Pre-loading):** Natychmiast po załadowaniu wtyczki, w tle uruchamiana jest metoda `RozgrzejModelAsync`. Wysyła ona niewidoczne dla użytkownika zapytanie ("Rozgrzewka") do lokalnego serwera LM Studio (port 1234). **Cel:** Wymuszenie na serwerze załadowania gigabajtowego modelu (np. Qwen 14B) z dysku do pamięci VRAM karty graficznej, zanim użytkownik w ogóle wpisze pierwszą komendę. Dzięki temu pierwsza właściwa odpowiedź będzie błyskawiczna.
+* **Przezroczyste Komendy (Transparent):** Polecenie wywołujące Agenta z konsoli (`[CommandMethod("AI", CommandFlags.Transparent)]`) ma flagę `Transparent`. To potężny trik w CAD – oznacza, że użytkownik może wpisać `'AI` (z apostrofem) w trakcie wykonywania innej komendy (np. w trakcie rysowania polilinii), zapytać LLM o np. współrzędne, wstrzyknąć je na ekran i płynnie dokończyć rysowanie polilinii.
+* **Bypass Narzędzi:** Plik zawiera też "surowe" komendy deweloperskie (np. `GETPROPS`, `RUNTAG`), które pozwalają człowiekowi wywołać parsery JSON z pominięciem modelu językowego w celach testowych.
+
+### 2. Zaawansowany Kalkulator Inżynieryjny (`RpnCalculator.cs` i `CalculateRpnTool.cs`)
+Plik `CalculateRpnTool.cs` to tylko prosty mostek (narzędzie dla LLM), by przekazać wzór w formacie JSON. Prawdziwa magia dzieje się w `RpnCalculator.cs`. Jest to zintegrowany silnik Odwrotnej Notacji Polskiej (RPN) wzorowany na legendarnych kalkulatorach HP-50g.
+* **Silnik Analizy Wymiarowej (UnitEngine):** Kalkulator nie liczy na zwykłych liczbach (typu `double`), ale na strukturach `PhysicalValue`. Struktura ta przechowuje wartość oraz wektor `UnitDim` z 7 wymiarami układu SI (Długość, Masa, Czas, Prąd, Temperatura, Mol, Światłość). 
+* **Algebraiczny Parser Jednostek:** Posiada własny parser, który potrafi "zrozumieć" tekst `kJ/kgK` wpisany przez LLM. Dzieli go na tokeny i wykonuje matematykę na samych jednostkach (np. potęguje sekundy), a w przypadku np. dodawania metrów do milimetrów (`1_m 500_mm +`), najpierw sprowadza wszystko do wektora bazowego, dodaje, i zwraca wynik w poprawnej formie. Obsługuje nawet offsety (skalowanie temperatury Kelwin / Celsjusz).
+* **Integracja z "Oczami" CAD:** Komendy na stosie takie jak `DL`, `DX` czy `DY` "zamrażają" obliczenia w pamięci i wymuszają na użytkowniku kliknięcie dwóch punktów na ekranie BricsCADa, po czym dystans jest liczony, mapowany na jednostki rysunku (`INSUNITS`) i wrzucany z powrotem na stos RPN.
+* **Trwała Pamięć w pliku DWG:** Dzięki modyfikacji słowników w bazie bazy danych rysunku (obiekt `DBDictionary` i `Xrecord` w kluczu `BIELIK_RPN_MEMORY`), stos kalkulatora jest fizycznie wklejany do pliku zapisu `.dwg` (`SaveToDWG`). Jeśli zamkniesz projekt w piątek i otworzysz w poniedziałek, Twoje obliczenia wciąż będą na stosie.
+
+### 3. Moduł Skryptów i Makr (`MacroManager.cs` i `UserMacroControl.cs`)
+To środowisko pozwalające automatyzować sekwencje tagów bez używania tokenów AI.
+* **Architektura podziału (`MacroManager.cs`):** Program dzieli makra (pliki `.jsonl`) na "Globalne" (zapisane w `AppData` systemu Windows, dostępne w każdym rysunku) oraz "Lokalne" (zapisywane z tym samym tytułem, ale z rozszerzeniem `.jsonl` dokładnie w tym samym folderze, co aktywny plik `.dwg`).
+* **Interfejs i Edytor (`UserMacroControl.cs`):** Jest to zaawansowana kontrolka WinForms. Posiada wbudowany własny, miniaturowy edytor kodu w obiekcie `RichTextBox`. Funkcja `ApplySyntaxHighlighting()` korzysta z Wyrażeń Regularnych (Regex), by na żywo (podczas pisania przez użytkownika) kolorować składnię – na czerwono ciągi znaków, na niebiesko klucze JSON, a na fioletowo tagi poleceń (np. `[ACTION:]`).
+* **Uruchamianie:** Kliknięcie makra wywołuje "ruter" poleceń, który w pętli parsuje tag po tagu i natychmiast je wykonuje, omijając połączenie sieciowe z LLM.
+
+### 4. Studio Treningowe i "Złoty Standard" (`TrainingStudio.cs`)
+Ten potężny plik to w rzeczywistości interaktywny "kreator datasetów" uruchamiany w konsoli komendą `AGENT_BUILD_TAG`.
+* **Jak to działa:** Zamiast kazać deweloperowi ręcznie pisać setki linijek bezbłędnego JSON-a do nauki modelu (Fine-tuningu), program prowadzi go za rękę poprzez tzw. "PromptKeywordOptions" BricsCADa. Pyta np.: "Co chcesz zrobić? -> ModifyGeom", "Jaki tryb? -> Rotate", "Jaki punkt bazowy? -> [Wskaż myszką]".
+* **Rekurencja i Zapis (`historiaSekwencji`):** Po przejściu ścieżki, kod generuje idealnie sformatowany tag (np. `[ACTION:MODIFY_GEOMETRY {"Mode": "Rotate", ...}]`) i pyta programistę, czy wykonać go na żywo (aby sprawdzić, czy nie ma błędu). Następnie dodaje to do zmiennej listy dialogowej (odgrywając rolę system-user-assistant) i zapisuje do formatu JSONL wprost do paczki danych uczących (`AktywnyPlikTreningowy`).
+
+### 5. Moduł Testowania Ręcznego i Ewaluacji (`AgentTesterControl.cs`)
+Zewnętrzny panel (GUI w WinForms) pozwalający ocenić, jak dobrze sprawuje się wytypowany do testów LLM.
+* Wczytuje bazę pytań i spodziewanych wyników (tzw. Wzorzec).
+* Wysyła pytanie do Agenta na żywo. Odpowiedź tekstowa modelu wpada do metody `ZaktualizujWidokPoOdpowiedzi`. Metoda ta za pomocą Regex wyciąga z tzw. łańcucha myślowego ("Chain of Thought") samego modelu tylko "czyste akcje" (tagi JSON), odrzucając jego ludzką gadatliwość ("Oto co znalazłem...").
+* Podaje czas odpowiedzi (w sekundach), wynik predykcji, oblicza punkty na podstawie Wagi pytania (`numWeight.Value`) i pozwala użytkownikowi zapisać raport ze statystykami.
+
+### 6. Auto-Sędzia / Benchmark (`AutoBenchmark.cs`)
+Prawdopodobnie najciekawszy, najbardziej rygorystyczny element wtyczki. Służy do automatycznego "torturowania" modeli LLM tysiącami pytań w nocy i oceniania ich inteligencji całkowicie bez udziału człowieka.
+* **Symulator Wielu Tur:** Posiada opcję `SimulatedCADResponses`. Jeśli test wymaga, by LLM coś przeczytał (np. wywołał narzędzie odczytu długości), skrypt przerywa rozmowę, sztucznie wciela się w rolę programu CAD i wstrzykuje spreparowaną informację zwrotną, żeby zobaczyć, czy LLM w drugiej turze poprawnie te dane zinterpretuje i wywoła kolejne narzędzie.
+* **System Reguł (Validation Rules):** Odpowiedź modelu nie jest oceniana "na oko". Używany jest blok reguł twardej weryfikacji w C#. Są to m.in.: `RegexMatch`, walidacja prawidłowej składni zagnieżdżonego w tagu JSONa (`ValidJsonInsideTag`) oraz absolutny hit: `EvaluateRPN`.
+* **Jak oceniana jest matematyka (EvaluateRPN)?** Modele językowe słabo radzą sobie z arytmetyką. Ten test nie sprawdza, czy model poprawnie wypluł wynik `2+2=4`. Zamiast tego test wyłuskuje samo polecenie matematyczne wygenerowane w notacji RPN przez AI, podkłada pod niego spreparowane dane testowe z MockData, wrzuca do C#-owego kalkulatora z pliku `RpnCalculator.cs` i jeśli natywny, ludzki kompilator wygeneruje pożądany wynik logiczny, test jest zaliczony!
+* Po setkach testów tworzy kompleksowy plik z dokładnością procentową na poszczególne kategorie (`CategoriesScores`) i zrzuca pełny raport błędów do analizy na rano (`ERRORS_[timestamp].json`).

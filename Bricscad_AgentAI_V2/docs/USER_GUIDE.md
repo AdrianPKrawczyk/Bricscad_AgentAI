@@ -55,6 +55,11 @@ Agent potrafi wywoływać gotowe procedury oraz interpretować skrypty LISP.
 - **Skrypty LISP:** "Napisz i uruchom lisp, który zamieni wszystkie okręgi na kwadraty".
 - **Błędy:** Jeśli skrypt ma błąd składni, Agent otrzyma raport z BricsCAD i poinformuje Cię o tym, co poszło nie tak.
 
+### 9. Odczyt i Analiza Właściwości
+Agent potrafi "czytać" i podsumowywać właściwości (takie jak kolor, warstwa, geometria) zaznaczonych obiektów z poziomu pamięci.
+- **Odczyt bazowy:** "Jakie parametry mają te zaznaczone linie?" (Agent zwróci podstawowe informacje o maksymalnie 15 obiektach).
+- **Szczegółowa inżynieria:** "Podaj mi pełne szczegóły fizyczne i geometryczne tych obiektów" (Agent wejdzie w tryb dogłębnego odczytu do 5 zaznaczonych elementów). Daje Ci to pewność, że Agent jest w pełni świadomy na czym obecnie pracuje, a Ty możesz zweryfikować jego rozumienie przestrzeni.
+
 ## Interfejs Agenta (V2 GOLD)
 Interfejs został zoptymalizowany pod kątem szybkości i diagnostyki:
 - **Pasek HUD:** Na dole okienka czatu znajdziesz informację o aktualnie używanym modelu AI (np. Gemini 3 Flash lub local-model).

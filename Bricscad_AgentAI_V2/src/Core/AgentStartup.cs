@@ -28,7 +28,7 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 _paletteSet.Visible = true;
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\nBłąd uruchamiania panelu V2: {ex.Message}");
             }

@@ -92,3 +92,17 @@ Status wykonania skryptu lub raport o błędzie składniowym z interpretera.
 
 ### Zwracany wynik
 Struktura JSON zawierająca typ obiektu, warstwę, geometrię (punkty, promienie) oraz podstawowe atrybuty wizualne.
+
+---
+
+## 7. GetProperties
+**Nazwa systemowa:** `GetPropertiesTool`  
+**Opis:** Czyta i podsumowuje parametry oraz właściwości obiektów bezpośrednio z `ActiveSelection`. Zwraca skrócone dane lub szczegółowe zestawienie geometryczne i fizyczne.
+
+### Parametry Wejściowe
+| Parametr | Typ | Wymagany | Opis |
+|----------|-----|----------|------|
+| `Mode` | `string` | **Tak** | Konfiguruje tryb ekstrakcji. `"Lite"` - lekki tryb o mniejszym zużyciu kontekstu (do 15 obiektów, tylko podstawowe dane); `"Full"` - pełny tryb z geometrią i detalami fizycznymi obiektu (ograniczony zazwyczaj do 5 obiektów dla oszczędności tokenów LLM). |
+
+### Zwracany wynik
+Sformatowany łańcuch tekstowy zawierający listę właściwości dla każdego z obiektów z `ActiveSelection`. Zwraca błąd, jeśli brak jest zaznaczonych elementów, lub powiadomienie o osiągnięciu limitu liczby analizowanych obiektów w danym trybie. LLM powinien używać tego narzędzia bez przekazywania długich zestawów ID, delegując zarządzanie zaznaczeniem do odpowiednich narzędzi Select.

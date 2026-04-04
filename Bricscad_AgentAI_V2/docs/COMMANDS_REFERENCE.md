@@ -22,3 +22,4 @@ Aby uruchomić system w BricsCAD:
 ### Uwagi Techniczne
 - Komendy V2 są oddzielone od starszych wersji (V1) przyrostkiem `_V2`, co zapobiega konfliktom przy ładowaniu obu wersji jednocześnie.
 - Komenda **AI_V2** została oznaczona jako `CommandFlags.Transparent`, co oznacza, że możesz jej użyć nawet w trakcie trwania innego polecenia (np. podczas rysowania polilinii), aby zapytać asystenta o współrzędne lub parametry.
+- Silnik AgentAI obsługuje teraz bezpośredni odczyt parametrów (`GetPropertiesTool`). Możesz więc wywołać `AI_V2` od razu po fizycznym zaznaczeniu obiektów myszką w BricsCADzie, prosząc o ich analizę (np. "Zanalizuj mi te obiekty").

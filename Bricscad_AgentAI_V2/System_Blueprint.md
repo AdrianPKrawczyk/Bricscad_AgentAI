@@ -73,3 +73,10 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - `MacroName` (string): Nazwa zdefiniowanego makra (np. "CleanDrawings", "ResetLayers", "ZoomExtents").
 - `CustomCommand` (string): Własny kod LISP lub ciąg poleceń do wykonania bezpośrednio w BricsCAD.
 **Uwagi**: Narzędzie raportuje sukces wystawienia komendy lub błąd składni, pozwalając na inteligentną reakcję Agenta w pętli ReAct.
+
+### GetPropertiesTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.GetPropertiesTool`
+**Cel**: Odczyt i ekstrakcja fizycznych/graficznych właściwości (kolor, warstwa, geometria) obiektów z bazy DWG.
+**Parametry**:
+- `Mode` (string, Required): "Lite" lub "Full". Ogranicza limit obiektów i ilość zwracanych właściwości (np. Lite do 15 obiektów, Full do 5 obiektów ze szczegółową geometrią).
+**Uwagi**: Narzędzie działa wyłącznie na pamięci bieżących obiektów ustawionych w `AgentMemoryState.ActiveSelection`. LLM nie przekazuje list ID, bazuje na automatycznym dostępie do wyselekcjonowanej bazy.
