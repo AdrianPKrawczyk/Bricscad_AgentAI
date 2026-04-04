@@ -137,3 +137,17 @@ Lista odczytanych wartości dla każdego obiektu. Jeśli użyto `SaveAs`, zwraca
 
 ### Zwracany wynik
 Raport tekstowy z wynikami analizy. W trybie `ListUniqueValues` unikalne elementy są sortowane alfabetycznie i łączone przecinkami (w pamięci Agenta separatorem `" | "`).
+
+---
+
+## 10. ReadTextSample
+**Nazwa systemowa:** `ReadTextSampleTool`  
+**Opis:** Pobiera reprezentatywną próbkę treści tekstowych z obiektów `DBText`, `MText` oraz `MLeader` w zaznaczeniu. Idealne do szybkiego zapoznania się z zawartością opisową bez ryzyka przepełnienia kontekstu LLM.
+
+### Parametry Wejściowe
+| Parametr | Typ | Wymagany | Opis |
+|----------|-----|----------|------|
+| `SaveAs` | `string` | Nie | Nazwa zmiennej (bez @), pod którą próbki zostaną zapisane w pamięci Agenta (połączone separatorem `" | "`). |
+
+### Zwracany wynik
+Lista wybranych próbek tekstowych (maksymalnie 15). Algorytm dobiera teksty równomiernie z całego zbioru (początek, środek, koniec), co daje statystycznie poprawny wgląd w dane. Treści są oczyszczone z kodów formatowania RTF.

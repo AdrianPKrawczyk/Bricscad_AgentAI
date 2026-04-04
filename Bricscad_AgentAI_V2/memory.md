@@ -15,11 +15,11 @@
 - [KROK-5.2] Portowanie `ManageLayersTool.cs`: Wdrożono narzędzie do bezpiecznego zarządzania warstwami z obsługą masek nazw (Wildcards), blokadą usuwania warstw chronionych ("0", "Defpoints") i aktualnych. Spełniono DoD (Build, Testy Schema, Blueprint, User Guide).
 - [KROK-6.1] Integracja UI (V2): Przeniesiono `AgentControl.cs` do wewnątrz V2. Wyczyszczono zastałą logikę `TagValidator` i Regex. Zastosowano asynchroniczną pętlę narzędziową z nowym wyświetlaczem HUD powiadomień.
 - [KROK-6.2] Finalizacja V2.1.0 GOLD: Wdrożono `ExecuteMacroTool.cs`, `InspectEntityTool.cs`, mechanizm `TrimHistory` oraz entry-pointy BricsCAD (`AGENT_V2`, `AI_V2`) in `AgentStartup.cs`. Wygenerowano techniczne katalogi referencyjne `COMMANDS_REFERENCE.md` oraz `TOOLS_REFERENCE.md`. Zaktualizowano `System_Blueprint.md` i `USER_GUIDE.md`. System w pełni udokumentowany i gotowy do wdrożenia.
-- [ETAP 1 - Oczy Agenta] Zmigrowano `ReadPropertyTool.cs`, wprowadzając obsługę właściwości wirtualnych (`MidPoint`, `Area`, `Volume` etc.) oraz mechanizm zapisu wartości do pamięci Agenta (`SaveAs`). Zaimplementowano bezpieczną refleksję dla właściwości zagnieżdżonych. [KROK-1.2]
 - [ETAP 1 - Oczy Agenta] Skonsolidowano i zmigrowano `AnalyzeSelectionTool.cs`, łącząc funkcjonalność zliczania typów oraz wyciągania unikalnych wartości właściwości. Narzędzie obsługuje inteligentny zapis do pamięci (separator ` | ` tylko dla wartości unikalnych). [KROK-1.3]
+- [ETAP 1 - Oczy Agenta] Zmigrowano `ReadTextSampleTool.cs`, wdrażając algorytm inteligentnego próbkowania tekstów (`sqrt(n)`, max 15) z oczyszczaniem treści MText z kodów RTF. Narzędzie sfinalizowało ETAP 1. [KROK-1.4]
 ### [STAN_SYSTEMU]
-- **WERSJA GOLD (v2.1.2)**: System posiada zaawansowane narzędzia do analizy statystycznej i agregacji danych z rysunku.
+- **WERSJA GOLD (v2.1.3)**: Zakończono ETAP 1 (Oczy Agenta). System posiada pełny zestaw narzędzi do analizy, ekstrakcji i próbkowania danych z rysunku DWG.
 ### [BLOKADY / PROBLEMY]
 - BRAK. Pomyślna kompilacja projektu.
 ### [KOLEJNY_KROK]
-- Rozpoczęcie migracji kolejnego narzędzia z ETAPU 1: `ReadTextSampleTool` (lub `ListUniqueTool` jeśli uznano by to za osobny krok, ale został skonsolidowany). Kolejnym logicznym krokiem jest `ReadTextSampleTool`.
+- Przejście do ETAPU 2 zgodnie z harmonogramem migracji (np. narzędzia edycyjne lub analityka bloków).

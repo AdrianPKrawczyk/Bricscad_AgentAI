@@ -97,3 +97,10 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - `TargetProperty` (string): Wymagane dla trybu `ListUniqueValues` (np. `Layer`, `Color`).
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu wyniku.
 **Uwagi**: W trybie `ListUniqueValues` wartości w pamięci są łączone operatorem ` | `. Tryb `CountTypes` zapisuje pełny string raportu. Braki parametrów są obsługiwane przez komunikaty błędów bez przerywania transakcji.
+
+### ReadTextSampleTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.ReadTextSampleTool`
+**Cel**: Pobieranie reprezentatywnej próbki tekstów z zaznaczenia (DBText, MText, MLeader). Chroni kontekst przed przepełnieniem.
+**Parametry**:
+- `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
+**Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.
