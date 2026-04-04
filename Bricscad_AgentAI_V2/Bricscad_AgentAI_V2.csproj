@@ -64,6 +64,7 @@
     <Compile Include="src\Core\IToolV2.cs" />
     <Compile Include="src\Core\ToolOrchestrator.cs" />
     <Compile Include="src\Core\LLMClient.cs" />
+    <Compile Include="src\Core\AgentStartup.cs" />
     <Compile Include="src\Core\AgentMemoryState.cs" />
     <Compile Include="src\Core\RpnCalculator.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />

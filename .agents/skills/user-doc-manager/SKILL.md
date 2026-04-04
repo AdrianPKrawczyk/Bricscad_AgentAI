@@ -20,3 +20,4 @@ Twoim zadaniem jest dbanie o to, aby użytkownik wiedział, jak rozmawiać z now
 
 ## 3. Synchronizacja z Tool Schema
 - Upewnij się, że opisy w USER_GUIDE.md są zgodne z tym, co zdefiniowałeś w `GetToolSchema()` danego narzędzia.
+

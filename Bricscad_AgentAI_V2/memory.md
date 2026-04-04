@@ -14,11 +14,11 @@
 - [KROK-5.1] Portowanie ModifyPropertiesTool: Zaimplementowano narzędzie `ModifyPropertiesTool.cs` z pełnym wykorzystaniem RPN i obsługą transakcji. Spełniono rygorystyczny check-flow DoD (Definition of Done).
 - [KROK-5.2] Portowanie `ManageLayersTool.cs`: Wdrożono narzędzie do bezpiecznego zarządzania warstwami z obsługą masek nazw (Wildcards), blokadą usuwania warstw chronionych ("0", "Defpoints") i aktualnych. Spełniono DoD (Build, Testy Schema, Blueprint, User Guide).
 - [KROK-6.1] Integracja UI (V2): Przeniesiono `AgentControl.cs` do wewnątrz V2. Wyczyszczono zastałą logikę `TagValidator` i Regex. Zastosowano asynchroniczną pętlę narzędziową z nowym wyświetlaczem HUD powiadomień.
-- [KROK-6.2] Finalizacja V2.1.0 GOLD: Wdrożono `ExecuteMacroTool.cs` (LISP/RPN), mechanizm oszczędzania tokenów `TrimHistory`, oraz usprawnienia UI (Copy to Clipboard, Model HUD indicator). System przeszedł "Scenariusz Architekta" (End-to-End).
+- [KROK-6.2] Finalizacja V2.1.0 GOLD: Wdrożono `ExecuteMacroTool.cs`, mechanizm `TrimHistory` oraz entry-pointy BricsCAD (`AGENT_V2`, `AI_V2`) w `AgentStartup.cs`. Zaktualizowano `System_Blueprint.md` i `USER_GUIDE.md`. System gotowy do NETLOAD.
 ### [STAN_SYSTEMU]
-- **WERSJA GOLD (v2.1.0)**: System całkowicie zmigrowany do standardu Function Calling. Posiada pełną integrację UI, autorskie narzędzia CAD (Select, Create, Modify, Layer, Macro), asynchroniczną pętlę decyzyjną ReAct oraz system optymalizacji kontekstu.
+- **WERSJA GOLD (v2.1.0)**: System całkowicie zmigrowany. Posiada dedykowany panel PaletteSet (`AGENT_V2`) oraz komendę transparentną (`AI_V2`). Obsługuje pełen cykl ReAct z czystym kontekstem.
 ### [BLOKADY / PROBLEMY]
-- BRAK. Migracja Architektoniczna zakończona sukcesem.
+- BRAK.
 ### [KOLEJNY_KROK]
-- [KROK-7.1] Optymalizacja promptów (System Prompts) pod kątem specyficznych modeli (np. DeepSeek/OpenCoder) oraz przygotowanie paczki instalacyjnej .msi / .grx.
+- [KROK-7.1] Dystrybucja i optymalizacja promptów.
 

@@ -241,26 +241,14 @@ namespace Bricscad_AgentAI_V2.UI
             txtToolLogs.ScrollToCaret();
         }
 
-        private async void btnSend_Click(object sender, EventArgs e)
+        public async Task ProcessInputAsync(string userMsg)
         {
-            string userMsg = txtInput.Text.Trim();
             if (string.IsNullOrEmpty(userMsg)) return;
 
             AppendToHistory("TY", userMsg, isDarkMode ? Color.LightSkyBlue : Color.Blue);
-            txtInput.Clear();
             btnSend.Enabled = false;
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
-
-            try
-            {
-                PromptSelectionResult selRes = doc.Editor.SelectImplied();
-                if (selRes.Status == PromptStatus.OK)
-                {
-                    AgentMemoryState.Update(selRes.Value.GetObjectIds());
-                }
-            }
-            catch { }
 
             _conversationHistory.Add(new ChatMessage { Role = "user", Content = userMsg });
             UpdateStatusHUD("Oczekiwanie na analizę...");
@@ -285,6 +273,13 @@ namespace Bricscad_AgentAI_V2.UI
                 btnSend.Enabled = true;
                 txtInput.Focus();
             }
+        }
+
+        private async void btnSend_Click(object sender, EventArgs e)
+        {
+            string userMsg = txtInput.Text.Trim();
+            txtInput.Clear();
+            await ProcessInputAsync(userMsg);
         }
 
         public void AppendToHistory(string sender, string message, Color color)

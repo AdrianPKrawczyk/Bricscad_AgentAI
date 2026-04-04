@@ -65,3 +65,4 @@ Interfejs został zoptymalizowany pod kątem szybkości i diagnostyki:
 - Używaj przecinków do oddzielania współrzędnych (np. `10,20,0`).
 - Możesz odwoływać się do zmiennych używając `@` (jeśli zostały wcześniej zdefiniowane).
 - System automatycznie pilnuje długości rozmowy, przycinając długie dane w tle (**TrimHistory**), co zapewnia stabilność przy bardzo długiej pracy.
+
