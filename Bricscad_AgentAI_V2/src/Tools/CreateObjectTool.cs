@@ -21,25 +21,25 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "CreateObject",
-                    Description = "Tworzy nowe obiekty geometryczne i tekstowe (Line, Circle, DBText, MText, MLeader). Obsługuje parametry dynamiczne i RPN.",
+                    Description = "Tworzy obiekty CAD (Line, Circle, Text, MLeader).",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "EntityType", new ToolParameter { Type = "string", Description = "Typ obiektu: 'Line', 'Circle', 'DBText', 'MText', 'MLeader'." } },
-                            { "Layer", new ToolParameter { Type = "string", Description = "Nazwa warstwy docelowej." } },
-                            { "SelectObject", new ToolParameter { Type = "boolean", Description = "Czy ustawić nowy obiekt jako aktywne zaznaczenie (default: true)." } },
-                            { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt początkowy (x,y,z) lub 'AskUser'." } },
+                            { "EntityType", new ToolParameter { Type = "string", Description = "Typ: Line, Circle, DBText, MText, MLeader." } },
+                            { "Layer", new ToolParameter { Type = "string", Description = "Warstwa docelowa." } },
+                            { "SelectObject", new ToolParameter { Type = "boolean", Description = "Ustaw jako zaznaczenie (default: true)." } },
+                            { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt startowy (x,y,z) lub 'AskUser'." } },
                             { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z) lub 'AskUser'." } },
-                            { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (x,y,z) lub 'AskUser'." } },
-                            { "Radius", new ToolParameter { Type = "string", Description = "Promień (liczba lub 'RPN:...') lub 'AskUser'." } },
-                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja tekstu (x,y,z) lub 'AskUser'." } },
-                            { "Text", new ToolParameter { Type = "string", Description = "Treść tekstu. Może zawierać 'RPN:' dla obliczeń." } },
-                            { "Height", new ToolParameter { Type = "string", Description = "Wysokość tekstu (liczba lub 'RPN:...') lub 'AskUser'." } },
-                            { "Rotation", new ToolParameter { Type = "string", Description = "Obrót w stopniach (liczba lub 'RPN:...')." } },
-                            { "ArrowPoint", new ToolParameter { Type = "string", Description = "Punkt strzałki MLeader lub 'AskUser'." } },
-                            { "LandingPoint", new ToolParameter { Type = "string", Description = "Punkt tekstu MLeader lub 'AskUser'." } }
+                            { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (x,y,z) - WYMAGANY dla Circle." } },
+                            { "Radius", new ToolParameter { Type = "string", Description = "Promień okręgu." } },
+                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja tekstu (x,y,z)." } },
+                            { "Text", new ToolParameter { Type = "string", Description = "Treść tekstu." } },
+                            { "Height", new ToolParameter { Type = "string", Description = "Wysokość elementu." } },
+                            { "Rotation", new ToolParameter { Type = "string", Description = "Obrót (stopnie)." } },
+                            { "ArrowPoint", new ToolParameter { Type = "string", Description = "Punkt strzałki MLeader." } },
+                            { "LandingPoint", new ToolParameter { Type = "string", Description = "Punkt tekstu MLeader." } }
                         },
                         Required = new List<string> { "EntityType" }
                     }
@@ -57,18 +57,26 @@ namespace Bricscad_AgentAI_V2.Tools
             try
             {
                 Entity newEnt = null;
+                string spatialInfo = "";
 
                 if (entityType.Equals("Line", StringComparison.OrdinalIgnoreCase))
                 {
                     Point3d sp = GetPoint(ed, args["StartPoint"]?.ToString(), "Start: ");
                     Point3d ep = GetPoint(ed, args["EndPoint"]?.ToString(), "Koniec: ");
                     newEnt = new Line(sp, ep);
+                    Point3d mp = new Point3d((sp.X + ep.X) / 2.0, (sp.Y + ep.Y) / 2.0, (sp.Z + ep.Z) / 2.0);
+                    spatialInfo = $"Punkty: Start={FormatPt(sp)}, Koniec={FormatPt(ep)}, Środek={FormatPt(mp)}";
                 }
                 else if (entityType.Equals("Circle", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (args["EndPoint"] != null)
+                        return "[BŁĄD] Okrąg nie posiada parametru EndPoint. Użyj 'Center' i 'Radius'.";
+
                     Point3d cen = GetPoint(ed, args["Center"]?.ToString(), "Środek: ");
                     double rad = GetDouble(ed, args["Radius"]?.ToString(), "Promień: ", 1.0);
                     newEnt = new Circle(cen, Vector3d.ZAxis, rad);
+                    double area = Math.PI * rad * rad;
+                    spatialInfo = $"Środek={FormatPt(cen)}, Promień={Math.Round(rad, 4)}, Pole={Math.Round(area, 4)}";
                 }
                 else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) || entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
                 {
@@ -81,6 +89,8 @@ namespace Bricscad_AgentAI_V2.Tools
                         newEnt = new DBText { Position = pos, TextString = txt, Height = h, Rotation = rot };
                     else
                         newEnt = new MText { Location = pos, Contents = txt, TextHeight = h, Rotation = rot };
+                    
+                    spatialInfo = $"Pozycja={FormatPt(pos)}, Wysokość={h}";
                 }
                 else if (entityType.Equals("MLeader", StringComparison.OrdinalIgnoreCase))
                 {
@@ -98,6 +108,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     ml.AddFirstVertex(liIdx, arrow);
                     ml.AddLastVertex(liIdx, landing);
                     newEnt = ml;
+                    spatialInfo = $"Strzałka={FormatPt(arrow)}, Tekst={FormatPt(landing)}";
                 }
 
                 if (newEnt != null)
@@ -112,6 +123,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         btr.AppendEntity(newEnt);
                         tr.AddNewlyCreatedDBObject(newEnt, true);
                         ObjectId id = newEnt.Id;
+                        string handle = newEnt.Handle.ToString();
                         tr.Commit();
 
                         if (selectObject)
@@ -119,13 +131,18 @@ namespace Bricscad_AgentAI_V2.Tools
                             AgentMemoryState.Update(new ObjectId[] { id });
                             ed.SetImpliedSelection(AgentMemoryState.ActiveSelection);
                         }
-                        return $"SUKCES: Utworzono {entityType}. ObjectId: {id}";
+                        return $"SUKCES: Utworzono {entityType} (Handle: {handle}). {spatialInfo}";
                     }
                 }
                 return "BŁĄD: Nieobsługiwany typ obiektu.";
             }
             catch (Exception ex) { return $"BŁĄD: {ex.Message}"; }
         }
+        private string FormatPt(Point3d pt)
+        {
+            return $"[{Math.Round(pt.X, 3)}, {Math.Round(pt.Y, 3)}, {Math.Round(pt.Z, 3)}]";
+        }
+
 
         private Point3d GetPoint(Editor ed, string input, string prompt)
         {
