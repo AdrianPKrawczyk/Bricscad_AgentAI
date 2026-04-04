@@ -18,9 +18,10 @@
 - [ETAP 1 - Oczy Agenta] Skonsolidowano i zmigrowano `AnalyzeSelectionTool.cs`, łącząc funkcjonalność zliczania typów oraz wyciągania unikalnych wartości właściwości. Narzędzie obsługuje inteligentny zapis do pamięci (separator ` | ` tylko dla wartości unikalnych). [KROK-1.3]
 - [ETAP 1 - Oczy Agenta] Zmigrowano `ReadTextSampleTool.cs`, wdrażając algorytm inteligentnego próbkowania tekstów (`sqrt(n)`, max 15) z oczyszczaniem treści MText z kodów RTF. Narzędzie sfinalizowało ETAP 1. [KROK-1.4]
 - [ETAP 2 - Fundamenty Ochronne] Wdrożono `PropertyValidator.cs` jako systemową tarczę API Shield. Zintegrowano walidację z `ModifyPropertiesTool.cs`, co zapobiega halucynacjom modelu LLM i zapewnia czytelne logi błędów bez przerywania transakcji. [KROK-2.1]
+- [ETAP 3 - Zaawansowana Geometria i Tekst] Wdrożono `TextEditTool.cs` (Kombajn Tekstowy). Skonsolidowano funkcje edycji treści i formatowania RTF dla `MText` oraz `DBText`. Wprowadzono inteligentne czyszczenie formatu i system ostrzeżeń dla niekompatybilnych typów obiektów. [KROK-3.1]
 ### [STAN_SYSTEMU]
-- **WERSJA GOLD (v2.2.0)**: System posiada aktywną tarczę ochronną API. Zakończono pierwszy krok ETAPU 2.
+- **WERSJA GOLD (v2.2.1)**: System umożliwia zaawansowaną edycję i wizualne raportowanie błędów w tekstach CAD. Rozpoczęto ETAP 3.
 ### [BLOKADY / PROBLEMY]
 - BRAK. Pomyślna kompilacja projektu.
 ### [KOLEJNY_KROK]
-- ETAP 2 KROK 2: Implementacja walidacji typów danych (Type Checking) dla parametrów wejściowych narzędzi.
+- ETAP 3 KROK 2: Migracja narzędzi do obsługi bloków i atrybutów (`BlockEditTool` / `AttributeTool`).

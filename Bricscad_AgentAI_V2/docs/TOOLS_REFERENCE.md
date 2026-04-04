@@ -152,5 +152,25 @@ Raport tekstowy z wynikami analizy. W trybie `ListUniqueValues` unikalne element
 |----------|-----|----------|------|
 | `SaveAs` | `string` | Nie | Nazwa zmiennej (bez @), pod którą próbki zostaną zapisane w pamięci Agenta (połączone separatorem `" | "`). |
 
+---
+
+## 11. TextEditTool
+**Nazwa systemowa:** `TextEditTool`  
+**Opis:** Uniwersalne narzędzie do edycji treści oraz formatowania wizualnego (RTF) obiektów `DBText` i `MText`. Pozwala na masową podmianę tekstów, dopełnianie treści oraz wizualne podświetlanie fraz.
+
+### Parametry Wejściowe
+| Parametr | Typ | Wymagany | Opis |
+|----------|-----|----------|------|
+| `Mode` | `string` | **Tak** | Tryb: `Append`, `Prepend`, `Replace`, `FormatHighlight`, `ClearFormatting`. |
+| `FindText` | `string` | Nie | Tekst do znalezienia (wymagany dla `Replace` i `FormatHighlight`). |
+| `ReplaceWith` | `string` | Nie | Nowa treść (dla `Append`, `Prepend`, `Replace`). |
+| `ColorIndex` | `int` | Nie | Indeks koloru ACI dla `FormatHighlight` (domyślnie 1 - czerwony). |
+| `IsBold` | `bool` | Nie | Czy pogrubić tekst w trybie `FormatHighlight`. |
+
+### Zabezpieczenia i Obsługa Typów
+- **MText**: Pełne wsparcie dla wszystkich trybów, w tym formatowania RTF.
+- **DBText**: Wspiera tylko edycję treści (`Append`, `Prepend`, `Replace`). Próba użycia trybów RTF (`FormatHighlight`, `ClearFormatting`) zakończy się ostrzeżeniem w logach.
+- **Newline Preservation**: W trybie `ClearFormatting` narzędzie inteligentnie zachowuje znaki nowej linii (`\P`), usuwając jedynie kolory, czcionki i style.
+
 ### Zwracany wynik
-Lista wybranych próbek tekstowych (maksymalnie 15). Algorytm dobiera teksty równomiernie z całego zbioru (początek, środek, koniec), co daje statystycznie poprawny wgląd w dane. Treści są oczyszczone z kodów formatowania RTF.
+Raport o liczbie zmodyfikowanych obiektów oraz spis ostrzeżeń (np. o obiektach `DBText` pominiętych w operacjach RTF).

@@ -105,7 +105,10 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 
 ### ReadTextSampleTool
 **Klasa**: `Bricscad_AgentAI_V2.Tools.ReadTextSampleTool`
-**Cel**: Pobieranie reprezentatywnej próbki tekstów z zaznaczenia (DBText, MText, MLeader). Chroni kontekst przed przepełnieniem.
+Służy do inteligentnego próbkowania treści tekstowych z dużych zbiorów obiektów, chroniąc kontekst LLM przed przepełnieniem.
+
+### TextEditTool
+Kombajn do edycji i formatowania tekstów. Obsługuje `DBText` i `MText`. Pozwala na edycję treści (`Append`, `Prepend`, `Replace`) oraz zaawansowane formatowanie RTF dla `MText` (podświetlanie słów, czyszczenie formatu).
 **Parametry**:
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
 **Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.
