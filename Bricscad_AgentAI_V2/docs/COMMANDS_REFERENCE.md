@@ -1,25 +1,41 @@
-# Katalog Poleceń BricsCAD (V2 GOLD)
+# BricsCAD Agent AI V2: Command Reference
 
-Ten dokument zawiera listę poleceń zarejestrowanych w systemie, które można wpisać bezpośrednio w linii komend BricsCAD po załadowaniu biblioteki.
+Niniejszy dokument zawiera listę wszystkich dostępnych komend wtyczki **Bielik AI V2 GOLD**. Komendy te można wpisywać bezpośrednio w linii poleceń BricsCAD po załadowaniu pliku `.dll`.
 
-## Instrukcja Ładowania
-Aby uruchomić system w BricsCAD:
-1. Skompiluj projekt do pliku DLL.
-2. W BricsCAD wpisz polecenie **NETLOAD**.
-3. Wskaż plik `Bricscad_AgentAI_V2.dll`.
+## Lista Komend
 
----
-
-## Lista Poleceń
-
-| Polecenie | Opis | Transparentna |
-|-----------|------|---------------|
-| **AGENT_V2** | Główny punkt wejścia. Otwiera boczny panel (PaletteSet) z interfejsem Bielik AI V2 GOLD. Jeśli panel jest już otwarty, przywraca jego widoczność. | Nie |
-| **AI_V2** | Szybkie zapytanie do asystenta. Wyświetla prompt w linii komend BricsCAD, pobiera tekst od użytkownika i przesyła go do aktywnej sesji Agenta. | **Tak** |
+| Nazwa Komendy | Opis (PL) | Tryb (Flags) | Cel |
+| :--- | :--- | :--- | :--- |
+| **`AGENT_V2`** | Otwiera główny panel boczny Asystenta AI. | Standard | Uruchomienie interfejsu graficznego (Palety). |
+| **`AI_V2`** | Szybkie zapytanie do Agenta z linii komend. | Transparent | Zadanie pytania bez konieczności klikania w panelu. |
+| **`AGENT_BENCHMARK_V2`** | Otwiera panel automatycznego benchmarkingu. | Standard | Masowe testowanie modeli LLM na zestawach testowych. |
 
 ---
 
-### Uwagi Techniczne
-- Komendy V2 są oddzielone od starszych wersji (V1) przyrostkiem `_V2`, co zapobiega konfliktom przy ładowaniu obu wersji jednocześnie.
-- Komenda **AI_V2** została oznaczona jako `CommandFlags.Transparent`, co oznacza, że możesz jej użyć nawet w trakcie trwania innego polecenia (np. podczas rysowania polilinii), aby zapytać asystenta o współrzędne lub parametry.
-- Silnik AgentAI obsługuje teraz bezpośredni odczyt parametrów (`GetPropertiesTool`). Możesz więc wywołać `AI_V2` od razu po fizycznym zaznaczeniu obiektów myszką w BricsCADzie, prosząc o ich analizę (np. "Zanalizuj mi te obiekty").
+## Szczegółowy Opis
+
+### 1. AGENT_V2
+Główna komenda inicjalizująca środowisko. Jeśli panel (PaletteSet) nie był wcześniej utworzony, komenda go powołuje do życia, dodaje kontrolkę `AgentControl` i dokuje ją do prawej krawędzi ekranu.
+- **Użycie**: Wpisz `AGENT_V2` i naciśnij Enter.
+
+### 2. AI_V2
+Komenda przeznaczona dla zaawansowanych użytkowników, którzy chcą szybko wydać polecenie Agentowi. 
+- **Działanie**: Po wpisaniu komendy, BricsCAD poprosi o wpisanie zapytania. Tekst zostanie przesłany bezpośrednio do silnika LLM, a Agent zacznie pracę w tle.
+- **Zaleta**: Dzięki flagi `Transparent`, komenda może być wywołana w trakcie działania innych poleceń BricsCAD (poprzedzona apostrofem, np. `'AI_V2`).
+
+### 3. AGENT_BENCHMARK_V2
+Dedykowana komenda dla inżynierów promptu i deweloperów. 
+- **Działanie**: Otwiera paletę Agenta i automatycznie przełącza ją na trzecią zakładkę (**Auto-Benchmark**). Pozwala na wczytanie pliku JSON z testami i uruchomienie masowej walidacji.
+
+---
+
+## Jak załadować wtyczkę?
+
+Aby korzystać z powyższych komend, wykonaj następujące kroki:
+1. Uruchom BricsCAD.
+2. Wpisz komendę `NETLOAD`.
+3. Wskaż plik binarny: `Bricscad_AgentAI_V2.dll`.
+4. Po pomyślnym załadowaniu, wpisz `AGENT_V2`, aby zobaczyć panel.
+
+> [!TIP]
+> Jeśli chcesz, aby wtyczka ładowała się automatycznie, dodaj ścieżkę do pliku `.dll` w ustawieniach "Manage Applications" (Appload) w BricsCAD.

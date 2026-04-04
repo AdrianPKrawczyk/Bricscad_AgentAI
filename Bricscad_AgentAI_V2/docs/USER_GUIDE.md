@@ -1,98 +1,114 @@
-# Podręcznik Użytkownika BricsCAD Agent AI (V2)
+# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.6.2 GOLD)
 
-## Wprowadzenie
-Witaj w nowej wersji Agenta AI dla BricsCAD! System V2 oferuje większą stabilność, precyzję oraz zaawansowane funkcje obliczeniowe.
+Witaj w wersji **GOLD** systemu Bielik AI V2. Niniejszy podręcznik został przygotowany dla inżynierów i projektantów BricsCAD, którzy chcą w pełni wykorzystać potencjał sztucznej inteligencji zintegrowanej bezpośrednio z silnikiem CAD.
 
-## Kluczowe Funkcje
+---
 
-### 1. Wyszukiwanie Obiektów (SelectEntities)
-Umożliwia inteligentne filtrowanie i zaznaczanie obiektów istniejących na rysunku. Zawsze działa w powiązaniu z "Pamięcią Agenta", pozwalając na swobodne zarządzanie zaznaczonymi elementami.
-- **Co robi:** Znajduje elementy o konkretnych klasach (np. teksty, linie) i właściwościach (kolor, warstwa).
-- **Jak o to zapytać:** "Zaznacz wszystkie linie na warstwie 'OSIE'" lub "Dodaj do zaznaczenia teksty o wysokości 2.5".
-- **Wymagane dane:** Zazwyczaj musisz określić jakiego typu elementu szukasz (np. "wszystkie obiekty", "*Line", "Tekst").
+## 🧠 1. Architektura Pamięci i Stanu
 
-### 2. Tworzenie Obiektów (CreateObject)
-Agent potrafi rysować podstawowe elementy graficzne. Możesz poprosić go o:
-- **Linie:** "Narysuj linię od 0,0 do 100,100"
-- **Okręgi:** "Stwórz okrąg w punkcie 50,50 o promieniu 20"
-- **Teksty (MText/DBText):** "Napisz 'Projekt łazienki' w punkcie 10,10"
-- **Multileadery:** "Dodaj opis 'Przyłącze wody' ze strzałką w 0,0 i tekstem obok"
+Zrozumienie sposobu, w jaki Agent "myśli" i przechowuje dane, jest kluczowe dla budowania zaawansowanych scenariuszy pracy.
 
-### 3. Modyfikacja Właściwości (ModifyProperties)
-Możesz zmieniać właściwości ujętych w pamięci/wyselekcjonowanych elementów wspierając zaawansowane zależności. Pamiętaj, że wpierw musisz zaznaczyć docelową grupę obiektów za pomocą komendy z pkt 1, bądź polecenie zostanie zaaplikowane na świeżo narysowanym obiekcie.
-- **Co robi:** Zmienia parametry wybranych wcześniej obiektów na podane w prompt. W przypadku pomyłek pomija niezgodne pojęcia (np Promień dla Linii).
-- **Jak o to zapytać:** "Zmień kolor na niebieski a warstwę na Instalacje". "Obróć tekst o 15 stopni".
-- **Wykorzystanie matematyki na starych wartościach (RPN):** Kiedy chcesz zmienić obecną liczbę np. o 10. Powiedz "Zwiększ promień zaznaczonych okręgów o 10" lub opisz mu z użyciem frazy "Użyj RPN dla starego promienia $OLD_RADIUS dodając 10" by go poinstruować. Np. "Zmień grubość wszystkich linii by była o 2.5 mniejsza od obecnej". Przykładowo Agent stworzy wyrażenie `RPN: $OLD_LINEWEIGHT 2.5 -`.
+### 1.1. Pamięć Zaznaczenia (ActiveSelection)
+W przeciwieństwie do standardowych poleceń CAD, Agent posiada **pamięć selekcji**, która persists (utrzymuje się) między kolejnymi zapytaniami.
+- **Automatyzacja selekcji**: Każdy nowo utworzony obiekt (np. linią, blokiem) jest automatycznie dodawany do pamięci.
+- **Wydajność**: Dzięki temu możesz wydać polecenie "Narysuj okrąg", a w następnym kroku napisać po prostu "Zmień jego kolor na czerwony" – Agent wie dokładnie, o który obiekt chodzi, bez konieczności ponownego wskazywania go na ekranie.
+- **Zarządzanie**: Pamięcią sterują narzędzia `SelectEntities` (dodawanie/odejmowanie) oraz polecenie głosowe/tekstowe "Odznacz wszystko" (czyści stan).
 
-### 4. Zarządzanie Strukturą (Warstwy)
-Narzędzie `ManageLayers` pozwala na pełną kontrolę nad warstwami projektu, w tym operacje masowe dzięki użyciu gwiazdki (*).
-- **Tworzenie:** "Stwórz nową warstwę KONSTRUKCJA o kolorze czerwonym".
-- **Modyfikacja masowa:** "Zmień kolor wszystkich warstw zaczynających się od INST_ na niebieski" (Agent użyje maski `INST_*`).
-- **Usuwanie:** "Usuń warstwę POMOCNICZA". Jeśli warstwa zawiera obiekty, Agent poinformuje Cię o tym, zamiast usuwać je na siłę.
-- **Zasady:** Warstwy "0" oraz "Defpoints" są chronione i nie mogą zostać usunięte.
+### 1.2. Zmienne Sesji (@Variables)
+Agent może wyekstrahować dane z rysunku i zapisać je w nazwanych "szufladkach".
+- **Zapisywanie**: Narzędzia takie jak `ReadProperty` lub `AnalyzeSelection` pozwalają zapisać wynik pod aliasem (np. `@SumaPowierzchni`).
+- **Wstrzykiwanie**: Możesz wymusić użycie zmiennej w następnym kroku, używając symbolu `$`.
+- **Przykład**: *"Odczytaj długość tej linii jako @L, a potem narysuj okrąg o promieniu $L"*.
 
-### 5. Silnik Obliczeniowy RPN
-Możesz wykonywać obliczenia bezpośrednio w poleceniach używając prefiksu `RPN:`. Format ten używa Odwrotnej Notacji Polskiej (liczby idą przed operatorem).
+---
 
-**Przykłady:**
-- "Narysuj okrąg o promieniu RPN: 5 5 +" (stworzy okrąg o promieniu 10)
-- "Dodaj tekst 'Wynik: RPN: 100 2 /'" (wstawi tekst 'Wynik: 50.0')
+## 🧮 2. Silnik Obliczeniowy RPN (Reverse Polish Notation)
 
-### 6. Interakcja AskUser
-Jeśli nie znasz współrzędnych lub wymiarów, możesz kazać Agentowi zapytać Ciebie o nie na rysunku.
-- **Przykład:** "Narysuj okrąg w centrum AskUser" -> Agent zatrzyma się i poprosi Cię o kliknięcie punktu w BricsCAD.
+Agent V2 posiada wbudowany procesor matematyczny działający w Odwrotnej Notacji Polskiej. Pozwala to na wykonywanie obliczeń bezpośrednio na geometrii.
 
-### 7. Pamięć Agenta i Automatyczne Zaznaczanie
-Każdy nowy obiekt, który stworzysz, zostaje automatycznie dodany do "pamięci podręcznej" Agenta.
-- **Flow pracy:** 
-  1. Ty: "Narysuj kwadrat z linii"
-  2. Agent: (Rysuje 4 linie i zaznacza je)
-  3. Ty: "Zmień kolor na czerwony" -> Agent wie, że chodzi o te linie, które przed chwilą narysował.
+### 2.1. Zmienne Dynamiczne `$OLD_...`
+Podczas modyfikacji właściwości (`ModifyProperties`), Agent automatycznie udostępnia starą wartość obiektu pod specjalnym prefiksem.
 
-### 8. Makra i Skrypty Automatyzacji
-Agent potrafi wywoływać gotowe procedury oraz interpretować skrypty LISP.
-- **Wywołanie makra:** "Uruchom czyszczenie rysunku" lub "Odpierwszuj warstwy" (Agent użyje makr `CleanDrawings` lub `ResetLayers`).
-- **Skrypty LISP:** "Napisz i uruchom lisp, który zamieni wszystkie okręgi na kwadraty".
-- **Błędy:** Jeśli skrypt ma błąd składni, Agent otrzyma raport z BricsCAD i poinformuje Cię o tym, co poszło nie tak.
+| Zmienna | Opis | Przykład użycia w prompt |
+| :--- | :--- | :--- |
+| `$OLD_RADIUS` | Obecny promień okręgu/łuku | *"Zwiększ promień o 1.5 raza"* (Agent: `$OLD_RADIUS 1.5 *`) |
+| `$OLD_HEIGHT` | Obecna wysokość tekstu | *"Zmniejsz teksty o 2 jednostki"* (Agent: `$OLD_HEIGHT 2 -`) |
+| `$OLD_LENGTH` | Obecna długość linii/polilinii | *"Wydłuż o 10%"* (Agent: `$OLD_LENGTH 1.1 *`) |
+| `$OLD_LAYER` | Obecna nazwa warstwy | Wykorzystywane w logice warunkowej. |
 
-### 9. Odczyt i Analiza Właściwości
-Agent potrafi "czytać" i podsumowywać właściwości (takie jak kolor, warstwa, geometria) zaznaczonych obiektów z poziomu pamięci.
-- **Zarządzanie Atrybutami (Dane dynamiczne):** "Wypełnij numerację pomieszczeń w tabelce od 101" lub "Odczytaj cenę z atrybutu CENA tych bloków" (Agent użyje `EditAttributesTool`). Pozwala to na precyzyjną edycję konkretnych wstawień bloków bez modyfikowania ich definicji (np. każde pomieszczenie może mieć inny numer).
-- **Biblioteka Bloków:** "Pokaż jakie boki mamy w tym rysunku" (Agent użyje `ListBlocksTool`), "Wstaw blok 'Biurko' w punkcie 0,0" (Agent użyje `InsertBlockTool`) lub "Stwórz blok o nazwie 'Meble' z zaznaczenia" (Agent użyje `CreateBlockTool`). Agent panuje nad pełnym cyklem życia bloku: od odczytu dostępnych definicji, przez tworzenie własnych, aż po ich wstawianie z automatycznym wypełnianiem atrybutów.
-- **Modyfikacja Wnętrza Bloku (Geometria):** "Zmień kolor wszystkich linii na czerwony w bloku 'Rama_Okna'" lub "Usuń wymiary z wnętrza tego bloku" (Agent użyje `EditBlockTool`). To unikalna funkcja pozwalająca na masową edycję definicji bloków bez ich rozbijania, co zachowuje strukturę i porządek w rysunku.
-- **Odczyt bazowy:** "Jakie parametry mają te zaznaczone linie?" (Agent zwróci podstawowe informacje o maksymalnie 15 obiektach używając `GetPropertiesTool`).
-- **Precyzyjny odczyt i Pamięć:** "Odczytaj długość tych linii i zapisz jako @Dlugosci" (Agent użyje `ReadPropertyTool`). Ta funkcja pozwala na wyciągnięcie konkretnej wartości (np. pola powierzchni, punktu środkowego) i zapamiętanie jej do późniejszego wykorzystania w obliczeniach RPN.
-- **Edycja i Formatowanie Tekstu:** "Zamień słowo 'Projekt' na 'Budowa' in zaznaczeniu" lub "Podświetl na czerwono i pogrub słowo 'BŁĄD' w tekstach" (Agent użyje `TextEditTool`). Narzędzie to potrafi masowo modyfikować treść rysunku oraz nakładać formatowanie RTF na obiekty `MText`, co pozwala na wizualne raportowanie błędów bezpośrednio w CAD.
+### 2.2. Przykłady Formuł RPN
+- **Skalowanie**: `RPN: $OLD_RADIUS 2 *` (Podwojenie promienia).
+- **Przesunięcie**: `RPN: $OLD_X 100 +` (Przesunięcie o 100 jednostek w osi X).
+- **Złożone**: `RPN: 10 20 + 5 *` (Wynik: 150).
 
-### 10. Interakcja i Konsultacje
-Agent nie zawsze musi działać w pełni automatycznie. Dzięki nowym mechanizmom kontroli, może "zatrzymać się" i poprosić Cię o pomoc lub decyzję:
-- **Pytania o dane:** Agent może zapytać w linii komend: "[KONSULTACJA AI] Podaj szerokość ściany:". Możesz wtedy wpisać wartość, która zostanie przekazana do dalszych obliczeń (np. do RPN).
-- **Wskazywanie na ekranie:** Agent może poprosić: "[KONSULTACJA AI] Wskaż punkt bazowy dla otworu:". Wskaż punkt myszką na rysunku, a Agent odczyta jego współrzędne.
-- **Wybór z opcji:** Jeśli Agent ma kilka wariantów działania, wyświetli je w linii komend (np. `[Stal/PCV/Miedź]`). Możesz kliknąć w opcję lub wpisać jej nazwę.
-- **Przerwanie (ESC):** Zawsze możesz przerwać oczekiwanie Agenta klawiszem ESC – AI otrzyma wtedy sygnał o anulowaniu i przejdzie do kolejnego zadania lub zakończy pracę.
+> [!TIP]
+> Jeśli chcesz mieć pewność, że Agent użyje obliczeń, napisz: *"Zastosuj formułę RPN: [twoje działanie]"*.
 
-### 11. Przetwarzanie List i Pamięć
-Agent potrafi zapamiętywać wyniki swoich działań (zmienne `@Nazwa`) i analizować je jako listy:
-- **Rozpakowywanie list:** Jeśli Agent pobierze listę warstw lub bloków, może użyć `ForeachTool`, aby wyświetlić Ci je w formie czytelnej, numerowanej listy. Dzięki temu łatwiej jest wydać polecenie dotyczące konkretnego elementu z długiego spisu.
-- **Zliczanie:** Możesz zapytać: "Ile unikalnych warstw jest w tym rysunku?", a Agent użyje trybu `Count`, aby podać Ci samą liczbę.
-- **Skale Opisowe (Annotative):** "Dodaj skalę 1:50 do tych wymiarów" lub "Wyłącz opisowość dla tych tekstów" (Agent użyje `ManageAnnoScalesTool`). Dzięki temu Agent panuje nad widocznością i wielkością opisów w różnych rzutniach (viewports), co jest kluczowe przy przygotowywaniu arkuszy (layouts).
-- **Agregacja i Statystyka:** "Zlicz typy obiektów w zaznaczeniu" lub "Pokaż unikalne warstwy w tym rysunku" (Agent użyje `AnalyzeSelectionTool`). To potężny kombajn do szybkiego przeglądu dużych zbiorów danych bez konieczności czytania każdego obiektu z osobna.
-- **Próbkowanie tekstu:** "Pobierz próbkę tekstów z tego obszaru" (Agent użyje `ReadTextSampleTool`). Narzędzie to "wyskubie" reprezentatywne błędy/opisy z dużej liczby tekstów, co pozwala Agentowi zrozumieć kontekst opisu rysunku (np. numery działek, nazwy pomieszczeń) bez ryzyka przepełnienia pamięci.
-- **Właściwości wirtualne:** Możesz pytać o rzeczy, których nie ma wprost we właściwościach CAD, np. `MidPoint` (środek linii/łuku) czy `Centroid` (środek ciężkości bryły).
+---
 
-## Interfejs Agenta (V2 GOLD)
-Interfejs został zoptymalizowany pod kątem szybkości i diagnostyki:
-- **Pasek HUD:** Na dole okienka czatu znajdziesz informację o aktualnie używanym modelu AI (np. Gemini 3 Flash lub local-model).
-- **Logi Narzędzi:** W zakładce "Logi Narzędzi" widzisz surowe dane JSON przesyłane do Agenta. Użyj przycisku **"Kopiuj do schowka"**, aby szybko przesłać logi do pomocy technicznej w razie błędu.
-- **Asynchroniczność:** Możesz swobodnie przesuwać widok w BricsCAD, podczas gdy Agent analizuje Twoje zapytanie.
+## 🏢 3. Zaawansowane Zarządzanie Blokami i Atrybutami
 
-## Wskazówki
-- Używaj przecinków do oddzielania współrzędnych (np. `10,20,0`).
-- Możesz odwoływać się do zmiennych używając `@` (jeśli zostały wcześniej zdefiniowane).
-- System automatycznie pilnuje długości rozmowy, przycinając długie dane w tle (**TrimHistory**), co zapewnia stabilność przy bardzo długiej pracy.
+W wersji GOLD rozróżniamy dwa krytyczne tryby pracy z blokami:
 
-## Dokumentacja Referencyjna
-Dla zaawansowanych użytkowników i administratorów przygotowaliśmy szczegółowe katalogi techniczne:
-- [Katalog Poleceń CAD (BricsCAD Commands)](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/docs/COMMANDS_REFERENCE.md) – Lista komend do wpisania w pasku poleceń.
-- [Encyklopedia Narzędzi AI (AI Tools Reference)](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/docs/TOOLS_REFERENCE.md) – Szczegółowa specyfikacja możliwości technicznych Agenta.
+### 3.1. Edycja Definicji (Globalna) - `EditBlock`
+Modyfikuje "matrycę" bloku. Zmiana tutaj wpływa na **wszystkie** wystąpienia danego bloku w całym rysunku.
+- **Zastosowanie**: Zmiana koloru linii wewnątrz symbolu, usunięcie zbędnej geometrii z definicji.
+- **Opcja `Recursive`**: Pozwala Agentowi wejść głębiej w zagnieżdżone bloki.
 
+### 3.2. Edycja Atrybutów (Lokalna) - `EditAttributes`
+Modyfikuje tylko dane tekstowe (atrybuty) w **konkretnej instancji** bloku na rysunku.
+- **Zastosowanie**: Numeracja pomieszczeń, wypełnianie tabliczek rysunkowych, zmiana opisu bez zmiany wyglądu bloku.
+
+---
+
+## 📐 4. Skale Opisowe (Annotative)
+
+Agent V2 rozumie mechanizm adnotacyjności BricsCAD.
+- **Zarządzanie skalą**: Możesz polecić dodanie zestawu skal do tekstów (`ManageAnnoScales`).
+- **`DisableAnnotative`**: Możesz masowo wyłączyć tryb opisowy dla obiektów, które mają stałą wielkość niezależną od skali wydruku.
+- **Automatyzacja**: Agent potrafi odczytać aktualną skalę rysunku (np. 1:50) i dopasować do niej tworzone obiekty.
+
+---
+
+## 🤝 5. Interakcja i Konsultacje (Tryb Hybrydowy)
+
+Agent nie musi zgadywać – może zapytać Ciebie o zdanie.
+
+### 5.1. Słowo kluczowe `AskUser`
+Używaj go, gdy chcesz wskazać coś myszką w trakcie pracy Agenta.
+- *"Narysuj linię od AskUser do 100,100"*.
+- Agent przełączy fokus na BricsCAD i poprosi Cię o kliknięcie punktu.
+
+### 5.2. Konsultacje w linii komend
+Agent może wywołać interaktywne zapytania:
+- **String/Value**: *"Podaj nazwę inwestora"*.
+- **Choice**: Wyświetli listę opcji w pasku poleceń (np. `[Stal/Drewno/Beton]`). Możesz wybrać opcję kliknięciem.
+
+---
+
+## 🏗️ 6. Zaawansowane Scenariusze (Workflows)
+
+Oto przykłady łańcuchów działań, które pokazują pełną moc wersji GOLD:
+
+### Scenariusz A: Raportowanie i Modyfikacja
+> *"Znajdź wszystkie polilinie na warstwie 'OBRYS', odczytaj ich powierzchnie i zapisz do zmiennej @Pola. Jeśli powierzchnia jest większa niż 100, zmień kolor polilinii na czerwony, a w jej środku ciężkości wstaw tekst 'ALARM' o wysokości RPN: $OLD_AREA 0.01 *"*
+
+### Scenariusz B: Standaryzacja Warstw
+> *"Pobierz listę wszystkich warstw w rysunku. Dla każdej warstwy zaczynającej się od 'TEMP_', przenieś znajdujące się na niej obiekty na warstwę 'ARCH_STARE', a następnie usuń puste warstwy 'TEMP_*'."*
+
+### Scenariusz C: Inteligentna Blokowa Numeracja
+> *"Zaznacz bloki o nazwie 'POMIESZCZENIE'. Pobierz ich atrybut 'NUMER'. Użyj pętli, aby przesortować je i zmienić atrybut 'STATUS' na 'WERYFIKACJA' dla tych, których numer jest parzysty."*
+
+---
+
+## 🛠️ 7. Diagnostyka i Wydajność
+
+- **Pasek HUD**: Sprawdzaj na dole okna czatu, czy Agent jest połączony z modelem LLM.
+- **TrimHistory**: Przy bardzo długich sesjach Agent automatycznie "zapomina" najstarsze, techniczne logi, aby zachować szybkość reakcji (nie tracąc przy tym pamięci o Twoich zmiennych `@`).
+- **Logi Narzędzi**: Jeśli coś nie działa, otwórz zakładkę "Logi Narzędzi" – zobaczysz tam dokładnie, jaki JSON został wysłany i co odpowiedział BricsCAD.
+
+---
+> [!IMPORTANT]
+> **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
+
+*Wersja Systemu: v2.6.2 GOLD | BricsCAD Agent AI Project*
