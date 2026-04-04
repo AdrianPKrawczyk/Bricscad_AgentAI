@@ -9,6 +9,9 @@ Narzędzia muszą implementować interfejs narzucający zwracanie definicji zgod
 ### 2. Typy Tool Parameter (`src/Models/ToolModels.cs`)
 Każde polecenie udostępnia `ToolDefinition`, opisane modelem `FunctionSchema` z atrybutami (Dictionary string -> ToolParameter) z flagami enumów i wymaganych elementów wg struktury JSONSchema.
 
+### 3. Mechanizm TrimHistory (`src/Core/LLMClient.cs`)
+System automatycznie optymalizuje okno kontekstowe poprzez przycinanie długich odpowiedzi z narzędzi (rola `tool`). Jeśli wynik przekracza 500 znaków, jest skracany do 100 znaków z dodaniem informacji o liczbie usuniętych bajtów. Pozwala to na zachowanie spójności struktury Tool Calling przy jednoczesnej drastycznej redukcji zużycia tokenów w długich sesjach.
+
 ## Zarządzanie Stanem (State)
 
 ### AgentMemoryState (`src/Core/AgentMemoryState.cs`)
@@ -62,3 +65,11 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - Blokada usuwania warstw "0" oraz "Defpoints".
 - Blokada usuwania warstwy aktualnej (Clayer).
 - Automatyczne zgłaszanie błędów przy próbie usunięcia warstwy zawierającej obiekty.
+
+### ExecuteMacroTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.ExecuteMacroTool`
+**Cel**: Uruchamianie złożonych procedur (makr), skryptów LISP oraz poleceń CAD.
+**Parametry**:
+- `MacroName` (string): Nazwa zdefiniowanego makra (np. "CleanDrawings", "ResetLayers", "ZoomExtents").
+- `CustomCommand` (string): Własny kod LISP lub ciąg poleceń do wykonania bezpośrednio w BricsCAD.
+**Uwagi**: Narzędzie raportuje sukces wystawienia komendy lub błąd składni, pozwalając na inteligentną reakcję Agenta w pętli ReAct.

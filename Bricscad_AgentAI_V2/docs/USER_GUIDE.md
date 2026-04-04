@@ -49,6 +49,19 @@ Każdy nowy obiekt, który stworzysz, zostaje automatycznie dodany do "pamięci 
   2. Agent: (Rysuje 4 linie i zaznacza je)
   3. Ty: "Zmień kolor na czerwony" -> Agent wie, że chodzi o te linie, które przed chwilą narysował.
 
+### 8. Makra i Skrypty Automatyzacji
+Agent potrafi wywoływać gotowe procedury oraz interpretować skrypty LISP.
+- **Wywołanie makra:** "Uruchom czyszczenie rysunku" lub "Odpierwszuj warstwy" (Agent użyje makr `CleanDrawings` lub `ResetLayers`).
+- **Skrypty LISP:** "Napisz i uruchom lisp, który zamieni wszystkie okręgi na kwadraty".
+- **Błędy:** Jeśli skrypt ma błąd składni, Agent otrzyma raport z BricsCAD i poinformuje Cię o tym, co poszło nie tak.
+
+## Interfejs Agenta (V2 GOLD)
+Interfejs został zoptymalizowany pod kątem szybkości i diagnostyki:
+- **Pasek HUD:** Na dole okienka czatu znajdziesz informację o aktualnie używanym modelu AI (np. Gemini 3 Flash lub local-model).
+- **Logi Narzędzi:** W zakładce "Logi Narzędzi" widzisz surowe dane JSON przesyłane do Agenta. Użyj przycisku **"Kopiuj do schowka"**, aby szybko przesłać logi do pomocy technicznej w razie błędu.
+- **Asynchroniczność:** Możesz swobodnie przesuwać widok w BricsCAD, podczas gdy Agent analizuje Twoje zapytanie.
+
 ## Wskazówki
 - Używaj przecinków do oddzielania współrzędnych (np. `10,20,0`).
 - Możesz odwoływać się do zmiennych używając `@` (jeśli zostały wcześniej zdefiniowane).
+- System automatycznie pilnuje długości rozmowy, przycinając długie dane w tle (**TrimHistory**), co zapewnia stabilność przy bardzo długiej pracy.
