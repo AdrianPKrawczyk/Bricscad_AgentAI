@@ -109,6 +109,33 @@ Służy do inteligentnego próbkowania treści tekstowych z dużych zbiorów obi
 
 ### TextEditTool
 Kombajn do edycji i formatowania tekstów. Obsługuje `DBText` i `MText`. Pozwala na edycję treści (`Append`, `Prepend`, `Replace`) oraz zaawansowane formatowanie RTF dla `MText` (podświetlanie słów, czyszczenie formatu).
+
+### ManageAnnoScalesTool
+Narzędzie do zarządzania skalami opisowymi (Annotative Scales). Obsługuje dodawanie, usuwanie i odczytywanie skal dla kompatybilnych obiektów. Pozwala również na całkowite wyłączenie opisowości.
+
+### EditBlockTool
+Zaawansowane narzędzie do chirurgicznej edycji wnętrza bloku (`BlockTableRecord`). Pozwala na modyfikację geometrii, tekstów i właściwości obiektów wewnątrz definicji bloku, co skutkuje aktualizacją wszystkich jego wystąpień. Obsługuje rekurencję i filtrowanie.
+
+### EditAttributesTool
+Narzędzie do precyzyjnego zarządzania atrybutami (dynamicznymi tekstami) w instancjach bloków. Pozwala na masowy odczyt wartości oraz ich aktualizację (Update) z obsługą wstrzykiwania zmiennych i parametrów RPN.
+
+### ListBlocksTool
+Narzędzie do odczytu biblioteki bloków. Zwraca czystą listę definicji (BlockTableRecord), filtrując szum systemowy (anonimowe, Layouty, XREFy).
+
+### InsertBlockTool
+Narzędzie do wstawiania nowych wystąpień bloków z automatyczną synchronizacją atrybutów i opcjonalnym wypełnianiem ich wartości podczas wstawiania.
+
+### CreateBlockTool
+Narzędzie do tworzenia nowych definicji bloków z aktualnie zaznaczonych obiektów (ActiveSelection) przy użyciu klonowania głębokiego (DeepClone).
+
+### UserInputTool
+Narzędzie umożliwiające Agentowi zadawanie pytań użytkownikowi bezpośrednio w linii komend BricsCAD. Obsługuje pobieranie tekstu, liczb oraz punktów na ekranie.
+
+### UserChoiceTool
+Narzędzie do wyświetlania listy opcji (słów kluczowych) do wyboru przez użytkownika. Automatycznie zarządza ograniczeniami API BricsCAD (brak spacji w Keywords).
+
+### ForeachTool
+Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w zmiennych Agenta (@Variables). Pozwala modelowi LLM na przejrzysty wgląd w dane przed iteracją.
 **Parametry**:
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
 **Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.

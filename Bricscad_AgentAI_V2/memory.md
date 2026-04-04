@@ -19,9 +19,27 @@
 - [ETAP 1 - Oczy Agenta] Zmigrowano `ReadTextSampleTool.cs`, wdrażając algorytm inteligentnego próbkowania tekstów (`sqrt(n)`, max 15) z oczyszczaniem treści MText z kodów RTF. Narzędzie sfinalizowało ETAP 1. [KROK-1.4]
 - [ETAP 2 - Fundamenty Ochronne] Wdrożono `PropertyValidator.cs` jako systemową tarczę API Shield. Zintegrowano walidację z `ModifyPropertiesTool.cs`, co zapobiega halucynacjom modelu LLM i zapewnia czytelne logi błędów bez przerywania transakcji. [KROK-2.1]
 - [ETAP 3 - Zaawansowana Geometria i Tekst] Wdrożono `TextEditTool.cs` (Kombajn Tekstowy). Skonsolidowano funkcje edycji treści i formatowania RTF dla `MText` oraz `DBText`. Wprowadzono inteligentne czyszczenie formatu i system ostrzeżeń dla niekompatybilnych typów obiektów. [KROK-3.1]
+- [ETAP 3 - Zaawansowana Geometria i Tekst] Wdrożono `ManageAnnoScalesTool.cs` do automatyzacji skal opisowych. [KROK-3.2]
+- [ETAP 4 - Bloki i Atrybuty] Wdrożono `EditBlockTool.cs` z obsługą rekurencyjnej edycji definicji bloków oraz filtrów atrybutów. [KROK-4.1]
+
+## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-04: v2.5.1 - Implementacja ForeachTool, zamknięcie ETAPU 5.
+- 2026-04-04: v2.5.0 - Implementacja narzędzi interakcji (UserInput, UserChoice).
+- 2026-04-04: v2.4.0 GOLD - Implementacja Block Triptych (List, Insert, Create), zamknięcie ETAPU 4.
+- 2026-04-04: v2.3.1 - Implementacja EditAttributesTool (KROK-4.2), atrybuty wielowierszowe.
+- 2026-04-04: v2.3.0 - Implementacja EditBlockTool (KROK-4.1).
+
+## Status Etapów Migracji
+- [x] ETAP 1: Oczy Agenta (ReadProperty, GetProperties, AnalyzeSelection, ReadTextSample) - **ZAKOŃCZONE**
+- [x] ETAP 2: Fundamenty Ochronne (PropertyValidator) - **ZAKOŃCZONE**
+- [x] ETAP 3: Zaawansowana Geometria i Tekst (TextEdit, ManageAnnoScales) - **ZAKOŃCZONE**
+- [x] ETAP 4: Bloki i Atrybuty (EditBlock, EditAttributes, InsertBlock, CreateBlock, ListBlocks) - **ZAKOŃCZONE**
+- [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach) - **ZAKOŃCZONE**
+- [ ] ETAP 6: Ekosystem Testowy i Optymalizacja - **PLANOWANE**
+
 ### [STAN_SYSTEMU]
-- **WERSJA GOLD (v2.2.1)**: System umożliwia zaawansowaną edycję i wizualne raportowanie błędów w tekstach CAD. Rozpoczęto ETAP 3.
+- **WERSJA GOLD (v2.3.0)**: System w pełni obsługuje edycję bloków i atrybutów. ETAP 4 w toku.
 ### [BLOKADY / PROBLEMY]
 - BRAK. Pomyślna kompilacja projektu.
 ### [KOLEJNY_KROK]
-- ETAP 3 KROK 2: Migracja narzędzi do obsługi bloków i atrybutów (`BlockEditTool` / `AttributeTool`).
+- ETAP 4: Implementacja `EditAttributesTool` oraz walidacja spójności atrybutów w blokach dynamicznych.

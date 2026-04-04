@@ -66,12 +66,27 @@
     <Compile Include="src\Core\LLMClient.cs" />
     <Compile Include="src\Core\AgentStartup.cs" />
     <Compile Include="src\Core\AgentMemoryState.cs" />
+    <Compile Include="src\Core\PropertyValidator.cs" />
     <Compile Include="src\Core\RpnCalculator.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
     <Compile Include="src\Tools\ManageLayersTool.cs" />
     <Compile Include="src\Tools\ExecuteMacroTool.cs" />
+    <Compile Include="src\Tools\ReadPropertyTool.cs" />
+    <Compile Include="src\Tools\GetPropertiesTool.cs" />
+    <Compile Include="src\Tools\AnalyzeSelectionTool.cs" />
+    <Compile Include="src\Tools\ReadTextSampleTool.cs" />
+    <Compile Include="src\Tools\TextEditTool.cs" />
+    <Compile Include="src\Tools\ManageAnnoScalesTool.cs" />
+    <Compile Include="src\Tools\EditBlockTool.cs" />
+    <Compile Include="src\Tools\EditAttributesTool.cs" />
+    <Compile Include="src\Tools\ListBlocksTool.cs" />
+    <Compile Include="src\Tools\InsertBlockTool.cs" />
+    <Compile Include="src\Tools\CreateBlockTool.cs" />
+    <Compile Include="src\Tools\UserInputTool.cs" />
+    <Compile Include="src\Tools\UserChoiceTool.cs" />
+    <Compile Include="src\Tools\ForeachTool.cs" />
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

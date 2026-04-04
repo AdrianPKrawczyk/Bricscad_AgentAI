@@ -57,9 +57,25 @@ Agent potrafi wywoływać gotowe procedury oraz interpretować skrypty LISP.
 
 ### 9. Odczyt i Analiza Właściwości
 Agent potrafi "czytać" i podsumowywać właściwości (takie jak kolor, warstwa, geometria) zaznaczonych obiektów z poziomu pamięci.
+- **Zarządzanie Atrybutami (Dane dynamiczne):** "Wypełnij numerację pomieszczeń w tabelce od 101" lub "Odczytaj cenę z atrybutu CENA tych bloków" (Agent użyje `EditAttributesTool`). Pozwala to na precyzyjną edycję konkretnych wstawień bloków bez modyfikowania ich definicji (np. każde pomieszczenie może mieć inny numer).
+- **Biblioteka Bloków:** "Pokaż jakie boki mamy w tym rysunku" (Agent użyje `ListBlocksTool`), "Wstaw blok 'Biurko' w punkcie 0,0" (Agent użyje `InsertBlockTool`) lub "Stwórz blok o nazwie 'Meble' z zaznaczenia" (Agent użyje `CreateBlockTool`). Agent panuje nad pełnym cyklem życia bloku: od odczytu dostępnych definicji, przez tworzenie własnych, aż po ich wstawianie z automatycznym wypełnianiem atrybutów.
+- **Modyfikacja Wnętrza Bloku (Geometria):** "Zmień kolor wszystkich linii na czerwony w bloku 'Rama_Okna'" lub "Usuń wymiary z wnętrza tego bloku" (Agent użyje `EditBlockTool`). To unikalna funkcja pozwalająca na masową edycję definicji bloków bez ich rozbijania, co zachowuje strukturę i porządek w rysunku.
 - **Odczyt bazowy:** "Jakie parametry mają te zaznaczone linie?" (Agent zwróci podstawowe informacje o maksymalnie 15 obiektach używając `GetPropertiesTool`).
 - **Precyzyjny odczyt i Pamięć:** "Odczytaj długość tych linii i zapisz jako @Dlugosci" (Agent użyje `ReadPropertyTool`). Ta funkcja pozwala na wyciągnięcie konkretnej wartości (np. pola powierzchni, punktu środkowego) i zapamiętanie jej do późniejszego wykorzystania w obliczeniach RPN.
-- **Edycja i Formatowanie Tekstu:** "Zamień słowo 'Projekt' na 'Budowa' w zaznaczeniu" lub "Podświetl na czerwono i pogrub słowo 'BŁĄD' w tekstach" (Agent użyje `TextEditTool`). Narzędzie to potrafi masowo modyfikować treść rysunku oraz nakładać formatowanie RTF na obiekty `MText`, co pozwala na wizualne raportowanie błędów bezpośrednio w CAD.
+- **Edycja i Formatowanie Tekstu:** "Zamień słowo 'Projekt' na 'Budowa' in zaznaczeniu" lub "Podświetl na czerwono i pogrub słowo 'BŁĄD' w tekstach" (Agent użyje `TextEditTool`). Narzędzie to potrafi masowo modyfikować treść rysunku oraz nakładać formatowanie RTF na obiekty `MText`, co pozwala na wizualne raportowanie błędów bezpośrednio w CAD.
+
+### 10. Interakcja i Konsultacje
+Agent nie zawsze musi działać w pełni automatycznie. Dzięki nowym mechanizmom kontroli, może "zatrzymać się" i poprosić Cię o pomoc lub decyzję:
+- **Pytania o dane:** Agent może zapytać w linii komend: "[KONSULTACJA AI] Podaj szerokość ściany:". Możesz wtedy wpisać wartość, która zostanie przekazana do dalszych obliczeń (np. do RPN).
+- **Wskazywanie na ekranie:** Agent może poprosić: "[KONSULTACJA AI] Wskaż punkt bazowy dla otworu:". Wskaż punkt myszką na rysunku, a Agent odczyta jego współrzędne.
+- **Wybór z opcji:** Jeśli Agent ma kilka wariantów działania, wyświetli je w linii komend (np. `[Stal/PCV/Miedź]`). Możesz kliknąć w opcję lub wpisać jej nazwę.
+- **Przerwanie (ESC):** Zawsze możesz przerwać oczekiwanie Agenta klawiszem ESC – AI otrzyma wtedy sygnał o anulowaniu i przejdzie do kolejnego zadania lub zakończy pracę.
+
+### 11. Przetwarzanie List i Pamięć
+Agent potrafi zapamiętywać wyniki swoich działań (zmienne `@Nazwa`) i analizować je jako listy:
+- **Rozpakowywanie list:** Jeśli Agent pobierze listę warstw lub bloków, może użyć `ForeachTool`, aby wyświetlić Ci je w formie czytelnej, numerowanej listy. Dzięki temu łatwiej jest wydać polecenie dotyczące konkretnego elementu z długiego spisu.
+- **Zliczanie:** Możesz zapytać: "Ile unikalnych warstw jest w tym rysunku?", a Agent użyje trybu `Count`, aby podać Ci samą liczbę.
+- **Skale Opisowe (Annotative):** "Dodaj skalę 1:50 do tych wymiarów" lub "Wyłącz opisowość dla tych tekstów" (Agent użyje `ManageAnnoScalesTool`). Dzięki temu Agent panuje nad widocznością i wielkością opisów w różnych rzutniach (viewports), co jest kluczowe przy przygotowywaniu arkuszy (layouts).
 - **Agregacja i Statystyka:** "Zlicz typy obiektów w zaznaczeniu" lub "Pokaż unikalne warstwy w tym rysunku" (Agent użyje `AnalyzeSelectionTool`). To potężny kombajn do szybkiego przeglądu dużych zbiorów danych bez konieczności czytania każdego obiektu z osobna.
 - **Próbkowanie tekstu:** "Pobierz próbkę tekstów z tego obszaru" (Agent użyje `ReadTextSampleTool`). Narzędzie to "wyskubie" reprezentatywne błędy/opisy z dużej liczby tekstów, co pozwala Agentowi zrozumieć kontekst opisu rysunku (np. numery działek, nazwy pomieszczeń) bez ryzyka przepełnienia pamięci.
 - **Właściwości wirtualne:** Możesz pytać o rzeczy, których nie ma wprost we właściwościach CAD, np. `MidPoint` (środek linii/łuku) czy `Centroid` (środek ciężkości bryły).

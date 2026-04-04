@@ -87,7 +87,7 @@ namespace Bricscad_AgentAI_V2.Tools
                             string rP = mod.Prop;
 
                             // TARCZA ANTY-HALUCYNACYJNA V2
-                            if (!PropertyValidator.IsPropertyValid(className, rP))
+                            if (!Bricscad_AgentAI_V2.Core.PropertyValidator.IsPropertyValid(className, rP))
                             {
                                 ostrzezenia.Add($"[OSTRZEŻENIE]: Pominięto właściwość '{rP}', ponieważ obiekt klasy '{className}' jej nie posiada.");
                                 odrzucone++;
@@ -157,7 +157,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                     odrzucone++;
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception)
                             {
                                 ostrzezenia.Add($"[BŁĄD]: Nie udało się przekonwertować wartości '{newVal}' na typ {targetType.Name} dla właściwości {rP}.");
                                 odrzucone++;
