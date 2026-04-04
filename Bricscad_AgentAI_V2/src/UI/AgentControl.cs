@@ -23,14 +23,16 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnReset;
         private Label lblStats;
 
-        // --- UI Logi Narzędzi (Nowe) ---
+        // --- UI Logi Narzędzi ---
         private RichTextBox txtToolLogs;
+        private Button btnCopyLogs;
 
         // --- Silnik V2 ---
         private LLMClient _llmClient;
         private ToolOrchestrator _orchestrator;
         private List<ChatMessage> _conversationHistory;
-        private bool isDarkMode = true; // Hardcoded default dla tej iteracji. Zostanie zmostkowane do Rejestru później.
+        private bool isDarkMode = true;
+        private string _activeModel = "LM Studio / local-model"; // Domyślny model
 
         public static AgentControl Instance { get; private set; }
 
@@ -42,23 +44,23 @@ namespace Bricscad_AgentAI_V2.UI
             Instance = this;
 
             // Inicjalizacja wiadomosci powitalnych
-            AppendToHistory("SYSTEM", "Bielik V2 gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
+            AppendToHistory("SYSTEM", "Bielik V2 GOLD gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
         }
 
         private void InitializeEngineV2()
         {
             _orchestrator = new ToolOrchestrator();
+            _orchestrator.Initialize(); // Ważne: Inicjalizacja skanowania narzędzi (w tym ExecuteMacroTool)
 
-            // Zmień endpoint URL i token na dopasowane do środowiska (np. LM Studio: http://localhost:1234/v1/chat/completions)
+            // Konfigurowalny endpoint
             _llmClient = new LLMClient("http://localhost:1234/v1/chat/completions", "not-needed", _orchestrator);
             
-            // Subskrybowanie zdarzeń z LLMClient do aktualizacji interfejsu 
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
 
             _conversationHistory = new List<ChatMessage>
             {
-                new ChatMessage { Role = "system", Content = "Jesteś asystentem BricsCAD (Bielik V2). Zawsze używaj dostępnych narzędzi do odczytywania struktury rysunku oraz tworzenia obiektów. Jeśli chcesz dokonać zmian na rysunku, upewnij się wpierw, że właściwe elementy są w ActiveSelection (SelectEntitiesTool)." }
+                new ChatMessage { Role = "system", Content = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. Jeśli użytkownik prosi o złożone zadanie, sprawdź czy istnieje odpowiednie makro (ExecuteMacro). Zawsze informuj o sukcesie lub błędach." }
             };
         }
 
@@ -72,7 +74,7 @@ namespace Bricscad_AgentAI_V2.UI
             // ==========================================
             // ZAKŁADKA 1: CZAT Z AI 
             // ==========================================
-            TabPage tabChat = new TabPage("💬 Czat (V2)");
+            TabPage tabChat = new TabPage("💬 Czat (V2 GOLD)");
 
             txtHistory = new RichTextBox
             {
@@ -136,7 +138,7 @@ namespace Bricscad_AgentAI_V2.UI
                 ForeColor = Color.LightGray,
                 Font = new Font("Consolas", 8),
                 TextAlign = ContentAlignment.MiddleLeft,
-                Text = "Bielik V2 gotowy do pracy z narzędziami."
+                Text = $"[Model: {_activeModel}] Gotowy do pracy."
             };
             panStats.Controls.Add(lblStats);
 
@@ -145,9 +147,9 @@ namespace Bricscad_AgentAI_V2.UI
             tabChat.Controls.Add(panInput);
 
             // ==========================================
-            // ZAKŁADKA 2: LOGI NARZĘDZI (Zastępuje "Logi tagów")
+            // ZAKŁADKA 2: LOGI NARZĘDZI (JSON)
             // ==========================================
-            TabPage tabDev = new TabPage("📜 Logi Narzędzi (JSON)");
+            TabPage tabDev = new TabPage("📜 Logi Narzędzi");
 
             txtToolLogs = new RichTextBox
             {
@@ -159,7 +161,20 @@ namespace Bricscad_AgentAI_V2.UI
                 ScrollBars = RichTextBoxScrollBars.Both
             };
 
+            btnCopyLogs = new Button
+            {
+                Text = "📋 Kopiuj do schowka",
+                Dock = DockStyle.Bottom,
+                Height = 30,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnCopyLogs.Click += (s, e) => { if (!string.IsNullOrEmpty(txtToolLogs.Text)) Clipboard.SetText(txtToolLogs.Text); };
+
             tabDev.Controls.Add(txtToolLogs);
+            tabDev.Controls.Add(btnCopyLogs);
 
             // Dodajemy widoki
             tabControl.TabPages.Add(tabChat);
@@ -197,13 +212,12 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void BtnReset_Click(object sender, EventArgs e)
         {
-            _conversationHistory.RemoveRange(1, _conversationHistory.Count - 1); // Zachowaj tylko prompt Systemowy
+            _conversationHistory.RemoveRange(1, _conversationHistory.Count - 1);
             AgentMemoryState.Clear();
             AgentMemoryState.Variables.Clear();
-            AppendToHistory("SYSTEM", "Konwersacja, Cache (zmienne) oraz ActiveSelection całkowicie zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
+            AppendToHistory("SYSTEM", "Konwersacja i pamięć zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
         }
 
-        // --- EVENTY KIEROWANE Z LLMClient ---
         private void UpdateStatusHUD(string status)
         {
             if (this.InvokeRequired)
@@ -211,7 +225,7 @@ namespace Bricscad_AgentAI_V2.UI
                 this.Invoke(new Action<string>(UpdateStatusHUD), status);
                 return;
             }
-            lblStats.Text = status;
+            lblStats.Text = $"[Model: {_activeModel}] {status}";
         }
 
         private void AppendToolLog(string rawJsonCall)
@@ -238,36 +252,33 @@ namespace Bricscad_AgentAI_V2.UI
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
-            // Przechwycenie manualnego zaznaczenia do pamięci izolowanej
             try
             {
                 PromptSelectionResult selRes = doc.Editor.SelectImplied();
                 if (selRes.Status == PromptStatus.OK)
                 {
                     AgentMemoryState.Update(selRes.Value.GetObjectIds());
-                    AppendToHistory("SYSTEM", $"Manualnie przechwycono {AgentMemoryState.ActiveSelection.Length} obiektów do pamięci.", Color.Gray);
                 }
             }
             catch { }
 
             _conversationHistory.Add(new ChatMessage { Role = "user", Content = userMsg });
-            UpdateStatusHUD("Oczekiwanie na analizę przez Bielik V2...");
+            UpdateStatusHUD("Oczekiwanie na analizę...");
 
             try
             {
-                // Asynchroniczne odpalenie ReAct by nie zamrozić BricsCADa! (KLAZULA: Użycie Task.Run do oddzielenia weawer'a UI od synchronicznych pętli LLM)
                 string aiResponse = await Task.Run(async () => 
                 {
                     return await _llmClient.SendMessageReActAsync(_conversationHistory, doc);
                 });
 
                 AppendToHistory("BIELIK", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);
-                UpdateStatusHUD("Operacja zakończona sukcesem.");
+                UpdateStatusHUD("Gotowy.");
             }
             catch (Exception ex)
             {
                 AppendToHistory("BŁĄD", ex.Message, Color.LightCoral);
-                UpdateStatusHUD("Krytyczny błąd wykonania.");
+                UpdateStatusHUD("Błąd krytyczny.");
             }
             finally
             {

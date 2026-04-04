@@ -70,6 +70,7 @@
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
     <Compile Include="src\Tools\ManageLayersTool.cs" />
+    <Compile Include="src\Tools\ExecuteMacroTool.cs" />
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

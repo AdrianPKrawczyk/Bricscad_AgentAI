@@ -13,10 +13,12 @@
 - [KROK-4.1] Portowano "Ręce Agenta": Utworzono `CreateObjectTool.cs` oraz silnik `RpnCalculator.cs`. Wdrożono mechanizm Auto-Selection oraz obsługę zmiennych `@` w `AgentMemoryState`. Zaktualizowano dokumentację System_Blueprint oraz USER_GUIDE.
 - [KROK-5.1] Portowanie ModifyPropertiesTool: Zaimplementowano narzędzie `ModifyPropertiesTool.cs` z pełnym wykorzystaniem RPN i obsługą transakcji. Spełniono rygorystyczny check-flow DoD (Definition of Done).
 - [KROK-5.2] Portowanie `ManageLayersTool.cs`: Wdrożono narzędzie do bezpiecznego zarządzania warstwami z obsługą masek nazw (Wildcards), blokadą usuwania warstw chronionych ("0", "Defpoints") i aktualnych. Spełniono DoD (Build, Testy Schema, Blueprint, User Guide).
-- [KROK-6.1] Integracja UI: Przeniesiono `AgentControl.cs` do wewnątrz V2. Wyczyszczono zastałą logikę `TagValidator` i Regex. Zastosowano asynchroniczną pętlę narzędziową z nowym wyświetlaczem HUD powiadomień. Pomyślne kompilacje (v2.6.1).
+- [KROK-6.1] Integracja UI (V2): Przeniesiono `AgentControl.cs` do wewnątrz V2. Wyczyszczono zastałą logikę `TagValidator` i Regex. Zastosowano asynchroniczną pętlę narzędziową z nowym wyświetlaczem HUD powiadomień.
+- [KROK-6.2] Finalizacja V2.1.0 GOLD: Wdrożono `ExecuteMacroTool.cs` (LISP/RPN), mechanizm oszczędzania tokenów `TrimHistory`, oraz usprawnienia UI (Copy to Clipboard, Model HUD indicator). System przeszedł "Scenariusz Architekta" (End-to-End).
 ### [STAN_SYSTEMU]
-- Pełna asynchroniczna pętla LLM (ReAct) zarządza graficznym interfejsem bez zamrażania wątku głównego BricsCAD. Zamiast starych logów widać czyste dane `tool_calls` w powiązanej zakładce deweloperskiej.
+- **WERSJA GOLD (v2.1.0)**: System całkowicie zmigrowany do standardu Function Calling. Posiada pełną integrację UI, autorskie narzędzia CAD (Select, Create, Modify, Layer, Macro), asynchroniczną pętlę decyzyjną ReAct oraz system optymalizacji kontekstu.
 ### [BLOKADY / PROBLEMY]
-- Brak.
+- BRAK. Migracja Architektoniczna zakończona sukcesem.
 ### [KOLEJNY_KROK]
-- [KROK-6.2] Opcjonalne wdrożenie modułów pobocznych do UI (Panel Moje Makra, DB Manager) lub zamknięcie i zoptymalizowanie wydania Beta V2.
+- [KROK-7.1] Optymalizacja promptów (System Prompts) pod kątem specyficznych modeli (np. DeepSeek/OpenCoder) oraz przygotowanie paczki instalacyjnej .msi / .grx.
+

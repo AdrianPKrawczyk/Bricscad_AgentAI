@@ -94,6 +94,8 @@ namespace Bricscad_AgentAI_V2.Core
                 if (assistantMessage.ToolCalls == null || !assistantMessage.ToolCalls.Any())
                 {
                     OnStatusUpdate?.Invoke("Formułowanie ostatecznej odpowiedzi...");
+                    // Przed zakończeniem przycinamy historię, by oszczędzać tokeny
+                    TrimHistory(conversationHistory);
                     return assistantMessage.Content ?? "(Model nie zwrócił tekstu)";
                 }
 
@@ -140,6 +142,24 @@ namespace Bricscad_AgentAI_V2.Core
 
             OnStatusUpdate?.Invoke("Przerwano zapętlenie (zbyt skomplikowany problem lub pętla logiczna LLMa).");
             return "[LLMClient] Przekroczono maksymalną liczbę iteracji (pętla powtórzeń Tool Calls). Przerywam zadanie.";
+        }
+
+        /// <summary>
+        /// Skraca historię konwersacji, zastępując obszerne wyniki narzędzi krótkimi podsumowaniami,
+        /// aby oszczędzać okno kontekstowe bez utraty struktury tool calling.
+        /// </summary>
+        private void TrimHistory(List<ChatMessage> history)
+        {
+            const int maxLength = 500;
+            foreach (var message in history)
+            {
+                if (message.Role == "tool" && message.Content?.Length > maxLength)
+                {
+                    // Skracamy treść wyniku narzędzia
+                    int originalLength = message.Content.Length;
+                    message.Content = $"{message.Content.Substring(0, 100)}... [PRZYCIĘTO {originalLength - 100} znaków dla oszczędności tokenów]";
+                }
+            }
         }
     }
 }
