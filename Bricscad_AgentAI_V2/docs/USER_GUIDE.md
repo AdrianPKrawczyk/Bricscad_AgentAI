@@ -66,3 +66,8 @@ Interfejs został zoptymalizowany pod kątem szybkości i diagnostyki:
 - Możesz odwoływać się do zmiennych używając `@` (jeśli zostały wcześniej zdefiniowane).
 - System automatycznie pilnuje długości rozmowy, przycinając długie dane w tle (**TrimHistory**), co zapewnia stabilność przy bardzo długiej pracy.
 
+## Dokumentacja Referencyjna
+Dla zaawansowanych użytkowników i administratorów przygotowaliśmy szczegółowe katalogi techniczne:
+- [Katalog Poleceń CAD (BricsCAD Commands)](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/docs/COMMANDS_REFERENCE.md) – Lista komend do wpisania w pasku poleceń.
+- [Encyklopedia Narzędzi AI (AI Tools Reference)](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/docs/TOOLS_REFERENCE.md) – Szczegółowa specyfikacja możliwości technicznych Agenta.
+
