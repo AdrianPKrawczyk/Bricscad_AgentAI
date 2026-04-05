@@ -23,8 +23,8 @@
 - [ETAP 4 - Bloki i Atrybuty] Wdrożono `EditBlockTool.cs` z obsługą rekurencyjnej edycji definicji bloków oraz filtrów atrybutów. [KROK-4.1]
 
 ## Logi postępu (Ostatnie 5 zmian)
-- 2026-04-05: v2.6.7 GOLD [BENCHMARK+] - Kalibracja Benchmark_01 (3D Points, MText prompt reinforcement, UserInput isolation).
-- 2026-04-05: v2.6.7 GOLD [BENCHMARK+] - Utworzono pierwszy zestaw benchmarkowy Tool Unit (CreateObjectTool) w tests/Benchmark_01_CreateObject.json.
+- 2026-04-05: v2.6.7 GOLD [BENCHMARK+] - Uproszczenie parametrów tekstowych (hermetyzacja Position/Location w jeden parametr "Position").
+- 2026-04-05: v2.6.7 GOLD [BENCHMARK+] - Synchronizacja API tekstów (Position/Location), wdrożenie instrukcji "No Brackets" w schemacie CreateObjectTool.
 - 2026-04-05: v2.6.6 GOLD [UI HOTFIX] - Rozdzielono etykiety HUD (lblStatus/lblStats), całkowity refaktoring AgentTesterControl (SplitContainer, JSON V1).
 - 2026-04-05: v2.6.5 GOLD [WORKBENCH] - Pasek HUD (statystyki), AgentTesterControl V2 (migrator), metryki w LLMClient.
 - 2026-04-05: v2.6.4-dev [CREATE_OBJECT tuning] - Wzmocniony feedback przestrzenny i optymalizacja schematu w CreateObjectTool.cs.

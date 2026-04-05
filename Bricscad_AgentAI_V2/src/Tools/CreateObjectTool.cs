@@ -34,8 +34,7 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z) lub 'AskUser'." } },
                             { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (x,y,z) - WYMAGANY dla Circle. Format: 'X,Y,Z' (np. '10,10,0'). BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
                             { "Radius", new ToolParameter { Type = "string", Description = "Promień okręgu." } },
-                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja tekstu DBText (x,y,z). Format: 'X,Y,Z'. BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
-                            { "Location", new ToolParameter { Type = "string", Description = "Pozycja tekstu MText (x,y,z). Format: 'X,Y,Z'. BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
+                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja wstawienia (x,y,z) dla DBText, MText lub Tekstu. Format: 'X,Y,Z'. BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
                             { "Text", new ToolParameter { Type = "string", Description = "Treść tekstu." } },
                             { "Height", new ToolParameter { Type = "string", Description = "Wysokość elementu." } },
                             { "Rotation", new ToolParameter { Type = "string", Description = "Obrót (stopnie)." } },
@@ -81,8 +80,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) || entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
                 {
-                    string posKey = entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) ? "Position" : "Location";
-                    Point3d pos = GetPoint(ed, args[posKey]?.ToString(), "Pozycja: ");
+                    Point3d pos = GetPoint(ed, args["Position"]?.ToString(), "Pozycja: ");
                     
                     string txt = GetStringVal(ed, args["Text"]?.ToString(), "Tekst: ");
                     double h = GetDouble(ed, args["Height"]?.ToString(), "Wysokość: ", db.Textsize);
@@ -93,7 +91,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     else
                         newEnt = new MText { Location = pos, Contents = txt, TextHeight = h, Rotation = rot };
                     
-                    spatialInfo = $"{posKey}={FormatPt(pos)}, Wysokość={h}";
+                    spatialInfo = $"Position={FormatPt(pos)}, Wysokość={h}";
                 }
                 else if (entityType.Equals("MLeader", StringComparison.OrdinalIgnoreCase))
                 {

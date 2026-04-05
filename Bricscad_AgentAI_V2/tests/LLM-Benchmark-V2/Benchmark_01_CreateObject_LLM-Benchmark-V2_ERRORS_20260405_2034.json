@@ -1,0 +1,198 @@
+﻿{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-04-05 20:32",
+    "Comment": "Kolekcja testów jednostkowych dla CreateObjectTool (Sformatowana pod 3D).",
+    "GlobalScore": 60.0,
+    "CategoriesScores": {
+      "CreateObject": 60.0
+    },
+    "AverageExecutionTimeMs": 12825.0
+  },
+  "Tests": [
+    {
+      "Id": 4,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "MText ze spacjami",
+      "Description": "Test tworzenia tekstu wielowierszowego.",
+      "UserPrompt": "Napisz tekst wielowierszowy (MText) 'Witaj w BricsCAD V2' w punkcie 50,50,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "MText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Witaj w BricsCAD V2",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "50,50,0",
+          "TargetArgument": "Location",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Znaleziono: '', Oczekiwano: '50,50,0')"
+      ],
+      "ExecutionTimeMs": 11714
+    },
+    {
+      "Id": 6,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "DBText (Single Line)",
+      "Description": "Test tekstu jednoliniowego.",
+      "UserPrompt": "Dodaj tekst jednoliniowy o treści 'OVAL' na współrzędnych 10,10,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "DBText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "OVAL",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "10,10,0",
+          "TargetArgument": "InsertionPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Znaleziono: '', Oczekiwano: '10,10,0')"
+      ],
+      "ExecutionTimeMs": 9032
+    },
+    {
+      "Id": 9,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Pionowa Linia",
+      "Description": "Pułapka na Exact Match (pozostawione 50,100).",
+      "UserPrompt": "Narysuj pionową linię o długości 100 zaczynającą się w punkcie 50,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Line",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "50,100,0",
+          "TargetArgument": "EndPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Znaleziono: '150,0,0', Oczekiwano: '50,100,0')"
+      ],
+      "ExecutionTimeMs": 12809
+    },
+    {
+      "Id": 10,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Etykieta MText",
+      "Description": "Test tworzenia etykiety tekstowej przez MText.",
+      "UserPrompt": "Wstaw tekst wielowierszowy (MText) o treści 'RYSUNEK TESTOWY' w punkcie 0,100,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "MText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "RYSUNEK TESTOWY",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "0,100,0",
+          "TargetArgument": "Location",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Znaleziono: '', Oczekiwano: '0,100,0')"
+      ],
+      "ExecutionTimeMs": 14286
+    }
+  ]
+}

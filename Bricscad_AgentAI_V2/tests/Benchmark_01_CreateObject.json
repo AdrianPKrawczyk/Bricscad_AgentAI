@@ -54,7 +54,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
         { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "MText" },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Text", "TargetValue": "Witaj w BricsCAD V2" },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Location", "TargetValue": "50,50,0" }
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "50,50,0" }
       ]
     },
     {
@@ -80,7 +80,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
         { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "DBText" },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Text", "TargetValue": "OVAL" },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "InsertionPoint", "TargetValue": "10,10,0" }
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "10,10,0" }
       ]
     },
     {
@@ -129,7 +129,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
         { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "MText" },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Text", "TargetValue": "RYSUNEK TESTOWY" },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Location", "TargetValue": "0,100,0" }
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "0,100,0" }
       ]
     }
   ]
