@@ -74,8 +74,8 @@ namespace Bricscad_AgentAI_V2.UI
                     Content = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. " +
                               "NIGDY nie używaj tagów takich jak [FOR_EACH] czy [CREATE_OBJECT]. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). " +
                               "PAMIĘTAJ: Dla obiektów Circle używaj ZAWSZE 'Center' i 'Radius'. Parametry 'StartPoint' i 'EndPoint' są zarezerwowane WYŁĄCZNIE dla linii. " +
-                              "Jeśli generujesz sekwencje punktów, użyj narzędzia Foreach. " +
-                              "Przykład (5 okręgów): Foreach(GenerateSequence: {StartVector: '0,0,0', OffsetVector: '100,0,0', Count: 5}, Action: '{\"EntityType\": \"Circle\", \"Center\": \"{item}\", \"Radius\": \"50\"}')"
+                              "PRZYKŁAD KONCEPCYJNY: Jeśli użytkownik prosi o '5 okręgów co 100 jednostek', użyj narzędzia 'Foreach'. W jego parametrze 'GenerateSequence' ustaw StartVector na '0,0,0', OffsetVector na '100,0,0' i Count na 5. W parametrze 'Action' przekaż JSON narzędzia 'CreateObject' z EntityType 'Circle', gdzie Center to '{item}'. " +
+                              "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości (np. używając bloków tool_request, json lub jakichkolwiek tagów). Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls)."
                 }
             };
         }

@@ -25,6 +25,7 @@
 - [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach Sequence Generator) - **ZAKOŃCZONE** [v2.6.8]
  
  ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-05: v2.6.10 GOLD [PROMPT HOTFIX] - Naprawa regresji "Few-Shot Overfitting". Usunięcie surowych bloków JSON z promptu, wprowadzenie opisowych przykładów koncepcyjnych oraz agresywnego zakazu Markdown dla wywołań narzędzi.
 - 2026-04-05: v2.6.9 GOLD [PROMPT BOOST] - Wzmocnienie System Promptu (zakaz tagów V1, few-shot Foreach), implementacja rekurencyjnego wywoływania narzędzi w ForeachTool (Action JSON Template) via Singleton.
 - 2026-04-05: v2.6.8 GOLD [FOREACH+ SEQ] - Implementacja Sequence Generator w ForeachTool.cs, rozszerzenie ToolParameter o nested properties/items, testy i dokumentacja.
 - 2026-04-05: v2.6.7 GOLD [UI/UX] - Zakładki w Benchmarku, czas w sekundach, persystencja JSON (Registry), dokowanie palety do Lewego Boku.
@@ -44,7 +45,7 @@
 - [x] ETAP 7: Dokumentacja i Finał Release - **ZAKOŃCZONE**
 
 ### [STAN_SYSTEMU]
-- **WERSJA v2.6.9 GOLD**: Wzmocniono architekturę Tool Calling. Foreach posiada teraz własny rekurencyjny silnik wykonawczy. System Prompt rygorystycznie wymusza standardy V2 GOLD.
+- **WERSJA v2.6.10 GOLD**: Stabilizacja Tool Calling. Wyeliminowano ryzyko halucynacji formatowania Markdown poprzez usunięcie surowych przykładów JSON z System Promptu.
 ### [BLOKADY / PROBLEMY]
 - BRAK.
 ### [KOLEJNY_KROK]
