@@ -25,6 +25,7 @@
 - [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach Sequence Generator) - **ZAKOŃCZONE** [v2.6.8]
  
  ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-05: v2.6.13 GOLD [MATH HOTFIX] - Poprawa odporności na białe znaki w parserze RPN (Trim), wdrożenie "Trybu Paranoi" w System Prompcie (psychologiczna blokada przed liczeniem w pamięci).
 - 2026-04-05: v2.6.12 GOLD [MATH/RPN] - Integracja kalkulatora RPN z ParsePoint w CreateObjectTool.cs (niezależna ewaluacja X, Y, Z). Aktualizacja System Promptu - rygorystyczny wymóg delegowania matematyki do silnika CAD.
 - 2026-04-05: v2.6.11 GOLD [FOREACH PERF] - Implementacja "Sprzęgła Graficznego" w ForeachTool.cs (SelectObject=false), wymuszenie UpdateScreen() oraz od-kotwiczenie System Promptu (abstrakcyjne przykłady N, X,Y,Z).
 - 2026-04-05: v2.6.10 GOLD [PROMPT HOTFIX] - Naprawa regresji "Few-Shot Overfitting". Usunięcie surowych bloków JSON z promptu, wprowadzenie opisowych przykładów koncepcyjnych oraz agresywnego zakazu Markdown dla wywołań narzędzi.
@@ -47,7 +48,7 @@
 - [x] ETAP 7: Dokumentacja i Finał Release - **ZAKOŃCZONE**
 
 ### [STAN_SYSTEMU]
-- **WERSJA v2.6.12 GOLD**: Pełna gotowość obliczeniowa. Model LLM deleguje matematykę geometryczną do silnika RPN (ParsePoint v2), co eliminuje błędy w zadaniach konstrukcyjnych.
+- **WERSJA v2.6.13 GOLD**: Maksymalna precyzja obliczeniowa. Załatano błędy parsowania spacji w RPN oraz wzmocniono psychologiczną blokadę "Trybu Paranoi" dla LLM.
 ### [BLOKADY / PROBLEMY]
 - BRAK.
 ### [KOLEJNY_KROK]

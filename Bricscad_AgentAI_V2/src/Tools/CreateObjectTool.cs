@@ -161,26 +161,32 @@ namespace Bricscad_AgentAI_V2.Tools
         private double GetDouble(Editor ed, string input, string prompt, double def)
         {
             if (string.IsNullOrEmpty(input)) return def;
-            if (input.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
+            string trimmed = input.Trim();
+            if (trimmed.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
             {
                 var pr = ed.GetDistance("\n" + prompt);
                 return pr.Status == PromptStatus.OK ? pr.Value : def;
             }
-            if (input.StartsWith("RPN:")) return ParseRpnDouble(input.Substring(4), def);
-            if (double.TryParse(input.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val)) return val;
+            if (trimmed.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase)) return ParseRpnDouble(trimmed.Substring(4).Trim(), def);
+            if (double.TryParse(trimmed.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val)) return val;
             return def;
         }
 
         private string GetStringVal(Editor ed, string input, string prompt)
         {
             if (string.IsNullOrEmpty(input)) return "";
-            string res = input;
-            if (input.Contains("AskUser"))
+            string res = input.Trim();
+            if (res.Contains("AskUser"))
             {
                 var pr = ed.GetString("\n" + prompt);
                 if (pr.Status == PromptStatus.OK) res = res.Replace("AskUser", pr.StringResult);
             }
-            if (res.Contains("RPN:")) res = RpnCalculator.Evaluate(res.Substring(res.IndexOf("RPN:") + 4));
+            if (res.ToUpper().Contains("RPN:"))
+            {
+                int idx = res.ToUpper().IndexOf("RPN:");
+                string rpnPart = res.Substring(idx + 4).Trim();
+                res = RpnCalculator.Evaluate(rpnPart);
+            }
             return res;
         }
 
