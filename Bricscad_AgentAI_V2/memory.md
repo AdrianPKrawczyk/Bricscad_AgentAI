@@ -25,6 +25,7 @@
 - [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach Sequence Generator) - **ZAKOŃCZONE** [v2.6.8]
  
  ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-06: v2.6.16 GOLD [SCHEMA INJECTION] - Wstrzyknięcie rygorystycznych instrukcji RPN do opisów parametrów punktowych w GetToolSchema (CreateObjectTool.cs). Model nie ma już wymówki "braku formatu" i musi używać kalkulatora dla każdej osi z osobna.
 - 2026-04-06: v2.6.15 GOLD [UNIT KNOWLEDGE] - Aktualizacja System Promptu o pełną wiedzę na temat analizy wymiarowej i konwersji jednostek w RPN. Model wie teraz, jak używać 'WARTOŚĆ_JEDNOSTKA' oraz jak zlecać mieszane obliczenia (np. '100_mm 5_cm +').
 - 2026-04-06: v2.6.14 GOLD [RPN RESTITUTION] - Pełna restytucja potężnego kalkulatora wymiarowego z V1 (UnitDim, PhysicalValue, UnitEngine). Przywrócono obsługę jednostek, stałych fizycznych i zaawansowanych operatorów przy zachowaniu integracji z V2 (AgentMemoryState).
 - 2026-04-05: v2.6.13 GOLD [MATH HOTFIX] - Poprawa odporności na białe znaki w parserze RPN (Trim), wdrożenie "Trybu Paranoi" w System Prompcie (psychologiczna blokada przed liczeniem w pamięci).
@@ -50,7 +51,7 @@
 - [x] ETAP 7: Dokumentacja i Finał Release - **ZAKOŃCZONE**
 
 ### [STAN_SYSTEMU]
-- **WERSJA v2.6.15 GOLD**: Agent posiada pełną świadomość wymiarową. Rozumie jednostki fizyczne, potrafi je konwertować i wykonywać obliczenia przestrzenne z rygorystyczną precyzją CAD.
+- **WERSJA v2.6.16 GOLD**: Eliminacja konfliktów schematu. Każdy parametr punktowy (X,Y,Z) posiada w opisie instrukcję delegowania obliczeń do RPN, co zamyka lukę dla halucynacji matematycznych modelu.
 ### [BLOKADY / PROBLEMY]
 - BRAK.
 ### [KOLEJNY_KROK]
