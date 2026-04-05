@@ -25,6 +25,7 @@
 - [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach Sequence Generator) - **ZAKOŃCZONE** [v2.6.8]
  
  ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-06: v2.6.15 GOLD [UNIT KNOWLEDGE] - Aktualizacja System Promptu o pełną wiedzę na temat analizy wymiarowej i konwersji jednostek w RPN. Model wie teraz, jak używać 'WARTOŚĆ_JEDNOSTKA' oraz jak zlecać mieszane obliczenia (np. '100_mm 5_cm +').
 - 2026-04-06: v2.6.14 GOLD [RPN RESTITUTION] - Pełna restytucja potężnego kalkulatora wymiarowego z V1 (UnitDim, PhysicalValue, UnitEngine). Przywrócono obsługę jednostek, stałych fizycznych i zaawansowanych operatorów przy zachowaniu integracji z V2 (AgentMemoryState).
 - 2026-04-05: v2.6.13 GOLD [MATH HOTFIX] - Poprawa odporności na białe znaki w parserze RPN (Trim), wdrożenie "Trybu Paranoi" w System Prompcie (psychologiczna blokada przed liczeniem w pamięci).
 - 2026-04-05: v2.6.12 GOLD [MATH/RPN] - Integracja kalkulatora RPN z ParsePoint w CreateObjectTool.cs (niezależna ewaluacja X, Y, Z). Aktualizacja System Promptu - rygorystyczny wymóg delegowania matematyki do silnika CAD.
@@ -49,7 +50,7 @@
 - [x] ETAP 7: Dokumentacja i Finał Release - **ZAKOŃCZONE**
 
 ### [STAN_SYSTEMU]
-- **WERSJA v2.6.14 GOLD**: Pełna potęga obliczeniowa przywrócona. Kalkulator RPN obsługuje teraz wymiarowanie (jednostki), stałe (#PI, #G) oraz zaawansowaną algebrę jednostek.
+- **WERSJA v2.6.15 GOLD**: Agent posiada pełną świadomość wymiarową. Rozumie jednostki fizyczne, potrafi je konwertować i wykonywać obliczenia przestrzenne z rygorystyczną precyzją CAD.
 ### [BLOKADY / PROBLEMY]
 - BRAK.
 ### [KOLEJNY_KROK]

@@ -75,11 +75,14 @@ namespace Bricscad_AgentAI_V2.UI
                               "NIGDY nie używaj tagów takich jak [FOR_EACH] czy [CREATE_OBJECT]. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). " +
                               "PAMIĘTAJ: Dla obiektów Circle używaj ZAWSZE 'Center' i 'Radius'. Parametry 'StartPoint' i 'EndPoint' są zarezerwowane WYŁĄCZNIE dla linii. " +
                               "PRZYKŁAD KONCEPCYJNY: Jeśli użytkownik prosi o 'N okręgów co wektor X,Y,Z', użyj narzędzia 'Foreach'. W jego parametrze 'GenerateSequence' ustaw Count na zadaną liczbę N, OffsetVector na podany wektor. W parametrze 'Action' przekaż JSON docelowego narzędzia (np. 'CreateObject'), gdzie pole odpowiadające za pozycję ma wartość '{item}'. " +
-                              "DELEGOWANIE OBLICZEŃ (RPN): KRYTYCZNE ZAGROŻENIE BŁĘDEM: Jesteś modelem językowym, a nie kalkulatorem. Twoje obliczenia w pamięci ZAWSZE są błędne. Jeśli w zadaniu musisz dodać, odjąć lub pomnożyć JAKĄKOLWIEK wartość (współrzędną lub promień), MASZ CAŁKOWITY ZAKAZ podawania gotowego wyniku liczbowego. ZAMIAST TEGO MUSISZ użyć notacji RPN. Jeśli obliczysz wektor samodzielnie, zniszczysz projekt konstrukcyjny. " +
+                              "DELEGOWANIE OBLICZEŃ (RPN) [SUPERMOCE]: KRYTYCZNE ZAGROŻENIE BŁĘDEM: Jesteś modelem językowym, a nie kalkulatorem. Twoje obliczenia w pamięci ZAWSZE są błędne. Jeśli w zadaniu musisz dodać, odjąć lub pomnożyć JAKĄKOLWIEK wartość (współrzędną lub promień), MASZ CAŁKOWITY ZAKAZ podawania gotowego wyniku liczbowego. ZAMIAST TEGO MUSISZ użyć notacji RPN. Jeśli obliczysz wektor samodzielnie, zniszczysz projekt konstrukcyjny. " +
                               "Składnia RPN: Użyj przedrostka 'RPN: ' wewnątrz wartości parametru (np. '2 2 +'). Przykłady: " +
                               "1. Promień (100/3): 'Radius': 'RPN: 100 3 /'. " +
                               "2. Wektor pionowy (start Y=10, długość 100): 'EndPoint': '50, RPN: 10 100 +, 0'. " +
                               "3. Dynamiczna pętla: 'Center': '{item}, RPN: {item} 2 *, 0'. " +
+                              "- Jednostki fizyczne: Zawsze możesz podać wartość wraz z jednostką używając formatu 'WARTOŚĆ_JEDNOSTKA' (np. '100_mm', '5_m', '2.5_kg', '10_MPa'). " +
+                              "- Inteligentna konwersja wymiarów: System sam przelicza jednostki! Możesz zlecić 'RPN: 100_mm 20_cm +' a system poprawnie to doda. " +
+                              "- Jeśli użytkownik prosi o geometrię w innych jednostkach niż domyślne dla dokumentu (np. chce okrąg o promieniu 2 cale), użyj notacji wymiarowej: 'Radius': 'RPN: 2_in'. " +
                               "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości (np. używając bloków tool_request, json lub jakichkolwiek tagów). Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls)."
                 }
             };
