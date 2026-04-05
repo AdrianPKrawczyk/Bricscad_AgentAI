@@ -261,12 +261,14 @@ namespace Bricscad_AgentAI_V2.Core
 
                         // --- Sprawdzenie wartości konkretnego argumentu JSON ---
                         case "ArgumentMatch":
+                            // Szukamy ostatniego wywołania narzędzia, które faktycznie posiada szukany argument
                             var callForMatch = test.RecordedToolCalls
-                                .FirstOrDefault(c => rule.TargetArgument != null);
+                                .LastOrDefault(c => c.Arguments != null && ResolveJsonPath(c.Arguments, rule.TargetArgument) != null);
 
-                            if (callForMatch == null || callForMatch.Arguments == null)
+                            if (callForMatch == null)
                             {
                                 rulePassed = false;
+                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie został znaleziony w żadnym wywołaniu)";
                                 break;
                             }
 

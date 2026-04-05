@@ -30,11 +30,11 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "EntityType", new ToolParameter { Type = "string", Description = "Typ: Line, Circle, DBText, MText, MLeader." } },
                             { "Layer", new ToolParameter { Type = "string", Description = "Warstwa docelowa." } },
                             { "SelectObject", new ToolParameter { Type = "boolean", Description = "Ustaw jako zaznaczenie (default: true)." } },
-                            { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt startowy (x,y,z) lub 'AskUser'." } },
-                            { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z) lub 'AskUser'." } },
-                            { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (x,y,z) - WYMAGANY dla Circle. Format: 'X,Y,Z' (np. '10,10,0'). BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
+                            { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt startowy (x,y,z). Format: 'X,Y,Z'. BEZWZGLĘDNIE BEZ NAWIASÓW." } },
+                            { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z). Format: 'X,Y,Z'. BEZWZGLĘDNIE BEZ NAWIASÓW." } },
+                            { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (Circle). Format: 'X,Y,Z'. BEZWZGLĘDNIE BEZ NAWIASÓW." } },
                             { "Radius", new ToolParameter { Type = "string", Description = "Promień okręgu." } },
-                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja wstawienia (x,y,z) dla DBText, MText lub Tekstu. Format: 'X,Y,Z'. BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
+                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja wstawienia tekstu lub punktu środkowego. Format: 'X,Y,Z'. BEZWZGLĘDNIE BEZ NAWIASÓW." } },
                             { "Text", new ToolParameter { Type = "string", Description = "Treść tekstu." } },
                             { "Height", new ToolParameter { Type = "string", Description = "Wysokość elementu." } },
                             { "Rotation", new ToolParameter { Type = "string", Description = "Obrót (stopnie)." } },
@@ -72,11 +72,13 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (args["EndPoint"] != null)
                         return "[BŁĄD] Okrąg nie posiada parametru EndPoint. Użyj 'Center' i 'Radius'.";
 
-                    Point3d cen = GetPoint(ed, args["Center"]?.ToString(), "Środek: ");
+                    // Fallback: jeśli model użył 'Position' zamiast 'Center'
+                    string centerInput = (args["Center"] ?? args["Position"])?.ToString();
+                    Point3d cen = GetPoint(ed, centerInput, "Środek: ");
                     double rad = GetDouble(ed, args["Radius"]?.ToString(), "Promień: ", 1.0);
                     newEnt = new Circle(cen, Vector3d.ZAxis, rad);
                     double area = Math.PI * rad * rad;
-                    spatialInfo = $"Środek={FormatPt(cen)}, Promień={Math.Round(rad, 4)}, Pole={Math.Round(area, 4)}";
+                    spatialInfo = $"Center={FormatPt(cen)}, Radius={Math.Round(rad, 4)}, Area={Math.Round(area, 4)}";
                 }
                 else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) || entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
                 {
@@ -141,7 +143,7 @@ namespace Bricscad_AgentAI_V2.Tools
         }
         private string FormatPt(Point3d pt)
         {
-            return $"[{Math.Round(pt.X, 3)}, {Math.Round(pt.Y, 3)}, {Math.Round(pt.Z, 3)}]";
+            return $"{Math.Round(pt.X, 3).ToString(CultureInfo.InvariantCulture)},{Math.Round(pt.Y, 3).ToString(CultureInfo.InvariantCulture)},{Math.Round(pt.Z, 3).ToString(CultureInfo.InvariantCulture)}";
         }
 
 

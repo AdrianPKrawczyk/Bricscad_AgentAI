@@ -62,9 +62,9 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         public List<ValidationRule> ValidationRules { get; set; } = new List<ValidationRule>();
 
-        // --- Wyniki (wypełniane przez silnik, ignorowane przy odczycie z pliku) ---
-        [JsonIgnore] public bool Passed { get; set; }
-        [JsonIgnore] public List<RecordedToolCall> RecordedToolCalls { get; set; } = new List<RecordedToolCall>();
+        // --- Wyniki (wypełniane przez silnik) ---
+        public bool Passed { get; set; }
+        public List<RecordedToolCall> RecordedToolCalls { get; set; } = new List<RecordedToolCall>();
 
         public List<string> FailedRulesErrors { get; set; } = new List<string>();
         public long ExecutionTimeMs { get; set; }
