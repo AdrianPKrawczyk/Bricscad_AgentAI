@@ -24,6 +24,7 @@
 
 ## Logi postępu (Ostatnie 5 zmian)
 - 2026-04-05: v2.6.7 GOLD [UI/UX] - Zakładki w Benchmarku, czas w sekundach, persystencja JSON (Registry), dokowanie palety do Lewego Boku.
+- 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Naprawa błędu LINQ w AutoBenchmarkEngine (ArgumentMatch), odblokowanie RecordedToolCalls w JSON.
 - 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Totalna Hermetyzacja (precyzyjne i wykluczające opisy StartPoint, Center, Position).
 - 2026-04-05: v2.6.6 GOLD [UI HOTFIX] - Rozdzielono etykiety HUD (lblStatus/lblStats), całkowity refaktoring AgentTesterControl (SplitContainer, JSON V1).
 - 2026-04-05: v2.6.5 GOLD [WORKBENCH] - Pasek HUD (statystyki), AgentTesterControl V2 (migrator), metryki w LLMClient.
@@ -39,8 +40,8 @@
 - [x] ETAP 7: Dokumentacja i Finał Release - **ZAKOŃCZONE**
 
 ### [STAN_SYSTEMU]
-- **WERSJA v2.6.4-dev**: Strojenie CreateObjectTool (KROK 6.4.1). Poprawiony feedback przestrzenny.
+- **WERSJA v2.6.7 GOLD**: Benchmark V2 i UI/UX sfinalizowane. System stabilnie przechodzi 90%+ zestawu CreateObject.
 ### [BLOKADY / PROBLEMY]
 - BRAK.
 ### [KOLEJNY_KROK]
-- System gotowy do dystrybucji i testów terenowych.
+- Masowa walidacja datasetów i testy regresyjne. Gotowość do wdrożenia modułów zaawansowanych (Etap 8).
