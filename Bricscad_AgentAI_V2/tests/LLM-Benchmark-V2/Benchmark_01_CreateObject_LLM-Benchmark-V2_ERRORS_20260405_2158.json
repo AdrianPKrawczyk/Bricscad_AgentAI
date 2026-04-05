@@ -1,0 +1,67 @@
+﻿{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-04-05 21:55",
+    "Comment": "Kolekcja testów jednostkowych dla CreateObjectTool (Sformatowana pod 3D).",
+    "GlobalScore": 90.0,
+    "CategoriesScores": {
+      "CreateObject": 90.0
+    },
+    "AverageExecutionTimeMs": 12988.0
+  },
+  "Tests": [
+    {
+      "Id": 9,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Pionowa Linia",
+      "Description": "Pułapka na Exact Match (pozostawione 50,100).",
+      "UserPrompt": "Narysuj pionową linię o długości 100 zaczynającą się w punkcie 50,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Line",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "50,100,0",
+          "TargetArgument": "EndPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Line",
+            "Layer": "Model",
+            "SelectObject": true,
+            "StartPoint": "50,0,0",
+            "EndPoint": "150,0,0"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Znaleziono: '150,0,0', Oczekiwano: '50,100,0')"
+      ],
+      "ExecutionTimeMs": 12042
+    }
+  ]
+}

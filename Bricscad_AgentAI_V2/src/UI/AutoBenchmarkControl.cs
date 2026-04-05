@@ -10,6 +10,7 @@ using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
+using Microsoft.Win32;
 
 namespace Bricscad_AgentAI_V2.UI
 {
@@ -20,12 +21,14 @@ namespace Bricscad_AgentAI_V2.UI
         private BenchmarkConfig _currentConfig;
 
         // Kontrolki UI
-        private Button btnLoadJson, btnStart, btnStop;
+        private Button btnLoadJson, btnStart, btnStop, btnSendToChat;
         private DataGridView dgvTests;
-        private RichTextBox txtLogs;
-        private RichTextBox txtDetails;
+        private RichTextBox txtLogs, txtDetails, txtTaskDesc, txtErrorLog;
         private ProgressBar progressBar;
         private Label lblGlobalStatus;
+        private TabControl tabLogs;
+        private const string REG_PATH = @"Software\BricscadAgentAI";
+        private const string REG_KEY = "LastBenchmarkPath";
 
         public AutoBenchmarkControl(AutoBenchmarkEngine engine)
         {
@@ -35,6 +38,7 @@ namespace Bricscad_AgentAI_V2.UI
             _engine.OnBenchmarkCompleted += Engine_OnBenchmarkCompleted;
 
             InitializeUI();
+            LoadLastPath();
         }
 
         private void InitializeUI()
@@ -71,15 +75,6 @@ namespace Bricscad_AgentAI_V2.UI
             panFooter.Controls.Add(lblGlobalStatus);
             panFooter.Controls.Add(progressBar);
 
-            // Środek (Podział Tabela / Logi)
-            SplitContainer splitContainer = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Horizontal,
-                SplitterDistance = 250,
-                BackColor = Color.FromArgb(45, 45, 48)
-            };
-
             // Tabela testów
             dgvTests = new DataGridView
             {
@@ -94,54 +89,82 @@ namespace Bricscad_AgentAI_V2.UI
                 BorderStyle = BorderStyle.None,
                 GridColor = Color.FromArgb(60, 60, 60)
             };
+            dgvTestsColumnsInit();
+            dgvTests.SelectionChanged += DgvTests_SelectionChanged;
+            
+            // Przyciski akcji dodatkowych
+            Panel panTestActions = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(5) };
+            btnSendToChat = CreateStyledButton("💬 Wyślij do czatu", Color.FromArgb(0, 150, 136));
+            btnSendToChat.Enabled = false;
+            btnSendToChat.Width = 140;
+            btnSendToChat.Click += BtnSendToChat_Click;
+            panTestActions.Controls.Add(btnSendToChat);
+
+            // Zakładki dla Logów i Szczegółów
+            tabLogs = new TabControl { Dock = DockStyle.Fill };
+            TabPage pageResults = new TabPage("📊 Wyniki");
+            TabPage pageTasks = new TabPage("📝 Opis zadań");
+            TabPage pageErrors = new TabPage("❌ Log błędów");
+            TabPage pageFullLog = new TabPage("📄 Pełny log (Engine)");
+            TabPage pageDetails = new TabPage("🔍 Detale testu");
+            
+            foreach(TabPage p in new[] { pageResults, pageTasks, pageErrors, pageFullLog, pageDetails })
+                p.BackColor = Color.FromArgb(30, 30, 30);
+
+            // Inicjalizacja pól tekstowych
+            txtLogs = CreateLogBox();
+            txtDetails = CreateLogBox(Color.LightSkyBlue);
+            txtTaskDesc = CreateLogBox(Color.LightGray);
+            txtErrorLog = CreateLogBox(Color.LightCoral);
+
+            pageResults.Controls.Add(dgvTests);
+            pageTasks.Controls.Add(txtTaskDesc);
+            pageErrors.Controls.Add(txtErrorLog);
+            pageFullLog.Controls.Add(txtLogs);
+            
+            // Detale testu potrzebują przycisku akcji
+            pageDetails.Controls.Add(txtDetails);
+            pageDetails.Controls.Add(panTestActions);
+
+            tabLogs.TabPages.Add(pageResults);
+            tabLogs.TabPages.Add(pageTasks);
+            tabLogs.TabPages.Add(pageErrors);
+            tabLogs.TabPages.Add(pageFullLog);
+            tabLogs.TabPages.Add(pageDetails);
+
+            this.Controls.Add(tabLogs);
+            this.Controls.Add(panFooter);
+            this.Controls.Add(panTop);
+        }
+
+        private void dgvTestsColumnsInit()
+        {
+            dgvTests.Columns.Clear();
             dgvTests.Columns.Add("Id", "ID");
-            dgvTests.Columns["Id"].Width = 40;
+            dgvTests.Columns["Id"].Width = 25;
             dgvTests.Columns.Add("Category", "Kategoria");
             dgvTests.Columns.Add("Name", "Nazwa Testu");
             dgvTests.Columns.Add("Status", "Status");
             dgvTests.Columns["Status"].Width = 80;
-            dgvTests.Columns.Add("Time", "Czas (ms)");
+            dgvTests.Columns.Add("Time", "Czas (s)");
             dgvTests.Columns["Time"].Width = 70;
-            dgvTests.SelectionChanged += DgvTests_SelectionChanged;
+            
+            dgvTests.ColumnHeadersHeight = 45;
+            dgvTests.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        }
 
-            // Zakładki dla Logów i Szczegółów
-            TabControl tabLogs = new TabControl { Dock = DockStyle.Fill };
-            TabPage pageLog = new TabPage("📝 Dziennik zdarzeń");
-            TabPage pageDetails = new TabPage("🔍 Szczegóły testu");
-            pageLog.BackColor = Color.FromArgb(30,30,30);
-            pageDetails.BackColor = Color.FromArgb(30,30,30);
-
-            txtLogs = new RichTextBox
+        private RichTextBox CreateLogBox(Color? fg = null)
+        {
+            return new RichTextBox
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
                 BackColor = Color.FromArgb(20, 20, 20),
-                ForeColor = Color.LightGray,
-                Font = new Font("Consolas", 9f),
-                BorderStyle = BorderStyle.None
+                ForeColor = fg ?? Color.LightGray,
+                Font = new Font("Consolas", 9.5f),
+                BorderStyle = BorderStyle.None,
+                WordWrap = true
             };
-            pageLog.Controls.Add(txtLogs);
-
-            txtDetails = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                BackColor = Color.FromArgb(20, 20, 20),
-                ForeColor = Color.LightSkyBlue,
-                Font = new Font("Consolas", 9f),
-                BorderStyle = BorderStyle.None
-            };
-            pageDetails.Controls.Add(txtDetails);
-
-            tabLogs.TabPages.Add(pageLog);
-            tabLogs.TabPages.Add(pageDetails);
-
-            splitContainer.Panel1.Controls.Add(dgvTests);
-            splitContainer.Panel2.Controls.Add(tabLogs);
-
-            this.Controls.Add(splitContainer);
-            this.Controls.Add(panFooter);
-            this.Controls.Add(panTop);
         }
 
         private Button CreateStyledButton(string text, Color bgColor)
@@ -161,7 +184,7 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void BtnLoadJson_Click(object sender, EventArgs e)
         {
-            using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Zestaw Benchmarków (*.json)|*.json", Title = "Wybierz plik testowy" })
+            using (System.Windows.Forms.OpenFileDialog ofd = new System.Windows.Forms.OpenFileDialog { Filter = "Zestaw Benchmarków (*.json)|*.json", Title = "Wybierz plik testowy" })
             {
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
@@ -170,16 +193,8 @@ namespace Bricscad_AgentAI_V2.UI
                         string content = File.ReadAllText(ofd.FileName);
                         _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(content);
                         this.Tag = ofd.FileName;
-
-                        dgvTests.Rows.Clear();
-                        foreach (var test in _currentConfig.Tests)
-                        {
-                            dgvTests.Rows.Add(test.Id, test.Category, test.TestName, "Oczekuje", "");
-                        }
-
-                        btnStart.Enabled = true;
-                        lblGlobalStatus.Text = $"Wczytano {_currentConfig.Tests.Count} testów.";
-                        txtLogs.AppendText($"\n[{DateTime.Now:HH:mm:ss}] Zainicjowano zestaw: {ofd.FileName}");
+                        SaveLastPath(ofd.FileName);
+                        RefreshTestsList();
                     }
                     catch (Exception ex)
                     {
@@ -187,6 +202,65 @@ namespace Bricscad_AgentAI_V2.UI
                     }
                 }
             }
+        }
+
+        private void RefreshTestsList()
+        {
+            if (_currentConfig == null) return;
+
+            dgvTests.Rows.Clear();
+            txtTaskDesc.Clear();
+            txtErrorLog.Clear();
+
+            txtTaskDesc.SelectionFont = new Font(txtTaskDesc.Font, FontStyle.Bold);
+            txtTaskDesc.AppendText("LISTA ZADAŃ W ZESTAWIE:\n\n");
+
+            foreach (var test in _currentConfig.Tests)
+            {
+                dgvTests.Rows.Add(test.Id, test.Category, test.TestName, "Oczekuje", "");
+                
+                txtTaskDesc.SelectionColor = Color.White;
+                txtTaskDesc.AppendText($"[ID: {test.Id}] {test.TestName}\n");
+                txtTaskDesc.SelectionColor = Color.LightGray;
+                txtTaskDesc.AppendText($"PROMPT: {test.UserPrompt}\n");
+                txtTaskDesc.AppendText(new string('-', 40) + "\n");
+            }
+
+            btnStart.Enabled = true;
+            lblGlobalStatus.Text = $"Wczytano {_currentConfig.Tests.Count} testów.";
+            txtLogs.AppendText($"\n[{DateTime.Now:HH:mm:ss}] Zainicjowano zestaw: {this.Tag}");
+        }
+
+        private void SaveLastPath(string path)
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(REG_PATH))
+                {
+                    key.SetValue(REG_KEY, path);
+                }
+            } catch { }
+        }
+
+        private void LoadLastPath()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(REG_PATH))
+                {
+                    if (key != null)
+                    {
+                        string path = key.GetValue(REG_KEY) as string;
+                        if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                        {
+                            string content = File.ReadAllText(path);
+                            _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(content);
+                            this.Tag = path;
+                            RefreshTestsList();
+                        }
+                    }
+                }
+            } catch { }
         }
 
         private async void BtnStart_Click(object sender, EventArgs e)
@@ -283,9 +357,22 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 var row = dgvTests.Rows[rowIndex];
                 row.Cells["Status"].Value = e.TestResult.Passed ? "SUKCES" : "BŁĄD";
-                row.Cells["Time"].Value = e.TestResult.ExecutionTimeMs;
+                
+                double seconds = e.TestResult.ExecutionTimeMs / 1000.0;
+                row.Cells["Time"].Value = seconds.ToString("F1") + "s";
+                
                 row.DefaultCellStyle.BackColor = e.TestResult.Passed ? Color.ForestGreen : Color.Maroon;
                 row.DefaultCellStyle.ForeColor = Color.White;
+
+                // Logujemy błędy do sumarycznej zakładki
+                if (!e.TestResult.Passed)
+                {
+                    txtErrorLog.SelectionFont = new Font(txtErrorLog.Font, FontStyle.Bold);
+                    txtErrorLog.AppendText($"[TEST {e.TestResult.Id}: {e.TestResult.TestName}]\n");
+                    foreach(var err in e.TestResult.FailedRulesErrors)
+                        txtErrorLog.AppendText($"  ✗ {err}\n");
+                    txtErrorLog.AppendText("\n");
+                }
             }
         }
 
@@ -315,7 +402,9 @@ namespace Bricscad_AgentAI_V2.UI
             if (index < 0 || index >= _currentConfig.Tests.Count) return;
 
             var test = _currentConfig.Tests[index];
-            
+            btnSendToChat.Enabled = true;
+            btnSendToChat.Tag = test.UserPrompt;
+
             txtDetails.Clear();
             txtDetails.SelectionFont = new Font(txtDetails.Font, FontStyle.Bold);
             txtDetails.SelectionColor = Color.White;
@@ -348,6 +437,15 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 txtDetails.SelectionColor = Color.LimeGreen;
                 txtDetails.AppendText("\n--- STATUS: WSZYSTKIE REGUŁY SPEŁNIONE ---");
+            }
+        }
+
+        private void BtnSendToChat_Click(object sender, EventArgs e)
+        {
+            if (btnSendToChat.Tag is string prompt && AgentControl.Instance != null)
+            {
+                AgentControl.Instance.SwitchToChat();
+                _ = AgentControl.Instance.ProcessInputAsync(prompt);
             }
         }
     }

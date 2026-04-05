@@ -1,0 +1,588 @@
+﻿{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-04-05 21:55",
+    "Comment": "Kolekcja testów jednostkowych dla CreateObjectTool (Sformatowana pod 3D).",
+    "GlobalScore": 90.0,
+    "CategoriesScores": {
+      "CreateObject": 90.0
+    },
+    "AverageExecutionTimeMs": 12988.0
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Prosta Linia 2D",
+      "Description": "Test podstawowego tworzenia linii.",
+      "UserPrompt": "Narysuj linię od punktu 0,0,0 do 100,100,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Line",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "0,0,0",
+          "TargetArgument": "StartPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "100,100,0",
+          "TargetArgument": "EndPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Line",
+            "Layer": "0",
+            "StartPoint": "0,0,0",
+            "EndPoint": "100,100,0"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 19075
+    },
+    {
+      "Id": 2,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Prosty Okrąg 2D",
+      "Description": "Test podstawowego tworzenia okręgu.",
+      "UserPrompt": "Narysuj okrąg w punkcie 10,10,0 o promieniu 5.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Circle",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "10,10,0",
+          "TargetArgument": "Center",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "5",
+          "TargetArgument": "Radius",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Circle",
+            "Layer": "0",
+            "Center": "10,10,0",
+            "Radius": "5"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 10772
+    },
+    {
+      "Id": 3,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Linia 3D",
+      "Description": "Test tworzenia linii ze współrzędną Z.",
+      "UserPrompt": "Narysuj linię przestrzenną (3D) od 0,0,0 do 10,20,50.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Line",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "0,0,0",
+          "TargetArgument": "StartPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "10,20,50",
+          "TargetArgument": "EndPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Line",
+            "Layer": "0",
+            "StartPoint": "0,0,0",
+            "EndPoint": "10,20,50"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 11216
+    },
+    {
+      "Id": 4,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "MText ze spacjami",
+      "Description": "Test tworzenia tekstu wielowierszowego.",
+      "UserPrompt": "Napisz tekst wielowierszowy (MText) 'Witaj w BricsCAD V2' w punkcie 50,50,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "MText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Witaj w BricsCAD V2",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "50,50,0",
+          "TargetArgument": "Position",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "MText",
+            "Layer": "0",
+            "SelectObject": true,
+            "Position": "50,50,0",
+            "Height": "1",
+            "Text": "Witaj w BricsCAD V2"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 14412
+    },
+    {
+      "Id": 5,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Okrąg 3D",
+      "Description": "Test okręgu w przestrzeni 3D.",
+      "UserPrompt": "Stwórz okrąg o promieniu 25 w punkcie 100,100,10 (Z=10).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Circle",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "100,100,10",
+          "TargetArgument": "Center",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "25",
+          "TargetArgument": "Radius",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Circle",
+            "Layer": "0",
+            "SelectObject": true,
+            "Center": "100,100,10",
+            "Radius": "25"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 11645
+    },
+    {
+      "Id": 6,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "DBText (Single Line)",
+      "Description": "Test tekstu jednoliniowego.",
+      "UserPrompt": "Dodaj tekst jednoliniowy o treści 'OVAL' na współrzędnych 10,10,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "DBText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "OVAL",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "10,10,0",
+          "TargetArgument": "Position",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "DBText",
+            "Layer": "0",
+            "Position": "10,10,0",
+            "Height": "2",
+            "Text": "OVAL"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 10061
+    },
+    {
+      "Id": 7,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Okrąg w zerze",
+      "Description": "Test okręgu w środku układu.",
+      "UserPrompt": "Narysuj kółko o promieniu 15 w środku układu współrzędnych 0,0,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Circle",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "0,0,0",
+          "TargetArgument": "Center",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "15",
+          "TargetArgument": "Radius",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Circle",
+            "Layer": "Model",
+            "SelectObject": true,
+            "Center": "0,0,0",
+            "Radius": "15"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 10544
+    },
+    {
+      "Id": 8,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Hybryda Interakcji",
+      "Description": "Test użycia narzędzia UserInput pod kółko.",
+      "UserPrompt": "Zapytaj użytkownika o promień kółka i narysuj je w punkcie 20,20,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "UserInput",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Double",
+          "TargetArgument": "InputType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "UserInput",
+          "Arguments": {
+            "PromptMessage": "Podaj promień kółka:",
+            "InputType": "Double",
+            "SaveAs": "Radius"
+          }
+        },
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Circle",
+            "Layer": "0",
+            "SelectObject": true,
+            "Center": "20,20,0",
+            "Radius": "20.5"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 17690
+    },
+    {
+      "Id": 9,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Pionowa Linia",
+      "Description": "Pułapka na Exact Match (pozostawione 50,100).",
+      "UserPrompt": "Narysuj pionową linię o długości 100 zaczynającą się w punkcie 50,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Line",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "50,100,0",
+          "TargetArgument": "EndPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "Line",
+            "Layer": "Model",
+            "SelectObject": true,
+            "StartPoint": "50,0,0",
+            "EndPoint": "150,0,0"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Znaleziono: '150,0,0', Oczekiwano: '50,100,0')"
+      ],
+      "ExecutionTimeMs": 12042
+    },
+    {
+      "Id": 10,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "Etykieta MText",
+      "Description": "Test tworzenia etykiety tekstowej przez MText.",
+      "UserPrompt": "Wstaw tekst wielowierszowy (MText) o treści 'RYSUNEK TESTOWY' w punkcie 0,100,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "MText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "RYSUNEK TESTOWY",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "0,100,0",
+          "TargetArgument": "Position",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "MText",
+            "Layer": "Model",
+            "SelectObject": true,
+            "Position": "0,100,0",
+            "Text": "RYSUNEK TESTOWY"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 12423
+    }
+  ]
+}

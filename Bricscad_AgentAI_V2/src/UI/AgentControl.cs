@@ -39,6 +39,7 @@ namespace Bricscad_AgentAI_V2.UI
         private TabPage tabBenchmark;
 
         public static AgentControl Instance { get; private set; }
+        private TabPage tabChat;
 
         public AgentControl()
         {
@@ -81,7 +82,7 @@ namespace Bricscad_AgentAI_V2.UI
             // ==========================================
             // ZAKŁADKA 1: CZAT Z AI 
             // ==========================================
-            TabPage tabChat = new TabPage("💬 Czat (V2 GOLD)");
+            tabChat = new TabPage("💬 Czat (V2 GOLD)");
 
             txtHistory = new RichTextBox
             {
@@ -223,6 +224,14 @@ namespace Bricscad_AgentAI_V2.UI
             if (tabControl != null && tabBenchmark != null)
             {
                 tabControl.SelectedTab = tabBenchmark;
+            }
+        }
+
+        public void SwitchToChat()
+        {
+            if (tabControl != null && tabChat != null)
+            {
+                tabControl.SelectedTab = tabChat;
             }
         }
 
