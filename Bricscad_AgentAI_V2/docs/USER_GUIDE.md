@@ -99,9 +99,26 @@ Oto przykłady łańcuchów działań, które pokazują pełną moc wersji GOLD:
 ### Scenariusz C: Inteligentna Blokowa Numeracja
 > *"Zaznacz bloki o nazwie 'POMIESZCZENIE'. Pobierz ich atrybut 'NUMER'. Użyj pętli, aby przesortować je i zmienić atrybut 'STATUS' na 'WERYFIKACJA' dla tych, których numer jest parzysty."*
 
+### Scenariusz D: Automatyczne Szyki i Sekwencje (NOWOŚĆ v2.6.8)
+Agent potrafi teraz generować skomplikowane układy geometryczne bez Twojej pomocy w liczeniu współrzędnych.
+> *"Narysuj szyk 10 słupów (blok 'SLUP_A') zaczynając od punktu 0,0 i przesuwając każdy o 500 jednostek w prawo."*
+
+W tym scenariuszu Agent używa narzędzia `Foreach` z modułem `GenerateSequence`:
+1. Generuje listę 10 punktów (0,0; 500,0; 1000,0...).
+2. Dla każdego punktu wywołuje `InsertBlock`, podstawiając wygenerowany punkt pod parametr `Position`.
+
 ---
 
-## 🛠️ 7. Diagnostyka i Wydajność
+## 🔄 7. Generator Ciągów (Foreach)
+
+Narzędzie `Foreach` stało się potężnym procesorem danych przestrzennych.
+- **Sequence Generator**: Pozwala na tworzenie liniowych szyków punktów.
+- **Tag `{item}`**: Służy jako miejsce podstawienia wygenerowanej wartości w kolejnych komendach. 
+    *   Przykład: `InsertBlock(BlockName: "A", Position: "{item}")`.
+
+---
+
+## 🛠️ 8. Diagnostyka i Wydajność
 
 - **Pasek HUD**: Sprawdzaj na dole okna czatu, czy Agent jest połączony z modelem LLM.
 - **TrimHistory**: Przy bardzo długich sesjach Agent automatycznie "zapomina" najstarsze, techniczne logi, aby zachować szybkość reakcji (nie tracąc przy tym pamięci o Twoich zmiennych `@`).
@@ -111,4 +128,4 @@ Oto przykłady łańcuchów działań, które pokazują pełną moc wersji GOLD:
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.6.2 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.6.8 GOLD | BricsCAD Agent AI Project*

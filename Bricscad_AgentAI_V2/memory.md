@@ -22,7 +22,10 @@
 - [ETAP 3 - Zaawansowana Geometria i Tekst] Wdrożono `ManageAnnoScalesTool.cs` do automatyzacji skal opisowych. [KROK-3.2]
 - [ETAP 4 - Bloki i Atrybuty] Wdrożono `EditBlockTool.cs` z obsługą rekurencyjnej edycji definicji bloków oraz filtrów atrybutów. [KROK-4.1]
 
-## Logi postępu (Ostatnie 5 zmian)
+- [x] ETAP 5: Mechanizmy Interakcji i Kontroli Przepływu (UserInput, UserChoice, Foreach Sequence Generator) - **ZAKOŃCZONE** [v2.6.8]
+ 
+ ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-05: v2.6.8 GOLD [FOREACH+ SEQ] - Implementacja Sequence Generator w ForeachTool.cs, rozszerzenie ToolParameter o nested properties/items, testy i dokumentacja.
 - 2026-04-05: v2.6.7 GOLD [UI/UX] - Zakładki w Benchmarku, czas w sekundach, persystencja JSON (Registry), dokowanie palety do Lewego Boku.
 - 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Naprawa błędu LINQ w AutoBenchmarkEngine (ArgumentMatch), odblokowanie RecordedToolCalls w JSON.
 - 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Totalna Hermetyzacja (precyzyjne i wykluczające opisy StartPoint, Center, Position).
@@ -40,8 +43,8 @@
 - [x] ETAP 7: Dokumentacja i Finał Release - **ZAKOŃCZONE**
 
 ### [STAN_SYSTEMU]
-- **WERSJA v2.6.7 GOLD**: Benchmark V2 i UI/UX sfinalizowane. System stabilnie przechodzi 90%+ zestawu CreateObject.
+- **WERSJA v2.6.8 GOLD**: Wdrożono Generator Ciągów (Foreach). Rozwiązano problem halucynacji współrzędnych przy rysowaniu szyków.
 ### [BLOKADY / PROBLEMY]
 - BRAK.
 ### [KOLEJNY_KROK]
-- Masowa walidacja datasetów i testy regresyjne. Gotowość do wdrożenia modułów zaawansowanych (Etap 8).
+- Implementacja kalkulatora RPN w pętli Agenta (Middleware), aby wyeliminować błędy matematyczne w skomplikowanych zadaniach konstrukcyjnych (np. Test 9).

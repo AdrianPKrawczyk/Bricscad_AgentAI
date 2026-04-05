@@ -46,5 +46,11 @@ namespace Bricscad_AgentAI_V2.Models
 
         [JsonProperty("enum", NullValueHandling = NullValueHandling.Ignore)]
         public List<string> Enum { get; set; }
+
+        [JsonProperty("properties", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, ToolParameter> Properties { get; set; }
+
+        [JsonProperty("items", NullValueHandling = NullValueHandling.Ignore)]
+        public Newtonsoft.Json.Linq.JToken Items { get; set; }
     }
 }
