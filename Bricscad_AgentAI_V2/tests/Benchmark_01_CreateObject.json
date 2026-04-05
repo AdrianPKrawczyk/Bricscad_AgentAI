@@ -1,0 +1,157 @@
+[
+  {
+    "Id": 1,
+    "Category": "CreateObject",
+    "Question": "Narysuj linię od punktu 0,0 do 100,100.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Line" },
+          { "Type": "ArgumentMatch", "Path": "StartPoint", "ExpectedValue": "0,0" },
+          { "Type": "ArgumentMatch", "Path": "EndPoint", "ExpectedValue": "100,100" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 2,
+    "Category": "CreateObject",
+    "Question": "Narysuj okrąg w punkcie 10,10 o promieniu 5.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
+          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "10,10" },
+          { "Type": "ArgumentMatch", "Path": "Radius", "ExpectedValue": "5" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 3,
+    "Category": "CreateObject",
+    "Question": "Narysuj linię przestrzenną (3D) od 0,0,0 do 10,20,50.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Line" },
+          { "Type": "ArgumentMatch", "Path": "StartPoint", "ExpectedValue": "0,0,0" },
+          { "Type": "ArgumentMatch", "Path": "EndPoint", "ExpectedValue": "10,20,50" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 4,
+    "Category": "CreateObject",
+    "Question": "Napisz tekst wielowierszowy 'Witaj w BricsCAD V2' w punkcie 50,50.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "MText" },
+          { "Type": "ArgumentMatch", "Path": "Text", "ExpectedValue": "Witaj w BricsCAD V2" },
+          { "Type": "ArgumentMatch", "Path": "InsertionPoint", "ExpectedValue": "50,50" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 5,
+    "Category": "CreateObject",
+    "Question": "Stwórz okrąg o promieniu 25 w punkcie 100,100,10 (Z=10).",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
+          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "100,100,10" },
+          { "Type": "ArgumentMatch", "Path": "Radius", "ExpectedValue": "25" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 6,
+    "Category": "CreateObject",
+    "Question": "Dodaj tekst jednoliniowy o treści 'OVAL' na współrzędnych 10,10.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "DBText" },
+          { "Type": "ArgumentMatch", "Path": "Text", "ExpectedValue": "OVAL" },
+          { "Type": "ArgumentMatch", "Path": "InsertionPoint", "ExpectedValue": "10,10" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 7,
+    "Category": "CreateObject",
+    "Question": "Narysuj kółko o promieniu 15 w środku układu współrzędnych.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
+          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "0,0" },
+          { "Type": "ArgumentMatch", "Path": "Radius", "ExpectedValue": "15" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 8,
+    "Category": "CreateObject",
+    "Question": "Zapytaj użytkownika o promień kółka i narysuj je w punkcie 20,20.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "UserInput",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "InputType", "ExpectedValue": "Double" }
+        ]
+      },
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
+          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "20,20" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 9,
+    "Category": "CreateObject",
+    "Question": "Narysuj pionową linię o długości 100 zaczynającą się w punkcie 50,0.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Line" },
+          { "Type": "ArgumentMatch", "Path": "StartPoint", "ExpectedValue": "50,0" },
+          { "Type": "ArgumentMatch", "Path": "EndPoint", "ExpectedValue": "50,100" }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 10,
+    "Category": "CreateObject",
+    "Question": "Wstaw duży napis 'RYSUNEK TESTOWY' w punkcie 0,100.",
+    "ExpectedToolCalls": [
+      {
+        "ToolName": "CreateObject",
+        "Rules": [
+          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "MText" },
+          { "Type": "ArgumentMatch", "Path": "Text", "ExpectedValue": "RYSUNEK TESTOWY" },
+          { "Type": "ArgumentMatch", "Path": "InsertionPoint", "ExpectedValue": "0,100" }
+        ]
+      }
+    ]
+  }
+]

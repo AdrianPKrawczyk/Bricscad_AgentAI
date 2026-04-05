@@ -23,11 +23,11 @@
 - [ETAP 4 - Bloki i Atrybuty] Wdrożono `EditBlockTool.cs` z obsługą rekurencyjnej edycji definicji bloków oraz filtrów atrybutów. [KROK-4.1]
 
 ## Logi postępu (Ostatnie 5 zmian)
+- 2026-04-05: v2.6.7 GOLD [BENCHMARK+] - Utworzono pierwszy zestaw benchmarkowy Tool Unit (CreateObjectTool) w tests/Benchmark_01_CreateObject.json.
 - 2026-04-05: v2.6.7 GOLD [WORKBENCH+] - Pełne stanowisko pracy (Workbench): fizyczne uruchamianie narzędzi w BricsCAD, interakcja (Reply), raportowanie JSON, system ocen.
 - 2026-04-05: v2.6.6 GOLD [UI HOTFIX] - Rozdzielono etykiety HUD (lblStatus/lblStats), całkowity refaktoring AgentTesterControl (SplitContainer, JSON V1).
 - 2026-04-05: v2.6.5 GOLD [WORKBENCH] - Pasek HUD (statystyki), AgentTesterControl V2 (migrator), metryki w LLMClient.
 - 2026-04-05: v2.6.4-dev [CREATE_OBJECT tuning] - Wzmocniony feedback przestrzenny i optymalizacja schematu w CreateObjectTool.cs.
-- 2026-04-05: v2.6.3 GOLD - Poprawka błędnego formatu GUID w AgentStartup.cs (HOTFIX).
 
 ## Status Etapów Migracji
 - [x] ETAP 1: Oczy Agenta (ReadProperty, GetProperties, AnalyzeSelection, ReadTextSample) - **ZAKOŃCZONE**
