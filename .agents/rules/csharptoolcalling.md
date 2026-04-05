@@ -15,3 +15,4 @@ globs: Bricscad_AgentAI_V2/**/*.cs
    - Identyfikator kroku musi być zgodny z planem migracji, np. `[KROK-4.2]`.
 5. **NARZĘDZIA:** Każde narzędzie musi implementować JSON Schema i przyjmować zdeserializowane obiekty.
 6. **DOKUMENTACJA:** Po zakończeniu kodowania użyj skilla `user-doc-manager`, aby zaktualizować podręcznik użytkownika.
+7. **Zawsze uzupełniaj pliki Bricscad_AgentAI_V2\memory.md, Bricscad_AgentAI_V2\System_Blueprint.md po skończonym korku lub wdrożeniu planu implementacji**

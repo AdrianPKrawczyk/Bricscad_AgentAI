@@ -67,5 +67,14 @@ namespace Bricscad_AgentAI_V2.Core
                 AgentControl.Instance.SwitchToBenchmark();
             }
         }
+
+        [CommandMethod("AGENT_TESTER_V2")]
+        public void ShowTesterPanel()
+        {
+            ShowAgentPanel();
+            // Tester jest czwartą zakładką (indeks 3)
+            // Można rozbudować AgentControl o metodę SwitchToTester, ale na razie wystarczy otwarcie panelu.
+        }
+
     }
 }

@@ -26,6 +26,7 @@ namespace Bricscad_AgentAI_V2.Core
         // Delegaty do aktualizacji interfejsu użytkownika w trybie asynchronicznym (niewątkującym bazy CAD)
         public event Action<string> OnStatusUpdate;
         public event Action<string> OnToolCallLogged;
+        public event Action<long, int, int> OnStatsUpdate; // ms, sentTokens, recvTokens
 
         public LLMClient(string endpointUrl, string apiKey, ToolOrchestrator orchestrator)
         {
@@ -43,6 +44,9 @@ namespace Bricscad_AgentAI_V2.Core
         public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, int maxIterations = 5)
         {
             int iterations = 0;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            int totalSentChars = 0;
+            int totalRecvChars = 0;
 
             while (iterations < maxIterations)
             {
@@ -52,7 +56,7 @@ namespace Bricscad_AgentAI_V2.Core
                 // 1. Przygotuj payload
                 var requestPayload = new
                 {
-                    model = "local-model", // do konfiguracji / zmiany
+                    model = "local-model",
                     messages = conversationHistory,
                     tools = _orchestrator.GetToolsPayload(),
                     tool_choice = "auto"
@@ -62,6 +66,7 @@ namespace Bricscad_AgentAI_V2.Core
                 { 
                     NullValueHandling = NullValueHandling.Ignore 
                 });
+                totalSentChars += jsonContent.Length;
                 
                 var request = new HttpRequestMessage(HttpMethod.Post, _endpointUrl);
                 request.Headers.Add("Authorization", $"Bearer {_apiKey}");
@@ -76,16 +81,21 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 catch (Exception ex)
                 {
+                    sw.Stop();
                     OnStatusUpdate?.Invoke("Błąd połączenia z lokalnym LLM API.");
                     return $"Błąd połączenia: {ex.Message}";
                 }
 
                 string responseBody = await response.Content.ReadAsStringAsync();
+                totalRecvChars += responseBody.Length;
+
                 var jsonResponse = JObject.Parse(responseBody);
-                
                 var messageNode = jsonResponse["choices"]?[0]?["message"];
                 if (messageNode == null)
+                {
+                    sw.Stop();
                     return "Błąd parsowania odpowiedzi z modelu (brak 'message').";
+                }
 
                 // Deserializacja asystenta
                 var assistantMessage = messageNode.ToObject<ChatMessage>();
@@ -94,9 +104,13 @@ namespace Bricscad_AgentAI_V2.Core
                 // 3. Sprawdź warunek zakończenia: jeśli brak wywołań funkcji -> koniec.
                 if (assistantMessage.ToolCalls == null || !assistantMessage.ToolCalls.Any())
                 {
+                    sw.Stop();
                     OnStatusUpdate?.Invoke("Formułowanie ostatecznej odpowiedzi...");
-                    // Przed zakończeniem przycinamy historię, by oszczędzać tokeny
                     TrimHistory(conversationHistory);
+                    
+                    // Zgłoś statystyki (aproksymacja 4 znaki = 1 token)
+                    OnStatsUpdate?.Invoke(sw.ElapsedMilliseconds, totalSentChars / 4, totalRecvChars / 4);
+                    
                     return assistantMessage.Content ?? "(Model nie zwrócił tekstu)";
                 }
 
@@ -141,6 +155,8 @@ namespace Bricscad_AgentAI_V2.Core
                 OnStatusUpdate?.Invoke("Wyniki narzędzi przeanalizowane. Zwracam do modelu...");
             }
 
+            sw.Stop();
+            OnStatsUpdate?.Invoke(sw.ElapsedMilliseconds, totalSentChars / 4, totalRecvChars / 4);
             OnStatusUpdate?.Invoke("Przerwano zapętlenie (zbyt skomplikowany problem lub pętla logiczna LLMa).");
             return "[LLMClient] Przekroczono maksymalną liczbę iteracji (pętla powtórzeń Tool Calls). Przerywam zadanie.";
         }

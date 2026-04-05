@@ -22,6 +22,8 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnSend;
         private Button btnReset;
         private Label lblStats;
+        private Label lblStatus;
+
 
         // --- UI Logi Narzędzi ---
         private RichTextBox txtToolLogs;
@@ -59,6 +61,7 @@ namespace Bricscad_AgentAI_V2.UI
             
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
+            _llmClient.OnStatsUpdate += UpdateStatsHUD;
 
             _benchmarkEngine = new AutoBenchmarkEngine(_llmClient);
 
@@ -135,16 +138,31 @@ namespace Bricscad_AgentAI_V2.UI
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnSend);
 
-            Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 22, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 0, 0, 0) };
+            Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 2, 5, 2) };
+            
+            lblStatus = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 20,
+                ForeColor = Color.Cyan,
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Text = $"[Model: {_activeModel}] Gotowy."
+            };
+
             lblStats = new Label
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Top,
+                Height = 20,
                 ForeColor = Color.LightGray,
                 Font = new Font("Consolas", 8),
                 TextAlign = ContentAlignment.MiddleLeft,
-                Text = $"[Model: {_activeModel}] Gotowy do pracy."
+                Text = "⏱ 0ms | 🧠 0 tkn | ⚡ 0 t/s"
             };
+
             panStats.Controls.Add(lblStats);
+            panStats.Controls.Add(lblStatus);
+
 
             tabChat.Controls.Add(panStats);
             tabChat.Controls.Add(txtHistory);
@@ -186,10 +204,17 @@ namespace Bricscad_AgentAI_V2.UI
             tabBenchmark = new TabPage("📊 Benchmark");
             tabBenchmark.Controls.Add(new AutoBenchmarkControl(_benchmarkEngine));
 
+            // ==========================================
+            // ZAKŁADKA 4: TESTER (WORKBENCH V2)
+            // ==========================================
+            TabPage tabTester = new TabPage("🧪 Tester V2");
+            tabTester.Controls.Add(new AgentTesterControl(_llmClient));
+
             // Dodajemy widoki
             tabControl.TabPages.Add(tabChat);
             tabControl.TabPages.Add(tabDev);
             tabControl.TabPages.Add(tabBenchmark);
+            tabControl.TabPages.Add(tabTester);
             this.Controls.Add(tabControl);
         }
 
@@ -244,8 +269,22 @@ namespace Bricscad_AgentAI_V2.UI
                 this.Invoke(new Action<string>(UpdateStatusHUD), status);
                 return;
             }
-            lblStats.Text = $"[Model: {_activeModel}] {status}";
+            lblStatus.Text = $"[Model: {_activeModel}] {status}";
         }
+
+        private void UpdateStatsHUD(long ms, int sent, int recv)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action<long, int, int>(UpdateStatsHUD), ms, sent, recv);
+                return;
+            }
+            int total = sent + recv;
+            double seconds = ms / 1000.0;
+            lblStats.Text = $"⏱ {seconds:F1}s | 🧠 {total} tkn | ⚡ {Math.Round((double)recv / (seconds + 0.1), 1)} t/s | [READY]";
+        }
+
+
 
         private void AppendToolLog(string rawJsonCall)
         {
