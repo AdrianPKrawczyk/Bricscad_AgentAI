@@ -142,6 +142,9 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         JObject toolArgs = JObject.Parse(expandedAction);
                         
+                        // SPRZĘGŁO GRAFICZNE: Wymuszamy brak interakcji z UI podczas iteracji
+                        toolArgs["SelectObject"] = false;
+
                         // Wykrywanie narzędzia - domyślnie CreateObject jeśli jest EntityType
                         string targetTool = "CreateObject";
                         if (toolArgs["ToolName"] != null)
@@ -169,6 +172,9 @@ namespace Bricscad_AgentAI_V2.Tools
                         errors.Add($"Błąd parsowania JSON dla elementu '{item}': {ex.Message}");
                     }
                 }
+
+                // Wymuszamy odświeżenie ekranu na końcu masowej operacji
+                doc.Editor.UpdateScreen();
 
                 StringBuilder summary = new StringBuilder();
                 summary.Append($"SUKCES: Wykonano {successCount}/{finalItems.Count} operacji.");
