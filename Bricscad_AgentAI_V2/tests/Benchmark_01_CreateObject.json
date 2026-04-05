@@ -1,157 +1,132 @@
-[
-  {
-    "Id": 1,
-    "Category": "CreateObject",
-    "Question": "Narysuj linię od punktu 0,0 do 100,100.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Line" },
-          { "Type": "ArgumentMatch", "Path": "StartPoint", "ExpectedValue": "0,0" },
-          { "Type": "ArgumentMatch", "Path": "EndPoint", "ExpectedValue": "100,100" }
-        ]
-      }
-    ]
+{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-04-05",
+    "Comment": "Kolekcja testów jednostkowych dla CreateObjectTool."
   },
-  {
-    "Id": 2,
-    "Category": "CreateObject",
-    "Question": "Narysuj okrąg w punkcie 10,10 o promieniu 5.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
-          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "10,10" },
-          { "Type": "ArgumentMatch", "Path": "Radius", "ExpectedValue": "5" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 3,
-    "Category": "CreateObject",
-    "Question": "Narysuj linię przestrzenną (3D) od 0,0,0 do 10,20,50.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Line" },
-          { "Type": "ArgumentMatch", "Path": "StartPoint", "ExpectedValue": "0,0,0" },
-          { "Type": "ArgumentMatch", "Path": "EndPoint", "ExpectedValue": "10,20,50" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 4,
-    "Category": "CreateObject",
-    "Question": "Napisz tekst wielowierszowy 'Witaj w BricsCAD V2' w punkcie 50,50.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "MText" },
-          { "Type": "ArgumentMatch", "Path": "Text", "ExpectedValue": "Witaj w BricsCAD V2" },
-          { "Type": "ArgumentMatch", "Path": "InsertionPoint", "ExpectedValue": "50,50" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 5,
-    "Category": "CreateObject",
-    "Question": "Stwórz okrąg o promieniu 25 w punkcie 100,100,10 (Z=10).",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
-          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "100,100,10" },
-          { "Type": "ArgumentMatch", "Path": "Radius", "ExpectedValue": "25" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 6,
-    "Category": "CreateObject",
-    "Question": "Dodaj tekst jednoliniowy o treści 'OVAL' na współrzędnych 10,10.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "DBText" },
-          { "Type": "ArgumentMatch", "Path": "Text", "ExpectedValue": "OVAL" },
-          { "Type": "ArgumentMatch", "Path": "InsertionPoint", "ExpectedValue": "10,10" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 7,
-    "Category": "CreateObject",
-    "Question": "Narysuj kółko o promieniu 15 w środku układu współrzędnych.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
-          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "0,0" },
-          { "Type": "ArgumentMatch", "Path": "Radius", "ExpectedValue": "15" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 8,
-    "Category": "CreateObject",
-    "Question": "Zapytaj użytkownika o promień kółka i narysuj je w punkcie 20,20.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "UserInput",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "InputType", "ExpectedValue": "Double" }
-        ]
-      },
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Circle" },
-          { "Type": "ArgumentMatch", "Path": "Center", "ExpectedValue": "20,20" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 9,
-    "Category": "CreateObject",
-    "Question": "Narysuj pionową linię o długości 100 zaczynającą się w punkcie 50,0.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "Line" },
-          { "Type": "ArgumentMatch", "Path": "StartPoint", "ExpectedValue": "50,0" },
-          { "Type": "ArgumentMatch", "Path": "EndPoint", "ExpectedValue": "50,100" }
-        ]
-      }
-    ]
-  },
-  {
-    "Id": 10,
-    "Category": "CreateObject",
-    "Question": "Wstaw duży napis 'RYSUNEK TESTOWY' w punkcie 0,100.",
-    "ExpectedToolCalls": [
-      {
-        "ToolName": "CreateObject",
-        "Rules": [
-          { "Type": "ArgumentMatch", "Path": "EntityType", "ExpectedValue": "MText" },
-          { "Type": "ArgumentMatch", "Path": "Text", "ExpectedValue": "RYSUNEK TESTOWY" },
-          { "Type": "ArgumentMatch", "Path": "InsertionPoint", "ExpectedValue": "0,100" }
-        ]
-      }
-    ]
-  }
-]
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "CreateObject",
+      "TestName": "Prosta Linia 2D",
+      "Description": "Test podstawowego tworzenia linii.",
+      "UserPrompt": "Narysuj linię od punktu 0,0 do 100,100.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Line" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "StartPoint", "TargetValue": "0,0" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EndPoint", "TargetValue": "100,100" }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "CreateObject",
+      "TestName": "Prosty Okrąg 2D",
+      "Description": "Test podstawowego tworzenia okręgu.",
+      "UserPrompt": "Narysuj okrąg w punkcie 10,10 o promieniu 5.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Circle" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Center", "TargetValue": "10,10" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Radius", "TargetValue": "5" }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "CreateObject",
+      "TestName": "Linia 3D",
+      "Description": "Test tworzenia linii ze współrzędną Z.",
+      "UserPrompt": "Narysuj linię przestrzenną (3D) od 0,0,0 do 10,20,50.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Line" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "StartPoint", "TargetValue": "0,0,0" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EndPoint", "TargetValue": "10,20,50" }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "CreateObject",
+      "TestName": "MText ze spacjami",
+      "Description": "Test tworzenia tekstu wielowierszowego.",
+      "UserPrompt": "Napisz tekst wielowierszowy 'Witaj w BricsCAD V2' w punkcie 50,50.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "MText" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Text", "TargetValue": "Witaj w BricsCAD V2" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "InsertionPoint", "TargetValue": "50,50" }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "CreateObject",
+      "TestName": "Okrąg 3D",
+      "Description": "Test okręgu w przestrzeni 3D.",
+      "UserPrompt": "Stwórz okrąg o promieniu 25 w punkcie 100,100,10 (Z=10).",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Circle" }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "CreateObject",
+      "TestName": "DBText (Single Line)",
+      "Description": "Test tekstu jednoliniowego.",
+      "UserPrompt": "Dodaj tekst jednoliniowy o treści 'OVAL' na współrzędnych 10,10.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "DBText" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Text", "TargetValue": "OVAL" }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "CreateObject",
+      "TestName": "Okrąg w zerze",
+      "Description": "Test okręgu w środku układu.",
+      "UserPrompt": "Narysuj kółko o promieniu 15 w środku układu współrzędnych.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Circle" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Center", "TargetValue": "0,0" }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "CreateObject",
+      "TestName": "Hybryda Interakcji",
+      "Description": "Test sekwencji narzędzi UserInput + CreateObject.",
+      "UserPrompt": "Zapytaj użytkownika o promień kółka i narysuj je w punkcie 20,20.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "UserInput" },
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Circle" }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "CreateObject",
+      "TestName": "Pionowa Linia",
+      "Description": "Test logiki kierunków.",
+      "UserPrompt": "Narysuj pionową linię o długości 100 zaczynającą się w punkcie 50,0.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "Line" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EndPoint", "TargetValue": "50,100" }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "CreateObject",
+      "TestName": "Etykieta MText",
+      "Description": "Test tworzenia etykiety tekstowej.",
+      "UserPrompt": "Wstaw duży napis 'RYSUNEK TESTOWY' w punkcie 0,100.",
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "CreateObject" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "EntityType", "TargetValue": "MText" },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Text", "TargetValue": "RYSUNEK TESTOWY" }
+      ]
+    }
+  ]
+}
