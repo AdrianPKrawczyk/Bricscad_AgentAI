@@ -68,7 +68,15 @@ namespace Bricscad_AgentAI_V2.UI
 
             _conversationHistory = new List<ChatMessage>
             {
-                new ChatMessage { Role = "system", Content = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. Jeśli użytkownik prosi o złożone zadanie, sprawdź czy istnieje odpowiednie makro (ExecuteMacro). Zawsze informuj o sukcesie lub błędach." }
+                new ChatMessage 
+                { 
+                    Role = "system", 
+                    Content = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. " +
+                              "NIGDY nie używaj tagów takich jak [FOR_EACH] czy [CREATE_OBJECT]. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). " +
+                              "PAMIĘTAJ: Dla obiektów Circle używaj ZAWSZE 'Center' i 'Radius'. Parametry 'StartPoint' i 'EndPoint' są zarezerwowane WYŁĄCZNIE dla linii. " +
+                              "Jeśli generujesz sekwencje punktów, użyj narzędzia Foreach. " +
+                              "Przykład (5 okręgów): Foreach(GenerateSequence: {StartVector: '0,0,0', OffsetVector: '100,0,0', Count: 5}, Action: '{\"EntityType\": \"Circle\", \"Center\": \"{item}\", \"Radius\": \"50\"}')"
+                }
             };
         }
 

@@ -17,10 +17,16 @@ namespace Bricscad_AgentAI_V2.Core
         private readonly Dictionary<string, IToolV2> _tools = new Dictionary<string, IToolV2>();
 
         /// <summary>
+        /// Globalna instancja orkiestratora dla narzędzi rekurencyjnych (np. Foreach).
+        /// </summary>
+        public static ToolOrchestrator Instance { get; private set; }
+
+        /// <summary>
         /// Automatycznie skanuje bieżący zestaw klas w poszukiwaniu implementacji IToolV2.
         /// </summary>
         public void Initialize()
         {
+            Instance = this;
             _tools.Clear();
             
             var toolType = typeof(IToolV2);

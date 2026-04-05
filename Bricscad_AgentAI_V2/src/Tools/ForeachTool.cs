@@ -68,8 +68,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Action", new ToolParameter
                                 {
                                     Type = "string",
-                                    Enum = new List<string> { "List", "Count" },
-                                    Description = "Tryb: 'List' (lista elementów) lub 'Count' (tylko liczba)."
+                                    Description = "JSON wywołania (np. '{\"EntityType\": \"Circle\", \"Center\": \"{item}\", \"Radius\": \"50\"}'). Tag '{item}' zostanie zastąpiony wartością z sekwencji. Możesz też użyć 'List' lub 'Count'."
                                 }
                             }
                         }
@@ -128,6 +127,57 @@ namespace Bricscad_AgentAI_V2.Tools
             if (finalItems.Count == 0) return "WYNIK: Brak elementów do przetworzenia.";
 
             string action = args["Action"]?.ToString() ?? "List";
+
+            // WYKONANIE REKURENCYJNE (Action as JSON Template)
+            if (action.Contains("{") && action.Contains("}"))
+            {
+                int successCount = 0;
+                List<string> handles = new List<string>();
+                List<string> errors = new List<string>();
+
+                foreach (var item in finalItems)
+                {
+                    string expandedAction = action.Replace("{item}", item);
+                    try
+                    {
+                        JObject toolArgs = JObject.Parse(expandedAction);
+                        
+                        // Wykrywanie narzędzia - domyślnie CreateObject jeśli jest EntityType
+                        string targetTool = "CreateObject";
+                        if (toolArgs["ToolName"] != null)
+                        {
+                            targetTool = toolArgs["ToolName"].ToString();
+                            toolArgs.Remove("ToolName");
+                        }
+
+                        string res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, doc);
+                        
+                        if (res.StartsWith("SUKCES"))
+                        {
+                            successCount++;
+                            // Próba wyciągnięcia Handle z logu (np. "Handle: 1A2B")
+                            var match = System.Text.RegularExpressions.Regex.Match(res, @"Handle: ([A-Fa-f0-9]+)");
+                            if (match.Success) handles.Add(match.Groups[1].Value);
+                        }
+                        else
+                        {
+                            errors.Add(res);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Błąd parsowania JSON dla elementu '{item}': {ex.Message}");
+                    }
+                }
+
+                StringBuilder summary = new StringBuilder();
+                summary.Append($"SUKCES: Wykonano {successCount}/{finalItems.Count} operacji.");
+                if (handles.Count > 0) summary.Append($" Uchwyty: {string.Join(", ", handles.Take(10))}{(handles.Count > 10 ? "..." : "")}");
+                if (errors.Count > 0) summary.Append($" Błędy: {errors.Count} (ostatni: {errors.Last()})");
+                return summary.ToString();
+            }
+
+            // TRYBY KLASYCZNE (List / Count)
             if (action.Equals("Count", StringComparison.OrdinalIgnoreCase))
                 return $"WYNIK: Wygenerowano/pobrano {finalItems.Count} elementów.";
 
