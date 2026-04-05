@@ -1,0 +1,74 @@
+﻿{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-04-05 21:31",
+    "Comment": "Kolekcja testów jednostkowych dla CreateObjectTool (Sformatowana pod 3D).",
+    "GlobalScore": 90.0,
+    "CategoriesScores": {
+      "CreateObject": 90.0
+    },
+    "AverageExecutionTimeMs": 12262.0
+  },
+  "Tests": [
+    {
+      "Id": 6,
+      "Category": "CreateObject",
+      "Difficulty": 0,
+      "TestName": "DBText (Single Line)",
+      "Description": "Test tekstu jednoliniowego.",
+      "UserPrompt": "Dodaj tekst jednoliniowy o treści 'OVAL' na współrzędnych 10,10,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {},
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateObject",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "DBText",
+          "TargetArgument": "EntityType",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "OVAL",
+          "TargetArgument": "Text",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "10,10,0",
+          "TargetArgument": "Position",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": null
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateObject",
+          "Arguments": {
+            "EntityType": "DBText",
+            "Layer": "0",
+            "StartPoint": "10,10,0",
+            "Text": "OVAL"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Reguła 'ArgumentMatch' nie przeszła. (Argument 'Position' nie został znaleziony w żadnym wywołaniu)"
+      ],
+      "ExecutionTimeMs": 9326
+    }
+  ]
+}
