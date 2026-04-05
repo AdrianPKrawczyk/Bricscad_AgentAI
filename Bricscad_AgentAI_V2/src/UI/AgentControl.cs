@@ -120,7 +120,6 @@ namespace Bricscad_AgentAI_V2.UI
                 Multiline = true,
                 ScrollBars = RichTextBoxScrollBars.Vertical
             };
-            txtInput.KeyDown += TxtInput_KeyDown;
 
             btnSend = new Button
             {
@@ -288,61 +287,104 @@ namespace Bricscad_AgentAI_V2.UI
             txtInput.ForeColor = fgText;
         }
 
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // 1. Obsługa nawigacji Autocomplete (tylko gdy lista jest widoczna i pole tekstowe aktywne)
+            if (lstAutocomplete != null && lstAutocomplete.Visible && txtInput.Focused)
+            {
+                if (keyData == Keys.Down)
+                {
+                    if (lstAutocomplete.SelectedIndex < lstAutocomplete.Items.Count - 1)
+                        lstAutocomplete.SelectedIndex++;
+                    return true; // Blokujemy dalsze przetwarzanie klawisza
+                }
+                else if (keyData == Keys.Up)
+                {
+                    if (lstAutocomplete.SelectedIndex > 0)
+                        lstAutocomplete.SelectedIndex--;
+                    return true;
+                }
+                else if (keyData == Keys.Enter || keyData == Keys.Tab)
+                {
+                    InsertSelectedTag();
+                    return true;
+                }
+                else if (keyData == Keys.Escape)
+                {
+                    lstAutocomplete.Visible = false;
+                    return true;
+                }
+            }
+
+            // 2. Obsługa Ctrl+Enter dla wysyłania wiadomości
+            if (keyData == (Keys.Control | Keys.Enter))
+            {
+                btnSend_Click(btnSend, EventArgs.Empty);
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void TxtInput_TextChanged(object sender, EventArgs e)
         {
             int index = txtInput.SelectionStart;
-            if (index > 0 && txtInput.Text[index - 1] == '#')
-            {
-                Point pos = txtInput.GetPositionFromCharIndex(index);
-                // Przesunięcie względem panelu nadrzędnego (txtInput jest w panInput)
-                Control parent = txtInput.Parent;
-                Point screenPos = txtInput.PointToScreen(pos);
-                Point clientPos = this.PointToClient(screenPos);
-
-                lstAutocomplete.Location = new Point(clientPos.X, clientPos.Y - lstAutocomplete.Height - 5);
-                lstAutocomplete.Visible = true;
-                lstAutocomplete.BringToFront();
-                lstAutocomplete.SelectedIndex = 0;
-            }
-            else if (!txtInput.Text.Contains("#"))
+            if (index <= 0)
             {
                 lstAutocomplete.Visible = false;
-            }
-        }
-
-        private void TxtInput_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (lstAutocomplete.Visible)
-            {
-                if (e.KeyCode == Keys.Up)
-                {
-                    if (lstAutocomplete.SelectedIndex > 0) lstAutocomplete.SelectedIndex--;
-                    e.Handled = true;
-                }
-                else if (e.KeyCode == Keys.Down)
-                {
-                    if (lstAutocomplete.SelectedIndex < lstAutocomplete.Items.Count - 1) lstAutocomplete.SelectedIndex++;
-                    e.Handled = true;
-                }
-                else if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Tab)
-                {
-                    InsertSelectedTag();
-                    e.Handled = true;
-                    e.SuppressKeyPress = true;
-                }
-                else if (e.KeyCode == Keys.Escape)
-                {
-                    lstAutocomplete.Visible = false;
-                    e.Handled = true;
-                }
                 return;
             }
 
-            if (e.Control && e.KeyCode == Keys.Enter)
+            // Znajdź początek aktualnie wpisywanego tagu (ostatnie # przed kursorem)
+            string textSoFar = txtInput.Text.Substring(0, index);
+            int lastHashIndex = textSoFar.LastIndexOf('#');
+
+            if (lastHashIndex != -1)
             {
-                e.SuppressKeyPress = true;
-                e.Handled = true;
-                btnSend_Click(btnSend, EventArgs.Empty);
+                string searchString = textSoFar.Substring(lastHashIndex).ToLower();
+                
+                // Jeśli po # jest spacja, to już nie filtrujemy tagu
+                if (searchString.Contains(" "))
+                {
+                    lstAutocomplete.Visible = false;
+                    return;
+                }
+
+                // Filtrujemy dostępne tagi
+                var matches = new List<string>();
+                foreach (var tag in availableTags)
+                {
+                    if (tag.StartsWith(searchString, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matches.Add(tag);
+                    }
+                }
+
+                if (matches.Count > 0)
+                {
+                    lstAutocomplete.BeginUpdate();
+                    lstAutocomplete.Items.Clear();
+                    foreach (var m in matches) lstAutocomplete.Items.Add(m);
+                    lstAutocomplete.EndUpdate();
+                    lstAutocomplete.SelectedIndex = 0;
+
+                    // Pozycjonowanie listy
+                    Point pos = txtInput.GetPositionFromCharIndex(lastHashIndex);
+                    Point screenPos = txtInput.PointToScreen(pos);
+                    Point clientPos = this.PointToClient(screenPos);
+                    lstAutocomplete.Location = new Point(clientPos.X, clientPos.Y - lstAutocomplete.Height - 5);
+                    
+                    lstAutocomplete.Visible = true;
+                    lstAutocomplete.BringToFront();
+                }
+                else
+                {
+                    lstAutocomplete.Visible = false;
+                }
+            }
+            else
+            {
+                lstAutocomplete.Visible = false;
             }
         }
 
@@ -353,10 +395,13 @@ namespace Bricscad_AgentAI_V2.UI
             string tag = lstAutocomplete.SelectedItem.ToString();
             int caretIndex = txtInput.SelectionStart;
 
-            // Szukamy gdzie zaczyna się # (może użytkownik dopisał coś po #)
-            int hashIndex = txtInput.Text.LastIndexOf('#', caretIndex - 1);
+            // Znajdujemy indeks ostatniego # przed kursorem
+            string textSoFar = txtInput.Text.Substring(0, caretIndex);
+            int hashIndex = textSoFar.LastIndexOf('#');
+
             if (hashIndex != -1)
             {
+                // Podmieniamy tekst od # do kursora na tag + spacja
                 txtInput.Select(hashIndex, caretIndex - hashIndex);
                 txtInput.SelectedText = tag + " ";
             }
