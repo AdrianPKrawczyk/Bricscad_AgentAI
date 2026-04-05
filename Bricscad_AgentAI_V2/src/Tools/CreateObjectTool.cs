@@ -32,14 +32,15 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "SelectObject", new ToolParameter { Type = "boolean", Description = "Ustaw jako zaznaczenie (default: true)." } },
                             { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt startowy (x,y,z) lub 'AskUser'." } },
                             { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z) lub 'AskUser'." } },
-                            { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (x,y,z) - WYMAGANY dla Circle." } },
+                            { "Center", new ToolParameter { Type = "string", Description = "Środek okręgu (x,y,z) - WYMAGANY dla Circle. Format: 'X,Y,Z' (np. '10,10,0'). BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
                             { "Radius", new ToolParameter { Type = "string", Description = "Promień okręgu." } },
-                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja tekstu (x,y,z)." } },
+                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja tekstu DBText (x,y,z). Format: 'X,Y,Z'. BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
+                            { "Location", new ToolParameter { Type = "string", Description = "Pozycja tekstu MText (x,y,z). Format: 'X,Y,Z'. BEZWZGLĘDNIE ZABRONIONE używanie nawiasów." } },
                             { "Text", new ToolParameter { Type = "string", Description = "Treść tekstu." } },
                             { "Height", new ToolParameter { Type = "string", Description = "Wysokość elementu." } },
                             { "Rotation", new ToolParameter { Type = "string", Description = "Obrót (stopnie)." } },
-                            { "ArrowPoint", new ToolParameter { Type = "string", Description = "Punkt strzałki MLeader." } },
-                            { "LandingPoint", new ToolParameter { Type = "string", Description = "Punkt tekstu MLeader." } }
+                            { "ArrowPoint", new ToolParameter { Type = "string", Description = "Punkt strzałki MLeader. Format: 'X,Y,Z'." } },
+                            { "LandingPoint", new ToolParameter { Type = "string", Description = "Punkt tekstu MLeader. Format: 'X,Y,Z'." } }
                         },
                         Required = new List<string> { "EntityType" }
                     }
@@ -80,7 +81,9 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) || entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
                 {
-                    Point3d pos = GetPoint(ed, args["Position"]?.ToString(), "Pozycja: ");
+                    string posKey = entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) ? "Position" : "Location";
+                    Point3d pos = GetPoint(ed, args[posKey]?.ToString(), "Pozycja: ");
+                    
                     string txt = GetStringVal(ed, args["Text"]?.ToString(), "Tekst: ");
                     double h = GetDouble(ed, args["Height"]?.ToString(), "Wysokość: ", db.Textsize);
                     double rot = GetDouble(ed, args["Rotation"]?.ToString(), "Obrót: ", 0.0);
@@ -90,7 +93,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     else
                         newEnt = new MText { Location = pos, Contents = txt, TextHeight = h, Rotation = rot };
                     
-                    spatialInfo = $"Pozycja={FormatPt(pos)}, Wysokość={h}";
+                    spatialInfo = $"{posKey}={FormatPt(pos)}, Wysokość={h}";
                 }
                 else if (entityType.Equals("MLeader", StringComparison.OrdinalIgnoreCase))
                 {
