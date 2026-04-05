@@ -186,12 +186,33 @@ namespace Bricscad_AgentAI_V2.Tools
 
         private Point3d ParsePoint(string s)
         {
+            if (string.IsNullOrEmpty(s)) return Point3d.Origin;
+            
             s = s.Replace("(", "").Replace(")", "").Trim();
             string[] p = s.Split(',');
-            double x = p.Length > 0 && double.TryParse(p[0].Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double px) ? px : 0;
-            double y = p.Length > 1 && double.TryParse(p[1].Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double py) ? py : 0;
-            double z = p.Length > 2 && double.TryParse(p[2].Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double pz) ? pz : 0;
-            return new Point3d(x, y, z);
+            double[] coords = new double[3];
+
+            for (int i = 0; i < 3; i++)
+            {
+                if (i < p.Length)
+                {
+                    string component = p[i].Trim();
+                    if (component.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string rpnExpr = component.Substring(4).Trim();
+                        string rpnResult = RpnCalculator.Evaluate(rpnExpr);
+                        if (double.TryParse(rpnResult.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                        {
+                            coords[i] = val;
+                        }
+                    }
+                    else if (double.TryParse(component.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                    {
+                        coords[i] = val;
+                    }
+                }
+            }
+            return new Point3d(coords[0], coords[1], coords[2]);
         }
 
         private double ParseRpnDouble(string rpn, double def)
