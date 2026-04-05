@@ -99,6 +99,36 @@ Oto przykłady łańcuchów działań, które pokazują pełną moc wersji GOLD:
 ### Scenariusz C: Inteligentna Blokowa Numeracja
 > *"Zaznacz bloki o nazwie 'POMIESZCZENIE'. Pobierz ich atrybut 'NUMER'. Użyj pętli, aby przesortować je i zmienić atrybut 'STATUS' na 'WERYFIKACJA' dla tych, których numer jest parzysty."*
 
+---
+
+## 🏷️ 7. Optymalizacja Kontekstu (Semantic Tool Routing)
+
+W wersji **v2.7 GOLD** wprowadziliśmy system inteligentnego sterowania zestawem narzędzi przy użyciu tagów (Hashtags). Pozwala to na drastyczne przyspieszenie reakcji Agenta i uniknięcie pomyłek w złożonych rysunkach.
+
+### 7.1. Czym są tagi narzędzi?
+Zamiast wysyłać wszystkie 20+ narzędzi przy każdym zapytaniu, możesz wskazać Agentowi, w jakim obszarze ma pracować.
+- **#core** (Zawsze aktywne): Podstawowe rysowanie, wybieranie, pętle i zmienne.
+- **#bloki**: Wszystko co dotyczy definicji, atrybutów i wstawiania bloków.
+- **#warstwy**: Zarządzanie warstwami.
+- **#tekst**: Edycja tekstów i skal opisowych.
+- **#makro**: Wywoływanie predefiniowanych procedur.
+- **#all**: Odblokowuje pełny zestaw wszystkich dostępnych narzędzi.
+
+### 7.2. Autouzupełnianie (Autocomplete)
+W polu wprowadzania tekstu wpisz znak `#`, a pojawi się lista dostępnych kategorii. Możesz nawigować strzałkami i zatwierdzić wybór klawiszem `Enter` lub `Tab`.
+
+### 7.3. Przykład użycia w praktyce
+- *"Wypisz wszystkie bloki w tym rysunku #bloki"* – Agent załaduje tylko narzędzia do bloków, co zmniejsza ryzyko halucynacji.
+- *"Zmień kolor linii na czerwony"* – Nie musisz dodawać tagów dla podstawowych zadań (narzędzia `#core` są zawsze aktywne).
+
+### 7.4. Agentic Fallback (Samoleczenie)
+Jeśli zapomnisz o tagu, a Agent uzna, że potrzebuje narzędzi z innej grupy (np. prosisz o warstwy bez tagu `#warstwy`), system posiada mechanizm **Agentic Fallback**. AI automatycznie "poprosi" o dostęp do brakującej puli narzędzi i wykona zadanie w następnym kroku.
+
+---
+
+> [!IMPORTANT]
+> Bielik V2 GOLD to system deterministyczny. Używając precyzyjnych narzędzi i tagów, masz gwarancję 100% powtarzalności wyników.
+
 ### Scenariusz D: Automatyczne Szyki i Sekwencje (NOWOŚĆ v2.6.8)
 Agent potrafi teraz generować skomplikowane układy geometryczne bez Twojej pomocy w liczeniu współrzędnych.
 > *"Narysuj szyk 10 słupów (blok 'SLUP_A') zaczynając od punktu 0,0 i przesuwając każdy o 500 jednostek w prawo."*

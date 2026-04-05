@@ -55,10 +55,34 @@ namespace Bricscad_AgentAI_V2.Core
 
         /// <summary>
         /// Generuje listę narzędzi w formacie gotowym do wysłania w polu 'tools' do API LLM.
+        /// Wspiera Semantic Tool Routing - filtruje narzędzia na podstawie przekazanych tagów.
+        /// </summary>
+        public List<ToolDefinition> GetToolsPayload(IEnumerable<string> requestedTags = null)
+        {
+            var tags = requestedTags?.ToList() ?? new List<string>();
+            bool includeAll = tags.Contains("#all", StringComparer.OrdinalIgnoreCase);
+
+            var filteredTools = _tools.Values.Where(t => 
+            {
+                // Zawsze dołączaj narzędzia z tagiem #core
+                if (t.ToolTags != null && t.ToolTags.Contains("#core", StringComparer.OrdinalIgnoreCase))
+                    return true;
+
+                if (includeAll) return true;
+
+                // Dołącz jeśli jakiekolwiek tagi narzędzia pokrywają się z requestedTags
+                return t.ToolTags != null && t.ToolTags.Any(tag => tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
+            });
+
+            return filteredTools.Select(t => t.GetToolSchema()).ToList();
+        }
+
+        /// <summary>
+        /// [DEPRECATED] Używaj wersji z parametrem tags.
         /// </summary>
         public List<ToolDefinition> GetToolsPayload()
         {
-            return _tools.Values.Select(t => t.GetToolSchema()).ToList();
+            return GetToolsPayload(null);
         }
 
         /// <summary>

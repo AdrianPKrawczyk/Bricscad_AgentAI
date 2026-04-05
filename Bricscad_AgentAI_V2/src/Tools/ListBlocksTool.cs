@@ -14,6 +14,8 @@ namespace Bricscad_AgentAI_V2.Tools
     /// </summary>
     public class ListBlocksTool : IToolV2
     {
+        public string[] ToolTags => new[] { "#bloki" };
+
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition

@@ -23,6 +23,8 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnReset;
         private Label lblStats;
         private Label lblStatus;
+        private ListBox lstAutocomplete;
+        private string[] availableTags = new[] { "#core", "#bloki", "#warstwy", "#tekst", "#makro", "#all" };
 
 
         // --- UI Logi Narzędzi ---
@@ -146,8 +148,25 @@ namespace Bricscad_AgentAI_V2.UI
             btnReset.FlatAppearance.BorderSize = 0;
             btnReset.Click += BtnReset_Click;
 
+            lstAutocomplete = new ListBox
+            {
+                Visible = false,
+                Width = 150,
+                Height = 120,
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(45, 45, 48),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5f),
+                Cursor = Cursors.Hand
+            };
+            lstAutocomplete.Items.AddRange(availableTags);
+            lstAutocomplete.DoubleClick += (s, e) => InsertSelectedTag();
+            this.Controls.Add(lstAutocomplete);
+            lstAutocomplete.BringToFront();
+
             Panel inputBorder = new Panel { Dock = DockStyle.Fill, Padding = new Padding(1), BackColor = Color.Gray };
             inputBorder.Controls.Add(txtInput);
+            txtInput.TextChanged += TxtInput_TextChanged;
 
             panInput.Controls.Add(inputBorder);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
@@ -269,14 +288,81 @@ namespace Bricscad_AgentAI_V2.UI
             txtInput.ForeColor = fgText;
         }
 
+        private void TxtInput_TextChanged(object sender, EventArgs e)
+        {
+            int index = txtInput.SelectionStart;
+            if (index > 0 && txtInput.Text[index - 1] == '#')
+            {
+                Point pos = txtInput.GetPositionFromCharIndex(index);
+                // Przesunięcie względem panelu nadrzędnego (txtInput jest w panInput)
+                Control parent = txtInput.Parent;
+                Point screenPos = txtInput.PointToScreen(pos);
+                Point clientPos = this.PointToClient(screenPos);
+
+                lstAutocomplete.Location = new Point(clientPos.X, clientPos.Y - lstAutocomplete.Height - 5);
+                lstAutocomplete.Visible = true;
+                lstAutocomplete.BringToFront();
+                lstAutocomplete.SelectedIndex = 0;
+            }
+            else if (!txtInput.Text.Contains("#"))
+            {
+                lstAutocomplete.Visible = false;
+            }
+        }
+
         private void TxtInput_KeyDown(object sender, KeyEventArgs e)
         {
+            if (lstAutocomplete.Visible)
+            {
+                if (e.KeyCode == Keys.Up)
+                {
+                    if (lstAutocomplete.SelectedIndex > 0) lstAutocomplete.SelectedIndex--;
+                    e.Handled = true;
+                }
+                else if (e.KeyCode == Keys.Down)
+                {
+                    if (lstAutocomplete.SelectedIndex < lstAutocomplete.Items.Count - 1) lstAutocomplete.SelectedIndex++;
+                    e.Handled = true;
+                }
+                else if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Tab)
+                {
+                    InsertSelectedTag();
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+                else if (e.KeyCode == Keys.Escape)
+                {
+                    lstAutocomplete.Visible = false;
+                    e.Handled = true;
+                }
+                return;
+            }
+
             if (e.Control && e.KeyCode == Keys.Enter)
             {
                 e.SuppressKeyPress = true;
                 e.Handled = true;
                 btnSend_Click(btnSend, EventArgs.Empty);
             }
+        }
+
+        private void InsertSelectedTag()
+        {
+            if (lstAutocomplete.SelectedItem == null) return;
+
+            string tag = lstAutocomplete.SelectedItem.ToString();
+            int caretIndex = txtInput.SelectionStart;
+
+            // Szukamy gdzie zaczyna się # (może użytkownik dopisał coś po #)
+            int hashIndex = txtInput.Text.LastIndexOf('#', caretIndex - 1);
+            if (hashIndex != -1)
+            {
+                txtInput.Select(hashIndex, caretIndex - hashIndex);
+                txtInput.SelectedText = tag + " ";
+            }
+
+            lstAutocomplete.Visible = false;
+            txtInput.Focus();
         }
 
         private void BtnReset_Click(object sender, EventArgs e)
@@ -324,23 +410,37 @@ namespace Bricscad_AgentAI_V2.UI
             txtToolLogs.ScrollToCaret();
         }
 
-        public async Task ProcessInputAsync(string userMsg)
+        public async Task ProcessInputAsync(string rawInput)
         {
-            if (string.IsNullOrEmpty(userMsg)) return;
+            if (string.IsNullOrEmpty(rawInput)) return;
 
-            AppendToHistory("TY", userMsg, isDarkMode ? Color.LightSkyBlue : Color.Blue);
+            // 1. Semantic Tag Pre-processing (Regex)
+            // Wyłuskujemy wszystkie tagi zaczynające się od #
+            var tagMatches = System.Text.RegularExpressions.Regex.Matches(rawInput, @"#\w+");
+            List<string> extractedTags = new List<string>();
+            string cleanMsg = rawInput;
+
+            foreach (System.Text.RegularExpressions.Match match in tagMatches)
+            {
+                extractedTags.Add(match.Value.ToLower());
+                // Usuwamy tag z czystej wiadomości dla LLM
+                cleanMsg = cleanMsg.Replace(match.Value, "").Trim();
+            }
+
+            AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
             btnSend.Enabled = false;
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
-            _conversationHistory.Add(new ChatMessage { Role = "user", Content = userMsg });
+            _conversationHistory.Add(new ChatMessage { Role = "user", Content = cleanMsg });
             UpdateStatusHUD("Oczekiwanie na analizę...");
 
             try
             {
                 string aiResponse = await Task.Run(async () => 
                 {
-                    return await _llmClient.SendMessageReActAsync(_conversationHistory, doc);
+                    // Przekazujemy wyłuskane tagi do klienta LLM
+                    return await _llmClient.SendMessageReActAsync(_conversationHistory, doc, extractedTags);
                 });
 
                 AppendToHistory("BIELIK", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);

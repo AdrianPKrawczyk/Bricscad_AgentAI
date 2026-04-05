@@ -10,6 +10,12 @@ namespace Bricscad_AgentAI_V2.Core
     public interface IToolV2
     {
         /// <summary>
+        /// Zwraca listę tagów (kategorii) do których należy to narzędzie (np. #core, #bloki, #tekst).
+        /// Używane przez Semantic Tool Routing do filtrowania zestawu narzędzi wysyłanego do LLM.
+        /// </summary>
+        string[] ToolTags { get; }
+
+        /// <summary>
         /// Zwraca schemat funkcji w formacie zgodnym z wymogami Tool Calling modeli LLM (np. OpenAI).
         /// Określa parametry wejściowe, typy i listę wymaganych atrybutów.
         /// </summary>

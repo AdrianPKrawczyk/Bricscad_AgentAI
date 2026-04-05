@@ -1,122 +1,112 @@
-# BricsCAD Agent AI V2: Tools Technical Reference
+# BricsCAD Agent AI V2: Tools Technical Reference (v2.7.0 GOLD)
 
-Ten dokument zawiera pełną specyfikację techniczną (Tool Calling) dla 20 narzędzi systemowych dostępnych w wersji **GOLD**. Każde narzędzie posiada unikalny schemat JSON, który silnik Agenta przesyła do modelu LLM.
+Ten dokument zawiera pełną specyfikację techniczną dla wszystkich narzędzi systemowych dostępnych w wersji **GOLD**. Od wersji **v2.7.0** wprowadzono **Semantic Tool Routing**, który pozwala optymalizować pracę Agenta poprzez przydzielanie narzędzi do konkretnych pul tematycznych (Tagi).
 
 ---
 
-## 🏗️ Zarządzanie Obiektami i Blokami
+## 🏷️ System Tagowania (Semantic Routing)
+Każde narzędzie należy do co najmniej jednej kategorii. Tagi te są używane przez użytkownika (poprzez `#`) lub przez Agenta (poprzez `RequestAdditionalTools`) do dynamicznego zarządzania kontekstem.
 
-### 1. `CreateObject`
+- **#core**: Narzędzia podstawowe (zawsze dostępne).
+- **#bloki**: Zarządzanie definicjami i instancjami bloków.
+- **#warstwy**: Tabela warstw i ich właściwości.
+- **#tekst**: Edycja treści, formatowania i skal opisowych.
+- **#makro**: Automatyzacja złożonych procedur.
+
+---
+
+## 🏢 Zarządzanie Obiektami i Blokami
+
+### 1. `CreateObject` **[Tag: #core]**
 Tworzy nową geometrię i teksty w rysunku.
 - **Parametry**: `EntityType` (Line, Circle, DBText, MText, MLeader), `Layer`, `StartPoint`, `EndPoint`, `Center`, `Radius`, `Position`, `Text`, `Height`, `Rotation`, `ArrowPoint`, `LandingPoint`.
-- **Funkcje specjalne**: Obsługuje słowo kluczowe `AskUser` dla interakcji z użytkownikiem oraz formuły `RPN:` dla obliczeń matematycznych.
+- **Funkcje specjalne**: Obsługuje słowo kluczowe `AskUser` oraz formuły `RPN:` dla obliczeń.
 
-### 2. `InsertBlock`
+### 2. `InsertBlock` **[Tag: #bloki]**
 Wstawia instancję bloku (`BlockReference`).
-- **Parametry**: `BlockName`, `InsertionPoint`, `Scale`, `Rotation`, `Attributes` (lista obiektów `Tag/Value`).
-- **Automatyzacja**: Wykonuje synchronizację atrybutów po wstawieniu.
+- **Parametry**: `BlockName`, `InsertionPoint`, `Scale`, `Rotation`, `Attributes` (lista `Tag/Value`).
 
-### 3. `CreateBlock`
-Tworzy nową definicję bloku (`BlockTableRecord`) z aktualnie zaznaczonych elementów.
+### 3. `CreateBlock` **[Tag: #bloki]**
+Tworzy nową definicję bloku (`BlockTableRecord`) z zaznaczonych elementów.
 - **Parametry**: `BlockName`, `BasePoint`, `DeleteOriginals`.
-- **Mechanizm**: Wykonuje `DeepCloneObjects` dla zachowania integralności danych.
 
-### 4. `EditBlock`
-Modyfikuje obiekty **wewnątrz** definicji bloku (wpływa na wszystkie wystąpienia).
-- **Parametry**: `Target` (Selection/ByName), `BlockName`, `Recursive`, `RemoveDimensions`, `FindText`, `ReplaceText`, `Modifications`, `Filters`.
-- **Zastosowanie**: Masowa zmiana warstw, kolorów lub tekstów ukrytych głęboko w strukturze bloków.
+### 4. `EditBlock` **[Tag: #bloki]**
+Modyfikuje obiekty **wewnątrz** definicji bloku (globalnie).
+- **Parametry**: `BlockName`, `Recursive`, `FindText`, `ReplaceText`, `Modifications`.
 
-### 5. `EditAttributes`
-Edytuje wartości atrybutów w konkretnych instancjach bloków.
-- **Parametry**: `Action` (Read/Update), `Attributes` (Tag/Value), `SaveAs`.
-- **Kluczowa funkcja**: Pozwala pobrać dane z atrybutów do pamięci podręcznej Agenta.
+### 5. `EditAttributes` **[Tag: #bloki]**
+Edytuje wartości atrybutów w konkretnych instancjach bloków (lokalnie).
+- **Parametry**: `Action` (Read/Update), `Attributes` (Tag/Value).
 
-### 6. `ListBlocks`
-Zwraca listę nazw wszystkich dostępnych bloków w rysunku.
+### 6. `ListBlocks` **[Tag: #bloki]**
+Zwraca listę nazw wszystkich dostępnych bloków (pomija anonimowe i XREF).
 - **Parametry**: `SaveAs`.
-- **Filtry**: Ignoruje bloki anonimowe, XREF-y i layouty.
 
 ---
 
 ## 🔍 Analiza i Selekcja
 
-### 7. `SelectEntities`
-Inteligentna wyszukiwarka obiektów. Fundament pracy Agenta.
-- **Parametry**: `Mode` (New, Add, Remove, Clear), `Scope` (Model, Blocks), `EntityType`, `Conditions` (lista słowników `Prop/Op/Val`).
-- **Operatory**: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `in`.
+### 7. `SelectEntities` **[Tag: #core]**
+Fundament pracy Agenta. Inteligentna wyszukiwarka obiektów.
+- **Parametry**: `Mode` (New, Add, Remove, Clear), `EntityType`, `Conditions`.
 
-### 8. `InspectEntity`
-Zwraca surowy zrzut danych JSON o konkretnym obiekcie (Handle lub ActiveSelection).
+### 8. `InspectEntity` **[Tag: #core]**
+Zwraca surowy zrzut danych JSON o konkretnym obiekcie (na podstawie Handle).
 - **Parametry**: `EntityHandle`.
 
-### 9. `GetPropertiesTool`
-Skanuje obiekty w zaznaczeniu i wyciąga ich kluczowe cechy geometryczne.
+### 9. `ReadPropertyTool` **[Tag: #core]**
+Pobiera jedną, konkretną właściwość (np. `Length`) i zapisuje ją do zmiennej.
+- **Parametry**: `Property`, `SaveAs`.
+
+### 10. `GetPropertiesTool` **[Tag: #core]**
+Skanuje obiekty w zaznaczeniu i wyciąga cechy geometryczne.
 - **Parametry**: `Mode` (Lite, Full).
-- **Wynik**: Raport tekstowy o położeniu, długościach, polach powierzchni.
 
-### 10. `ReadPropertyTool`
-Pobiera jedną, konkretną właściwość i zapisuje ją do zmiennej.
-- **Parametry**: `Property` (np. `Length`, `Center.X`), `SaveAs`.
+### 11. `AnalyzeSelectionTool` **[Tag: #core]**
+Wykonuje agregację danych (Count, ListUnique).
+- **Parametry**: `Mode`, `TargetProperty`, `SaveAs`.
 
-### 11. `ReadTextSampleTool`
-Pobiera reprezentatywną próbkę tekstów z zaznaczenia (DBText, MText, MLeader).
-- **Mechanizm**: Próbkowanie statystyczne (sqrt) zapobiega przepełnieniu okna kontekstowego (Context Window).
-
-### 12. `AnalyzeSelectionTool`
-Wykonuje agregację danych w pamięci.
-- **Parametry**: `Mode` (CountTypes, ListUniqueValues), `TargetProperty`, `SaveAs`.
-- **Zastosowanie**: "Ile mam linii?", "Wypisz wszystkie użyte warstwy w tym detalu".
+### 12. `ReadTextSampleTool` **[Tag: #tekst]**
+Pobiera reprezentatywną próbkę tekstów z zaznaczenia.
+- **Mechanizm**: Próbkowanie statystyczne zapobiegające przepełnieniu tokenów.
 
 ---
 
 ## 🔧 Modyfikacja i Tekst
 
-### 13. `ModifyProperties`
+### 13. `ModifyProperties` **[Tag: #core]**
 Masowa edycja właściwości obiektów w zaznaczeniu.
-- **Parametry**: `Modifications` (Prop/Val).
-- **Tarcza Anty-Halucynacyjna**: Każda właściwość jest walidowana pod kątem poprawności dla danego typu obiektu przed próbą zapisu.
+- **Parametry**: `Modifications` (Prop/Val). Walidacja przez `PropertyValidator`.
 
-### 14. `TextEditTool`
+### 14. `TextEditTool` **[Tag: #tekst]**
 Zaawansowana edycja treści i formatowania RTF.
-- **Parametry**: `Mode` (Append, Prepend, Replace, FormatHighlight, ClearFormatting), `FindText`, `ReplaceWith`, `ColorIndex`, `IsBold`.
-- **Funkcja**: Pozwala podświetlać błędy lub dodawać prefiksy masowo.
+- **Parametry**: `Mode` (Append, Prepend, Replace, Format), `FindText`, `ReplaceWith`.
 
-### 15. `ManageLayers`
-Zarządzanie tabelą warstw.
-- **Parametry**: `Action` (Create, Modify, Delete), `LayerName` (obsługuje maski `*`), `ColorIndex`, `IsOff`, `IsFrozen`, `IsLocked`, `Linetype`.
+### 15. `ManageLayers` **[Tag: #warstwy]**
+Zarządzanie tabelą warstw (Create, Modify, Delete).
+- **Parametry**: `Action`, `LayerName`, `ColorIndex`, `IsOff`, `IsFrozen`, `IsLocked`.
 
----
-
-## 📊 Narzędzia Pomocnicze i Systemowe
-
-### 16. `Foreach`
-Pomaga LLM w iterowaniu po listach zapisanych w pamięci `@Variables`.
-- **Parametry**: `TargetVariable`, `Separator`, `Action` (List, Count).
-
-### 17. `ManageAnnoScales`
+### 16. `ManageAnnoScales` **[Tag: #tekst]**
 Obsługa skal opisowych (Annotative).
-- **Parametry**: `Action` (Add, Remove, Read), `ScaleName`, `DisableAnnotative`, `SaveAs`.
-
-### 18. `ExecuteMacro`
-Uruchamia predefiniowane skrypty lub własne polecenia LISP/RPN.
-- **Parametry**: `MacroName`, `CustomCommand`.
-- **Makra GOLD**: `CleanDrawings`, `ResetLayers`, `ZoomExtents`.
-
-### 19. `UserInput`
-Interaktywne pobieranie danych od człowieka.
-- **Parametry**: `PromptMessage`, `InputType` (String, Integer, Double, Point), `SaveAs`.
-
-### 20. `UserChoice`
-Wyświetla menu wyboru w linii komend BricsCAD.
-- **Parametry**: `PromptMessage`, `Options` (lista), `SaveAs`.
+- **Parametry**: `Action`, `ScaleName`, `DisableAnnotative`.
 
 ---
 
-## 💡 Pamięć Agenta (Context)
+## 📊 Pętle i System (Agentic)
 
-Agent korzysta z dwóch rodzajów pamięci:
-1. **ActiveSelection**: Lista `ObjectId` obiektów zaznaczonych na rysunku.
-2. **Variables (cache)**: Słownik klucz-wartość (np. `@MojaDlugosc`), do którego można zapisywać wyniki narzędzi i wstrzykiwać je jako parametry w następnych krokach za pomocą symbolu `$`.
+### 17. `Foreach` **[Tag: #core]**
+Iterowanie po listach zapisanych w pamięci `@Variables`.
+- **Parametry**: `Items`, `Action`, `Generator`.
 
-> [!NOTE]
-> Wszystkie narzędzia zwracają raport tekstowy, który model LLM interpretuje, aby podjąć decyzję o kolejnym kroku lub zakończeniu zadania.
+### 18. `ExecuteMacro` **[Tag: #makro]**
+Uruchamianie predefiniowanych procedur lub własnego kodu LISP.
+- **Parametry**: `MacroName`, `CustomCommand`.
+
+### 19. `UserInput` / `UserChoice` **[Tag: #core]**
+Interakcja z użytkownikiem w pasku poleceń BricsCAD.
+- **Parametry**: `Prompt`, `Choices`.
+
+### 20. `RequestAdditionalTools` **[Tag: #core]** **(NOWOŚĆ)**
+Mechanizm **Agentic Fallback**. Pozwala Agentowi samodzielnie doładować brakujące pule narzędzi w trakcie pętli myślenia.
+- **Parametry**: `Tags` (Tablica stringów, np. `["#bloki", "#tekst"]`).
+- **Zastosowanie**: Samoleczenie w przypadku braku precyzyjnych tagów od użytkownika.

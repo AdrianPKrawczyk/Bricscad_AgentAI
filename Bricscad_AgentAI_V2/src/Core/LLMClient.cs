@@ -41,8 +41,9 @@ namespace Bricscad_AgentAI_V2.Core
         /// Wysyła konwersację do serwera LLM i w razie zgłoszenia potrzeby użycia narzędzia (Tool Call)
         /// zarządza pętlą ReAct - samodzielnie wywołuje narzędzie i odsyła wynik.
         /// </summary>
-        public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, int maxIterations = 5)
+        public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, IEnumerable<string> initialTags = null, int maxIterations = 5)
         {
+            var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             int iterations = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalSentChars = 0;
@@ -58,7 +59,7 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     model = "local-model",
                     messages = conversationHistory,
-                    tools = _orchestrator.GetToolsPayload(),
+                    tools = _orchestrator.GetToolsPayload(currentTags),
                     tool_choice = "auto"
                 };
 
@@ -134,6 +135,22 @@ namespace Bricscad_AgentAI_V2.Core
                             : JObject.Parse(argumentsString);
                         
                         toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, doc);
+
+                        // Agentic Fallback: Jeśli model poprosił o dodatkowe pule narzędzi, 
+                        // aktualizujemy lokalny zbiór tagów dla następnych iteracji pętli ReAct.
+                        if (functionName.Equals("RequestAdditionalTools", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var newTags = argumentsParsed["Tags"] as JArray;
+                            if (newTags != null)
+                            {
+                                foreach (var t in newTags)
+                                {
+                                    string tag = t.ToString().Trim();
+                                    if (!tag.StartsWith("#")) tag = "#" + tag;
+                                    currentTags.Add(tag);
+                                }
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {

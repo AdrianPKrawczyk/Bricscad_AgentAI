@@ -27,14 +27,18 @@
  ## Logi postępu (Ostatnie 5 zmian)
 - 2026-04-06: v2.6.16 GOLD [SCHEMA INJECTION] - Wstrzyknięcie rygorystycznych instrukcji RPN do opisów parametrów punktowych w GetToolSchema (CreateObjectTool.cs). Model nie ma już wymówki "braku formatu" i musi używać kalkulatora dla każdej osi z osobna.
 - 2026-04-06: v2.6.15 GOLD [UNIT KNOWLEDGE] - Aktualizacja System Promptu o pełną wiedzę na temat analizy wymiarowej i konwersji jednostek w RPN. Model wie teraz, jak używać 'WARTOŚĆ_JEDNOSTKA' oraz jak zlecać mieszane obliczenia (np. '100_mm 5_cm +').
-- 2026-04-06: v2.6.14 GOLD [RPN RESTITUTION] - Pełna restytucja potężnego kalkulatora wymiarowego z V1 (UnitDim, PhysicalValue, UnitEngine). Przywrócono obsługę jednostek, stałych fizycznych i zaawansowanych operatorów przy zachowaniu integracji z V2 (AgentMemoryState).
-- 2026-04-05: v2.6.13 GOLD [MATH HOTFIX] - Poprawa odporności na białe znaki w parserze RPN (Trim), wdrożenie "Trybu Paranoi" w System Prompcie (psychologiczna blokada przed liczeniem w pamięci).
+- 2026-04-06:### [v2.7.7 GOLD] Semantic Tool Routing & Agentic Fallback
+- **Standard Tagowania**: Rozbudowano `IToolV2` o właściwość `ToolTags`. Wszystkie 20 narzędzi zostało skategoryzowane (#core, #bloki, #warstwy, #tekst, #makro).
+- **Dynamic Tool Loading**: `ToolOrchestrator.GetToolsPayload(tags)` umożliwia wysyłanie tylko niezbędnych narzędzi do LLM, co drastycznie redukuje zużycie tokenów i zapobiega halucynacjom.
+- **Agentic Fallback**: Wdrożono narzędzie `RequestAdditionalTools` (pool: #core), które pozwala modelowi LLM na samodzielne doładowanie niezbędnych narzędzi w trakcie pętli ReAct.
+- **Autocomplete UI**: W `AgentControl.cs` dodano `lstAutocomplete` (ListBox) aktywowany znakiem `#`, co ułatwia użytkownikowi wybór odpowiedniej puli narzędzi.
+- **Tag Preprocessing**: Implementacja Regex w `ProcessInputAsync` wycina tagi z wiadomości przed wysłaniem do modelu, używając ich jedynie do sterowania kontekstem.
+- **Dokumentacja**: Zaktualizowano `USER_GUIDE.md`, `System_Blueprint.md` oraz `TOOLS_REFERENCE.md` o opisy systemu tagowania.
 - 2026-04-05: v2.6.12 GOLD [MATH/RPN] - Integracja kalkulatora RPN z ParsePoint w CreateObjectTool.cs (niezależna ewaluacja X, Y, Z). Aktualizacja System Promptu - rygorystyczny wymóg delegowania matematyki do silnika CAD.
 - 2026-04-05: v2.6.11 GOLD [FOREACH PERF] - Implementacja "Sprzęgła Graficznego" w ForeachTool.cs (SelectObject=false), wymuszenie UpdateScreen() oraz od-kotwiczenie System Promptu (abstrakcyjne przykłady N, X,Y,Z).
 - 2026-04-05: v2.6.10 GOLD [PROMPT HOTFIX] - Naprawa regresji "Few-Shot Overfitting". Usunięcie surowych bloków JSON z promptu, wprowadzenie opisowych przykładów koncepcyjnych oraz agresywnego zakazu Markdown dla wywołań narzędzi.
 - 2026-04-05: v2.6.9 GOLD [PROMPT BOOST] - Wzmocnienie System Promptu (zakaz tagów V1, few-shot Foreach), implementacja rekurencyjnego wywoływania narzędzi w ForeachTool (Action JSON Template) via Singleton.
 - 2026-04-05: v2.6.8 GOLD [FOREACH+ SEQ] - Implementacja Sequence Generator w ForeachTool.cs, rozszerzenie ToolParameter o nested properties/items, testy i dokumentacja.
-- 2026-04-05: v2.6.7 GOLD [UI/UX] - Zakładki w Benchmarku, czas w sekundach, persystencja JSON (Registry), dokowanie palety do Lewego Boku.
 - 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Naprawa błędu LINQ w AutoBenchmarkEngine (ArgumentMatch), odblokowanie RecordedToolCalls w JSON.
 - 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Totalna Hermetyzacja (precyzyjne i wykluczające opisy StartPoint, Center, Position).
 - 2026-04-05: v2.6.6 GOLD [UI HOTFIX] - Rozdzielono etykiety HUD (lblStatus/lblStats), całkowity refaktoring AgentTesterControl (SplitContainer, JSON V1).

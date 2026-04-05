@@ -13,6 +13,8 @@ namespace Bricscad_AgentAI_V2.Tools
     /// </summary>
     public class UserInputTool : IToolV2
     {
+        public string[] ToolTags => new[] { "#core" };
+
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition

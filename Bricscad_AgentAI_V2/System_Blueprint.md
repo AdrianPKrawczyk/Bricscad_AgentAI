@@ -12,6 +12,13 @@ Każde polecenie udostępnia `ToolDefinition`, opisane modelem `FunctionSchema` 
 ### 3. Mechanizm TrimHistory (`src/Core/LLMClient.cs`)
 System automatycznie optymalizuje okno kontekstowe poprzez przycinanie długich odpowiedzi z narzędzi (rola `tool`). Jeśli wynik przekracza 500 znaków, jest skracany do 100 znaków z dodaniem informacji o liczbie usuniętych bajtów. Pozwala to na zachowanie spójności struktury Tool Calling przy jednoczesnej drastycznej redukcji zużycia tokenów w długich sesjach.
 
+### 4. Dynamiczne Zarządzanie Kontekstem (Semantic Tool Routing)
+Wprowadzone w **v2.7.0 GOLD**, pozwala na selektywne ładowanie narzędzi do promptu LLM w zależności od potrzeb.
+- **Tagowanie Narzędzi**: Każde narzędzie deklaruje `ToolTags` (np. `#bloki`, `#warstwy`). Narzędzia `#core` są ładowane zawsze.
+- **Pre-procesing (AgentControl.cs)**: Tekst użytkownika jest skanowany pod kątem hashtagów. Znalezione tagi są wycinane z wiadomości i przekazywane jako `initialTags` do `SendMessageReActAsync`.
+- **Filtrowanie (ToolOrchestrator.cs)**: Metoda `GetToolsPayload(requestedTags)` zwraca tylko narzędzia pasujące do zestawu: `#core` OR `requestedTags` (lub wszystkie, jeśli podano `#all`).
+- **Agentic Fallback**: Jeśli model potrzebuje dodatkowych narzędzi, wywołuje `RequestAdditionalTools`. `LLMClient` przechwytuje to wywołanie, aktualizuje lokalny zbiór tagów i w następnej iteracji pętli ReAct przesyła rozszerzony zestaw narzędzi.
+
 ## Zarządzanie Stanem (State)
 
 ### AgentMemoryState (`src/Core/AgentMemoryState.cs`)

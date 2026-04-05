@@ -13,6 +13,8 @@ namespace Bricscad_AgentAI_V2.Tools
 {
     public class ModifyPropertiesTool : IToolV2
     {
+        public string[] ToolTags => new[] { "#core" };
+
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition

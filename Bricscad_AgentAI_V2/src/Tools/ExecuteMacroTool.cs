@@ -12,6 +12,8 @@ namespace Bricscad_AgentAI_V2.Tools
 {
     public class ExecuteMacroTool : IToolV2
     {
+        public string[] ToolTags => new[] { "#makro" };
+
         // Mapa statyczna makr dla wersji GOLD (zamiast SQLite dla uproszczenia i szybkości)
         private static readonly Dictionary<string, string> _macros = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
