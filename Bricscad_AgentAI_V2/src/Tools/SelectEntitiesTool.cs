@@ -164,15 +164,13 @@ namespace Bricscad_AgentAI_V2.Tools
                                 bool sprawdzajWizualnie = false;
 
                                 if (rzeczywistaWlasciwosc.Equals("VisualColor", StringComparison.OrdinalIgnoreCase))
-                                { rzeczywistaWlasciwosc = "ColorIndex"; sprawdzajWizualnie = true; }
+                                { rzeczywistaWlasciwosc = "Color"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("VisualLinetype", StringComparison.OrdinalIgnoreCase))
                                 { rzeczywistaWlasciwosc = "Linetype"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("VisualLineWeight", StringComparison.OrdinalIgnoreCase))
                                 { rzeczywistaWlasciwosc = "LineWeight"; sprawdzajWizualnie = true; }
                                 else if (rzeczywistaWlasciwosc.Equals("VisualTransparency", StringComparison.OrdinalIgnoreCase))
                                 { rzeczywistaWlasciwosc = "Transparency"; sprawdzajWizualnie = true; }
-                                else if (rzeczywistaWlasciwosc.Equals("Color", StringComparison.OrdinalIgnoreCase))
-                                { rzeczywistaWlasciwosc = "ColorIndex"; }
                                 else if (ent is MText && rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase)) rzeczywistaWlasciwosc = "TextHeight";
                                 else if (ent is Dimension && (rzeczywistaWlasciwosc.Equals("Height", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("TextHeight", StringComparison.OrdinalIgnoreCase))) rzeczywistaWlasciwosc = "Dimtxt";
                                 else if (rzeczywistaWlasciwosc.Equals("Value", StringComparison.OrdinalIgnoreCase))
@@ -212,7 +210,14 @@ namespace Bricscad_AgentAI_V2.Tools
 
                                 string valStr = wartoscObiektu.ToString();
 
-                                if (wartoscObiektu is Teigha.Colors.Transparency transp)
+                                if (wartoscObiektu is Teigha.Colors.Color colorObj)
+                                {
+                                    if (colorObj.IsByLayer) valStr = "256";
+                                    else if (colorObj.IsByBlock) valStr = "0";
+                                    else if (colorObj.IsByColor) valStr = $"{colorObj.Red},{colorObj.Green},{colorObj.Blue}";
+                                    else valStr = colorObj.ColorIndex.ToString();
+                                }
+                                else if (wartoscObiektu is Teigha.Colors.Transparency transp)
                                 {
                                     if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
                                     else if (sprawdzajWizualnie && transp.IsByLayer)
@@ -269,12 +274,16 @@ namespace Bricscad_AgentAI_V2.Tools
 
                                 if (sprawdzajWizualnie)
                                 {
-                                    if (rzeczywistaWlasciwosc == "ColorIndex" && valStr == "256")
+                                    if (rzeczywistaWlasciwosc == "Color" && valStr == "256")
                                     {
                                         try
                                         {
                                             LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                            if (ltr != null) valStr = ltr.Color.ColorIndex.ToString();
+                                            if (ltr != null) 
+                                            {
+                                                if (ltr.Color.IsByColor) valStr = $"{ltr.Color.Red},{ltr.Color.Green},{ltr.Color.Blue}";
+                                                else valStr = ltr.Color.ColorIndex.ToString();
+                                            }
                                         }
                                         catch { }
                                     }
