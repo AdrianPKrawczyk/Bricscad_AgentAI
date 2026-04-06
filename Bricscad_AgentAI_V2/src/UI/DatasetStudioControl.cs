@@ -142,11 +142,11 @@ namespace Bricscad_AgentAI_V2.UI
             this.BackColor = Color.FromArgb(30, 30, 30);
         }
 
-        public void AddSessionRecord(string displayName, List<ChatMessage> historySnapshot, LLMStats stats)
+        public void AddSessionRecord(string displayName, List<ChatMessage> historySnapshot, List<ToolDefinition> toolsSnapshot, LLMStats stats)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(() => AddSessionRecord(displayName, historySnapshot, stats)));
+                this.Invoke(new Action(() => AddSessionRecord(displayName, historySnapshot, toolsSnapshot, stats)));
                 return;
             }
         
@@ -154,6 +154,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 DisplayName = $"{DateTime.Now:HH:mm:ss} - {displayName}",
                 Messages = historySnapshot,
+                Tools = toolsSnapshot,
                 Stats = stats
             };
         
@@ -203,7 +204,7 @@ namespace Bricscad_AgentAI_V2.UI
             // Formatowanie JSON do edytora (Indented)
             try
             {
-                var wrapper = new { messages = exportList };
+                var wrapper = new { messages = exportList, tools = record.Tools };
                 var settings = new JsonSerializerSettings 
                 { 
                     NullValueHandling = NullValueHandling.Ignore, 
@@ -259,6 +260,7 @@ namespace Bricscad_AgentAI_V2.UI
     {
         public string DisplayName { get; set; }
         public List<ChatMessage> Messages { get; set; }
+        public List<ToolDefinition> Tools { get; set; }
         public LLMStats Stats { get; set; }
     }
 }

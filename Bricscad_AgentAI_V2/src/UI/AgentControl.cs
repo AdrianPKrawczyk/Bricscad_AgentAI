@@ -581,7 +581,8 @@ namespace Bricscad_AgentAI_V2.UI
                 {
                     // KRYTYCZNE: Izolacja snapshotu przez głęboką kopię listy
                     var historySnapshot = new List<ChatMessage>(_conversationHistory);
-                    datasetStudio.AddSessionRecord($"[{DateTime.Now:HH:mm:ss}] {rawInput}", historySnapshot, _lastStats);
+                    var toolsSnapshot = _orchestrator.GetToolsPayload(extractedTags);
+                    datasetStudio.AddSessionRecord($"[{DateTime.Now:HH:mm:ss}] {rawInput}", historySnapshot, toolsSnapshot, _lastStats);
                 }
                 catch { /* Silent fail for dataset studio integration */ }
 
