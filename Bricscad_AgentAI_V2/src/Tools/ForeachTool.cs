@@ -68,7 +68,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Action", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "JSON wywołania (np. '{\"EntityType\": \"Circle\", \"Center\": \"{item}\", \"Radius\": \"50\"}'). Tag '{item}' zostanie zastąpiony wartością z sekwencji. Możesz też użyć 'List' lub 'Count'."
+                                    Description = "JSON wywołania (np. '{\"EntityType\": \"Circle\", \"Center\": \"{item}\", \"Radius\": \"50\"}'). Tag '{item}' zostanie zastąpiony wartością z sekwencji. Tag '{index}' zostanie zastąpiony numerem iteracji (1, 2, 3...)."
                                 }
                             }
                         }
@@ -134,10 +134,13 @@ namespace Bricscad_AgentAI_V2.Tools
                 int successCount = 0;
                 List<string> handles = new List<string>();
                 List<string> errors = new List<string>();
+                int loopIndex = 1;
 
                 foreach (var item in finalItems)
                 {
-                    string expandedAction = action.Replace("{item}", item);
+                    // ZMIANA: Podmieniamy zarówno {item} jak i {index}
+                    string expandedAction = action.Replace("{item}", item)
+                                                  .Replace("{index}", loopIndex.ToString());
                     try
                     {
                         JObject toolArgs = JObject.Parse(expandedAction);
@@ -171,6 +174,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         errors.Add($"Błąd parsowania JSON dla elementu '{item}': {ex.Message}");
                     }
+                    loopIndex++;
                 }
 
                 // Wymuszamy odświeżenie ekranu na końcu masowej operacji
