@@ -54,7 +54,8 @@ namespace Bricscad_AgentAI_V2.Core
                 iterations++;
                 OnStatusUpdate?.Invoke($"Wysyłanie zapytania do struktury (iteracja {iterations}/{maxIterations})...");
 
-                // 1. Przygotuj payload
+                // 1. Przygotuj payload - KRYTYCZNE: Odświeżamy listę narzędzi w każdej iteracji, 
+                // aby uwzględnić nowo załadowane kategorie (Agentic Fallback / LoadCategory).
                 var requestPayload = new
                 {
                     model = "local-model",
