@@ -55,20 +55,12 @@ namespace Bricscad_AgentAI_V2.Core
             ToolConfigManager.Initialize(_tools.Values);
         }
 
-        public List<ToolDefinition> GetToolsPayload(IEnumerable<string> requestedTags = null)
+        public List<ToolDefinition> GetToolsPayload(IEnumerable<string> requestedTags)
         {
-            var tags = requestedTags?.ToList() ?? new List<string>();
-            bool includeAll = tags.Contains("#all", StringComparer.OrdinalIgnoreCase);
-
-            var filteredTools = _tools.Values.Where(t => 
-            {
-                if (includeAll) return true;
-                
-                // Sprawdzamy aktywność narzędzia w ToolConfigManager (obsługuje IsCore oraz Tagi)
-                return ToolConfigManager.IsToolActive(t.GetType().Name, tags);
-            });
-
-            return filteredTools.Select(t => t.GetToolSchema()).ToList();
+            return _tools.Values
+                .Select(t => t.GetToolSchema())
+                .Where(schema => schema?.Function != null && ToolConfigManager.IsToolActive(schema.Function.Name, requestedTags))
+                .ToList();
         }
 
         /// <summary>

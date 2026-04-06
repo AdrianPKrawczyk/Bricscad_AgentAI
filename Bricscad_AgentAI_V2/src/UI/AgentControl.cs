@@ -18,6 +18,7 @@ namespace Bricscad_AgentAI_V2.UI
         private AgentTesterControl testerControl;
         private DataGridView dgvTools;
         private Button btnSaveConfig;
+        private CheckBox chkEarlyExit;
 
         // --- UI Czat ---
         private RichTextBox txtHistory;
@@ -171,6 +172,18 @@ namespace Bricscad_AgentAI_V2.UI
             txtInput.TextChanged += TxtInput_TextChanged;
 
             panInput.Controls.Add(inputBorder);
+            
+            chkEarlyExit = new CheckBox
+            {
+                Text = "⚡ Tryb Szybki (Early Exit)",
+                Checked = true,
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Dock = DockStyle.Left,
+                Padding = new Padding(10, 0, 0, 0)
+            };
+
+            panInput.Controls.Add(chkEarlyExit);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnReset);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
@@ -271,6 +284,7 @@ namespace Bricscad_AgentAI_V2.UI
             dgvTools.Columns.Add(new DataGridViewTextBoxColumn { Name = "ToolName", HeaderText = "Narzędzie", ReadOnly = true });
             dgvTools.Columns.Add(new DataGridViewCheckBoxColumn { Name = "IsCore", HeaderText = "Core (#core)" });
             dgvTools.Columns.Add(new DataGridViewTextBoxColumn { Name = "Tags", HeaderText = "Tagi (rozdzielane przecinkiem)" });
+            dgvTools.Columns.Add(new DataGridViewCheckBoxColumn { Name = "EarlyExit", HeaderText = "⚡ Early Exit" });
 
             btnSaveConfig = new Button
             {
@@ -298,7 +312,7 @@ namespace Bricscad_AgentAI_V2.UI
             var settings = ToolConfigManager.GetAllSettings();
             foreach (var kvp in settings)
             {
-                dgvTools.Rows.Add(kvp.Key, kvp.Value.IsCore, kvp.Value.Tags);
+                dgvTools.Rows.Add(kvp.Key, kvp.Value.IsCore, kvp.Value.Tags, kvp.Value.SupportsEarlyExit);
             }
         }
 
@@ -311,8 +325,9 @@ namespace Bricscad_AgentAI_V2.UI
                 string name = row.Cells["ToolName"].Value.ToString();
                 bool isCore = (bool)(row.Cells["IsCore"].Value ?? false);
                 string tags = row.Cells["Tags"].Value?.ToString() ?? "";
+                bool earlyExit = (bool)(row.Cells["EarlyExit"].Value ?? false);
                 
-                newSettings[name] = new ToolSettings { IsCore = isCore, Tags = tags };
+                newSettings[name] = new ToolSettings { IsCore = isCore, Tags = tags, SupportsEarlyExit = earlyExit };
             }
             ToolConfigManager.UpdateSettings(newSettings);
             MessageBox.Show("Konfiguracja narzędzi została zapisana!", "Agent AI V2", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -550,7 +565,8 @@ namespace Bricscad_AgentAI_V2.UI
                 string aiResponse = await Task.Run(async () => 
                 {
                     // Przekazujemy wyłuskane tagi do klienta LLM
-                    return await _llmClient.SendMessageReActAsync(_conversationHistory, doc, extractedTags);
+                    bool earlyExit = chkEarlyExit.Checked;
+                    return await _llmClient.SendMessageReActAsync(_conversationHistory, doc, extractedTags, earlyExit);
                 });
 
                 AppendToHistory("BIELIK", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);

@@ -18,6 +18,12 @@ Wprowadzone w **v2.7.0 GOLD**, pozwala na selektywne ładowanie narzędzi do pro
 - **Pre-procesing (AgentControl.cs)**: Tekst użytkownika jest skanowany pod kątem hashtagów. Znalezione tagi są wycinane z wiadomości i przekazywane jako `initialTags` do `SendMessageReActAsync`.
 - **Filtrowanie (ToolOrchestrator.cs)**: Metoda `GetToolsPayload(requestedTags)` zwraca tylko narzędzia pasujące do zestawu: `#core` OR `requestedTags` (lub wszystkie, jeśli podano `#all`).
 - **Agentic Fallback**: Jeśli model potrzebuje dodatkowych narzędzi, wywołuje `RequestAdditionalTools`. `LLMClient` przechwytuje to wywołanie, aktualizuje lokalny zbiór tagów i w następnej iteracji pętli ReAct przesyła rozszerzony zestaw narzędzi.
+- **Early Exit (Fast Mode)**: Wprowadzone w **v2.9.0**, drastycznie redukuje latencję przy prostych operacjach.
+    - **Mechanizm**: Jeśli globalny przełącznik `chkEarlyExit` jest włączony, system C# analizuje wywołania narzędzi w bieżącej iteracji.
+    - **Warunki**: Pętla ReAct zostaje przerwana (Client-Side Resolution), jeśli:
+        1. Wszystkie wywołane narzędzia mają flagę `SupportsEarlyExit` ustawioną na `true` w `tools_config.json`.
+        2. Wszystkie narzędzia zwróciły wynik niebędący błędem.
+    - **Korzyść**: Eliminuje "pusty" przejazd do LLM tylko po to, by usłyszeć "Zrobione".
 
 ## Zarządzanie Stanem (State)
 

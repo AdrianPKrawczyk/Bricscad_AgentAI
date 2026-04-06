@@ -41,7 +41,7 @@ namespace Bricscad_AgentAI_V2.Core
         /// Wysyła konwersację do serwera LLM i w razie zgłoszenia potrzeby użycia narzędzia (Tool Call)
         /// zarządza pętlą ReAct - samodzielnie wywołuje narzędzie i odsyła wynik.
         /// </summary>
-        public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, IEnumerable<string> initialTags = null, int maxIterations = 5)
+        public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5)
         {
             var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             int iterations = 0;
@@ -118,6 +118,10 @@ namespace Bricscad_AgentAI_V2.Core
 
                 // 4. Mamy tool_calls! Realizujemy ich logikę na lokalnej maszynie C#
                 OnStatusUpdate?.Invoke($"Odebrano zapytanie narzędziowe. Liczba operacji do wykonania: {assistantMessage.ToolCalls.Count}.");
+                
+                // Flaga wczesnego wyjścia - inicjalnie true (jeśli włączone), resetowana jeśli dowolne narzędzie nie wspiera lub zawiedzie.
+                bool canEarlyExitThisTurn = earlyExitEnabled && assistantMessage.ToolCalls.Any();
+
                 foreach (var toolCall in assistantMessage.ToolCalls)
                 {
                     var functionName = toolCall.Function.Name;
@@ -135,7 +139,20 @@ namespace Bricscad_AgentAI_V2.Core
                             ? new JObject() 
                             : JObject.Parse(argumentsString);
                         
+                        // Sprawdź właściwości narzędzia przed wykonaniem dla Early Exit
+                        var toolSettings = ToolConfigManager.GetSettings(functionName);
+                        if (toolSettings == null || !toolSettings.SupportsEarlyExit)
+                        {
+                            canEarlyExitThisTurn = false;
+                        }
+
                         toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, doc);
+
+                        // Jeśli wynik zawiera błąd, nie możemy zrobić Early Exit
+                        if (toolExecutionResult.ToLower().Contains("błąd") || toolExecutionResult.ToLower().Contains("error"))
+                        {
+                            canEarlyExitThisTurn = false;
+                        }
 
                         // Agentic Fallback: Jeśli model poprosił o dodatkowe pule narzędzi, 
                         // aktualizujemy lokalny zbiór tagów dla następnych iteracji pętli ReAct.
@@ -171,6 +188,15 @@ namespace Bricscad_AgentAI_V2.Core
                     conversationHistory.Add(toolResponseMessage);
                 }
                 
+                // KRYTYCZNE: Sprawdzenie Early Exit PO dodaniu wszystkich wyników do historii.
+                if (canEarlyExitThisTurn)
+                {
+                    sw.Stop();
+                    OnStatusUpdate?.Invoke("⚡ [Early Exit] Operacja wykonana pomyślnie. Zamykam pętlę ReAct.");
+                    OnStatsUpdate?.Invoke(sw.ElapsedMilliseconds, totalSentChars / 4, totalRecvChars / 4);
+                    return "Operacja wykonana pomyślnie (Tryb Szybki).";
+                }
+
                 // Po obsłużeniu WSZYSTKICH narzedzi w tej paczce, pętla 'while' wróci na samą górę 
                 OnStatusUpdate?.Invoke("Wyniki narzędzi przeanalizowane. Zwracam do modelu...");
             }

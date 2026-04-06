@@ -11,6 +11,7 @@ namespace Bricscad_AgentAI_V2.Core
     {
         public bool IsCore { get; set; }
         public string Tags { get; set; } // Rozdzielane przecinkami, np. "#bloki, #architektura"
+        public bool SupportsEarlyExit { get; set; }
     }
 
     /// <summary>
@@ -59,10 +60,10 @@ namespace Bricscad_AgentAI_V2.Core
             bool changed = false;
             foreach (var tool in registeredTools)
             {
-                string name = tool.GetType().Name;
+                string name = tool.GetToolSchema()?.Function?.Name ?? tool.GetType().Name;
                 if (!_settings.ContainsKey(name))
                 {
-                    _settings[name] = new ToolSettings { IsCore = false, Tags = "" };
+                    _settings[name] = new ToolSettings { IsCore = false, Tags = "", SupportsEarlyExit = false };
                     changed = true;
                 }
             }
@@ -72,23 +73,26 @@ namespace Bricscad_AgentAI_V2.Core
         private static void GenerateDefaultConfig(IEnumerable<IToolV2> registeredTools)
         {
             _settings.Clear();
-            var coreTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
-            { 
-                "CreateObjectTool", "ForeachTool", "SelectEntitiesTool", 
-                "ModifyPropertiesTool", "RequestAdditionalToolsTool", "GetPropertiesTool",
-                "UserInputTool", "UserChoiceTool"
-            };
+            var coreTools = new[] { "CreateObject", "SelectEntities", "ModifyProperties", "Foreach", "RequestAdditionalTools", "UserInput", "UserChoice" };
+            var earlyExitTools = new[] { "CreateObject", "ModifyProperties", "ManageLayers", "InsertBlock", "CreateBlock", "ExecuteMacro" };
 
             foreach (var tool in registeredTools)
             {
-                string name = tool.GetType().Name;
-                _settings[name] = new ToolSettings 
-                { 
-                    IsCore = coreTools.Contains(name),
-                    Tags = "" // Na początku puste, użytkownik uzupełni w UI
+                var schema = tool.GetToolSchema();
+                if (schema == null || schema.Function == null) continue;
+                string apiName = schema.Function.Name;
+
+                _settings[apiName] = new ToolSettings
+                {
+                    IsCore = coreTools.Contains(apiName, StringComparer.OrdinalIgnoreCase),
+                    SupportsEarlyExit = earlyExitTools.Contains(apiName, StringComparer.OrdinalIgnoreCase),
+                    Tags = ""
                 };
             }
-            SaveConfig();
+            
+            // BEZWZGLĘDNY ZAPIS PO WYGENEROWANIU
+            string json = JsonConvert.SerializeObject(_settings, Formatting.Indented);
+            File.WriteAllText(ConfigPath, json);
         }
 
         public static void SaveConfig()
@@ -109,16 +113,19 @@ namespace Bricscad_AgentAI_V2.Core
         /// Sprawdza, czy narzędzie o podanej nazwie klasy powinno być aktywne 
         /// dla zestawu żądanych tagów.
         /// </summary>
-        public static bool IsToolActive(string toolClassName, IEnumerable<string> requestedTags)
+        public static bool IsToolActive(string apiName, IEnumerable<string> requestedTags)
         {
-            if (!_settings.TryGetValue(toolClassName, out var s)) return false;
+            if (!_settings.TryGetValue(apiName, out var s)) return false;
+
+            // Narzędzia Core są ZAWSZE aktywne
             if (s.IsCore) return true;
 
+            // Jeśli to nie Core, a użytkownik poprosił o #all, ładuj wszystko
+            if (requestedTags != null && requestedTags.Any(rt => rt.Equals("#all", StringComparison.OrdinalIgnoreCase))) return true;
+
+            // Logika filtrowania tagów dla Tool Pools
             if (requestedTags == null || !requestedTags.Any()) return false;
-
-            var toolTags = s.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                                 .Select(t => t.Trim().ToLower());
-
+            var toolTags = s.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim().ToLower());
             return requestedTags.Any(rt => toolTags.Contains(rt.ToLower()));
         }
 
@@ -143,6 +150,12 @@ namespace Bricscad_AgentAI_V2.Core
                 .Where(kv => kv.Value.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                                          .Any(t => t.Trim().Equals(category, StringComparison.OrdinalIgnoreCase)))
                 .Select(kv => kv.Key);
+        }
+
+        public static ToolSettings GetSettings(string toolClassName)
+        {
+            if (_settings.TryGetValue(toolClassName, out var s)) return s;
+            return null;
         }
     }
 }
