@@ -63,6 +63,9 @@ namespace Bricscad_AgentAI_V2.Tools
 
                 if (entityType.Equals("Line", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (args["StartPoint"] == null || args["EndPoint"] == null)
+                        return "BŁĄD KRYTYCZNY (Guardrail): Dla obiektu 'Line' MUSISZ użyć parametrów 'StartPoint' oraz 'EndPoint'. Popraw swoje wywołanie.";
+
                     Point3d sp = GetPoint(ed, args["StartPoint"]?.ToString(), "Start: ");
                     Point3d ep = GetPoint(ed, args["EndPoint"]?.ToString(), "Koniec: ");
                     newEnt = new Line(sp, ep);
@@ -71,12 +74,12 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else if (entityType.Equals("Circle", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (args["EndPoint"] != null)
-                        return "[BŁĄD] Okrąg nie posiada parametru EndPoint. Użyj 'Center' i 'Radius'.";
+                    if (args["Center"] == null)
+                        return "BŁĄD KRYTYCZNY (Guardrail): Dla obiektu 'Circle' użyłeś złego parametru pozycjonowania (prawdopodobnie StartPoint). Okrąg BEZWZGLĘDNIE wymaga parametru 'Center'. Wywołaj narzędzie ponownie z poprawnym parametrem.";
+                    if (args["Radius"] == null)
+                        return "BŁĄD KRYTYCZNY (Guardrail): Dla obiektu 'Circle' brakuje parametru 'Radius'.";
 
-                    // Fallback: jeśli model użył 'Position' zamiast 'Center'
-                    string centerInput = (args["Center"] ?? args["Position"])?.ToString();
-                    Point3d cen = GetPoint(ed, centerInput, "Środek: ");
+                    Point3d cen = GetPoint(ed, args["Center"]?.ToString(), "Środek: ");
                     double rad = GetDouble(ed, args["Radius"]?.ToString(), "Promień: ", 1.0);
                     newEnt = new Circle(cen, Vector3d.ZAxis, rad);
                     double area = Math.PI * rad * rad;
@@ -84,8 +87,12 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else if (entityType.Equals("DBText", StringComparison.OrdinalIgnoreCase) || entityType.Equals("MText", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (args["Position"] == null)
+                        return $"BŁĄD KRYTYCZNY (Guardrail): Obiekt '{entityType}' WYMAGA parametru 'Position'. Nie używaj StartPoint!";
+                    if (args["Text"] == null)
+                        return $"BŁĄD KRYTYCZNY (Guardrail): Obiekt '{entityType}' WYMAGA parametru 'Text'.";
+
                     Point3d pos = GetPoint(ed, args["Position"]?.ToString(), "Pozycja: ");
-                    
                     string txt = GetStringVal(ed, args["Text"]?.ToString(), "Tekst: ");
                     double h = GetDouble(ed, args["Height"]?.ToString(), "Wysokość: ", db.Textsize);
                     double rot = GetDouble(ed, args["Rotation"]?.ToString(), "Obrót: ", 0.0);
@@ -99,6 +106,11 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else if (entityType.Equals("MLeader", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (args["ArrowPoint"] == null || args["LandingPoint"] == null)
+                        return "BŁĄD KRYTYCZNY (Guardrail): Dla obiektu 'MLeader' MUSISZ podać 'ArrowPoint' oraz 'LandingPoint'.";
+                    if (args["Text"] == null)
+                        return "BŁĄD KRYTYCZNY (Guardrail): Dla obiektu 'MLeader' brakuje parametru 'Text'.";
+
                     Point3d arrow = GetPoint(ed, args["ArrowPoint"]?.ToString(), "Strzałka: ");
                     Point3d landing = GetPoint(ed, args["LandingPoint"]?.ToString(), "Tekst: ");
                     string txt = GetStringVal(ed, args["Text"]?.ToString(), "Opis: ");

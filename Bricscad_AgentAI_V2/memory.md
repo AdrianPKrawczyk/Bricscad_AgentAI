@@ -27,6 +27,9 @@
  ## Logi postępu (Ostatnie 5 zmian)
 - 2026-04-06: v2.6.16 GOLD [SCHEMA INJECTION] - Wstrzyknięcie rygorystycznych instrukcji RPN do opisów parametrów punktowych w GetToolSchema (CreateObjectTool.cs). Model nie ma już wymówki "braku formatu" i musi używać kalkulatora dla każdej osi z osobna.
 - 2026-04-06: v2.6.15 GOLD [UNIT KNOWLEDGE] - Aktualizacja System Promptu o pełną wiedzę na temat analizy wymiarowej i konwersji jednostek w RPN. Model wie teraz, jak używać 'WARTOŚĆ_JEDNOSTKA' oraz jak zlecać mieszane obliczenia (np. '100_mm 5_cm +').
+- 2026-04-06: v2.7.10 GOLD [HARD GUARDRAILS] - Implementacja rygorystycznej walidacji parametrów w CreateObjectTool.cs. Narzędzie zwraca błędy tekstowe zamiast cichej porażki, co eliminuje halucynacje parametrów (np. Center vs StartPoint).
+- 2026-04-06: v2.7.9 GOLD [UI INTERCEPTION] - Migracja obsługi klawiatury w AgentControl.cs z zdarzeń KeyDown na ProcessCmdKey. Rozwiązano problem konsumowania Tab/Enter przez RichTextBox, zapewniając 100% niezawodność Autocomplete.
+- 2026-04-06: v2.7.8 GOLD [AUTOCOMPLETE UX] - Refaktoryzacja listy podpowiedzi (filtrowanie w czasie rzeczywistym, precyzyjne pozycjonowanie nad kursorem #, obsługa strzałek i Tab/Enter).
 - 2026-04-06:### [v2.7.7 GOLD] Semantic Tool Routing & Agentic Fallback
 - **Standard Tagowania**: Rozbudowano `IToolV2` o właściwość `ToolTags`. Wszystkie 20 narzędzi zostało skategoryzowane (#core, #bloki, #warstwy, #tekst, #makro).
 - **Dynamic Tool Loading**: `ToolOrchestrator.GetToolsPayload(tags)` umożliwia wysyłanie tylko niezbędnych narzędzi do LLM, co drastycznie redukuje zużycie tokenów i zapobiega halucynacjom.
