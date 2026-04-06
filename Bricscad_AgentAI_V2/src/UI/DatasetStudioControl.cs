@@ -17,7 +17,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Label lblTotalTime;
         private Label lblTokens;
         private Label lblTokensPerSec;
-        
+        private CheckBox chkIsolateContext;
         private List<SessionRecord> _records = new List<SessionRecord>();
         
         private static string TrainingFilePath => Path.Combine(
@@ -42,6 +42,18 @@ namespace Bricscad_AgentAI_V2.UI
                 SplitterDistance = 250,
                 BackColor = Color.FromArgb(45, 45, 48)
             };
+            
+            chkIsolateContext = new CheckBox
+            {
+                Text = "✂️ Izoluj polecenie (Single-Turn)",
+                Checked = true,
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Padding = new Padding(5)
+            };
+            chkIsolateContext.CheckedChanged += (s, e) => RefreshEditor();
 
             // LEWA: Lista sesji
             lstSessions = new ListBox
@@ -104,6 +116,7 @@ namespace Bricscad_AgentAI_V2.UI
             btnSave.Click += BtnSave_Click;
 
             rightPanel.Controls.Add(txtJsonlEditor);
+            rightPanel.Controls.Add(chkIsolateContext);
             rightPanel.Controls.Add(statsPanel);
             rightPanel.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 10 }); // Spacer
             rightPanel.Controls.Add(btnSave);
@@ -129,46 +142,78 @@ namespace Bricscad_AgentAI_V2.UI
             this.BackColor = Color.FromArgb(30, 30, 30);
         }
 
-        public void AddSessionRecord(string displayName, string jsonPayload, LLMStats stats)
+        public void AddSessionRecord(string displayName, List<ChatMessage> historySnapshot, LLMStats stats)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(() => AddSessionRecord(displayName, jsonPayload, stats)));
+                this.Invoke(new Action(() => AddSessionRecord(displayName, historySnapshot, stats)));
                 return;
             }
-
+        
             var record = new SessionRecord
             {
                 DisplayName = $"{DateTime.Now:HH:mm:ss} - {displayName}",
-                JsonlPayload = jsonPayload,
+                Messages = historySnapshot,
                 Stats = stats
             };
-
+        
             _records.Insert(0, record); // Najnowsze na górze
             lstSessions.Items.Insert(0, record.DisplayName);
         }
 
         private void LstSessions_SelectedIndexChanged(object sender, EventArgs e)
         {
+            RefreshEditor();
+        }
+
+        private void RefreshEditor()
+        {
             if (lstSessions.SelectedIndex < 0) return;
-
             var record = _records[lstSessions.SelectedIndex];
-            
-            // Formatowanie JSON do edytora (Indented)
-            try
-            {
-                var obj = JsonConvert.DeserializeObject(record.JsonlPayload);
-                txtJsonlEditor.Text = JsonConvert.SerializeObject(obj, Newtonsoft.Json.Formatting.Indented);
-            }
-            catch
-            {
-                txtJsonlEditor.Text = record.JsonlPayload;
-            }
 
-            // Statystyki
             if (record.Stats != null)
             {
                 UpdateStatsUI(record.Stats);
+            }
+
+            List<ChatMessage> exportList;
+            if (chkIsolateContext.Checked && record.Messages != null)
+            {
+                exportList = new List<ChatMessage>();
+                // 1. Wiadomość systemowa
+                var sysMsg = record.Messages.FirstOrDefault(m => m.Role == "system");
+                if (sysMsg != null) exportList.Add(sysMsg);
+                
+                // 2. Ostatni użytkownik i wszystko po nim
+                int lastUserIdx = record.Messages.FindLastIndex(m => m.Role == "user");
+                if (lastUserIdx >= 0)
+                {
+                    exportList.AddRange(record.Messages.Skip(lastUserIdx));
+                }
+                else
+                {
+                    exportList = record.Messages.ToList();
+                }
+            }
+            else
+            {
+                exportList = record.Messages ?? new List<ChatMessage>();
+            }
+
+            // Formatowanie JSON do edytora (Indented)
+            try
+            {
+                var wrapper = new { messages = exportList };
+                var settings = new JsonSerializerSettings 
+                { 
+                    NullValueHandling = NullValueHandling.Ignore, 
+                    Formatting = Newtonsoft.Json.Formatting.Indented 
+                };
+                txtJsonlEditor.Text = JsonConvert.SerializeObject(wrapper, settings);
+            }
+            catch (Exception ex)
+            {
+                txtJsonlEditor.Text = $"BŁĄD REFRESH: {ex.Message}";
             }
         }
 
@@ -213,7 +258,7 @@ namespace Bricscad_AgentAI_V2.UI
     public class SessionRecord
     {
         public string DisplayName { get; set; }
-        public string JsonlPayload { get; set; }
+        public List<ChatMessage> Messages { get; set; }
         public LLMStats Stats { get; set; }
     }
 }

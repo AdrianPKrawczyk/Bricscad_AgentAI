@@ -579,11 +579,9 @@ namespace Bricscad_AgentAI_V2.UI
                 // --- DATASET STUDIO INTEGRATION ---
                 try
                 {
-                    // KRYTYCZNE: Izolacja snapshotu przez głęboką kopię (serializacja/deserializacja)
-                    var settings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore };
-                    string historyBatch = JsonConvert.SerializeObject(new { messages = _conversationHistory }, settings);
-                    
-                    datasetStudio.AddSessionRecord(rawInput.Trim(), historyBatch, _lastStats);
+                    // KRYTYCZNE: Izolacja snapshotu przez głęboką kopię listy
+                    var historySnapshot = new List<ChatMessage>(_conversationHistory);
+                    datasetStudio.AddSessionRecord($"[{DateTime.Now:HH:mm:ss}] {rawInput}", historySnapshot, _lastStats);
                 }
                 catch { /* Silent fail for dataset studio integration */ }
 

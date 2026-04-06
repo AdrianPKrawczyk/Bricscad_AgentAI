@@ -180,10 +180,15 @@ Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w
 161: - **Deserializacja**: Historia jest czyszczona z pustych pól (`NullValueHandling.Ignore`).
 162: - **Pamięć sesji**: Snapshot trafia do `DatasetStudioControl`, gdzie użytkownik może go zweryfikować.
 163: 
-164: ### JSONL Storage
-165: - **Format**: Standard OpenAI Fine-tuning (Messages JSON structure).
-166: - **Zapis**: Każda sesja to jedna linijka w pliku `.jsonl`.
-167: - **Lokalizacja**: Folder wtyczki (`Assembly.Location`), nazwa pliku: `Agent_Training_Data_v2_DO_TRENINGU.jsonl`.
+164: ### Context Slicer (✂️ Krajalnica)
+Wprowadzone w **v2.11.0**, rozwiązuje problem *Context Poisoning* w danych treningowych. 
+- **Logika**: Pozwala na izolację pojedynczego "turnu" (Sytem + Ostatni User + Tool Responses + Assistant Answer).
+- **Deep Copy**: Snapshoty w pamięci są izolowane od bieżącej sesji czatu.
+
+### JSONL Storage
+- **Format**: Standard OpenAI Fine-tuning (Messages JSON structure).
+- **Zapis**: Każda sesja to jedna linijka w pliku `.jsonl`.
+- **Lokalizacja**: Folder wtyczki (`Assembly.Location`), nazwa pliku: `Agent_Training_Data_v2_DO_TRENINGU.jsonl`.
 168: 
 169: ---
 

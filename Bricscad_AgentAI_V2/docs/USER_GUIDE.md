@@ -158,8 +158,9 @@ Po każdej zakończonej pętli myślowej (ReAct), system automatycznie przesyła
 ### 9.2. Edycja i Zapis
 1. Przejdź do zakładki **Dataset Studio**.
 2. Wybierz sesję z listy po lewej stronie.
-3. W edytorze po prawej zobaczysz surowy kod JSON (format ChatML). Możesz go edytować, jeśli chcesz poprawić odpowiedź Agenta przed zapisem.
-4. Kliknij **"💾 Zapisz Złoty Standard do JSONL"**.
+3. **Context Slicer (✂️)**: Domyślnie zaznaczona opcja "Izoluj polecenie" wycina z historii konwersacji tylko ostatnie zadanie (Turn). Pozwala to na uniknięcie "zanieczyszczenia" danych treningowych poprzednimi tematami. Odznacz tę opcję, jeśli chcesz zapisać pełną, wieloetapową sesję (Multi-turn).
+4. W edytorze po prawej zobaczysz wynikowy kod JSON. Możesz go dowolnie edytować.
+5. Kliknij **"💾 Zapisz Złoty Standard do JSONL"**.
 
 Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folderze wtyczki. Plik ten może być bezpośrednio użyty do fine-tuningu modeli OpenAI oraz OpenSource.
 
