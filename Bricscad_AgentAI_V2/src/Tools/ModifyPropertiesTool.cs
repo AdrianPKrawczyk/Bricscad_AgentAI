@@ -107,6 +107,21 @@ namespace Bricscad_AgentAI_V2.Tools
                                 else if (ent is MText) targetPropName = "Text";
                             }
 
+                            // Ręczna obsługa Transparency (Konwersja 0-90 UI -> Alpha)
+                            if (targetPropName.Equals("Transparency", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (newVal.Equals("ByLayer", StringComparison.OrdinalIgnoreCase)) ent.Transparency = new Teigha.Colors.Transparency(Teigha.Colors.TransparencyMethod.ByLayer);
+                                else if (newVal.Equals("ByBlock", StringComparison.OrdinalIgnoreCase)) ent.Transparency = new Teigha.Colors.Transparency(Teigha.Colors.TransparencyMethod.ByBlock);
+                                else if (byte.TryParse(newVal, out byte uiAlpha))
+                                {
+                                    // Konwersja UI (0-100) na Alpha (255-0)
+                                    byte realAlpha = (byte)Math.Round(255.0 * (100.0 - uiAlpha) / 100.0);
+                                    ent.Transparency = new Teigha.Colors.Transparency(realAlpha);
+                                }
+                                czyObiektZmodyfikowany = true;
+                                continue; 
+                            }
+
                             // Szukanie właściwości przez Reflection
                             PropertyInfo propInfo = ent.GetType().GetProperty(targetPropName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
                             

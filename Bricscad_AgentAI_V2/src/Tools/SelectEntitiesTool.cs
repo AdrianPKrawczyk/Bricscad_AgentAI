@@ -219,20 +219,14 @@ namespace Bricscad_AgentAI_V2.Tools
                                 }
                                 else if (wartoscObiektu is Teigha.Colors.Transparency transp)
                                 {
-                                    if (transp.IsByAlpha) valStr = Math.Round((255.0 - transp.Alpha) / 255.0 * 100.0).ToString();
-                                    else if (sprawdzajWizualnie && transp.IsByLayer)
+                                    if (transp.IsByLayer) valStr = "ByLayer";
+                                    else if (transp.IsByBlock) valStr = "ByBlock";
+                                    else 
                                     {
-                                        try
-                                        {
-                                            LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                                            if (ltr != null && ltr.Transparency.IsByAlpha) valStr = Math.Round((255.0 - ltr.Transparency.Alpha) / 255.0 * 100.0).ToString();
-                                            else valStr = "0";
-                                        }
-                                        catch { valStr = "0"; }
+                                        // Konwersja API (Alpha 0-255) na UI użytkownika (Przezroczystość 100-0)
+                                        long uiVal = (long)Math.Round(100.0 - (transp.Alpha * 100.0 / 255.0));
+                                        valStr = uiVal.ToString();
                                     }
-                                    else if (!sprawdzajWizualnie && transp.IsByLayer) valStr = "ByLayer";
-                                    else if (!sprawdzajWizualnie && transp.IsByBlock) valStr = "ByBlock";
-                                    else valStr = "0";
                                 }
                                 else if (wartoscObiektu is Teigha.DatabaseServices.AnnotativeStates annState)
                                 {
