@@ -70,6 +70,7 @@
     <Compile Include="src\Core\RpnCalculator.cs" />
     <Compile Include="src\Core\BenchmarkModels.cs" />
     <Compile Include="src\Core\AutoBenchmarkEngine.cs" />
+    <Compile Include="src\Core\ToolConfigManager.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
@@ -89,6 +90,7 @@
     <Compile Include="src\Tools\UserInputTool.cs" />
     <Compile Include="src\Tools\UserChoiceTool.cs" />
     <Compile Include="src\Tools\ForeachTool.cs" />
+    <Compile Include="src\Tools\RequestAdditionalToolsTool.cs" />
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

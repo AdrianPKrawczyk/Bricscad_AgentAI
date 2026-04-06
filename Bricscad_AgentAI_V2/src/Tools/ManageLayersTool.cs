@@ -14,8 +14,6 @@ namespace Bricscad_AgentAI_V2.Tools
 {
     public class ManageLayersTool : IToolV2
     {
-        public string[] ToolTags => new[] { "#warstwy" };
-
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition

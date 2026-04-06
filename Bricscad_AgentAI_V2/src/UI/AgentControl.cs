@@ -15,6 +15,9 @@ namespace Bricscad_AgentAI_V2.UI
     public class AgentControl : UserControl
     {
         private TabControl tabControl;
+        private AgentTesterControl testerControl;
+        private DataGridView dgvTools;
+        private Button btnSaveConfig;
 
         // --- UI Czat ---
         private RichTextBox txtHistory;
@@ -250,7 +253,69 @@ namespace Bricscad_AgentAI_V2.UI
             tabControl.TabPages.Add(tabDev);
             tabControl.TabPages.Add(tabBenchmark);
             tabControl.TabPages.Add(tabTester);
+            
+            // ==========================================
+            // ZAKŁADKA 5: KONFIGURACJA TAGÓW
+            // ==========================================
+            TabPage tabTags = new TabPage("🏷 Tagi / Core");
+            dgvTools = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.Black, // Tekst w komórkach (WinForms DataGrid ma czasem problemy z ciemnym motywem bez pełnego owner-draw)
+                AllowUserToAddRows = false,
+                RowHeadersVisible = false
+            };
+            
+            dgvTools.Columns.Add(new DataGridViewTextBoxColumn { Name = "ToolName", HeaderText = "Narzędzie", ReadOnly = true });
+            dgvTools.Columns.Add(new DataGridViewCheckBoxColumn { Name = "IsCore", HeaderText = "Core (#core)" });
+            dgvTools.Columns.Add(new DataGridViewTextBoxColumn { Name = "Tags", HeaderText = "Tagi (rozdzielane przecinkiem)" });
+
+            btnSaveConfig = new Button
+            {
+                Text = "💾 Zapisz konfigurację narzędzi",
+                Dock = DockStyle.Bottom,
+                Height = 40,
+                BackColor = Color.FromArgb(0, 122, 204),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnSaveConfig.Click += BtnSaveConfig_Click;
+
+            tabTags.Controls.Add(dgvTools);
+            tabTags.Controls.Add(btnSaveConfig);
+            tabControl.TabPages.Add(tabTags);
+
+            LoadToolConfigToGrid();
+
             this.Controls.Add(tabControl);
+        }
+
+        private void LoadToolConfigToGrid()
+        {
+            dgvTools.Rows.Clear();
+            var settings = ToolConfigManager.GetAllSettings();
+            foreach (var kvp in settings)
+            {
+                dgvTools.Rows.Add(kvp.Key, kvp.Value.IsCore, kvp.Value.Tags);
+            }
+        }
+
+        private void BtnSaveConfig_Click(object sender, EventArgs e)
+        {
+            var newSettings = new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataGridViewRow row in dgvTools.Rows)
+            {
+                if (row.Cells["ToolName"].Value == null) continue;
+                string name = row.Cells["ToolName"].Value.ToString();
+                bool isCore = (bool)(row.Cells["IsCore"].Value ?? false);
+                string tags = row.Cells["Tags"].Value?.ToString() ?? "";
+                
+                newSettings[name] = new ToolSettings { IsCore = isCore, Tags = tags };
+            }
+            ToolConfigManager.UpdateSettings(newSettings);
+            MessageBox.Show("Konfiguracja narzędzi została zapisana!", "Agent AI V2", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         public void SwitchToBenchmark()

@@ -47,16 +47,14 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 catch (Exception ex)
                 {
-                    // W fazie deweloperskiej wypisujemy błąd inicjalizacji konkretnego narzędzia
                     System.Diagnostics.Debug.WriteLine($"Błąd inicjalizacji narzędzia {type.Name}: {ex.Message}");
                 }
             }
+
+            // Inicjalizacja konfiguracji dynamicznej na podstawie wykrytych narzędzi
+            ToolConfigManager.Initialize(_tools.Values);
         }
 
-        /// <summary>
-        /// Generuje listę narzędzi w formacie gotowym do wysłania w polu 'tools' do API LLM.
-        /// Wspiera Semantic Tool Routing - filtruje narzędzia na podstawie przekazanych tagów.
-        /// </summary>
         public List<ToolDefinition> GetToolsPayload(IEnumerable<string> requestedTags = null)
         {
             var tags = requestedTags?.ToList() ?? new List<string>();
@@ -64,14 +62,10 @@ namespace Bricscad_AgentAI_V2.Core
 
             var filteredTools = _tools.Values.Where(t => 
             {
-                // Zawsze dołączaj narzędzia z tagiem #core
-                if (t.ToolTags != null && t.ToolTags.Contains("#core", StringComparer.OrdinalIgnoreCase))
-                    return true;
-
                 if (includeAll) return true;
-
-                // Dołącz jeśli jakiekolwiek tagi narzędzia pokrywają się z requestedTags
-                return t.ToolTags != null && t.ToolTags.Any(tag => tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
+                
+                // Sprawdzamy aktywność narzędzia w ToolConfigManager (obsługuje IsCore oraz Tagi)
+                return ToolConfigManager.IsToolActive(t.GetType().Name, tags);
             });
 
             return filteredTools.Select(t => t.GetToolSchema()).ToList();

@@ -138,14 +138,16 @@ namespace Bricscad_AgentAI_V2.Core
 
                         // Agentic Fallback: Jeśli model poprosił o dodatkowe pule narzędzi, 
                         // aktualizujemy lokalny zbiór tagów dla następnych iteracji pętli ReAct.
+                        // Agentic Fallback: Obsługa nowego formatu RequestAdditionalTools
                         if (functionName.Equals("RequestAdditionalTools", StringComparison.OrdinalIgnoreCase))
                         {
-                            var newTags = argumentsParsed["Tags"] as JArray;
-                            if (newTags != null)
+                            string action = argumentsParsed["Action"]?.ToString() ?? "";
+                            if (action.Equals("LoadCategory", StringComparison.OrdinalIgnoreCase))
                             {
-                                foreach (var t in newTags)
+                                string tag = argumentsParsed["CategoryName"]?.ToString() ?? "";
+                                if (!string.IsNullOrEmpty(tag))
                                 {
-                                    string tag = t.ToString().Trim();
+                                    tag = tag.Trim();
                                     if (!tag.StartsWith("#")) tag = "#" + tag;
                                     currentTags.Add(tag);
                                 }

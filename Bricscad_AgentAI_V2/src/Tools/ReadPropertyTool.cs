@@ -15,8 +15,6 @@ namespace Bricscad_AgentAI_V2.Tools
 {
     public class ReadPropertyTool : IToolV2
     {
-        public string[] ToolTags => new[] { "#core" };
-
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition

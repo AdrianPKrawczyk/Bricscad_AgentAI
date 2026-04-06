@@ -17,8 +17,6 @@ namespace Bricscad_AgentAI_V2.Tools
     /// </summary>
     public class EditBlockTool : IToolV2
     {
-        public string[] ToolTags => new[] { "#bloki" };
-
         private HashSet<string> _warnings = new HashSet<string>();
         private HashSet<ObjectId> _visitedBtrs = new HashSet<ObjectId>();
         private int _modifiedEntities = 0;

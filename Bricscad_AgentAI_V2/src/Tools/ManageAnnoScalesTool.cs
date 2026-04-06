@@ -11,8 +11,6 @@ namespace Bricscad_AgentAI_V2.Tools
 {
     public class ManageAnnoScalesTool : IToolV2
     {
-        public string[] ToolTags => new[] { "#tekst" };
-
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition
