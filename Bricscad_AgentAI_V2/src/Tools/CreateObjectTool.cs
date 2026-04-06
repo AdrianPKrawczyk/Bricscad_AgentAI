@@ -220,7 +220,8 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (component.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
                     {
                         string rpnExpr = component.Substring(4).Trim();
-                        string rpnResult = RpnCalculator.Evaluate(rpnExpr);
+                        string safeRpn = $"{rpnExpr} #UNITL CONVE UVAL";
+                        string rpnResult = RpnCalculator.Evaluate(safeRpn);
                         if (double.TryParse(rpnResult.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                         {
                             coords[i] = val;
@@ -237,8 +238,13 @@ namespace Bricscad_AgentAI_V2.Tools
 
         private double ParseRpnDouble(string rpn, double def)
         {
-            string res = RpnCalculator.Evaluate(rpn);
-            if (double.TryParse(res.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val)) return val;
+            // Doklejamy komendy normalizujące (konwertuj do jedn. liniowej dokumentu, zrzuć literki)
+            string safeRpn = $"{rpn} #UNITL CONVE UVAL";
+            string res = RpnCalculator.Evaluate(safeRpn);
+            
+            if (double.TryParse(res.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val)) 
+                return val;
+                
             return def;
         }
     }
