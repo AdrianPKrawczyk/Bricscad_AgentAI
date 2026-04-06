@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
 
@@ -39,15 +40,17 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 250,
+                SplitterDistance = UISettingsManager.Settings.DatasetStudioSplitterDistance, // Ładowanie z ustawień
                 BackColor = Color.FromArgb(45, 45, 48)
             };
+            mainSplit.SplitterMoved += (s, e) => UISettingsManager.UpdateDatasetStudioSplitter(mainSplit.SplitterDistance);
             
             chkIsolateContext = new CheckBox
             {
                 Text = "✂️ Izoluj polecenie (Single-Turn)",
                 Checked = true,
                 AutoSize = true,
+                Dock = DockStyle.Top, // DODANO: Dokowanie na górze
                 ForeColor = Color.LightGray,
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold),
@@ -74,7 +77,7 @@ namespace Bricscad_AgentAI_V2.UI
             // Stats
             var statsPanel = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
+                Dock = DockStyle.Top, // DODANO: Dokowanie na górze
                 Height = 40,
                 FlowDirection = FlowDirection.LeftToRight
             };
@@ -115,11 +118,12 @@ namespace Bricscad_AgentAI_V2.UI
             btnSave.FlatAppearance.BorderSize = 0;
             btnSave.Click += BtnSave_Click;
 
-            rightPanel.Controls.Add(txtJsonlEditor);
-            rightPanel.Controls.Add(chkIsolateContext);
-            rightPanel.Controls.Add(statsPanel);
-            rightPanel.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 10 }); // Spacer
+            // KRYTYCZNE: Kolejność dodawania kontrolek (Fill ostatni)
             rightPanel.Controls.Add(btnSave);
+            rightPanel.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 10 }); // Spacer
+            rightPanel.Controls.Add(statsPanel);
+            rightPanel.Controls.Add(chkIsolateContext);
+            rightPanel.Controls.Add(txtJsonlEditor);
 
             mainSplit.Panel2.Controls.Add(rightPanel);
             this.Controls.Add(mainSplit);

@@ -71,6 +71,7 @@
     <Compile Include="src\Core\BenchmarkModels.cs" />
     <Compile Include="src\Core\AutoBenchmarkEngine.cs" />
     <Compile Include="src\Core\ToolConfigManager.cs" />
+    <Compile Include="src\Core\UISettingsManager.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
