@@ -220,8 +220,15 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (component.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
                     {
                         string rpnExpr = component.Substring(4).Trim();
-                        string safeRpn = $"{rpnExpr} #UNITL CONVE UVAL";
-                        string rpnResult = RpnCalculator.Evaluate(safeRpn);
+                        string rpnResult = RpnCalculator.Evaluate(rpnExpr);
+
+                        // Jeśli wynik posiada jednostkę (np. "20_cm"), konwertujemy do jednostki dokumentu
+                        if (System.Text.RegularExpressions.Regex.IsMatch(rpnResult, @"[a-zA-Z]"))
+                        {
+                            string safeRpn = $"'{rpnResult}' #UNITL CONVE UVAL";
+                            rpnResult = RpnCalculator.Evaluate(safeRpn);
+                        }
+
                         if (double.TryParse(rpnResult.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                         {
                             coords[i] = val;
@@ -238,9 +245,15 @@ namespace Bricscad_AgentAI_V2.Tools
 
         private double ParseRpnDouble(string rpn, double def)
         {
-            // Doklejamy komendy normalizujące (konwertuj do jedn. liniowej dokumentu, zrzuć literki)
-            string safeRpn = $"{rpn} #UNITL CONVE UVAL";
-            string res = RpnCalculator.Evaluate(safeRpn);
+            // Ewaluacja surowego wyrażenia RPN
+            string res = RpnCalculator.Evaluate(rpn);
+            
+            // Jeśli wynik posiada jednostkę (np. "20.5_cm")
+            if (System.Text.RegularExpressions.Regex.IsMatch(res, @"[a-zA-Z]"))
+            {
+                string safeRpn = $"'{res}' #UNITL CONVE UVAL";
+                res = RpnCalculator.Evaluate(safeRpn);
+            }
             
             if (double.TryParse(res.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val)) 
                 return val;
