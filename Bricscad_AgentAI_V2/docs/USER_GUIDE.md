@@ -148,6 +148,23 @@ Narzędzie `Foreach` stało się potężnym procesorem danych przestrzennych.
 
 ---
 
+## ⚙️ 9. Dataset Studio (Data Flywheel) - NOWOŚĆ v2.10.0
+
+Aby system stawał się coraz mądrzejszy, wprowadziliśmy mechanizm **Data Flywheel**. Pozwala on na przechwytywanie Twoich interakcji z Agentem i zapisywanie ich jako "Złote Standardy" dla przyszłych sesji treningowych modelu.
+
+### 9.1. Przechwytywanie Sesji
+Po każdej zakończonej pętli myślowej (ReAct), system automatycznie przesyła snapshot rozmowy do zakładki **"💾 Dataset Studio"**.
+
+### 9.2. Edycja i Zapis
+1. Przejdź do zakładki **Dataset Studio**.
+2. Wybierz sesję z listy po lewej stronie.
+3. W edytorze po prawej zobaczysz surowy kod JSON (format ChatML). Możesz go edytować, jeśli chcesz poprawić odpowiedź Agenta przed zapisem.
+4. Kliknij **"💾 Zapisz Złoty Standard do JSONL"**.
+
+Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folderze wtyczki. Plik ten może być bezpośrednio użyty do fine-tuningu modeli OpenAI oraz OpenSource.
+
+---
+
 ## 🛠️ 8. Diagnostyka i Wydajność
 
 - **Pasek HUD**: Sprawdzaj na dole okna czatu, czy Agent jest połączony z modelem LLM.
@@ -158,4 +175,4 @@ Narzędzie `Foreach` stało się potężnym procesorem danych przestrzennych.
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.6.8 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.10.1 GOLD | BricsCAD Agent AI Project*

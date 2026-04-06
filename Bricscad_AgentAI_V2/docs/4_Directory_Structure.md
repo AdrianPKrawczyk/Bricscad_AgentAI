@@ -21,6 +21,10 @@ AgentAI_Workspace/
     │   └── 4_Directory_Structure.md
     │
     ├── src/                    # Kod źródłowy aplikacji
+    │   ├── AgentControl.cs          # Główny interfejs czatu i logów
+    │   ├── AgentTesterControl.cs    # Interfejs do uruchamiania Benchmarków
+    │   ├── DatasetStudioControl.cs  # Interfejs do zbierania danych treningowych (JSONL)
+    │   ├── AutoBenchmarkControl.cs  # Panel laboratorium analitycznego
     │   ├── Core/               # Jądro systemu
     │   │   ├── LLMClient.cs    # Nowy klient HTTP (Tool Calling)
     │   │   ├── Orchestrator.cs # Zarządca narzędzi i mapowanie JSON

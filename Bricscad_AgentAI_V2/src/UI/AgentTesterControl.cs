@@ -1,4 +1,5 @@
 using System;
+using Bricscad.ApplicationServices;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -9,7 +10,6 @@ using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Bricscad.ApplicationServices;
 using Application = Bricscad.ApplicationServices.Application;
 
 namespace Bricscad_AgentAI_V2.UI
@@ -63,7 +63,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 _client.OnToolCallLogged += CaptureToolCall;
                 _client.OnStatusUpdate += (s) => UpdateStatus(s);
-                _client.OnStatsUpdate += (ms, s, r) => UpdateStats(ms, s, r);
+                _client.OnStatsUpdate += (stats) => UpdateStats(stats);
             }
         }
 
@@ -200,7 +200,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
-                    try { File.WriteAllText(sfd.FileName, JsonConvert.SerializeObject(_currentTests, Formatting.Indented)); MessageBox.Show("Raport zapisany!"); }
+                    try { File.WriteAllText(sfd.FileName, JsonConvert.SerializeObject(_currentTests, Newtonsoft.Json.Formatting.Indented)); MessageBox.Show("Raport zapisany!"); }
                     catch (Exception ex) { MessageBox.Show("Błąd zapisu: " + ex.Message); }
                 }
             }
@@ -318,11 +318,11 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void UpdateStatus(string s) { if (this.InvokeRequired) this.Invoke(new Action(() => lblStatus.Text = s)); else lblStatus.Text = s; }
 
-        private void UpdateStats(long ms, int s, int r)
+        private void UpdateStats(LLMStats stats)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => UpdateStats(ms, s, r))); return; }
-            double sec = ms / 1000.0;
-            lblStats.Text = $"⏱ {sec:F1}s | 🧠 {s + r} tkn | ⚡ {Math.Round(r / (sec + 0.1), 1)} t/s";
+            if (this.InvokeRequired) { this.Invoke(new Action(() => UpdateStats(stats))); return; }
+            double sec = stats.TotalTimeMs / 1000.0;
+            lblStats.Text = $"⏱ {sec:F1}s | 🧠 {stats.TotalTokens} tkn | ⚡ {stats.TokensPerSecond:F1} t/s";
             
             if (lbTests.SelectedIndex >= 0) {
                 _currentTests[lbTests.SelectedIndex].ResponseTimeSec = sec;

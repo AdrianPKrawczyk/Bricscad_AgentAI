@@ -1,0 +1,21 @@
+﻿  Trwa okre┼Ťlanie projekt├│w do przywr├│cenia...
+  Brak czynno┼Ťci do wykonania. ┼╗aden z wybranych projekt├│w nie zawiera pakiet├│w do przywr├│cenia.
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(12,7): warning CS0105: Dyrektywa using dla elementu ÔÇ×Bricscad_AgentAI_V2.ModelsÔÇŁ ju┼╝ wyst─ůpi┼éa w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(14,7): warning CS0105: Dyrektywa using dla elementu ÔÇ×Newtonsoft.JsonÔÇŁ ju┼╝ wyst─ůpi┼éa w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\LLMClient.cs(203,35): error CS1501: ┼╗adne prze┼éadowanie metody ÔÇ×InvokeÔÇŁ nie pobiera nast─Öpuj─ůcej liczby argument├│w: ÔÇ×3ÔÇŁ [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(278,17): error CS0246: Nie mo┼╝na znale┼║─ç nazwy typu lub przestrzeni nazw ÔÇ×DocumentÔÇŁ (brak dyrektywy using lub odwo┼éania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(300,17): error CS0246: Nie mo┼╝na znale┼║─ç nazwy typu lub przestrzeni nazw ÔÇ×DocumentÔÇŁ (brak dyrektywy using lub odwo┼éania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(19,36): warning CS0169: Pole ÔÇ×AgentControl.testerControlÔÇŁ nie jest nigdy u┼╝ywane [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+
+Kompilacja NIE POWIOD┼üA SI─ś.
+
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(12,7): warning CS0105: Dyrektywa using dla elementu ÔÇ×Bricscad_AgentAI_V2.ModelsÔÇŁ ju┼╝ wyst─ůpi┼éa w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(14,7): warning CS0105: Dyrektywa using dla elementu ÔÇ×Newtonsoft.JsonÔÇŁ ju┼╝ wyst─ůpi┼éa w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(19,36): warning CS0169: Pole ÔÇ×AgentControl.testerControlÔÇŁ nie jest nigdy u┼╝ywane [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\LLMClient.cs(203,35): error CS1501: ┼╗adne prze┼éadowanie metody ÔÇ×InvokeÔÇŁ nie pobiera nast─Öpuj─ůcej liczby argument├│w: ÔÇ×3ÔÇŁ [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(278,17): error CS0246: Nie mo┼╝na znale┼║─ç nazwy typu lub przestrzeni nazw ÔÇ×DocumentÔÇŁ (brak dyrektywy using lub odwo┼éania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(300,17): error CS0246: Nie mo┼╝na znale┼║─ç nazwy typu lub przestrzeni nazw ÔÇ×DocumentÔÇŁ (brak dyrektywy using lub odwo┼éania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+    Ostrze┼╝enia: 3
+    Liczba b┼é─Öd├│w: 3
+
+Czas, kt├│ry up┼éyn─ů┼é: 00:00:00.27

@@ -1,15 +1,33 @@
-# Architektura istniejącej aplikacji (Wersja V1) - DOKUMENT REFERENCYJNY
+# Architektura Systemu BricsCAD Agent AI (V2 GOLD)
 
-Niniejszy dokument opisuje szczegółowo architekturę, przepływ danych oraz kluczowe mechanizmy wtyczki BricsCAD Agent AI w wersji V1 (znajdującej się w folderze `Bricscad_AgentAI`).
-Dokument ten służy jako **wiedza domenowa** – wyjaśnia, jak radzić sobie ze specyfiką API BricsCAD/Teigha.
+> [!NOTE]
+> Ten dokument opisuje aktualną architekturę **V2 GOLD**. Poprzednia dokumentacja V1 znajduje się w rozdziale "Wiedza Domenowa V1" poniżej i służy wyłącznie jako referencja mechanizmów CAD.
 
-## 1. Wprowadzenie i Paradygmat V1
+## 1. Paradygmat V2: Tool Calling & ReAct
+
+Wersja **V2 GOLD** porzuca parsowanie Regex na rzecz natywnego mechanizmu **OpenAI Tool Calling**. Pozwala to na pełną deterministyczność i brak błędów składniowych w komunikacji między LLM a C#.
+
+### Główna Dokumentacja Projektowa:
+Najbardziej aktualne szczegóły techniczne, schematy baz danych i narzędzi znajdują się w pliku:
+👉 **[System_Blueprint.md](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/System_Blueprint.md)**
+
+---
+
+## 2. Kluczowe Filtry i Prędkość (Early Exit)
+
+W V2 wprowadzono dwa mechanizmy drastycznie obniżające koszty (tokeny) i czas odpowiedzi:
+- **Semantic Tool Routing**: Agent dostaje tylko te narzędzia, których potrzebuje w danym momencie (np. tylko `#bloki`).
+- **Early Exit (Fast Mode)**: Pętla ReAct jest przerywana natychmiast po udanej operacji CAD, bez ponownego odpytywania LLM o podsumowanie (Client-Side Resolution).
+
+---
+
+## 3. Pamięć i Stan (ActiveSelection)
+Zasada działania pamięci obiektów pozostaje spójna z fundamentami V1:
 System V1 jest wysoce zaawansowanym mostem (wrapperem) łączącym asynchroniczne środowisko zewnętrznego modelu językowego (LLM obsługiwanego przez serwer kompatybilny z OpenAI, np. LM Studio) z synchronicznym, opartym na transakcjach środowiskiem API programu BricsCAD.
 
 Logika komunikacji nie opiera się na prostym modelu zapytanie-odpowiedź, lecz na **sterowaniu zdarzeniowym za pomocą pętli rekursywnej (Chain of Thought / ReAct)**. Model jest zmuszany przez System Prompt do generowania tekstowych "Tagów" (np. `[ACTION: ...]`), które kod C# parsuje za pomocą Wyrażeń Regularnych (Regex).
 
 ## 2. Pętla Komunikacji (Cykl Życia Zapytania)
-W pliku `AgentCommand.cs` główną osią jest asynchroniczna metoda `ZapytajAgentaAsync`. Jej przebieg wygląda następująco:
 
 1. **Iniekcja Kontekstu (System Prompt):** System buduje potężny string zawierający zasady, opis tagów oraz (co bardzo ważne) **dynamicznie wstrzykiwane jednostki aktualnego rysunku** (np. mm, metry), pobierane ze zmiennej systemowej `INSUNITS`.
 2. **Asynchroniczne Żądanie HTTP:** Tekst wysyłany jest do lokalnego serwera API.

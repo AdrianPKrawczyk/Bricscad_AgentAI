@@ -8,6 +8,7 @@ using Bricscad.EditorInput;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Teigha.DatabaseServices;
+using Newtonsoft.Json;
 using Application = Bricscad.ApplicationServices.Application;
 
 namespace Bricscad_AgentAI_V2.UI
@@ -15,10 +16,10 @@ namespace Bricscad_AgentAI_V2.UI
     public class AgentControl : UserControl
     {
         private TabControl tabControl;
-        private AgentTesterControl testerControl;
         private DataGridView dgvTools;
         private Button btnSaveConfig;
         private CheckBox chkEarlyExit;
+        private DatasetStudioControl datasetStudio;
 
         // --- UI Czat ---
         private RichTextBox txtHistory;
@@ -43,6 +44,7 @@ namespace Bricscad_AgentAI_V2.UI
         private string _activeModel = "LM Studio / local-model"; // Domyślny model
         private AutoBenchmarkEngine _benchmarkEngine;
         private TabPage tabBenchmark;
+        private LLMStats _lastStats;
 
         public static AgentControl Instance { get; private set; }
         private TabPage tabChat;
@@ -68,7 +70,7 @@ namespace Bricscad_AgentAI_V2.UI
             
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
-            _llmClient.OnStatsUpdate += UpdateStatsHUD;
+            _llmClient.OnStatsUpdate += (stats) => UpdateStatsHUD(stats);
 
             _benchmarkEngine = new AutoBenchmarkEngine(_llmClient);
 
@@ -137,6 +139,8 @@ namespace Bricscad_AgentAI_V2.UI
             };
             btnSend.FlatAppearance.BorderSize = 0;
             btnSend.Click += btnSend_Click;
+            
+            datasetStudio = new DatasetStudioControl();
 
             btnReset = new Button
             {
@@ -261,12 +265,6 @@ namespace Bricscad_AgentAI_V2.UI
             TabPage tabTester = new TabPage("🧪 Tester V2");
             tabTester.Controls.Add(new AgentTesterControl(_llmClient));
 
-            // Dodajemy widoki
-            tabControl.TabPages.Add(tabChat);
-            tabControl.TabPages.Add(tabDev);
-            tabControl.TabPages.Add(tabBenchmark);
-            tabControl.TabPages.Add(tabTester);
-            
             // ==========================================
             // ZAKŁADKA 5: KONFIGURACJA TAGÓW
             // ==========================================
@@ -299,7 +297,17 @@ namespace Bricscad_AgentAI_V2.UI
 
             tabTags.Controls.Add(dgvTools);
             tabTags.Controls.Add(btnSaveConfig);
+
+            // Dodajemy widoki
+            tabControl.TabPages.Add(tabChat);
+            tabControl.TabPages.Add(tabDev);
+            tabControl.TabPages.Add(tabBenchmark);
+            tabControl.TabPages.Add(tabTester);
             tabControl.TabPages.Add(tabTags);
+            
+            var tabDataset = new TabPage("💾 Dataset Studio");
+            tabDataset.Controls.Add(datasetStudio);
+            tabControl.TabPages.Add(tabDataset);
 
             LoadToolConfigToGrid();
 
@@ -508,19 +516,16 @@ namespace Bricscad_AgentAI_V2.UI
             lblStatus.Text = $"[Model: {_activeModel}] {status}";
         }
 
-        private void UpdateStatsHUD(long ms, int sent, int recv)
+        private void UpdateStatsHUD(LLMStats stats)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<long, int, int>(UpdateStatsHUD), ms, sent, recv);
+                this.Invoke(new Action<LLMStats>(UpdateStatsHUD), stats);
                 return;
             }
-            int total = sent + recv;
-            double seconds = ms / 1000.0;
-            lblStats.Text = $"⏱ {seconds:F1}s | 🧠 {total} tkn | ⚡ {Math.Round((double)recv / (seconds + 0.1), 1)} t/s | [READY]";
+            _lastStats = stats;
+            lblStats.Text = $"Czas: {stats.TotalTimeMs}ms | In: {stats.PromptTokens} | Out: {stats.CompletionTokens} | T/s: {stats.TokensPerSecond:F1}";
         }
-
-
 
         private void AppendToolLog(string rawJsonCall)
         {
@@ -570,6 +575,18 @@ namespace Bricscad_AgentAI_V2.UI
                 });
 
                 AppendToHistory("BIELIK", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);
+
+                // --- DATASET STUDIO INTEGRATION ---
+                try
+                {
+                    // KRYTYCZNE: Izolacja snapshotu przez głęboką kopię (serializacja/deserializacja)
+                    var settings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore };
+                    string historyBatch = JsonConvert.SerializeObject(new { messages = _conversationHistory }, settings);
+                    
+                    datasetStudio.AddSessionRecord(rawInput.Trim(), historyBatch, _lastStats);
+                }
+                catch { /* Silent fail for dataset studio integration */ }
+
                 UpdateStatusHUD("Gotowy.");
             }
             catch (Exception ex)

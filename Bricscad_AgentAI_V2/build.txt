@@ -1,0 +1,23 @@
+  Trwa okre??lanie projekt??w do przywr??cenia...
+  Brak czynno??ci do wykonania. ??aden z wybranych projekt??w nie zawiera pakiet??w do przywr??cenia.
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(12,7): warning CS0105: Dyrektywa using dla elementu ???Bricscad_AgentAI_V2.Models??? ju?? wyst??pi??a w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(14,7): warning CS0105: Dyrektywa using dla elementu ???Newtonsoft.Json??? ju?? wyst??pi??a w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\LLMClient.cs(203,35): error CS1501: ??adne prze??adowanie metody ???Invoke??? nie pobiera nast??puj??cej liczby argument??w: ???3??? [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(278,17): error CS0246: Nie mo??na znale???? nazwy typu lub przestrzeni nazw ???Document??? (brak dyrektywy using lub odwo??ania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(300,17): error CS0246: Nie mo??na znale???? nazwy typu lub przestrzeni nazw ???Document??? (brak dyrektywy using lub odwo??ania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(19,36): warning CS0169: Pole ???AgentControl.testerControl??? nie jest nigdy u??ywane [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(23,38): warning CS0649: Do pola ???AgentControl.datasetStudio??? nigdy nie jest przypisywana warto???? i b??dzie ono mie?? zawsze warto???? domy??ln?? null [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+
+Kompilacja NIE POWIOD??A SI??.
+
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(12,7): warning CS0105: Dyrektywa using dla elementu ???Bricscad_AgentAI_V2.Models??? ju?? wyst??pi??a w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(14,7): warning CS0105: Dyrektywa using dla elementu ???Newtonsoft.Json??? ju?? wyst??pi??a w tej przestrzeni nazw [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(19,36): warning CS0169: Pole ???AgentControl.testerControl??? nie jest nigdy u??ywane [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentControl.cs(23,38): warning CS0649: Do pola ???AgentControl.datasetStudio??? nigdy nie jest przypisywana warto???? i b??dzie ono mie?? zawsze warto???? domy??ln?? null [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\LLMClient.cs(203,35): error CS1501: ??adne prze??adowanie metody ???Invoke??? nie pobiera nast??puj??cej liczby argument??w: ???3??? [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(278,17): error CS0246: Nie mo??na znale???? nazwy typu lub przestrzeni nazw ???Document??? (brak dyrektywy using lub odwo??ania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\UI\AgentTesterControl.cs(300,17): error CS0246: Nie mo??na znale???? nazwy typu lub przestrzeni nazw ???Document??? (brak dyrektywy using lub odwo??ania do zestawu?) [D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\Bricscad_AgentAI_V2.csproj]
+    Ostrze??enia: 4
+    Liczba b????d??w: 3
+
+Czas, kt??ry up??yn????: 00:00:00.28

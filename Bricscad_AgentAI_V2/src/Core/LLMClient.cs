@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
@@ -26,7 +27,7 @@ namespace Bricscad_AgentAI_V2.Core
         // Delegaty do aktualizacji interfejsu użytkownika w trybie asynchronicznym (niewątkującym bazy CAD)
         public event Action<string> OnStatusUpdate;
         public event Action<string> OnToolCallLogged;
-        public event Action<long, int, int> OnStatsUpdate; // ms, sentTokens, recvTokens
+        public event Action<LLMStats> OnStatsUpdate; // Obiekt ze statystykami
 
         public LLMClient(string endpointUrl, string apiKey, ToolOrchestrator orchestrator)
         {
@@ -110,8 +111,14 @@ namespace Bricscad_AgentAI_V2.Core
                     OnStatusUpdate?.Invoke("Formułowanie ostatecznej odpowiedzi...");
                     TrimHistory(conversationHistory);
                     
+                    sw.Stop();
                     // Zgłoś statystyki (aproksymacja 4 znaki = 1 token)
-                    OnStatsUpdate?.Invoke(sw.ElapsedMilliseconds, totalSentChars / 4, totalRecvChars / 4);
+                    OnStatsUpdate?.Invoke(new LLMStats 
+                    { 
+                        TotalTimeMs = sw.ElapsedMilliseconds, 
+                        PromptTokens = totalSentChars / 4, 
+                        CompletionTokens = totalRecvChars / 4 
+                    });
                     
                     return assistantMessage.Content ?? "(Model nie zwrócił tekstu)";
                 }
@@ -128,7 +135,7 @@ namespace Bricscad_AgentAI_V2.Core
                     var argumentsString = toolCall.Function.Arguments;
 
                     // Logujemy surowy JSON wywołania do nowego interfejsu 'Logi Narzędzi'
-                    OnToolCallLogged?.Invoke(JsonConvert.SerializeObject(toolCall, Formatting.Indented));
+                    OnToolCallLogged?.Invoke(JsonConvert.SerializeObject(toolCall, Newtonsoft.Json.Formatting.Indented));
                     OnStatusUpdate?.Invoke($"Uruchamiam narzędzie: {functionName}...");
 
                     JObject argumentsParsed;
@@ -193,7 +200,12 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     sw.Stop();
                     OnStatusUpdate?.Invoke("⚡ [Early Exit] Operacja wykonana pomyślnie. Zamykam pętlę ReAct.");
-                    OnStatsUpdate?.Invoke(sw.ElapsedMilliseconds, totalSentChars / 4, totalRecvChars / 4);
+                    OnStatsUpdate?.Invoke(new LLMStats 
+                    { 
+                        TotalTimeMs = sw.ElapsedMilliseconds, 
+                        PromptTokens = totalSentChars / 4, 
+                        CompletionTokens = totalRecvChars / 4 
+                    });
                     return "Operacja wykonana pomyślnie (Tryb Szybki).";
                 }
 
@@ -202,7 +214,12 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             sw.Stop();
-            OnStatsUpdate?.Invoke(sw.ElapsedMilliseconds, totalSentChars / 4, totalRecvChars / 4);
+            OnStatsUpdate?.Invoke(new LLMStats 
+            { 
+                TotalTimeMs = sw.ElapsedMilliseconds, 
+                PromptTokens = totalSentChars / 4, 
+                CompletionTokens = totalRecvChars / 4 
+            });
             OnStatusUpdate?.Invoke("Przerwano zapętlenie (zbyt skomplikowany problem lub pętla logiczna LLMa).");
             return "[LLMClient] Przekroczono maksymalną liczbę iteracji (pętla powtórzeń Tool Calls). Przerywam zadanie.";
         }

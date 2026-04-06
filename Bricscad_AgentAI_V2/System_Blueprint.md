@@ -23,7 +23,12 @@ Wprowadzone w **v2.7.0 GOLD**, pozwala na selektywne ładowanie narzędzi do pro
     - **Warunki**: Pętla ReAct zostaje przerwana (Client-Side Resolution), jeśli:
         1. Wszystkie wywołane narzędzia mają flagę `SupportsEarlyExit` ustawioną na `true` w `tools_config.json`.
         2. Wszystkie narzędzia zwróciły wynik niebędący błędem.
-    - **Korzyść**: Eliminuje "pusty" przejazd do LLM tylko po to, by usłyszeć "Zrobione".
+        - **Korzyść**: Eliminuje "pusty" przejazd do LLM tylko po to, by usłyszeć "Zrobione".
+21: 
+22: ### 5. Monitorowanie Wydajności (`LLMStats`)
+23: Zunifikowany model statystyk pozwala na spójne raportowanie wydajności we wszystkich kontrolek UI (`AgentControl`, `AgentTesterControl`, `DatasetStudioControl`).
+24: - **Model**: `TotalTimeMs`, `PromptTokens`, `CompletionTokens`, `TotalTokens`, `TokensPerSecond`.
+25: - **Aproksymacja**: Przy braku natywnej obsługi tokenów przez lokalne API OpenSource, system stosuje przelicznik 4 znaki = 1 token.
 
 ## Zarządzanie Stanem (State)
 
@@ -42,6 +47,8 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - `AgentMemoryState.cs`: Przechowuje globalny stan zaznaczenia (`ActiveSelection`) oraz słownik zmiennych (`Variables`). Elementy te są wstrzykiwane do argumentów narzędzi przed ich wykonaniem.
 - `PropertyValidator.cs`: Tarcza anty-halucynacyjna. Skanuje pliki bazy wiedzy API BricsCAD i weryfikuje poprawność atrybutów dla danej klasy obiektu. Chroni przed błędami refleksji.
 - `RpnCalculator.cs`: Silnik matematyczny obsługujący wyrażenia odwrotnej notacji polskiej, pozwalający na dynamiczne przeliczanie wartości (np. `$OLD_RADIUS 10 +`).
+45: - `ToolConfigManager.cs`: Dynamiczne zarządzanie konfiguracją narzędzi, tagami i flagą Early Exit.
+46: - `ToolOrchestrator.cs`: Zarządca pakietów narzędziowych, filtrujący prompt na podstawie zapotrzebowania modelu.
 
 ## Rejestr Narzędzi (Registered Tools)
 
@@ -147,10 +154,38 @@ Narzędzie umożliwiające Agentowi zadawanie pytań użytkownikowi bezpośredni
 ### UserChoiceTool
 Narzędzie do wyświetlania listy opcji (słów kluczowych) do wyboru przez użytkownika. Automatycznie zarządza ograniczeniami API BricsCAD (brak spacji w Keywords).
 
+### RequestAdditionalTools
+**Klasa**: `Bricscad_AgentAI_V2.Tools.RequestAdditionalToolsTool`
+**Cel**: Mechanizm dynamicznego ładowania nowych kategorii narzędzi (Package Manager).
+**Parametry**:
+- `CategoryName` (string): Nazwa kategorii do dociągnięcia do promptu (np. `layers`, `blocks`, `all`).
+
+### InspectEntityTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.InspectEntityTool`
+**Cel**: Pobiera surowe właściwości DXF i atrybuty geonetryczne konkretnego obiektu.
+**Parametry**:
+- `EntityHandle` (string): Opcjonalny uchwyt (Handle) obiektu. Jeśli brak, sprawdza pierwszy element z `ActiveSelection`.
+
 ### ForeachTool
 Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w zmiennych Agenta (@Variables). Pozwala modelowi LLM na przejrzysty wgląd w dane przed iteracją.
 
 ---
+154: 
+155: ## Mechanizm Data Flywheel (Dataset Studio)
+156: 
+157: Wprowadzone w **v2.10.0**, umożliwia ciągłe doskonalenie modelu poprzez zbieranie "Złotych Standardów" (Golden Standards) bezpośrednio podczas pracy inżynierskiej.
+158: 
+159: ### Snapshotting
+160: Po każdym udanym zakończeniu pętli ReAct (w `AgentControl.cs`), system wykonuje snapshot historii `ChatML`.
+161: - **Deserializacja**: Historia jest czyszczona z pustych pól (`NullValueHandling.Ignore`).
+162: - **Pamięć sesji**: Snapshot trafia do `DatasetStudioControl`, gdzie użytkownik może go zweryfikować.
+163: 
+164: ### JSONL Storage
+165: - **Format**: Standard OpenAI Fine-tuning (Messages JSON structure).
+166: - **Zapis**: Każda sesja to jedna linijka w pliku `.jsonl`.
+167: - **Lokalizacja**: Folder wtyczki (`Assembly.Location`), nazwa pliku: `Agent_Training_Data_v2_DO_TRENINGU.jsonl`.
+168: 
+169: ---
 
 ## Ekosystem Testowy (AutoBenchmark V2)
 

@@ -39,4 +39,13 @@ namespace Bricscad_AgentAI_V2.Models
         [JsonProperty("arguments")]
         public string Arguments { get; set; }
     }
+
+    public class LLMStats
+    {
+        public long TotalTimeMs { get; set; }
+        public int PromptTokens { get; set; }
+        public int CompletionTokens { get; set; }
+        public int TotalTokens => PromptTokens + CompletionTokens;
+        public double TokensPerSecond => TotalTimeMs > 0 ? (TotalTokens * 1000.0) / TotalTimeMs : 0;
+    }
 }
