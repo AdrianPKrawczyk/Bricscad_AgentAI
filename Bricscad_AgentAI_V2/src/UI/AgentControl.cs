@@ -91,6 +91,9 @@ namespace Bricscad_AgentAI_V2.UI
                               "- Jednostki fizyczne: Zawsze możesz podać wartość wraz z jednostką używając formatu 'WARTOŚĆ_JEDNOSTKA' (np. '100_mm', '5_m', '2.5_kg', '10_MPa'). " +
                               "- Inteligentna konwersja wymiarów: System sam przelicza jednostki! Możesz zlecić 'RPN: 100_mm 20_cm +' a system poprawnie to doda. " +
                               "- Jeśli użytkownik prosi o geometrię w innych jednostkach niż domyślne dla dokumentu (np. chce okrąg o promieniu 2 cale), użyj notacji wymiarowej: 'Radius': 'RPN: 2_in'. " +
+                              "- ŁĄCZENIE TEKSTÓW (CONCAT): Kalkulator RPN potrafi sklejać ciągi znaków używając operatora 'CONCAT'. Teksty wewnątrz notacji RPN otaczaj pojedynczym cudzysłowem. Przykład z użyciem zmiennej pętli: 'Text': 'RPN: \\'Poziom +\\' {index} 50 * CONCAT'. " +
+                              "- ZNAKI NOWEJ LINII (MTEXT / MLEADER): Aby złamać wiersz w obiekcie MText lub w tekście odnośnika MLeader, musisz użyć podwójnie uciecznionego znaku P (\\\\P). Przykład: 'Text': 'RPN: \\'Pomieszczenie nr\\\\P\\' {index} CONCAT'. " +
+                              "- WARUNKI LOGICZNE (IFTE): RPN wspiera instrukcje warunkowe (If-Then-Else) w formacie: [warunek] [prawda] [fałsz] IFTE. Przykład (jeśli numer iteracji jest większy niż 2 wstaw słowo 'OpcjaA', inaczej 'OpcjaB'): 'Text': 'RPN: {index} 2 > \\'OpcjaA\\' \\'OpcjaB\\' IFTE'. " +
                               "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości (np. używając bloków tool_request, json lub jakichkolwiek tagów). Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls)."
                 }
             };
