@@ -8,6 +8,8 @@ namespace Bricscad_AgentAI_V2.Core
     public class UISettings
     {
         public int DatasetStudioSplitterDistance { get; set; } = 180;
+        public string LastDatasetFilePath { get; set; }
+        public System.Collections.Generic.List<string> RecentDatasetFiles { get; set; } = new System.Collections.Generic.List<string>();
     }
 
     /// <summary>
