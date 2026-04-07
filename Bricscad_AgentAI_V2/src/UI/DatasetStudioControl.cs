@@ -35,30 +35,61 @@ namespace Bricscad_AgentAI_V2.UI
         private void InitializeComponent()
         {
             this.Dock = DockStyle.Fill;
+            this.BackColor = Color.FromArgb(45, 45, 48);
 
-            var mainSplit = new SplitContainer
+            // GÓRNA BELKA: Przełączniki i Statystyki
+            var headerPanel = new Panel
             {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical,
-                SplitterDistance = UISettingsManager.Settings.DatasetStudioSplitterDistance, // Ładowanie z ustawień
-                BackColor = Color.FromArgb(45, 45, 48)
+                Dock = DockStyle.Top,
+                Height = 85,
+                Padding = new Padding(10, 5, 10, 5),
+                BackColor = Color.FromArgb(28, 28, 28),
+                BorderStyle = BorderStyle.FixedSingle
             };
-            mainSplit.SplitterMoved += (s, e) => UISettingsManager.UpdateDatasetStudioSplitter(mainSplit.SplitterDistance);
-            
+
             chkIsolateContext = new CheckBox
             {
                 Text = "✂️ Izoluj polecenie (Single-Turn)",
                 Checked = true,
                 AutoSize = true,
-                Dock = DockStyle.Top, // DODANO: Dokowanie na górze
-                ForeColor = Color.LightGray,
+                Dock = DockStyle.Top,
+                ForeColor = Color.White,
                 BackColor = Color.Transparent,
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                Padding = new Padding(5)
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Padding = new Padding(0, 0, 0, 5)
             };
             chkIsolateContext.CheckedChanged += (s, e) => RefreshEditor();
 
-            // LEWA: Lista sesji
+            var statsPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor = Color.Transparent
+            };
+
+            lblTotalTime = CreateStatLabel("⏱ Czas: -");
+            lblTokens = CreateStatLabel("🧠 Tokeny: -");
+            lblTokensPerSec = CreateStatLabel("⚡ T/s: -");
+
+            statsPanel.Controls.Add(lblTotalTime);
+            statsPanel.Controls.Add(new Label { Text = " | ", AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(5, 12, 5, 0) });
+            statsPanel.Controls.Add(lblTokens);
+            statsPanel.Controls.Add(new Label { Text = " | ", AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(5, 12, 5, 0) });
+            statsPanel.Controls.Add(lblTokensPerSec);
+
+            headerPanel.Controls.Add(statsPanel);
+            headerPanel.Controls.Add(chkIsolateContext);
+
+            // GŁÓWNY PODZIAŁ (Poziomy)
+            var mainSplit = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                BackColor = Color.FromArgb(45, 45, 48),
+                SplitterWidth = 6
+            };
+            
+            // Panel 1: Lista sesji (20%)
             lstSessions = new ListBox
             {
                 Dock = DockStyle.Fill,
@@ -71,28 +102,9 @@ namespace Bricscad_AgentAI_V2.UI
             lstSessions.SelectedIndexChanged += LstSessions_SelectedIndexChanged;
             mainSplit.Panel1.Controls.Add(lstSessions);
 
-            // PRAWA: Statystyki, Edytor, Przycisk
-            var rightPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
+            // Panel 2: Edytor i Zapis (80%)
+            var bottomContainer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0) };
 
-            // Stats
-            var statsPanel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top, // DODANO: Dokowanie na górze
-                Height = 40,
-                FlowDirection = FlowDirection.LeftToRight
-            };
-
-            lblTotalTime = CreateStatLabel("Czas: -");
-            lblTokens = CreateStatLabel("Tokeny (In/Out/Total): -");
-            lblTokensPerSec = CreateStatLabel("T/s: -");
-
-            statsPanel.Controls.Add(lblTotalTime);
-            statsPanel.Controls.Add(new Label { Text = " | ", AutoSize = true, ForeColor = Color.Gray });
-            statsPanel.Controls.Add(lblTokens);
-            statsPanel.Controls.Add(new Label { Text = " | ", AutoSize = true, ForeColor = Color.Gray });
-            statsPanel.Controls.Add(lblTokensPerSec);
-
-            // Editor
             txtJsonlEditor = new RichTextBox
             {
                 Dock = DockStyle.Fill,
@@ -103,11 +115,10 @@ namespace Bricscad_AgentAI_V2.UI
                 AcceptsTab = true
             };
 
-            // Save Button
             btnSave = new Button
             {
                 Dock = DockStyle.Bottom,
-                Height = 50,
+                Height = 45,
                 Text = "💾 Zapisz Złoty Standard do JSONL",
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(0, 122, 204),
@@ -118,15 +129,18 @@ namespace Bricscad_AgentAI_V2.UI
             btnSave.FlatAppearance.BorderSize = 0;
             btnSave.Click += BtnSave_Click;
 
-            // KRYTYCZNE: Kolejność dodawania kontrolek (Fill ostatni)
-            rightPanel.Controls.Add(btnSave);
-            rightPanel.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 10 }); // Spacer
-            rightPanel.Controls.Add(statsPanel);
-            rightPanel.Controls.Add(chkIsolateContext);
-            rightPanel.Controls.Add(txtJsonlEditor);
+            bottomContainer.Controls.Add(txtJsonlEditor);
+            bottomContainer.Controls.Add(btnSave);
+            mainSplit.Panel2.Controls.Add(bottomContainer);
 
-            mainSplit.Panel2.Controls.Add(rightPanel);
+            // Inicjalizacja SplitterDistance (20% wysokości)
+            this.Load += (s, e) => {
+                int targetDistance = (int)(this.Height * 0.2);
+                if (targetDistance > 50) mainSplit.SplitterDistance = targetDistance;
+            };
+
             this.Controls.Add(mainSplit);
+            this.Controls.Add(headerPanel);
         }
 
         private Label CreateStatLabel(string text)
