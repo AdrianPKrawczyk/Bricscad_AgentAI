@@ -51,34 +51,37 @@ namespace Bricscad_AgentAI_V2.Tools
             
             try
             {
-                Application.MainWindow.Focus();
-
-                PromptKeywordOptions pko = new PromptKeywordOptions($"\n[DECYZJA AI] {promptMsg}: ");
-                pko.AllowNone = false;
-
-                // Przygotowanie Keywords (zamiana spacji na podkreślenia zgodnie z wymogiem API)
-                foreach (var opt in optionsArr)
+                return (string)Bricscad_AgentAI_V2.UI.AgentControl.Instance.Invoke(new Func<string>(() =>
                 {
-                    string cleanOpt = opt.ToString().Replace(" ", "_");
-                    if (!string.IsNullOrEmpty(cleanOpt))
+                    Application.MainWindow.Focus();
+
+                    PromptKeywordOptions pko = new PromptKeywordOptions($"\n[DECYZJA AI] {promptMsg}: ");
+                    pko.AllowNone = false;
+
+                    // Przygotowanie Keywords (zamiana spacji na podkreślenia zgodnie z wymogiem API)
+                    foreach (var opt in optionsArr)
                     {
-                        pko.Keywords.Add(cleanOpt);
+                        string cleanOpt = opt.ToString().Replace(" ", "_");
+                        if (!string.IsNullOrEmpty(cleanOpt))
+                        {
+                            pko.Keywords.Add(cleanOpt);
+                        }
                     }
-                }
 
-                PromptResult pr = ed.GetKeywords(pko);
+                    PromptResult pr = ed.GetKeywords(pko);
 
-                if (pr.Status != PromptStatus.OK)
-                    return "[ANULOWANO] Użytkownik przerwał wybór opcji.";
+                    if (pr.Status != PromptStatus.OK)
+                        return "[ANULOWANO] Użytkownik przerwał wybór opcji.";
 
-                string selected = pr.StringResult;
+                    string selected = pr.StringResult;
 
-                if (!string.IsNullOrEmpty(saveAs))
-                {
-                    AgentMemoryState.Variables[saveAs] = selected;
-                }
+                    if (!string.IsNullOrEmpty(saveAs))
+                    {
+                        AgentMemoryState.Variables[saveAs] = selected;
+                    }
 
-                return $"WYNIK: Użytkownik wybrał: {selected}";
+                    return $"WYNIK: Użytkownik wybrał: {selected}";
+                }));
             }
             catch (Exception ex)
             {

@@ -50,54 +50,56 @@ namespace Bricscad_AgentAI_V2.Tools
             
             try
             {
-                // Przekierowanie fokusu do głównego okna BricsCAD, aby użytkownik mógł od razu pisać
-                Application.MainWindow.Focus();
-
-                string resultValue = "";
-                
-                switch (inputType)
+                // Przekierowanie fokusu do głównego okna BricsCAD i wywołanie promptu na wątku UI
+                return (string)Bricscad_AgentAI_V2.UI.AgentControl.Instance.Invoke(new Func<string>(() =>
                 {
-                    case "String":
-                        PromptStringOptions pso = new PromptStringOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
-                        pso.AllowSpaces = true;
-                        PromptResult prStr = ed.GetString(pso);
-                        if (prStr.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wprowadzanie tekstu.";
-                        resultValue = prStr.StringResult;
-                        break;
+                    Application.MainWindow.Focus();
+                    string resultValue = "";
+                    
+                    switch (inputType)
+                    {
+                        case "String":
+                            PromptStringOptions pso = new PromptStringOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
+                            pso.AllowSpaces = true;
+                            PromptResult prStr = ed.GetString(pso);
+                            if (prStr.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wprowadzanie tekstu.";
+                            resultValue = prStr.StringResult;
+                            break;
 
-                    case "Integer":
-                        PromptIntegerOptions pio = new PromptIntegerOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
-                        PromptIntegerResult pir = ed.GetInteger(pio);
-                        if (pir.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wprowadzanie liczby całkowitej.";
-                        resultValue = pir.Value.ToString();
-                        break;
+                        case "Integer":
+                            PromptIntegerOptions pio = new PromptIntegerOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
+                            PromptIntegerResult pir = ed.GetInteger(pio);
+                            if (pir.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wprowadzanie liczby całkowitej.";
+                            resultValue = pir.Value.ToString();
+                            break;
 
-                    case "Double":
-                        PromptDoubleOptions pdo = new PromptDoubleOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
-                        PromptDoubleResult pdr = ed.GetDouble(pdo);
-                        if (pdr.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wprowadzanie liczby.";
-                        resultValue = pdr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        break;
+                        case "Double":
+                            PromptDoubleOptions pdo = new PromptDoubleOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
+                            PromptDoubleResult pdr = ed.GetDouble(pdo);
+                            if (pdr.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wprowadzanie liczby.";
+                            resultValue = pdr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            break;
 
-                    case "Point":
-                        PromptPointOptions ppo = new PromptPointOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
-                        PromptPointResult ppr = ed.GetPoint(ppo);
-                        if (ppr.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wskazywanie punktu.";
-                        resultValue = $"({ppr.Value.X.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)}, " +
-                                      $"{ppr.Value.Y.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)}, " +
-                                      $"{ppr.Value.Z.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)})";
-                        break;
+                        case "Point":
+                            PromptPointOptions ppo = new PromptPointOptions($"\n[KONSULTACJA AI] {promptMsg}: ");
+                            PromptPointResult ppr = ed.GetPoint(ppo);
+                            if (ppr.Status != PromptStatus.OK) return "[ANULOWANO] Użytkownik przerwał wskazywanie punktu.";
+                            resultValue = $"({ppr.Value.X.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)}, " +
+                                          $"{ppr.Value.Y.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)}, " +
+                                          $"{ppr.Value.Z.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)})";
+                            break;
 
-                    default:
-                        return $"BŁĄD: Nieobsługiwany typ wejścia: {inputType}.";
-                }
+                        default:
+                            return $"BŁĄD: Nieobsługiwany typ wejścia: {inputType}.";
+                    }
 
-                if (!string.IsNullOrEmpty(saveAs))
-                {
-                    AgentMemoryState.Variables[saveAs] = resultValue;
-                }
+                    if (!string.IsNullOrEmpty(saveAs))
+                    {
+                        AgentMemoryState.Variables[saveAs] = resultValue;
+                    }
 
-                return $"WYNIK: Użytkownik podał wartość: {resultValue}";
+                    return $"WYNIK: Użytkownik podał wartość: {resultValue}";
+                }));
             }
             catch (Exception ex)
             {
