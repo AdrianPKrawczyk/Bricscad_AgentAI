@@ -1,4 +1,4 @@
-# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.6.2 GOLD)
+# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.14.0 GOLD)
 
 Witaj w wersji **GOLD** systemu Bielik AI V2. Niniejszy podręcznik został przygotowany dla inżynierów i projektantów BricsCAD, którzy chcą w pełni wykorzystać potencjał sztucznej inteligencji zintegrowanej bezpośrednio z silnikiem CAD.
 
@@ -59,20 +59,24 @@ Modyfikuje "matrycę" bloku. Zmiana tutaj wpływa na **wszystkie** wystąpienia 
 Modyfikuje tylko dane tekstowe (atrybuty) w **konkretnej instancji** bloku na rysunku.
 - **Zastosowanie**: Numeracja pomieszczeń, wypełnianie tabliczek rysunkowych, zmiana opisu bez zmiany wyglądu bloku.
 
-### 3.3. Zaawansowane Zarządzanie Warstwami - `ManageLayers`
-W wersji **v2.12.9** Agent otrzymał pełną kontrolę nad właściwościami wizualnymi warstw.
-- **Akcja `Modify`**: Pozwala na zmianę parametrów istniejących warstw (również masowo przez maski `*`).
-- **Właściwości**: Możesz teraz sterować przezroczystością (`Transparency` 0-90), grubością linii (`LineWeight`) oraz statusem wydruku (`Plottable`).
 - **Akcja `SetCurrent`**: Dedykowany, bezpieczny sposób na przełączenie aktywnej warstwy roboczej.
 
 ---
 
-## 📐 4. Skale Opisowe (Annotative)
+## 📐 4. Edycja Precyzyjna (Wymiary i Teksty)
 
-Agent V2 rozumie mechanizm adnotacyjności BricsCAD.
-- **Zarządzanie skalą**: Możesz polecić dodanie zestawu skal do tekstów (`ManageAnnoScales`).
-- **`DisableAnnotative`**: Możesz masowo wyłączyć tryb opisowy dla obiektów, które mają stałą wielkość niezależną od skali wydruku.
-- **Automatyzacja**: Agent potrafi odczytać aktualną skalę rysunku (np. 1:50) i dopasować do niej tworzone obiekty.
+W wersji **v2.14.0** system przeszedł na model **Separation of Concerns**. Oznacza to, że skomplikowane obiekty mają swoje dedykowane, potężniejsze narzędzia.
+
+### 4.1. Edycja Wymiarów - `DimensionEdit`
+Zamiast ogólnych właściwości, używaj dedykowanego narzędzia do "anatomii" wymiaru.
+- **Tekst**: Możesz nadpisać wartość lub wrócić do pomiaru (wpisując pusty tekst).
+- **Skala**: Zmieniaj `OverallScale` by powiększyć teksty i strzałki bez zmiany stylu.
+- **Stylizacja**: Niezależne kolory dla tekstu, linii głównej i linii pomocniczych.
+- **Grot Strzałki**: Wybieraj predefiniowane bloki (np. `_ARCHTICK` dla kreski).
+
+### 4.2. Inteligentne Wybieranie Kreskowań
+Dzięki nowemu mechanizmowi rzutowania typów, Agent bezbłędnie rozróżnia zwykłe kreskowania od **gradientów**.
+- Przykład: *"Zaznacz wszystkie gradienty i ustaw im przezroczystość 80%"*.
 
 ---
 
@@ -187,4 +191,4 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.12.9 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.14.0 GOLD | BricsCAD Agent AI Project*

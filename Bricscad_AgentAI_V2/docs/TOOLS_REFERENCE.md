@@ -39,7 +39,7 @@ Tworzy nową definicję bloku z aktualnie zaznaczonych obiektów.
 ## 🔍 Selekcja i Inspekcja
 
 ### 6. `SelectEntities` **[IsCore: Tak]**
-Główny silnik wyszukiwania. Filtruje obiekty po typach, warstwach i właściwościach. Wspiera `AdvancedFilters` dla skomplikowanych zapytań (np. `Transparency > 50`, `TextOverride` zawiera tagi formatowania) z użyciem operatorów arytmetycznych i tekstowych.
+Główny silnik wyszukiwania. Filtruje obiekty po typach, warstwach i właściwościach. Wspiera `AdvancedFilters` dla skomplikowanych zapytań (np. `Transparency > 50`, `HatchObjectType == 1` - Gradienci, `TextOverride` zawiera tagi formatowania). Od wersji **v2.14.0** posiada mechanizm Hard-Cast Fallback dla obiektów Hatch i Dimension.
 
 ### 7. `InspectEntity` **[IsCore: Tak]**
 Pobiera szczegółowy zrzut DXF/Properties dla konkretnego Handle lub pierwszego elementu z zaznaczenia.
@@ -61,7 +61,7 @@ Pobiera reprezentatywną próbkę treści z dużych zbiorów tekstów.
 ## 🔧 Edycja i Moduły
 
 ### 12. `ModifyProperties` **[IsCore: Tak] [Early Exit: Tak]**
-Zmienia właściwości (Layer, Color, itp.) obiektów w pamięci. Wspiera `$OLD_...` i RPN.
+Zmienia właściwości wspólne (Layer, Color, itp.) obiektów w pamięci. Wspiera `$OLD_...` i RPN. **UWAGA (v2.14.0)**: Narzędzie zablokowane dla właściwości tekstowych (`Text`, `Contents`) oraz wymiarowych (`DimensionText`, `Dimscale`). Do tych celów użyj `TextEdit` lub `DimensionEdit`.
 
 ### 13. `EditBlock` **[TAG: #bloki]**
 Edytuje geometrię WEWNĄTRZ definicji bloku (globalnie).
@@ -83,16 +83,27 @@ Zapewnia wgląd w niskopoziomowe dane obiektu.
 
 ---
 
+## 📐 Wymiarowanie i Detale
+
+### 19. `DimensionEdit` **[TAG: #wymiary]**
+Specjalistyczne narzędzie do modyfikacji anatomii wymiarów. Obsługuje:
+- `TextOverride`: Nadpisanie tekstu lub powrót do pomiaru.
+- `OverallScale`: Skala globalna tekstu i strzałek.
+- `ArrowBlock`: Wybór grota strzałki (np. `_ARCHTICK`, `_DOT`).
+- `TextColor`, `DimLineColor`, `ExtLineColor`: Kolory elementów wymiaru.
+
+---
+
 ## 🔄 Pętle i Interakcja
 
-### 19. `Foreach` **[IsCore: Tak]**
+### 20. `Foreach` **[IsCore: Tak]**
 Iteruje po listach. Wspiera wbudowany `Sequence Generator` do generowania ciągów (np. punktów).
 
-### 20. `ExecuteMacro` **[TAG: #makro] [Early Exit: Tak]**
+### 21. `ExecuteMacro` **[TAG: #makro] [Early Exit: Tak]**
 Uruchamia predefiniowane skrypty, makra lub surowy kod LISP.
 
-### 21. `UserInput` **[IsCore: Tak]**
+### 22. `UserInput` **[IsCore: Tak]**
 Zadaje pytanie użytkownikowi (Text, Double, Point) w linii komend CAD.
 
-### 22. `UserChoice` **[IsCore: Tak]**
+### 23. `UserChoice` **[IsCore: Tak]**
 Prezentuje listę słów kluczowych do wyboru przez użytkownika.

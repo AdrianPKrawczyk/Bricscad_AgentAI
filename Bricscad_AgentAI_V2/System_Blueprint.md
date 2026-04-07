@@ -29,6 +29,11 @@ Wprowadzone w **v2.7.0 GOLD**, pozwala na selektywne ładowanie narzędzi do pro
 23: Zunifikowany model statystyk pozwala na spójne raportowanie wydajności we wszystkich kontrolek UI (`AgentControl`, `AgentTesterControl`, `DatasetStudioControl`).
 24: - **Model**: `TotalTimeMs`, `PromptTokens`, `CompletionTokens`, `TotalTokens`, `TokensPerSecond`.
 25: - **Aproksymacja**: Przy braku natywnej obsługi tokenów przez lokalne API OpenSource, system stosuje przelicznik 4 znaki = 1 token.
+32: 
+33: ### 6. Specjalizacja Narzędzi i Hard-Cast (v2.14.0)
+34: W celu uniknięcia "konfliktu narzędzi" oraz błędów refleksji w silniku Teigha, wprowadzono dwa mechanizmy:
+35: - **Separation of Concerns**: Narzędzia uniwersalne (np. `ModifyPropertiesTool`) są celowo ograniczane do właściwości wspólnych (`Entity`), podczas gdy skomplikowane obiekty (Wymiary, Teksty) obsługiwane są przez dedykowane klasy (np. `DimensionEditTool`, `TextEditTool`).
+36: - **Hard-Cast Fallback**: W `SelectEntitiesTool.cs`, mechanizm refleksji jest poprzedzony jawnym rzutowaniem typu (`if (ent is Hatch hatch) ...`). Pozwala to na dostęp do właściwości "niewidocznych" dla standardowej refleksji, takich jak `HatchObjectType`.
 
 ## Zarządzanie Stanem (State)
 
@@ -76,7 +81,8 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 **Klasa**: `Bricscad_AgentAI_V2.Tools.ModifyPropertiesTool`
 **Cel**: Edycja cech obiektów w pamięci `ActiveSelection`. Zapewnia wsparcie dla iniekcji zmiennych `$OLD_...` i obliczeń matematycznych.
 **Parametry**:
-- `Modifications` (array, Required): Lista słowników z kluczami `Prop` (nazwa właściwości do edycji m.in. Layer, Color, Linetype, ConstantWidth, TextString, Height, Radius) i `Val` (nowa wartość. Może zawierać wyrażenia matematyczne przez prefiks `RPN:` tj. `RPN: $OLD_RADIUS 10 +`).
+- `Modifications` (array, Required): Lista słowników z kluczami `Prop` (nazwa właściwości do edycji m.in. Layer, Color, Linetype, ConstantWidth) i `Val` (nowa wartość).
+- **Zasady Bezpieczeństwa (v2.14.0)**: Narzędzie posiada blokadę `forbiddenProps`. Próba edycji właściwości `Text`, `DimensionText`, `Contents`, `Dimscale` itp. skutkuje błędem i wymuszeniem użycia narzędzi specjalistycznych.
 
 ### ManageLayersTool
 **Klasa**: `Bricscad_AgentAI_V2.Tools.ManageLayersTool`
@@ -132,7 +138,13 @@ Służy do inteligentnego próbkowania treści tekstowych z dużych zbiorów obi
 Kombajn do edycji i formatowania tekstów. Obsługuje `DBText` i `MText`. Pozwala na edycję treści (`Append`, `Prepend`, `Replace`) oraz zaawansowane formatowanie RTF dla `MText` (podświetlanie słów, czyszczenie formatu).
 
 ### ManageAnnoScalesTool
-Narzędzie do zarządzania skalami opisowymi (Annotative Scales). Obsługuje dodawanie, usuwanie i odczytywanie skal dla kompatybilnych obiektów. Pozwala również na całkowite wyłączenie opisowości.
+...
+136: 
+137: ### DimensionEditTool
+138: **Klasa**: `Bricscad_AgentAI_V2.Tools.DimensionEditTool`
+139: **Cel**: Precyzyjna edycja anatomii wymiarów.
+140: **Parametry**: `TextOverride`, `OverallScale`, `ArrowBlock`, `TextColor`, `DimLineColor`, `ExtLineColor`.
+141: **Uwagi**: Obsługuje mapowanie nazw bloków strzałek (np. `_ARCHTICK`) oraz bezpośrednią modyfikację zmiennych stylu (DimVars).
 
 ### EditBlockTool
 Zaawansowane narzędzie do chirurgicznej edycji wnętrza bloku (`BlockTableRecord`). Pozwala na modyfikację geometrii, tekstów i właściwości obiektów wewnątrz definicji bloku, co skutkuje aktualizacją wszystkich jego wystąpień. Obsługuje rekurencję i filtrowanie.
