@@ -100,7 +100,8 @@ namespace Bricscad_AgentAI_V2.Tools
                             if (isCreate || isModify)
                             {
                                 Regex regex = isWildcard ? new Regex("^" + Regex.Escape(lName).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase) : null;
-                                List<ObjectId> targets = new List<ObjectId>();
+                                // HOTFIX: Operujemy na wskaźnikach w pamięci, aby uniknąć błędu Double-Open
+                                List<LayerTableRecord> targets = new List<LayerTableRecord>();
 
                                 if (isCreate)
                                 {
@@ -112,12 +113,14 @@ namespace Bricscad_AgentAI_V2.Tools
                                         newLtr.Name = lName;
                                         lt.Add(newLtr);
                                         tr.AddNewlyCreatedDBObject(newLtr, true);
-                                        targets.Add(newLtr.ObjectId);
+                                        
+                                        targets.Add(newLtr); // Dodajemy bezpośrednią referencję!
                                         EngineTracer.Log($"Próba dodania warstwy '{lName}' do tabeli...");
                                     }
                                     else
                                     {
-                                        targets.Add(lt[lName]);
+                                        LayerTableRecord modLtr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
+                                        targets.Add(modLtr);
                                     }
                                 }
                                 else // Akcja: Modify
@@ -127,20 +130,27 @@ namespace Bricscad_AgentAI_V2.Tools
                                         foreach (ObjectId id in lt)
                                         {
                                             LayerTableRecord checkLtr = (LayerTableRecord)tr.GetObject(id, OpenMode.ForRead);
-                                            if (regex.IsMatch(checkLtr.Name)) targets.Add(id);
+                                            if (regex.IsMatch(checkLtr.Name))
+                                            {
+                                                checkLtr.UpgradeOpen(); // Bezpieczne podniesienie uprawnień dla istniejącego obiektu
+                                                targets.Add(checkLtr);
+                                            }
                                         }
                                     }
                                     else
                                     {
-                                        if (lt.Has(lName)) targets.Add(lt[lName]);
+                                        if (lt.Has(lName))
+                                        {
+                                            LayerTableRecord modLtr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
+                                            targets.Add(modLtr);
+                                        }
                                         else return $"BŁĄD: Warstwa '{lName}' nie istnieje w rysunku.";
                                     }
                                 }
 
-                                foreach (ObjectId id in targets)
+                                // Pętla przypisująca atrybuty bez ponownego GetObject!
+                                foreach (LayerTableRecord ltr in targets)
                                 {
-                                    LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(id, OpenMode.ForWrite);
-
                                     if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
                                     {
                                         ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
@@ -158,7 +168,6 @@ namespace Bricscad_AgentAI_V2.Tools
                                         int transVal = args["Transparency"].Value<int>();
                                         if (transVal < 0) transVal = 0;
                                         if (transVal > 90) transVal = 90;
-                                        // Konwersja API: 255 = nieprzezroczysty, 0 = niewidoczny
                                         byte alpha = (byte)(255 * (100 - transVal) / 100);
                                         ltr.Transparency = new Transparency(alpha);
                                     }
