@@ -82,7 +82,7 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (!_tools.TryGetValue(toolName, out var tool))
             {
-                return $"Błąd: Narzędzie o nazwie '{toolName}' nie zostało znalezione w systemie.";
+                return $"BŁĄD KRYTYCZNY (ZŁAMANIE PROTOKOŁU): Narzędzie '{toolName}' jest obecnie uśpione (niedostępne w Twoim arsenale). ZABRONIONE JEST wywoływanie narzędzi w ciemno. MUSISZ najpierw wywołać narzędzie 'RequestAdditionalTools' z Action='LoadCategory' i parametrem CategoryName='{toolName}', aby załadować jego schemat. Dopiero po załadowaniu będziesz mógł go użyć.";
             }
 
             try

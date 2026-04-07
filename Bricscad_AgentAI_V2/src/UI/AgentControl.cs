@@ -99,7 +99,7 @@ namespace Bricscad_AgentAI_V2.UI
                 "--- 4. DYNAMICZNE ODKRYWANIE NARZĘDZI (DISCOVERABILITY) ---\n" +
                 "Twój domyślny, początkowy arsenał (tools) zawiera tylko potężne narzędzia bazowe (Core). BricsCAD posiada jednak dziesiątki zaawansowanych, uśpionych pakietów narzędzi (np. do zarządzania strukturą warstw, edycji atrybutów, manipulacji skalami opisowymi).\n" +
                 "Jeśli użytkownik prosi Cię o operację, do której NIE WIDZISZ gotowego narzędzia w swojej liście 'tools' (np. prosi o zablokowanie warstwy), ZABRONIONE JEST ZGADYWANIE jego nazwy i parametrów.\n" +
-                "Zamiast tego, jako pierwszy krok, MUSISZ wywołać narzędzie 'RequestAdditionalTools' z argumentem Action ustawionym na 'ListCategories'. System zwróci Ci wtedy katalog dostępnych, uśpionych narzędzi wraz z ich pełnymi opisami. Dopiero wtedy, w kolejnym kroku, załadujesz potrzebne narzędzie po jego nazwie używając akcji 'LoadCategory'.";
+                "Zamiast tego MUSISZ w pierwszym kroku wywołać 'RequestAdditionalTools'. Jeśli wiesz jakiego narzędzia brakuje (np. pamiętasz 'ManageLayers'), użyj od razu akcji 'LoadCategory'. Jeśli nie wiesz, użyj 'ListCategories', aby pobrać katalog uśpionych narzędzi.";
 
             _conversationHistory = new List<ChatMessage>
             {
