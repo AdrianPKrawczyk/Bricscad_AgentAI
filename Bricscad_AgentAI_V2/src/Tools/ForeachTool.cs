@@ -23,7 +23,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "Foreach",
-                    Description = "Umożliwia iterację po listach lub generowanie ciągów wektorów (Sequence Generator) dla wielokrotnych operacji CAD.",
+                    Description = "Potężne narzędzie do pętli. Służy do masowego wywoływania INNEGO narzędzia (np. CreateObject, ManageLayers) na podstawie listy, szyku lub prostego licznika. Zastępuje tagi {item} (wartość z listy) i {index} (numer iteracji: 1, 2, 3...) wewnątrz szablonu Action.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -41,7 +41,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 {
                                     Type = "array",
                                     Items = new JObject { ["type"] = "string" },
-                                    Description = "Jawna lista elementów (np. Handles). Jeśli generujesz szyk wektorowy, zostaw to pole puste i użyj 'GenerateSequence'."
+                                    Description = "Jawna lista elementów. Użyj np. [\"1\",\"2\",\"3\",\"4\"], jeśli nie generujesz geometrii, a potrzebujesz tylko wykonać pętlę 4 razy korzystając z tagu {index}."
                                 }
                             },
                             {
@@ -54,7 +54,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                         ["OffsetVector"] = new ToolParameter { Type = "string", Description = "Wektor przesunięcia dla każdej iteracji (np. '100,0,0')." },
                                         ["Count"] = new ToolParameter { Type = "integer", Description = "Liczba elementów do wygenerowania." }
                                     },
-                                    Description = "Generator punktów dla szyków. Wygenerowane współrzędne zostaną podstawione pod tag '{item}' w parametrach kolejnych narzędzi (np. 'Center': '{item}')."
+                                    Description = "Generator współrzędnych dla szyków (zastępuje tag {item} w Action)."
                                 }
                             },
                             {
@@ -68,7 +68,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Action", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "JSON wywołania (np. '{\"EntityType\": \"Circle\", \"Center\": \"{item}\", \"Radius\": \"50\"}'). Tag '{item}' zostanie zastąpiony wartością z sekwencji. Tag '{index}' zostanie zastąpiony numerem iteracji (1, 2, 3...)."
+                                    Description = "Szablon JSON wywołania narzędzia. Domyślnie wywołuje CreateObject. Aby wywołać inne narzędzie, dodaj 'ToolName'. Możesz łączyć tagi {index}/{item} z ewaluacją RPN!\nPRZYKŁAD 1 (Teksty i RPN): '{\"EntityType\": \"DBText\", \"Position\": \"{item}\", \"Text\": \"RPN: \\'Poziom +\\' {index} 50 * CONCAT\"}'\nPRZYKŁAD 2 (Tworzenie wielu warstw): '{\"ToolName\": \"ManageLayers\", \"Action\": \"Create\", \"LayerName\": \"KONDYGNACJA_{index}\", \"ColorIndex\": \"RPN: {index} 10 *\"}'"
                                 }
                             }
                         }
