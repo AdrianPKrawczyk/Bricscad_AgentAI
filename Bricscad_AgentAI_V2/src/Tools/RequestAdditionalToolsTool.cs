@@ -55,18 +55,23 @@ namespace Bricscad_AgentAI_V2.Tools
 
             if (action.Equals("ListCategories", StringComparison.OrdinalIgnoreCase))
             {
-                var categories = ToolConfigManager.GetAvailableCategories();
-                if (!categories.Any())
-                    return "INFO: W systemie nie ma obecnie zdefiniowanych żadnych dodatkowych kategorii (poza zestawem #core).";
-
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("Dostępne kategorie narzędzi (pakiety):");
-                foreach (var cat in categories)
+                sb.AppendLine("SUKCES: Oto katalog uśpionych narzędzi w systemie BricsCAD (niewidocznych w Twoim podstawowym arsenale):");
+                
+                foreach (var tool in ToolOrchestrator.Instance.GetRegisteredTools())
                 {
-                    var tools = ToolConfigManager.GetToolsInCategory(cat);
-                    sb.AppendLine($"- '{cat}' (zawiera: {string.Join(", ", tools)})");
+                    var schema = tool.GetToolSchema()?.Function;
+                    if (schema == null) continue;
+
+                    var settings = ToolConfigManager.GetSettings(schema.Name);
+                    if (settings != null && !settings.IsCore) // Pokazujemy tylko te poza Core
+                    {
+                        string tags = string.IsNullOrEmpty(settings.Tags) ? "BRAK_TAGU" : settings.Tags;
+                        sb.AppendLine($"- Narzędzie '{schema.Name}' (Tagi: {tags}) -> Opis: {schema.Description}");
+                    }
                 }
-                sb.AppendLine("\nAby uzyskać dostęp do wybranej grupy, wywołaj to narzędzie ponownie z parametrem Action='LoadCategory' i podaj CategoryName.");
+                
+                sb.AppendLine("\nZASADA: Aby uzyskać dostęp do narzędzia z powyższej listy, wywołaj mnie ponownie (RequestAdditionalTools) z parametrem Action='LoadCategory' i podaj w CategoryName dokładnie nazwę tego narzędzia (np. 'ManageLayers').");
                 return sb.ToString();
             }
 
