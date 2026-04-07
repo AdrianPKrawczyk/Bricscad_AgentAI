@@ -28,12 +28,12 @@ namespace Bricscad_AgentAI_V2.Tools
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "Action", new ToolParameter { Type = "string", Description = "Akcja: 'Create', 'Toggle', 'Rename', 'Delete'." } },
+                            { "Action", new ToolParameter { Type = "string", Description = "Akcja: 'Create', 'Toggle', 'Rename', 'Delete', 'SetCurrent'." } },
                             { "LayerName", new ToolParameter { Type = "string", Description = "Nazwa warstwy, lista nazw po przecinku lub maska (np. 'MECH-*')." } },
                             { "NewName", new ToolParameter { Type = "string", Description = "Nowa nazwa (tylko dla akcji 'Rename')." } },
                             { "ColorIndex", new ToolParameter { Type = "integer", Description = "Wskaźnik koloru ACI (1-255) dla akcji 'Create'." } },
                             { "State", new ToolParameter { Type = "string", Description = "Stan dla akcji 'Toggle': 'Locked', 'Unlocked', 'Frozen', 'Thawed', 'Off', 'On'." } },
-                            { "MakeCurrent", new ToolParameter { Type = "boolean", Description = "Czy ustawić warstwę jako aktualną (tylko przy 'Create')." } },
+                            { "MakeCurrent", new ToolParameter { Type = "boolean", Description = "Czy ustawić warstwę jako aktualną (przestarzałe, zaleca się użycie akcji 'SetCurrent')." } },
                             { "Linetype", new ToolParameter { Type = "string", Description = "Nazwa rodzaju linii (opcjonalne przy 'Create')." } }
                         },
                         Required = new List<string> { "Action", "LayerName" }
@@ -61,10 +61,10 @@ namespace Bricscad_AgentAI_V2.Tools
 
             if (string.IsNullOrEmpty(layerPattern)) return "BŁĄD: Nazwa warstwy (LayerName) nie może być pusta.";
 
-            string[] validActions = { "Create", "Toggle", "Rename", "Delete" };
+            string[] validActions = { "Create", "Toggle", "Rename", "Delete", "SetCurrent" };
             if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
             {
-                return $"BŁĄD: Nieobsługiwana akcja '{action}'. Dozwolone wartości to: Create, Toggle, Rename, Delete.";
+                return $"BŁĄD: Nieobsługiwana akcja '{action}'. Dozwolone wartości to: Create, Toggle, Rename, Delete, SetCurrent.";
             }
 
             int successCount = 0;
@@ -127,6 +127,15 @@ namespace Bricscad_AgentAI_V2.Tools
                                 }
 
                                 if (makeCurrent) layerToMakeCurrent = lName;
+                                successCount++;
+                            }
+                            else if (action.Equals("SetCurrent", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (isWildcard) return "BŁĄD: Ustawianie warstwy bieżącej (SetCurrent) nie obsługuje masek (wildcards).";
+                                if (!lt.Has(lName)) return $"BŁĄD: Warstwa '{lName}' nie istnieje w rysunku.";
+
+                                layerToMakeCurrent = lName;
+                                makeCurrent = true; // Wymuszamy aktywację w Fazie 2 (AutoLISP)
                                 successCount++;
                             }
                             // ... reszta logiki (Rename, Toggle, Delete) bez zmian
