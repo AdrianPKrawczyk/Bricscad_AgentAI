@@ -27,6 +27,7 @@ namespace Bricscad_AgentAI_V2.UI
         private RichTextBox txtFileEditor; 
         private List<string> _currentFileLines = new List<string>();
         private string _currentLoadedPath = "";
+        private Timer _highlightTimer;
 
         private TabControl tabMain;
 
@@ -35,6 +36,15 @@ namespace Bricscad_AgentAI_V2.UI
             InitializeComponent();
             ApplyTheme();
             LoadLastFile();
+
+            _highlightTimer = new Timer { Interval = 300 };
+            _highlightTimer.Tick += (s, e) => {
+                _highlightTimer.Stop();
+                if (tabMain.SelectedTab?.Text.Contains("Edycja") == true)
+                    JsonSyntaxHighlighter.Highlight(txtFileEditor);
+                else
+                    JsonSyntaxHighlighter.Highlight(txtJsonlEditor);
+            };
         }
 
         private void InitializeComponent()
@@ -101,11 +111,16 @@ namespace Bricscad_AgentAI_V2.UI
             if (UISettingsManager.Settings.RecentDatasetFiles != null) cmbFilePath.Items.AddRange(UISettingsManager.Settings.RecentDatasetFiles.ToArray());
 
             var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(0, 5, 0, 0) };
-            var btnLoad = CreateToolButton("Wczytaj", (s, e) => LoadFile(cmbFilePath.Text));
-            var btnSaveFile = CreateToolButton("Zapisz", (s, e) => SaveFile(_currentLoadedPath));
-            var btnSaveAs = CreateToolButton("Zapisz jako", (s, e) => SaveAs());
-            var btnRefresh = CreateToolButton("Odśwież", (s, e) => LoadFile(_currentLoadedPath));
-            btnPanel.Controls.AddRange(new Control[] { btnLoad, btnSaveFile, btnSaveAs, btnRefresh });
+            var btnLoad = CreateToolButton("📂 Wczytaj", (s, e) => LoadFile(cmbFilePath.Text));
+            var btnSaveFile = CreateToolButton("💾 Zapisz", (s, e) => SaveFile(_currentLoadedPath));
+            var btnSaveAs = CreateToolButton("📝 Zapisz jako", (s, e) => SaveAs());
+            var btnRefresh = CreateToolButton("🔄 Odśwież", (s, e) => LoadFile(_currentLoadedPath));
+            
+            var btnCopy = CreateToolButton("📋 Duplikuj wpis", (s, e) => DuplicateEntry());
+            var btnDeleteRecord = CreateToolButton("🗑️ Usuń wpis", (s, e) => DeleteRecord());
+            btnDeleteRecord.BackColor = Color.FromArgb(180, 40, 40);
+
+            btnPanel.Controls.AddRange(new Control[] { btnLoad, btnSaveFile, btnSaveAs, btnRefresh, btnCopy, btnDeleteRecord });
 
             header.Controls.Add(btnPanel);
             header.Controls.Add(cmbFilePath);
@@ -117,11 +132,10 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Editor + Bottom Buttons
             var editContainer = new Panel { Dock = DockStyle.Fill };
-            txtFileEditor = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.LightGreen, Font = new Font("Consolas", 10f), BorderStyle = BorderStyle.None };
-            txtFileEditor.TextChanged += (s, e) => JsonSyntaxHighlighter.Highlight(txtFileEditor);
+            txtFileEditor = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.LightGreen, Font = new Font("Consolas", 10f), BorderStyle = BorderStyle.None, AcceptsTab = true };
+            txtFileEditor.TextChanged += (s, e) => { _highlightTimer.Stop(); _highlightTimer.Start(); };
 
-            var bottomPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 45, BackColor = Color.FromArgb(45, 45, 48), Padding = new Padding(5) };
-            var btnCopy = CreateToolButton("📋 Duplikuj wpis", (s, e) => DuplicateEntry());
+            var bottomPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 45, BackColor = Color.FromArgb(45, 45, 48), Padding = new Padding(5), WrapContents = true };
             var btnAdd = CreateToolButton("➕ Dodaj pusty", (s, e) => AddEmptyEntry());
             var btnRun = CreateToolButton("🚀 Uruchom makro", (s, e) => RunMacro());
             btnRun.BackColor = Color.SeaGreen;
@@ -130,7 +144,7 @@ namespace Bricscad_AgentAI_V2.UI
             var btnReplaceInstruct = CreateToolButton("📋 Zamień instrukcję (Schowek)", (s, e) => ReplaceInstructions());
             btnReplaceInstruct.BackColor = Color.FromArgb(0, 122, 204);
 
-            bottomPanel.Controls.AddRange(new Control[] { btnCopy, btnAdd, btnDeleteInstruct, btnReplaceInstruct, btnRun });
+            bottomPanel.Controls.AddRange(new Control[] { btnAdd, btnDeleteInstruct, btnReplaceInstruct, btnRun });
 
             editContainer.Controls.Add(txtFileEditor);
             editContainer.Controls.Add(bottomPanel);
@@ -309,6 +323,23 @@ namespace Bricscad_AgentAI_V2.UI
             _currentFileLines.Add("{\"messages\":[],\"tools\":[]}");
             RefreshListUI();
             lstDatasetLines.SelectedIndex = lstDatasetLines.Items.Count - 1; // Zaznacz nowy wpis
+        }
+
+        private void DeleteRecord()
+        {
+            if (lstDatasetLines.SelectedIndex >= 0)
+            {
+                if (MessageBox.Show("Czy na pewno chcesz usunąć ten rekord z datasetu?", "Usuwanie", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                {
+                    int oldIdx = lstDatasetLines.SelectedIndex;
+                    _currentFileLines.RemoveAt(oldIdx);
+                    RefreshListUI();
+                    if (_currentFileLines.Count > 0)
+                        lstDatasetLines.SelectedIndex = Math.Min(oldIdx, _currentFileLines.Count - 1);
+                    else
+                        txtFileEditor.Clear();
+                }
+            }
         }
 
         private void RunMacro()
