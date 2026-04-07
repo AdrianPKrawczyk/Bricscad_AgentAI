@@ -58,9 +58,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Inicjalizacja wiadomosci powitalnych
             AppendToHistory("SYSTEM", "Bielik V2 GOLD gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
-        }
-
-        private void InitializeEngineV2()
+        }        private void InitializeEngineV2()
         {
             _orchestrator = new ToolOrchestrator();
             _orchestrator.Initialize(); // Ważne: Inicjalizacja skanowania narzędzi (w tym ExecuteMacroTool)
@@ -74,37 +72,35 @@ namespace Bricscad_AgentAI_V2.UI
 
             _benchmarkEngine = new AutoBenchmarkEngine(_llmClient);
 
+            RebuildSystemPrompt();
+        }
+
+        private void RebuildSystemPrompt()
+        {
+            // Pobieramy unikalne tagi poboczne, np. #warstwy, #bloki
+            string availableCategoriesStr = string.Join(", ", ToolConfigManager.GetAvailableCategories());
+
+            string systemPrompt = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. " +
+                "NIGDY nie używaj tagów takich jak [FOR_EACH] czy [CREATE_OBJECT]. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). " +
+                "PAMIĘTAJ: Dla obiektów Circle używaj ZAWSZE 'Center' i 'Radius'. Parametry 'StartPoint' i 'EndPoint' są zarezerwowane WYŁĄCZNIE dla linii. " +
+                "PRZYKŁAD KONCEPCYJNY: Jeśli użytkownik prosi o 'N okręgów co wektor X,Y,Z', użyj narzędzia 'Foreach'. " +
+                "DELEGOWANIE OBLICZEŃ (RPN) [SUPERMOCE]: KRYTYCZNE ZAGROŻENIE BŁĘDEM: Jesteś modelem językowym, a nie kalkulatorem. Twoje obliczenia w pamięci ZAWSZE są błędne. Jeśli w zadaniu musisz dodać, odjąć lub pomnożyć JAKĄKOLWIEK wartość, MASZ CAŁKOWITY ZAKAZ podawania gotowego wyniku liczbowego. ZAMIAST TEGO MUSISZ użyć notacji RPN. " +
+                "Składnia RPN: Użyj przedrostka 'RPN: ' wewnątrz wartości parametru (np. '2 2 +'). " +
+                "- Jednostki fizyczne: Zawsze możesz podać wartość wraz z jednostką używając formatu 'WARTOŚĆ_JEDNOSTKA' (np. '100_mm', '5_m'). " +
+                "- Inteligentna konwersja wymiarów: System sam przelicza jednostki! Możesz zlecić 'RPN: 100_mm 20_cm +' a system poprawnie to doda. " +
+                "- KOLORY (ACI / RGB / SYSTEM): Właściwość 'Color' obsługuje 3 formaty. 1. Systemowe: 256 (ByLayer), 0 (ByBlock). 2. ACI: numery 1-255. 3. RGB: 'R,G,B'. " +
+                "- PERCEPCJA WIZUALNA: Jeśli użytkownik pyta o obiekty, które 'wyglądają jak' lub 'są widoczne' w określonym kolorze, ZAWSZE używaj właściwości wirtualnych: 'VisualColor', 'VisualLinetype' itd. " +
+                "- GRUBOŚĆ LINII (LineWeight): -1 = ByLayer, -2 = ByBlock, -3 = Domyślna. Wartości dodatnie to setne milimetra (np. 25 = 0.25 mm). " +
+                "- ŁĄCZENIE TEKSTÓW (CONCAT): Używaj operatora 'CONCAT'. Teksty otaczaj pojedynczym cudzysłowem. Przykład: 'RPN: \\'Poziom +\\' {index} CONCAT'. " +
+                "- ZNAKI NOWEJ LINII: Aby złamać wiersz (MText), używaj podwójnie uciecznionego znaku P (\\\\P). " +
+                "- WARUNKI LOGICZNE (IFTE): [warunek] [prawda] [fałsz] IFTE. " +
+                $"- DOSTĘPNE PAKIETY NARZĘDZI (BARDZO WAŻNE): Aktualnie znasz tylko narzędzia podstawowe (Core). Jeśli użytkownik prosi o operację na strukturze rysunku (np. warstwy, bloki, wymiary, style), a Ty nie masz dedykowanego narzędzia na liście, ZABRONIONE JEST zgadywanie jego parametrów. Zamiast tego jako pierwszy krok MUSISZ użyć narzędzia 'RequestAdditionalTools' z akcją 'LoadCategory'. Dostępne w systemie pakiety narzędzi to: {availableCategoriesStr}. " +
+                "- GEOMETRIA VS METADANE RYSUNKU: Musisz bezwzględnie rozróżniać obiekty graficzne od struktury organizacyjnej. Warstwy to metadane strukturalne - do operacji na nich ZAWSZE używaj 'ManageLayers' (po upewnieniu się, że jest załadowane). " +
+                "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości. Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls).";
+
             _conversationHistory = new List<ChatMessage>
             {
-                new ChatMessage 
-                { 
-                    Role = "system", 
-                    Content = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. " +
-                              "NIGDY nie używaj tagów takich jak [FOR_EACH] czy [CREATE_OBJECT]. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). " +
-                              "PAMIĘTAJ: Dla obiektów Circle używaj ZAWSZE 'Center' i 'Radius'. Parametry 'StartPoint' i 'EndPoint' są zarezerwowane WYŁĄCZNIE dla linii. " +
-                              "PRZYKŁAD KONCEPCYJNY: Jeśli użytkownik prosi o 'N okręgów co wektor X,Y,Z', użyj narzędzia 'Foreach'. W jego parametrze 'GenerateSequence' ustaw Count na zadaną liczbę N, OffsetVector na podany wektor. W parametrze 'Action' przekaż JSON docelowego narzędzia (np. 'CreateObject'), gdzie pole odpowiadające za pozycję ma wartość '{item}'. " +
-                              "DELEGOWANIE OBLICZEŃ (RPN) [SUPERMOCE]: KRYTYCZNE ZAGROŻENIE BŁĘDEM: Jesteś modelem językowym, a nie kalkulatorem. Twoje obliczenia w pamięci ZAWSZE są błędne. Jeśli w zadaniu musisz dodać, odjąć lub pomnożyć JAKĄKOLWIEK wartość (współrzędną lub promień), MASZ CAŁKOWITY ZAKAZ podawania gotowego wyniku liczbowego. ZAMIAST TEGO MUSISZ użyć notacji RPN. Jeśli obliczysz wektor samodzielnie, zniszczysz projekt konstrukcyjny. " +
-                              "Składnia RPN: Użyj przedrostka 'RPN: ' wewnątrz wartości parametru (np. '2 2 +'). Przykłady: " +
-                              "1. Promień (100/3): 'Radius': 'RPN: 100 3 /'. " +
-                              "2. Wektor pionowy (start Y=10, długość 100): 'EndPoint': '50, RPN: 10 100 +, 0'. " +
-                              "3. Dynamiczna pętla: 'Center': '{item}, RPN: {item} 2 *, 0'. " +
-                              "- Jednostki fizyczne: Zawsze możesz podać wartość wraz z jednostką używając formatu 'WARTOŚĆ_JEDNOSTKA' (np. '100_mm', '5_m', '2.5_kg', '10_MPa'). " +
-                              "- Inteligentna konwersja wymiarów: System sam przelicza jednostki! Możesz zlecić 'RPN: 100_mm 20_cm +' a system poprawnie to doda. " +
-                              "- Jeśli użytkownik prosi o geometrię w innych jednostkach niż domyślne dla dokumentu (np. chce okrąg o promieniu 2 cale), użyj notacji wymiarowej: 'Radius': 'RPN: 2_in'. " +
-                              "- KOLORY (ACI / RGB / SYSTEM): Właściwość 'Color' obsługuje 3 formaty. 1. Kolory systemowe: 256 (ByLayer), 0 (ByBlock). 2. Kolory standardowe ACI (podawaj TYLKO jako numery): 1=Red, 2=Yellow, 3=Green, 4=Cyan, 5=Blue, 6=Magenta, 7=White/Black, 8=Gray. 3. Kolory TrueColor (RGB) mają format stringa 'R,G,B' (np. '34,78,94'). Użytkownicy często proszą o znalezienie obiektów RGB, aby zamienić ich kolor na ByLayer (256) ze względu na błędy pisaków druku. " +
-                              "- WYKRYWANIE DOWOLNEGO RGB: Aby znaleźć WSZYSTKIE obiekty z kolorami RGB (TrueColor), użyj warunku: {\"Prop\": \"Color\", \"Op\": \"contains\", \"Val\": \",\"}. Ponieważ kolory RGB zawsze zawierają przecinki, ten filtr wyłapie je wszystkie bez podawania konkretnych wartości. " +
-                              "- LIMIT SKŁADOWYCH: Pamiętaj, że składowe RGB mają zakres 0-255. Wartość 256 jest zarezerwowana wyłącznie dla koloru systemowego ByLayer (jako pojedyncza cyfra). " +
-                              "- GRUBOŚĆ LINII (LineWeight): Używaj specjalnych liczb! -1 = JakWarstwa (ByLayer), -2 = JakBlok (ByBlock), -3 = Domyślna. Konkretne grubości to setne części milimetra (np. wartość 25 to 0.25 mm, a 50 to 0.50 mm). " +
-                              "- RODZAJ LINII I MATERIAŁ (Linetype, Material, PlotStyleName): Używaj tekstów, np. 'ByLayer', 'ByBlock', 'Continuous'. " +
-                              "- SKALA LINII (LinetypeScale): Używaj liczb (np. 1, 2.5, 3). " +
-                              "- PRZEZROCZYSTOŚĆ (Transparency): Wartość 'ByLayer', 'ByBlock' lub liczby od 0 (pełna widoczność) do 90 (maksymalna przezroczystość). " +
-                              "- PERCEPCJA WIZUALNA: Jeśli użytkownik pyta o obiekty, które 'wyświetlają się', 'wyglądają jak' lub 'są widoczne' w określonym kolorze/rodzaju linii, ZAWSZE używaj właściwości wirtualnych: 'VisualColor', 'VisualLinetype', 'VisualLineWeight' lub 'VisualTransparency'. Te właściwości automatycznie sprawdzają zarówno ustawienia ręczne, jak i te dziedziczone z warstwy (ByLayer). " +
-                              "- ŁĄCZENIE TEKSTÓW (CONCAT): Kalkulator RPN potrafi sklejać ciągi znaków używając operatora 'CONCAT'. Teksty wewnątrz notacji RPN otaczaj pojedynczym cudzysłowem. Przykład z użyciem zmiennej pętli: 'Text': 'RPN: \\'Poziom +\\' {index} 50 * CONCAT'. " +
-                              "- ZNAKI NOWEJ LINII (MTEXT / MLEADER): Aby złamać wiersz w obiekcie MText lub w tekście odnośnika MLeader, musisz użyć podwójnie uciecznionego znaku P (\\\\P). Przykład: 'Text': 'RPN: \\'Pomieszczenie nr\\\\P\\' {index} CONCAT'. " +
-                              "- WARUNKI LOGICZNE (IFTE): RPN wspiera instrukcje warunkowe (If-Then-Else) w formacie: [warunek] [prawda] [fałsz] IFTE. Przykład (jeśli numer iteracji jest większy niż 2 wstaw słowo 'OpcjaA', inaczej 'OpcjaB'): 'Text': 'RPN: {index} 2 > \\'OpcjaA\\' \\'OpcjaB\\' IFTE'. " +
-                              "- GEOMETRIA VS METADANE RYSUNKU: Musisz bezwzględnie rozróżniać obiekty graficzne (Line, Circle, Block) od struktury organizacyjnej rysunku. Narzędzia takie jak 'CreateObject', 'ModifyProperties' czy 'SelectEntities' służą WYŁĄCZNIE do operacji na geometrii leżącej na modelu. Warstwy (Layers) to metadane strukturalne. Do tworzenia, usuwania, mrożenia, blokowania i zmiany kolorów samych warstw ZAWSZE używaj narzędzia 'ManageLayers'. Jeśli użytkownik prosi o operację na warstwie, a Ty nie widzisz narzędzia 'ManageLayers' na swojej liście, MUSISZ natychmiast wywołać narzędzie do żądania dodatkowych narzędzi i poprosić o nie. " +
-                              "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości (np. używając bloków tool_request, json lub jakichkolwiek tagów). Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls)."
-                }
+                new ChatMessage { Role = "system", Content = systemPrompt }
             };
         }
 
@@ -350,7 +346,12 @@ namespace Bricscad_AgentAI_V2.UI
                 newSettings[name] = new ToolSettings { IsCore = isCore, Tags = tags, SupportsEarlyExit = earlyExit };
             }
             ToolConfigManager.UpdateSettings(newSettings);
-            MessageBox.Show("Konfiguracja narzędzi została zapisana!", "Agent AI V2", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            
+            // WYMUSZENIE ODŚWIEŻENIA W LOCIE
+            _orchestrator.Initialize();
+            RebuildSystemPrompt();
+            
+            MessageBox.Show("Konfiguracja narzędzi została zapisana i zaaplikowana w locie!", "Agent AI V2", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         public void SwitchToBenchmark()
@@ -512,9 +513,9 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void BtnReset_Click(object sender, EventArgs e)
         {
-            _conversationHistory.RemoveRange(1, _conversationHistory.Count - 1);
             AgentMemoryState.Clear();
             AgentMemoryState.Variables.Clear();
+            RebuildSystemPrompt();
             AppendToHistory("SYSTEM", "Konwersacja i pamięć zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
         }
 
