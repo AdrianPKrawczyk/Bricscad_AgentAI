@@ -29,7 +29,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         Properties = new Dictionary<string, ToolParameter>
                         {
                             { "Action", new ToolParameter { Type = "string", Description = "Akcja: 'Create', 'Modify', 'Toggle', 'Rename', 'Delete', 'SetCurrent'." } },
-                            { "LayerName", new ToolParameter { Type = "string", Description = "Nazwa warstwy, lista nazw po przecinku lub maska (np. 'MECH-*')." } },
+                            { "LayerName", new ToolParameter { Type = "string", Description = "Nazwa warstwy, lista nazw po przecinku lub maska. Aby edytować podkłady XREF, użyj znaku '|' (np. 'PODKLAD|*' do wyszarzenia całego podkładu)." } },
                             { "NewName", new ToolParameter { Type = "string", Description = "Nowa nazwa (tylko dla akcji 'Rename')." } },
                             { "ColorIndex", new ToolParameter { Type = "integer", Description = "Wskaźnik koloru ACI (1-255)." } },
                             { "State", new ToolParameter { Type = "string", Description = "Stan dla akcji 'Toggle': 'Locked', 'Unlocked', 'Frozen', 'Thawed', 'Off', 'On'." } },
@@ -186,18 +186,24 @@ namespace Bricscad_AgentAI_V2.Tools
                                     successCount++;
                                 }
 
-                                if (makeCurrent && !isWildcard) layerToMakeCurrent = lName;
+                                if (makeCurrent && !isWildcard && targets.Count > 0)
+                                {
+                                    if (targets[0].IsDependent) return $"BŁĄD: Warstwa '{lName}' pochodzi z odnośnika XREF i nie może być warstwą roboczą.";
+                                    layerToMakeCurrent = lName;
+                                }
                             }
                             else if (action.Equals("SetCurrent", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (isWildcard) return "BŁĄD: Ustawianie warstwy bieżącej (SetCurrent) nie obsługuje masek (wildcards).";
                                 if (!lt.Has(lName)) return $"BŁĄD: Warstwa '{lName}' nie istnieje w rysunku.";
 
+                                LayerTableRecord checkLtr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForRead);
+                                if (checkLtr.IsDependent) return $"BŁĄD: Warstwa '{lName}' jest warstwą zależną (XREF) i nie może stać się roboczą.";
+
                                 layerToMakeCurrent = lName;
                                 makeCurrent = true; // Wymuszamy aktywację w Fazie 2 (AutoLISP)
                                 successCount++;
                             }
-                            // ... reszta logiki (Rename, Toggle, Delete) bez zmian
                             else if (action.Equals("Rename", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (isWildcard) return "BŁĄD: Zmiana nazwy (Rename) nie obsługuje masek (wildcards).";
@@ -206,6 +212,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 if (lt.Has(newName)) return $"BŁĄD: Warstwa docelowa '{newName}' już istnieje.";
 
                                 LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
+                                if (ltr.IsDependent) return $"BŁĄD: Nie można zmieniać nazwy warstwom z odnośników XREF ({lName}).";
                                 ltr.Name = newName;
                                 successCount++;
                             }
@@ -236,7 +243,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                         }
                                         else if (action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            if (ltr.Name != "0" && !ltr.Name.Equals("Defpoints", StringComparison.OrdinalIgnoreCase) && db.Clayer != id)
+                                            if (ltr.Name != "0" && !ltr.Name.Equals("Defpoints", StringComparison.OrdinalIgnoreCase) && db.Clayer != id && !ltr.IsDependent)
                                             {
                                                 try
                                                 {
