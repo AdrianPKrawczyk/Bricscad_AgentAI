@@ -256,33 +256,37 @@ namespace Bricscad_AgentAI_V2.Tools
                     EngineTracer.Log("Zakończono Fazę 1 (DB Commit). Oczekuję na przetworzenie UI...");
                 }
 
-                // ==========================================
-                // FAZA 2: Aktywacja warstwy i odświeżenie GUI (Wątek Główny)
-                // ==========================================
-                // Tradycyjne db.Clayer lub komendy tekstowe z \n zawodzą w asynchronicznym środowisku.
-                // Używamy atomowej operacji AutoLISP, która natychmiast wymusza zmianę w UI.
+                    // ==========================================
+                    // FAZA 2: Aktywacja warstwy i odświeżenie GUI (Wątek Główny)
+                    // ==========================================
+                    // Tradycyjne db.Clayer lub komendy tekstowe z \n zawodzą w asynchronicznym środowisku.
+                    // Używamy atomowej operacji AutoLISP, która natychmiast wymusza zmianę w UI.
 
-                StringBuilder lispCommands = new StringBuilder();
+                    StringBuilder lispCommands = new StringBuilder();
 
-                if (makeCurrent && !string.IsNullOrEmpty(layerToMakeCurrent))
-                {
-                    // LISP (setvar "CLAYER" "nazwa") to kuloodporny sposób na ustawienie warstwy w tle
-                    lispCommands.Append($"(setvar \"CLAYER\" \"{layerToMakeCurrent}\") ");
-                }
+                    if (makeCurrent && !string.IsNullOrEmpty(layerToMakeCurrent))
+                    {
+                        // LISP (setvar "CLAYER" "nazwa") to kuloodporny sposób na ustawienie warstwy w tle
+                        lispCommands.Append($"(setvar \"CLAYER\" \"{layerToMakeCurrent}\") ");
+                    }
 
-                // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie geometrii
-                if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
-                {
-                    lispCommands.Append("(command \"_.REGEN\") ");
-                }
+                    // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie geometrii
+                    if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lispCommands.Append("(command \"_.REGEN\") ");
+                    }
 
-                // Wysłanie paczki poleceń do głównej pętli. Spacja na końcu działa jak ostateczny Enter.
-                if (lispCommands.Length > 0)
-                {
+                    // [CRITICAL FIX]: Gwarancja odświeżenia UI! Zawsze szturchamy wątek główny (nawet przy Create),
+                    // zmuszając Menedżer Warstw do pokazania zmian z Fazy 1.
+                    if (lispCommands.Length == 0)
+                    {
+                        lispCommands.Append("(princ) ");
+                    }
+
+                    // Wysłanie paczki poleceń do głównej pętli. Spacja na końcu działa jak ostateczny Enter.
                     doc.SendStringToExecute(lispCommands.ToString() + "\n", true, false, false);
                 }
             }
-        }
         catch (Exception ex)
         {
             return $"BŁĄD KRYTYCZNY: {ex.Message}";
