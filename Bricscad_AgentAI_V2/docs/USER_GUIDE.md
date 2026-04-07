@@ -147,10 +147,14 @@ W tym scenariuszu Agent używa narzędzia `Foreach` z modułem `GenerateSequence
 
 ## 🔄 7. Generator Ciągów (Foreach)
 
-Narzędzie `Foreach` stało się potężnym procesorem danych przestrzennych.
+Narzędzie `Foreach` stało się potężnym procesorem danych przestrzennych i logicznych.
 - **Sequence Generator**: Pozwala na tworzenie liniowych szyków punktów.
-- **Tag `{item}`**: Służy jako miejsce podstawienia wygenerowanej wartości w kolejnych komendach. 
-    *   Przykład: `InsertBlock(BlockName: "A", Position: "{item}")`.
+- **Tag `{item}`**: Służy jako miejsce podstawienia wygenerowanej wartości (pozycji lub elementu z listy).
+- **Tag `{index}`**: Wstawia numer bieżącej iteracji (liczony od 1).
+- **RPN & ToolName**: Możesz używać kalkulatora RPN wewnątrz akcji oraz wywoływać inne narzędzia niż `CreateObject` (np. `ManageLayers`) poprzez dodanie klucza `"ToolName": "..."` w szablonie JSON.
+
+> [!TIP]
+> Przykład zaawansowany: `{"EntityType": "DBText", "Text": "RPN: 'Nr ' {index} CONCAT"}` wstawi teksty "Nr 1", "Nr 2" itd.
 
 ---
 
