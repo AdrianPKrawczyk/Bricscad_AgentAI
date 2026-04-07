@@ -52,7 +52,6 @@ namespace Bricscad_AgentAI_V2.Tools
             string state = args["State"]?.ToString() ?? "";
             string linetype = args["Linetype"]?.ToString() ?? "";
             
-            // BEZPIECZNE parsowanie booleana z JSON-a
             bool makeCurrent = false;
             if (args["MakeCurrent"] != null)
             {
@@ -70,15 +69,18 @@ namespace Bricscad_AgentAI_V2.Tools
             int successCount = 0;
             string layerToMakeCurrent = null;
 
+            // KRYTYCZNE ZABEZPIECZENIE TEIGHA API (Silent Failure Fix dla wątków w tle)
+            Database oldDb = HostApplicationServices.WorkingDatabase;
+            HostApplicationServices.WorkingDatabase = db;
+
             try
             {
                 using (DocumentLock docLock = doc.LockDocument())
                 {
+                    // FAZA 1: Operacje na warstwach
                     using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
                         LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForWrite);
-
-                        // Obsługa wielu warstw (lista po przecinku)
                         string[] layersToProcess = layerPattern.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                         foreach (string rawName in layersToProcess)
@@ -90,40 +92,45 @@ namespace Bricscad_AgentAI_V2.Tools
                             {
                                 if (isWildcard) return $"BŁĄD: Nie można utworzyć warstwy ze znakami maski (*, ?): {lName}";
                                 
-                                LayerTableRecord ltr;
                                 if (!lt.Has(lName))
                                 {
-                                    ltr = new LayerTableRecord { Name = lName };
+                                    LayerTableRecord ltr = new LayerTableRecord();
+                                    ltr.Name = lName;
+
+                                    // Właściwości MUSZĄ być ustawione przed lt.Add(), aby reaktory Teigha nie odrzuciły obiektu
+                                    if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
+                                    {
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
+                                    }
+
+                                    if (!string.IsNullOrEmpty(linetype))
+                                    {
+                                        LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForRead);
+                                        if (ltt.Has(linetype)) ltr.LinetypeObjectId = ltt[linetype];
+                                        else return $"BŁĄD: Rodzaj linii '{linetype}' nie istnieje w rysunku.";
+                                    }
+
+                                    // Dopiero "ubrany" obiekt ładujemy do bazy
                                     lt.Add(ltr);
                                     tr.AddNewlyCreatedDBObject(ltr, true);
                                 }
                                 else
                                 {
-                                    ltr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
+                                    LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
+                                    if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
+                                    {
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
+                                    }
                                 }
 
-                                // Kolor
-                                if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
-                                {
-                                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
-                                }
-
-                                // Linetype
-                                if (!string.IsNullOrEmpty(linetype))
-                                {
-                                    LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForRead);
-                                    if (ltt.Has(linetype)) ltr.LinetypeObjectId = ltt[linetype];
-                                    else return $"BŁĄD: Rodzaj linii '{linetype}' nie istnieje w rysunku.";
-                                }
-
-                                if (makeCurrent) layerToMakeCurrent = lName; // Zapamiętujemy, by aktywować PO transakcji
+                                if (makeCurrent) layerToMakeCurrent = lName;
                                 successCount++;
                             }
                             else if (action.Equals("Rename", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (isWildcard) return "BŁĄD: Zmiana nazwy (Rename) nie obsługuje masek (wildcards).";
                                 if (string.IsNullOrEmpty(newName)) return "BŁĄD: Parametr 'NewName' nie może być pusty.";
-                                if (!lt.Has(lName)) return $"BŁĄD: Warstwa źródłowa '{lName}' nie istnieje.";
+                                if (!lt.Has(lName)) return $"BŁĄD: Warstwa '{lName}' nie istnieje.";
                                 if (lt.Has(newName)) return $"BŁĄD: Warstwa docelowa '{newName}' już istnieje.";
 
                                 LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
@@ -153,7 +160,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                             else stateValid = false;
 
                                             if (stateValid) successCount++;
-                                            else return $"BŁĄD: Nieznany lub brakujący stan '{state}'. Dozwolone: Locked, Unlocked, Frozen, Thawed, Off, On.";
+                                            else return $"BŁĄD: Nieznany stan '{state}'. Dozwolone: Locked, Unlocked, Frozen, Thawed, Off, On.";
                                         }
                                         else if (action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
                                         {
@@ -165,7 +172,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                                     ltr.Erase();
                                                     successCount++;
                                                 }
-                                                catch { } // Pomija błąd np. gdy warstwa nie jest pusta
+                                                catch { }
                                             }
                                         }
                                     }
@@ -175,7 +182,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         tr.Commit();
                     }
 
-                    // DRUGA FAZA: Ustawienie jako aktualna po upewnieniu się, że obiekt fizycznie istnieje w bazie
+                    // FAZA 2: Ustawienie warstwy roboczej z nowej transakcji po zmaterializowaniu zmian
                     if (!string.IsNullOrEmpty(layerToMakeCurrent))
                     {
                         using (Transaction tr2 = db.TransactionManager.StartTransaction())
@@ -193,6 +200,11 @@ namespace Bricscad_AgentAI_V2.Tools
             catch (Exception ex)
             {
                 return $"BŁĄD KRYTYCZNY: {ex.Message}";
+            }
+            finally
+            {
+                // Zawsze przywracamy stary kontekst bazy!
+                HostApplicationServices.WorkingDatabase = oldDb;
             }
 
             return $"SUKCES: Wykonano akcję '{action}' dla {successCount} warstw(y).";
