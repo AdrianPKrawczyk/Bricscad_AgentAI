@@ -191,42 +191,41 @@ namespace Bricscad_AgentAI_V2.Tools
                 // ==========================================
                 // FAZA 2: Aktywacja warstwy i odświeżenie GUI (Wątek Główny)
                 // ==========================================
-                // Ponieważ IToolV2 wywoływane jest z wątku w tle przez LLM, modyfikacje 
-                // stanu UI oraz `db.Clayer` mogą powodować odrzucenie transakcji bazy.
-                // Używamy natywnego SendStringToExecute, aby delegować akcje do Main Thread.
+                // Tradycyjne db.Clayer lub komendy tekstowe z \n zawodzą w asynchronicznym środowisku.
+                // Używamy atomowej operacji AutoLISP, która natychmiast wymusza zmianę w UI.
 
-                StringBuilder uiCommands = new StringBuilder();
+                StringBuilder lispCommands = new StringBuilder();
 
                 if (makeCurrent && !string.IsNullOrEmpty(layerToMakeCurrent))
                 {
-                    // Natywna komenda BricsCADa bezpiecznie i synchronicznie aktywuje warstwę
-                    uiCommands.Append($"_-LAYER\n_Make\n\"{layerToMakeCurrent}\"\n\n");
+                    // LISP (setvar "CLAYER" "nazwa") to kuloodporny sposób na ustawienie warstwy w tle
+                    lispCommands.Append($"(setvar \"CLAYER\" \"{layerToMakeCurrent}\") ");
                 }
 
-                // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie
+                // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie geometrii
                 if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
                 {
-                    uiCommands.Append("_REGEN\n");
+                    lispCommands.Append("(command \"_.REGEN\") ");
                 }
 
-                // Wysłanie paczki poleceń do głównej pętli (Main Thread Message Pump)
-                if (uiCommands.Length > 0)
+                // Wysłanie paczki poleceń do głównej pętli. Spacja na końcu działa jak ostateczny Enter.
+                if (lispCommands.Length > 0)
                 {
-                    doc.SendStringToExecute(uiCommands.ToString(), true, false, false);
+                    doc.SendStringToExecute(lispCommands.ToString() + "\n", true, false, false);
                 }
             }
         }
         catch (Exception ex)
-            {
-                return $"BŁĄD KRYTYCZNY: {ex.Message}";
-            }
-            finally
-            {
-                // Zawsze przywracamy stary kontekst bazy!
-                HostApplicationServices.WorkingDatabase = oldDb;
-            }
-
-            return $"SUKCES: Wykonano akcję '{action}' dla {successCount} warstw(y).";
+        {
+            return $"BŁĄD KRYTYCZNY: {ex.Message}";
         }
+        finally
+        {
+            // Zawsze przywracamy stary kontekst bazy!
+            HostApplicationServices.WorkingDatabase = oldDb;
+        }
+
+        return $"SUKCES: Wykonano akcję '{action}' dla {successCount} warstw(y).";
     }
+}
 }
