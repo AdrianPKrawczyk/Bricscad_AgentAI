@@ -183,30 +183,40 @@ namespace Bricscad_AgentAI_V2.Tools
                                 }
                             }
                         }
-                        // Twardy Commit zapisuje warstwę i powiadamia interfejs o nowym obiekcie
-                        tr.Commit();
-                        EngineTracer.Log("Oczekuję na aktualizację UI (Po Commit Faza 1)...");
-                    }
+                    // Twardy Commit zapisuje warstwę i powiadamia interfejs o nowym obiekcie
+                    tr.Commit();
+                    EngineTracer.Log("Zakończono Fazę 1 (DB Commit). Oczekuję na przetworzenie UI...");
+                }
 
-                    // ==========================================
-                    // FAZA 2: Aktywacja warstwy roboczej
-                    // ==========================================
-                    if (!string.IsNullOrEmpty(layerToMakeCurrent))
-                    {
-                        using (Transaction tr2 = doc.TransactionManager.StartTransaction()) // Również doc.TransactionManager!
-                        {
-                            LayerTable lt2 = (LayerTable)tr2.GetObject(db.LayerTableId, OpenMode.ForRead);
-                            if (lt2.Has(layerToMakeCurrent))
-                            {
-                                // Bezpieczne przypisanie - obiekt z Fazy 1 w pełni istnieje w bazie
-                                db.Clayer = lt2[layerToMakeCurrent];
-                            }
-                            tr2.Commit();
-                        }
-                    }
+                // ==========================================
+                // FAZA 2: Aktywacja warstwy i odświeżenie GUI (Wątek Główny)
+                // ==========================================
+                // Ponieważ IToolV2 wywoływane jest z wątku w tle przez LLM, modyfikacje 
+                // stanu UI oraz `db.Clayer` mogą powodować odrzucenie transakcji bazy.
+                // Używamy natywnego SendStringToExecute, aby delegować akcje do Main Thread.
+
+                StringBuilder uiCommands = new StringBuilder();
+
+                if (makeCurrent && !string.IsNullOrEmpty(layerToMakeCurrent))
+                {
+                    // Natywna komenda BricsCADa bezpiecznie i synchronicznie aktywuje warstwę
+                    uiCommands.Append($"_-LAYER\n_Make\n\"{layerToMakeCurrent}\"\n\n");
+                }
+
+                // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie
+                if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiCommands.Append("_REGEN\n");
+                }
+
+                // Wysłanie paczki poleceń do głównej pętli (Main Thread Message Pump)
+                if (uiCommands.Length > 0)
+                {
+                    doc.SendStringToExecute(uiCommands.ToString(), true, false, false);
                 }
             }
-            catch (Exception ex)
+        }
+        catch (Exception ex)
             {
                 return $"BŁĄD KRYTYCZNY: {ex.Message}";
             }
