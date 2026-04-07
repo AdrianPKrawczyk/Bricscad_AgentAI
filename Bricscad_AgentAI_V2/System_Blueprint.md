@@ -47,8 +47,9 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 - `AgentMemoryState.cs`: Przechowuje globalny stan zaznaczenia (`ActiveSelection`) oraz słownik zmiennych (`Variables`). Elementy te są wstrzykiwane do argumentów narzędzi przed ich wykonaniem.
 - `PropertyValidator.cs`: Tarcza anty-halucynacyjna. Skanuje pliki bazy wiedzy API BricsCAD i weryfikuje poprawność atrybutów dla danej klasy obiektu. Chroni przed błędami refleksji.
 - `RpnCalculator.cs`: Silnik matematyczny obsługujący wyrażenia odwrotnej notacji polskiej, pozwalający na dynamiczne przeliczanie wartości (np. `$OLD_RADIUS 10 +`).
-45: - `ToolConfigManager.cs`: Dynamiczne zarządzanie konfiguracją narzędzi, tagami i flagą Early Exit.
-46: - `ToolOrchestrator.cs`: Zarządca pakietów narzędziowych, filtrujący prompt na podstawie zapotrzebowania modelu.
+- `ToolConfigManager.cs`: Dynamiczne zarządzanie konfiguracją narzędzi, tagami i flagą Early Exit.
+- `EngineTracer.cs`: Diagnostyczny nasłuchiwacz niskopoziomowych zdarzeń silnika ODA Teigha. Izoluje i raportuje problemy z transakcjami dokumentu.
+- `ToolOrchestrator.cs`: Zarządca pakietów narzędziowych, filtrujący prompt na podstawie zapotrzebowania modelu.
 
 ## Rejestr Narzędzi (Registered Tools)
 

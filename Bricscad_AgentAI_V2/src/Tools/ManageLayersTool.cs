@@ -51,11 +51,12 @@ namespace Bricscad_AgentAI_V2.Tools
             string color = args["ColorIndex"]?.ToString() ?? "";
             string state = args["State"]?.ToString() ?? "";
             string linetype = args["Linetype"]?.ToString() ?? "";
-            
+
+            // Bezpieczne parsowanie Boolean
             bool makeCurrent = false;
             if (args["MakeCurrent"] != null)
             {
-                bool.TryParse(args["MakeCurrent"].ToString(), out makeCurrent);
+                makeCurrent = args["MakeCurrent"].Value<bool>();
             }
 
             if (string.IsNullOrEmpty(layerPattern)) return "BŁĄD: Nazwa warstwy (LayerName) nie może być pusta.";
@@ -67,9 +68,9 @@ namespace Bricscad_AgentAI_V2.Tools
             }
 
             int successCount = 0;
-            string layerToMakeCurrent = null;
+            string layerToMakeCurrent = null; // Zapisujemy NAZWĘ, nie ObjectId
 
-            // KRYTYCZNE ZABEZPIECZENIE TEIGHA API (Silent Failure Fix dla wątków w tle)
+            // KRYTYCZNE ZABEZPIECZENIE TEIGHA API (zgodnie z v2.12.5)
             Database oldDb = HostApplicationServices.WorkingDatabase;
             HostApplicationServices.WorkingDatabase = db;
 
@@ -77,8 +78,10 @@ namespace Bricscad_AgentAI_V2.Tools
             {
                 using (DocumentLock docLock = doc.LockDocument())
                 {
-                    // FAZA 1: Operacje na warstwach
-                    using (Transaction tr = db.TransactionManager.StartTransaction())
+                    // ==========================================
+                    // FAZA 1: Tworzenie struktury warstwy
+                    // ==========================================
+                    using (Transaction tr = doc.TransactionManager.StartTransaction()) // doc.TransactionManager!
                     {
                         LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForWrite);
                         string[] layersToProcess = layerPattern.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -91,13 +94,12 @@ namespace Bricscad_AgentAI_V2.Tools
                             if (action.Equals("Create", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (isWildcard) return $"BŁĄD: Nie można utworzyć warstwy ze znakami maski (*, ?): {lName}";
-                                
+
                                 if (!lt.Has(lName))
                                 {
                                     LayerTableRecord ltr = new LayerTableRecord();
                                     ltr.Name = lName;
 
-                                    // Właściwości MUSZĄ być ustawione przed lt.Add(), aby reaktory Teigha nie odrzuciły obiektu
                                     if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
                                     {
                                         ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
@@ -110,9 +112,10 @@ namespace Bricscad_AgentAI_V2.Tools
                                         else return $"BŁĄD: Rodzaj linii '{linetype}' nie istnieje w rysunku.";
                                     }
 
-                                    // Dopiero "ubrany" obiekt ładujemy do bazy
+                                    EngineTracer.Log($"Próba dodania warstwy '{lName}' do tabeli...");
                                     lt.Add(ltr);
                                     tr.AddNewlyCreatedDBObject(ltr, true);
+                                    EngineTracer.Log("Obiekt dodany do transakcji.");
                                 }
                                 else
                                 {
@@ -126,6 +129,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 if (makeCurrent) layerToMakeCurrent = lName;
                                 successCount++;
                             }
+                            // ... reszta logiki (Rename, Toggle, Delete) bez zmian
                             else if (action.Equals("Rename", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (isWildcard) return "BŁĄD: Zmiana nazwy (Rename) nie obsługuje masek (wildcards).";
@@ -150,7 +154,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                         {
                                             ltr.UpgradeOpen();
                                             bool stateValid = true;
-                                            
+
                                             if (state.Equals("Locked", StringComparison.OrdinalIgnoreCase)) ltr.IsLocked = true;
                                             else if (state.Equals("Unlocked", StringComparison.OrdinalIgnoreCase)) ltr.IsLocked = false;
                                             else if (state.Equals("Frozen", StringComparison.OrdinalIgnoreCase)) { if (db.Clayer != id) ltr.IsFrozen = true; }
@@ -179,17 +183,22 @@ namespace Bricscad_AgentAI_V2.Tools
                                 }
                             }
                         }
+                        // Twardy Commit zapisuje warstwę i powiadamia interfejs o nowym obiekcie
                         tr.Commit();
+                        EngineTracer.Log("Oczekuję na aktualizację UI (Po Commit Faza 1)...");
                     }
 
-                    // FAZA 2: Ustawienie warstwy roboczej z nowej transakcji po zmaterializowaniu zmian
+                    // ==========================================
+                    // FAZA 2: Aktywacja warstwy roboczej
+                    // ==========================================
                     if (!string.IsNullOrEmpty(layerToMakeCurrent))
                     {
-                        using (Transaction tr2 = db.TransactionManager.StartTransaction())
+                        using (Transaction tr2 = doc.TransactionManager.StartTransaction()) // Również doc.TransactionManager!
                         {
                             LayerTable lt2 = (LayerTable)tr2.GetObject(db.LayerTableId, OpenMode.ForRead);
                             if (lt2.Has(layerToMakeCurrent))
                             {
+                                // Bezpieczne przypisanie - obiekt z Fazy 1 w pełni istnieje w bazie
                                 db.Clayer = lt2[layerToMakeCurrent];
                             }
                             tr2.Commit();

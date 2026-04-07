@@ -44,7 +44,12 @@ namespace Bricscad_AgentAI_V2.UI
         private string _activeModel = "LM Studio / local-model"; // Domyślny model
         private AutoBenchmarkEngine _benchmarkEngine;
         private TabPage tabBenchmark;
+        private TabPage tabDebug;
         private LLMStats _lastStats;
+
+        private RichTextBox rtbEngineLogs;
+        private CheckBox chkEnableTracer;
+        private Button btnClearDebug;
 
         public static AgentControl Instance { get; private set; }
         private TabPage tabChat;
@@ -319,6 +324,52 @@ namespace Bricscad_AgentAI_V2.UI
             var tabDataset = new TabPage("💾 Dataset Studio");
             tabDataset.Controls.Add(datasetStudio);
             tabControl.TabPages.Add(tabDataset);
+
+            // ==========================================
+            // ZAKŁADKA 7: DEBUG (ENGINE TRACER)
+            // ==========================================
+            tabDebug = new TabPage("🐛 Debug (Engine)");
+            Panel panDebugTop = new Panel { Dock = DockStyle.Top, Height = 35, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
+            
+            chkEnableTracer = new CheckBox 
+            { 
+                Text = "Śledź zdarzenia bazy Teigha", 
+                AutoSize = true, 
+                ForeColor = Color.White, 
+                Dock = DockStyle.Left 
+            };
+            chkEnableTracer.CheckedChanged += (s, e) => EngineTracer.Enable(chkEnableTracer.Checked);
+
+            btnClearDebug = new Button 
+            { 
+                Text = "Wyczyść logi", 
+                Width = 100, 
+                Dock = DockStyle.Right,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnClearDebug.Click += (s, e) => rtbEngineLogs.Clear();
+
+            panDebugTop.Controls.Add(chkEnableTracer);
+            panDebugTop.Controls.Add(btnClearDebug);
+
+            rtbEngineLogs = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.Black,
+                ForeColor = Color.Lime,
+                Font = new Font("Consolas", 9f),
+                BorderStyle = BorderStyle.None
+            };
+
+            tabDebug.Controls.Add(rtbEngineLogs);
+            tabDebug.Controls.Add(panDebugTop);
+            tabControl.TabPages.Add(tabDebug);
+
+            // Rejestracja callbacku
+            EngineTracer.SetLogCallback(AppendEngineLog);
 
             LoadToolConfigToGrid();
 
@@ -644,6 +695,21 @@ namespace Bricscad_AgentAI_V2.UI
 
             txtHistory.SelectionStart = txtHistory.Text.Length;
             txtHistory.ScrollToCaret();
+        }
+
+        public void AppendEngineLog(string message)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action<string>(AppendEngineLog), message);
+                return;
+            }
+            if (rtbEngineLogs != null)
+            {
+                rtbEngineLogs.AppendText(message + Environment.NewLine);
+                rtbEngineLogs.SelectionStart = rtbEngineLogs.Text.Length;
+                rtbEngineLogs.ScrollToCaret();
+            }
         }
     }
 }

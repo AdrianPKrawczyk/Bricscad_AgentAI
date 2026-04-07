@@ -171,6 +171,7 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 - **Pasek HUD**: Sprawdzaj na dole okna czatu, czy Agent jest połączony z modelem LLM.
 - **TrimHistory**: Przy bardzo długich sesjach Agent automatycznie "zapomina" najstarsze, techniczne logi, aby zachować szybkość reakcji (nie tracąc przy tym pamięci o Twoich zmiennych `@`).
 - **Logi Narzędzi**: Jeśli coś nie działa, otwórz zakładkę "Logi Narzędzi" – zobaczysz tam dokładnie, jaki JSON został wysłany i co odpowiedział BricsCAD.
+- **Zakładka Debug (🐛)**: Zaawansowane narzędzie diagnostyczne. Pozwala śledzić komunikację na linii Agent -> C# -> Silnik BricsCAD (zdarzenia bazy Teigha). Używaj jej, gdy narzędzia "udają", że coś zrobiły, ale zmiany nie są widoczne na ekranie.
 
 ---
 > [!IMPORTANT]
