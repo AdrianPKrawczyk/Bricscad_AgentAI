@@ -357,12 +357,33 @@ namespace Bricscad_AgentAI_V2.Tools
                                         }
                                         else 
                                         {
-                                            foreach (string part in parts)
+                                            // [HOTFIX v2.14.0]: JAWNE RZUTOWANIE (Hard-cast fallback) dla problematycznych właściwości Teigha
+                                            if (ent is Hatch hatch && filter.Prop.Equals("HatchObjectType", StringComparison.OrdinalIgnoreCase))
                                             {
-                                                if (currentVal == null) break;
-                                                var pInfo = currentVal.GetType().GetProperty(part, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
-                                                if (pInfo != null) currentVal = pInfo.GetValue(currentVal);
-                                                else { currentVal = null; break; }
+                                                currentVal = (int)hatch.HatchObjectType;
+                                            }
+                                            else if (ent is Dimension dim && (filter.Prop.Equals("DimensionText", StringComparison.OrdinalIgnoreCase) || filter.Prop.Equals("TextOverride", StringComparison.OrdinalIgnoreCase)))
+                                            {
+                                                currentVal = dim.DimensionText;
+                                            }
+                                            else if (ent is MText mtext && (filter.Prop.Equals("TextOverride", StringComparison.OrdinalIgnoreCase) || filter.Prop.Equals("Contents", StringComparison.OrdinalIgnoreCase)))
+                                            {
+                                                currentVal = mtext.Contents;
+                                            }
+                                            else if (ent is DBText dbtext && (filter.Prop.Equals("TextOverride", StringComparison.OrdinalIgnoreCase) || filter.Prop.Equals("TextString", StringComparison.OrdinalIgnoreCase)))
+                                            {
+                                                currentVal = dbtext.TextString;
+                                            }
+                                            else
+                                            {
+                                                // Standardowy mechanizm C# Reflection
+                                                foreach (string part in parts)
+                                                {
+                                                    if (currentVal == null) break;
+                                                    var pInfo = currentVal.GetType().GetProperty(part, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                                                    if (pInfo != null) currentVal = pInfo.GetValue(currentVal);
+                                                    else { currentVal = null; break; }
+                                                }
                                             }
                                         }
 

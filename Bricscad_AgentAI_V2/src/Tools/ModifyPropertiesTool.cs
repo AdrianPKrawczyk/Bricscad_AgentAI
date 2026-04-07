@@ -21,7 +21,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "ModifyProperties",
-                    Description = "Modyfikuje właściwości (Layer, Color, Linetype, LineWeight, TextString, TextHeight, itp.) obiektów znajdujących się w aktualnym zaznaczeniu pamięci.",
+                    Description = "Służy WYŁĄCZNIE do modyfikacji podstawowych właściwości graficznych wspólnych dla wszystkich obiektów (Layer, Color, Linetype, Lineweight, Transparency). UWAGA: NIE UŻYWAJ tego narzędzia do edycji tekstów, wymiarów (Dimension), ani zawartości bloków. Do tych celów musisz załadować specjalistyczne kategorie narzędzi używając RequestAdditionalTools.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -83,6 +83,14 @@ namespace Bricscad_AgentAI_V2.Tools
 
                         foreach (var mod in modyfikacje)
                         {
+                            string propToCheck = mod.Prop;
+                            string[] forbiddenProps = { "Text", "TextOverride", "DimensionText", "Contents", "Dimscale", "Dimblk" };
+
+                            if (forbiddenProps.Any(p => p.Equals(propToCheck, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                return $"BŁĄD: Narzędzie ModifyPropertiesTool nie obsługuje właściwości '{propToCheck}'. Aby edytować teksty lub wymiary, użyj specjalistycznych narzędzi (np. DimensionEditTool).";
+                            }
+
                             object wartoscDoZapisania = null;
                             string rP = mod.Prop;
 
