@@ -172,6 +172,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
                         // SPRZĘGŁO GRAFICZNE: Wymuszamy brak interakcji z UI podczas iteracji
                         toolArgs["SelectObject"] = false;
+                        toolArgs["SuppressUI"] = true; // [NOWE] Zapobiega bombardowaniu wątku głównego przez pod-narzędzia i błędom eLockViolation
 
                         // Wykrywanie narzędzia - domyślnie CreateObject jeśli jest EntityType
                         string targetTool = "CreateObject";
@@ -209,6 +210,9 @@ namespace Bricscad_AgentAI_V2.Tools
                 summary.Append($"SUKCES: Wykonano {successCount}/{finalItems.Count} operacji.");
                 if (handles.Count > 0) summary.Append($" Uchwyty: {string.Join(", ", handles.Take(10))}{(handles.Count > 10 ? "..." : "")}");
                 if (errors.Count > 0) summary.Append($" Błędy: {errors.Count} (ostatni: {errors.Last()})");
+                // [NOWE] Pojedyncze odświeżenie interfejsu po zakończeniu wszystkich iteracji w pętli
+                doc.SendStringToExecute("(princ) \n", true, false, false);
+                
                 return summary.ToString();
             }
 

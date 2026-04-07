@@ -266,32 +266,34 @@ namespace Bricscad_AgentAI_V2.Tools
                     // ==========================================
                     // FAZA 2: Aktywacja warstwy i odświeżenie GUI (Wątek Główny)
                     // ==========================================
-                    // Tradycyjne db.Clayer lub komendy tekstowe z \n zawodzą w asynchronicznym środowisku.
-                    // Używamy atomowej operacji AutoLISP, która natychmiast wymusza zmianę w UI.
+                    bool suppressUI = args["SuppressUI"]?.Value<bool>() ?? false;
 
-                    StringBuilder lispCommands = new StringBuilder();
-
-                    if (makeCurrent && !string.IsNullOrEmpty(layerToMakeCurrent))
+                    if (!suppressUI)
                     {
-                        // LISP (setvar "CLAYER" "nazwa") to kuloodporny sposób na ustawienie warstwy w tle
-                        lispCommands.Append($"(setvar \"CLAYER\" \"{layerToMakeCurrent}\") ");
-                    }
+                        StringBuilder lispCommands = new StringBuilder();
 
-                    // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie geometrii
-                    if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
-                    {
-                        lispCommands.Append("(command \"_.REGEN\") ");
-                    }
+                        if (makeCurrent && !string.IsNullOrEmpty(layerToMakeCurrent))
+                        {
+                            // LISP (setvar "CLAYER" "nazwa") to kuloodporny sposób na ustawienie warstwy w tle
+                            lispCommands.Append($"(setvar \"CLAYER\" \"{layerToMakeCurrent}\") ");
+                        }
 
-                    // [CRITICAL FIX]: Gwarancja odświeżenia UI! Zawsze szturchamy wątek główny (nawet przy Create),
-                    // zmuszając Menedżer Warstw do pokazania zmian z Fazy 1.
-                    if (lispCommands.Length == 0)
-                    {
-                        lispCommands.Append("(princ) ");
-                    }
+                        // Opcjonalnie: Jeśli zmieniono widoczność lub usunięto warstwy, wymuszamy odrysowanie geometrii
+                        if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
+                        {
+                            lispCommands.Append("(command \"_.REGEN\") ");
+                        }
 
-                    // Wysłanie paczki poleceń do głównej pętli. Spacja na końcu działa jak ostateczny Enter.
-                    doc.SendStringToExecute(lispCommands.ToString() + "\n", true, false, false);
+                        // [CRITICAL FIX]: Gwarancja odświeżenia UI! Zawsze szturchamy wątek główny (nawet przy Create),
+                        // zmuszając Menedżer Warstw do pokazania zmian z Fazy 1.
+                        if (lispCommands.Length == 0)
+                        {
+                            lispCommands.Append("(princ) ");
+                        }
+
+                        // Wysłanie paczki poleceń do głównej pętli. Spacja na końcu działa jak ostateczny Enter.
+                        doc.SendStringToExecute(lispCommands.ToString() + "\n", true, false, false);
+                    }
                 }
             }
         catch (Exception ex)
