@@ -14,7 +14,22 @@ namespace Bricscad_AgentAI_V2.Tests.Tools
             TestGetToolSchema();
             TestSequenceGeneratorLogic();
             TestItemsExplicitList();
+            TestRpnInterception();
             Console.WriteLine("Pomyślnie zakończono wszystkie testy ForeachTool.");
+        }
+
+        private static void TestRpnInterception()
+        {
+            // Weryfikacja bezpośrednia kalkulatora (ForeachTool polega na RpnCalculator)
+            string expr = "10 20 +";
+            string result = RpnCalculator.Evaluate(expr);
+            Debug.Assert(result == "30", "RpnCalculator powinien zwrócić 30 dla '10 20 +'");
+
+            string exprIndex = "1 10 *"; // Symulacja {index} 10 *
+            string resultIndex = RpnCalculator.Evaluate(exprIndex);
+            Debug.Assert(resultIndex == "10", "RpnCalculator powinien zwrócić 10 dla '1 10 *'");
+            
+            Console.WriteLine("TestRpnInterception: Podstawowa ewaluacja RPN potwierdzona.");
         }
 
         private static void TestGetToolSchema()

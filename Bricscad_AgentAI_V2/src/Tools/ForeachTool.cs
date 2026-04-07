@@ -145,6 +145,31 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         JObject toolArgs = JObject.Parse(expandedAction);
                         
+                        // [NOWY BLOK] Przechwytywanie i pre-ewaluacja RPN
+                        foreach (var property in toolArgs.Properties().ToList())
+                        {
+                            if (property.Value.Type == JTokenType.String)
+                            {
+                                string valStr = property.Value.ToString();
+                                if (valStr.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string rpnExpr = valStr.Substring(4).Trim();
+                                    string evaluated = RpnCalculator.Evaluate(rpnExpr);
+                                    
+                                    if (!evaluated.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        // Podmiana surowego stringa na wyliczony wynik
+                                        toolArgs[property.Name] = evaluated;
+                                    }
+                                    else
+                                    {
+                                        errors.Add($"Błąd RPN w iteracji {loopIndex} dla '{property.Name}': {evaluated}");
+                                    }
+                                }
+                            }
+                        }
+                        // [KONIEC NOWEGO BLOKU]
+
                         // SPRZĘGŁO GRAFICZNE: Wymuszamy brak interakcji z UI podczas iteracji
                         toolArgs["SelectObject"] = false;
 
