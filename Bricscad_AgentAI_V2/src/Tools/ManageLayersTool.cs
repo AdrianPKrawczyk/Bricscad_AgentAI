@@ -28,13 +28,16 @@ namespace Bricscad_AgentAI_V2.Tools
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "Action", new ToolParameter { Type = "string", Description = "Akcja: 'Create', 'Toggle', 'Rename', 'Delete', 'SetCurrent'." } },
+                            { "Action", new ToolParameter { Type = "string", Description = "Akcja: 'Create', 'Modify', 'Toggle', 'Rename', 'Delete', 'SetCurrent'." } },
                             { "LayerName", new ToolParameter { Type = "string", Description = "Nazwa warstwy, lista nazw po przecinku lub maska (np. 'MECH-*')." } },
                             { "NewName", new ToolParameter { Type = "string", Description = "Nowa nazwa (tylko dla akcji 'Rename')." } },
-                            { "ColorIndex", new ToolParameter { Type = "integer", Description = "Wskaźnik koloru ACI (1-255) dla akcji 'Create'." } },
+                            { "ColorIndex", new ToolParameter { Type = "integer", Description = "Wskaźnik koloru ACI (1-255)." } },
                             { "State", new ToolParameter { Type = "string", Description = "Stan dla akcji 'Toggle': 'Locked', 'Unlocked', 'Frozen', 'Thawed', 'Off', 'On'." } },
-                            { "MakeCurrent", new ToolParameter { Type = "boolean", Description = "Czy ustawić warstwę jako aktualną (przestarzałe, zaleca się użycie akcji 'SetCurrent')." } },
-                            { "Linetype", new ToolParameter { Type = "string", Description = "Nazwa rodzaju linii (opcjonalne przy 'Create')." } }
+                            { "MakeCurrent", new ToolParameter { Type = "boolean", Description = "Czy ustawić warstwę jako aktualną." } },
+                            { "Linetype", new ToolParameter { Type = "string", Description = "Nazwa rodzaju linii (np. 'Continuous', 'Hidden')." } },
+                            { "Transparency", new ToolParameter { Type = "integer", Description = "Przezroczystość 0-90 (0 = brak, 90 = pełna)." } },
+                            { "LineWeight", new ToolParameter { Type = "integer", Description = "Szerokość linii w setnych milimetra (np. 30 dla 0.30mm, -1 = ByLayer, -3 = Default)." } },
+                            { "Plottable", new ToolParameter { Type = "boolean", Description = "Czy warstwa ma być drukowana (true/false)." } }
                         },
                         Required = new List<string> { "Action", "LayerName" }
                     }
@@ -61,10 +64,10 @@ namespace Bricscad_AgentAI_V2.Tools
 
             if (string.IsNullOrEmpty(layerPattern)) return "BŁĄD: Nazwa warstwy (LayerName) nie może być pusta.";
 
-            string[] validActions = { "Create", "Toggle", "Rename", "Delete", "SetCurrent" };
+            string[] validActions = { "Create", "Modify", "Toggle", "Rename", "Delete", "SetCurrent" };
             if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
             {
-                return $"BŁĄD: Nieobsługiwana akcja '{action}'. Dozwolone wartości to: Create, Toggle, Rename, Delete, SetCurrent.";
+                return $"BŁĄD: Nieobsługiwana akcja '{action}'. Dozwolone wartości to: Create, Modify, Toggle, Rename, Delete, SetCurrent.";
             }
 
             int successCount = 0;
@@ -91,14 +94,52 @@ namespace Bricscad_AgentAI_V2.Tools
                             string lName = rawName.Trim();
                             bool isWildcard = lName.Contains("*") || lName.Contains("?");
 
-                            if (action.Equals("Create", StringComparison.OrdinalIgnoreCase))
-                            {
-                                if (isWildcard) return $"BŁĄD: Nie można utworzyć warstwy ze znakami maski (*, ?): {lName}";
+                            bool isCreate = action.Equals("Create", StringComparison.OrdinalIgnoreCase);
+                            bool isModify = action.Equals("Modify", StringComparison.OrdinalIgnoreCase);
 
-                                if (!lt.Has(lName))
+                            if (isCreate || isModify)
+                            {
+                                Regex regex = isWildcard ? new Regex("^" + Regex.Escape(lName).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase) : null;
+                                List<ObjectId> targets = new List<ObjectId>();
+
+                                if (isCreate)
                                 {
-                                    LayerTableRecord ltr = new LayerTableRecord();
-                                    ltr.Name = lName;
+                                    if (isWildcard) return $"BŁĄD: Nie można utworzyć warstwy ze znakami maski (*, ?): {lName}";
+
+                                    if (!lt.Has(lName))
+                                    {
+                                        LayerTableRecord newLtr = new LayerTableRecord();
+                                        newLtr.Name = lName;
+                                        lt.Add(newLtr);
+                                        tr.AddNewlyCreatedDBObject(newLtr, true);
+                                        targets.Add(newLtr.ObjectId);
+                                        EngineTracer.Log($"Próba dodania warstwy '{lName}' do tabeli...");
+                                    }
+                                    else
+                                    {
+                                        targets.Add(lt[lName]);
+                                    }
+                                }
+                                else // Akcja: Modify
+                                {
+                                    if (isWildcard)
+                                    {
+                                        foreach (ObjectId id in lt)
+                                        {
+                                            LayerTableRecord checkLtr = (LayerTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                                            if (regex.IsMatch(checkLtr.Name)) targets.Add(id);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (lt.Has(lName)) targets.Add(lt[lName]);
+                                        else return $"BŁĄD: Warstwa '{lName}' nie istnieje w rysunku.";
+                                    }
+                                }
+
+                                foreach (ObjectId id in targets)
+                                {
+                                    LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(id, OpenMode.ForWrite);
 
                                     if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
                                     {
@@ -112,22 +153,31 @@ namespace Bricscad_AgentAI_V2.Tools
                                         else return $"BŁĄD: Rodzaj linii '{linetype}' nie istnieje w rysunku.";
                                     }
 
-                                    EngineTracer.Log($"Próba dodania warstwy '{lName}' do tabeli...");
-                                    lt.Add(ltr);
-                                    tr.AddNewlyCreatedDBObject(ltr, true);
-                                    EngineTracer.Log("Obiekt dodany do transakcji.");
-                                }
-                                else
-                                {
-                                    LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
-                                    if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
+                                    if (args["Transparency"] != null)
                                     {
-                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
+                                        int transVal = args["Transparency"].Value<int>();
+                                        if (transVal < 0) transVal = 0;
+                                        if (transVal > 90) transVal = 90;
+                                        // Konwersja API: 255 = nieprzezroczysty, 0 = niewidoczny
+                                        byte alpha = (byte)(255 * (100 - transVal) / 100);
+                                        ltr.Transparency = new Transparency(alpha);
                                     }
+
+                                    if (args["LineWeight"] != null)
+                                    {
+                                        int lwVal = args["LineWeight"].Value<int>();
+                                        ltr.LineWeight = (LineWeight)lwVal;
+                                    }
+
+                                    if (args["Plottable"] != null)
+                                    {
+                                        ltr.IsPlottable = args["Plottable"].Value<bool>();
+                                    }
+
+                                    successCount++;
                                 }
 
-                                if (makeCurrent) layerToMakeCurrent = lName;
-                                successCount++;
+                                if (makeCurrent && !isWildcard) layerToMakeCurrent = lName;
                             }
                             else if (action.Equals("SetCurrent", StringComparison.OrdinalIgnoreCase))
                             {

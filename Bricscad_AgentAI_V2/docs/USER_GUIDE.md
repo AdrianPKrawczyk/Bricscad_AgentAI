@@ -59,6 +59,12 @@ Modyfikuje "matrycę" bloku. Zmiana tutaj wpływa na **wszystkie** wystąpienia 
 Modyfikuje tylko dane tekstowe (atrybuty) w **konkretnej instancji** bloku na rysunku.
 - **Zastosowanie**: Numeracja pomieszczeń, wypełnianie tabliczek rysunkowych, zmiana opisu bez zmiany wyglądu bloku.
 
+### 3.3. Zaawansowane Zarządzanie Warstwami - `ManageLayers`
+W wersji **v2.12.9** Agent otrzymał pełną kontrolę nad właściwościami wizualnymi warstw.
+- **Akcja `Modify`**: Pozwala na zmianę parametrów istniejących warstw (również masowo przez maski `*`).
+- **Właściwości**: Możesz teraz sterować przezroczystością (`Transparency` 0-90), grubością linii (`LineWeight`) oraz statusem wydruku (`Plottable`).
+- **Akcja `SetCurrent`**: Dedykowany, bezpieczny sposób na przełączenie aktywnej warstwy roboczej.
+
 ---
 
 ## 📐 4. Skale Opisowe (Annotative)
@@ -94,7 +100,7 @@ Oto przykłady łańcuchów działań, które pokazują pełną moc wersji GOLD:
 > *"Znajdź wszystkie polilinie na warstwie 'OBRYS', odczytaj ich powierzchnie i zapisz do zmiennej @Pola. Jeśli powierzchnia jest większa niż 100, zmień kolor polilinii na czerwony, a w jej środku ciężkości wstaw tekst 'ALARM' o wysokości RPN: $OLD_AREA 0.01 *"*
 
 ### Scenariusz B: Standaryzacja Warstw
-> *"Pobierz listę wszystkich warstw w rysunku. Dla każdej warstwy zaczynającej się od 'TEMP_', przenieś znajdujące się na niej obiekty na warstwę 'ARCH_STARE', a następnie usuń puste warstwy 'TEMP_*'."*
+> *"Pobierz listę wszystkich warstw w rysunku. Dla każdej warstwy zaczynającej się od 'TEMP_', przenieś znajdujące się na niej obiekty na warstwę 'ARCH_STARE', a następnie usuń puste warstwy 'TEMP_*'. Na koniec ustaw przezroczystość wszystkich warstw 'ARCH_*' na 50% i ustaw grubość linii na 0.13mm."*
 
 ### Scenariusz C: Inteligentna Blokowa Numeracja
 > *"Zaznacz bloki o nazwie 'POMIESZCZENIE'. Pobierz ich atrybut 'NUMER'. Użyj pętli, aby przesortować je i zmienić atrybut 'STATUS' na 'WERYFIKACJA' dla tych, których numer jest parzysty."*
@@ -177,4 +183,4 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.10.1 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.12.9 GOLD | BricsCAD Agent AI Project*
