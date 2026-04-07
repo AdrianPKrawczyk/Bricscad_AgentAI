@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Bricscad_AgentAI_V2.Tools;
+using Bricscad_AgentAI_V2.Core;
 using Newtonsoft.Json.Linq;
 
 namespace Bricscad_AgentAI_V2.Tests.Tools
