@@ -54,6 +54,23 @@ namespace Bricscad_AgentAI_V2.Tools
                                     Type = "array",
                                     Description = "Tablica słowników warunków. Przykładowa konwencja: [ { \"Prop\": \"Layer\", \"Op\": \"==\", \"Val\": \"ściany_nośne\" }, { \"Prop\": \"Length\", \"Op\": \">=\", \"Val\": \"25.0\" } ]. Operator op = \"in\" działa dla Val postaci po przecinku np. \"1,2,3\""
                                 }
+                            },
+                            {
+                                "AdvancedFilters", new ToolParameter
+                                {
+                                    Type = "array",
+                                    Description = "Tablica zaawansowanych filtrów dla ukrytych właściwości (np. Transparency, TextOverride). Używaj, gdy potrzebne są operacje arytmetyczne lub przeszukiwanie tekstu.",
+                                    Items = new JObject
+                                    {
+                                        ["type"] = "object",
+                                        ["properties"] = new JObject
+                                        {
+                                            ["Prop"] = new JObject { ["type"] = "string", ["description"] = "Nazwa właściwości (np. 'Transparency', 'TextOverride', 'MText.Text')." },
+                                            ["Op"] = new JObject { ["type"] = "string", ["description"] = "Operator: '>', '<', '>=', '<=', '==', '!=', 'Contains', 'NotContains'." },
+                                            ["Val"] = new JObject { ["type"] = "string", ["description"] = "Wartość do porównania." }
+                                        }
+                                    }
+                                }
                             }
                         },
                         Required = new List<string> { "EntityType" }
@@ -85,6 +102,21 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (!string.IsNullOrEmpty(prop) && !string.IsNullOrEmpty(op))
                     {
                         warunki.Add((prop, op, val ?? ""));
+                    }
+                }
+            }
+
+            var advancedFilters = new List<(string Prop, string Op, string Val)>();
+            if (args["AdvancedFilters"] is JArray advArray)
+            {
+                foreach (JObject filter in advArray)
+                {
+                    string prop = filter["Prop"]?.ToString()?.Trim();
+                    string op = filter["Op"]?.ToString()?.Trim();
+                    string val = filter["Val"]?.ToString()?.Trim();
+                    if (!string.IsNullOrEmpty(prop) && !string.IsNullOrEmpty(op))
+                    {
+                        advancedFilters.Add((prop, op, val ?? ""));
                     }
                 }
             }
@@ -202,7 +234,6 @@ namespace Bricscad_AgentAI_V2.Tools
                                 } 
                                 catch 
                                 { 
-                                    // Ignorujemy błędy Reflection dla nietypowych obiektów (np. brakujących metadanych)
                                     wartoscObiektu = null; 
                                 }
 
@@ -223,7 +254,6 @@ namespace Bricscad_AgentAI_V2.Tools
                                     else if (transp.IsByBlock) valStr = "ByBlock";
                                     else 
                                     {
-                                        // Konwersja API (Alpha 0-255) na UI użytkownika (Przezroczystość 100-0)
                                         long uiVal = (long)Math.Round(100.0 - (transp.Alpha * 100.0 / 255.0));
                                         valStr = uiVal.ToString();
                                     }
@@ -300,6 +330,48 @@ namespace Bricscad_AgentAI_V2.Tools
                                 
                                 if (!warunekSpelniony) { spelniaWszystkie = false; break; }
                             }
+
+                            if (spelniaWszystkie && advancedFilters.Count > 0)
+                            {
+                                foreach (var filter in advancedFilters)
+                                {
+                                    try 
+                                    {
+                                        object currentVal = ent;
+                                        string[] parts = filter.Prop.Split('.');
+                                        
+                                        if (filter.Prop.Equals("TextOverride", StringComparison.OrdinalIgnoreCase) || filter.Prop.Equals("DimensionText", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            if (ent is Dimension dim) currentVal = dim.DimensionText;
+                                            else if (ent is MText mt) currentVal = mt.Contents;
+                                            else if (ent is DBText txt) currentVal = txt.TextString;
+                                            else { spelniaWszystkie = false; break; }
+                                        }
+                                        else if (filter.Prop.Equals("Transparency", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            // Konwersja Alpha (0-255) na Procenty (0-90) zgodnie z wymogiem architekta
+                                            byte alpha = ent.Transparency.Alpha;
+                                            double transPercent = Math.Round(100.0 - (alpha * 100.0 / 255.0)); 
+                                            if (transPercent > 90) transPercent = 90.0;
+                                            currentVal = transPercent;
+                                        }
+                                        else 
+                                        {
+                                            foreach (string part in parts)
+                                            {
+                                                if (currentVal == null) break;
+                                                var pInfo = currentVal.GetType().GetProperty(part, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                                                if (pInfo != null) currentVal = pInfo.GetValue(currentVal);
+                                                else { currentVal = null; break; }
+                                            }
+                                        }
+
+                                        if (currentVal == null) { spelniaWszystkie = false; break; }
+                                        if (!ValidateLogicCondition(currentVal.ToString(), filter.Op, filter.Val)) { spelniaWszystkie = false; break; }
+                                    }
+                                    catch { spelniaWszystkie = false; break; }
+                                }
+                            }
                             
                             if (spelniaWszystkie) znalezioneObiekty.Add(objId);
                         }
@@ -344,10 +416,6 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
         
-        /// <summary>
-        /// Wyzwalacz matematyczno-logiczny ewaluacji. Niezależny operacyjnie od kontekstu bazy danych CAD.
-        /// Publiczny do celów testowych (Unit Tests).
-        /// </summary>
         public static bool ValidateLogicCondition(string valStr, string op, string warVal)
         {
             if (valStr == null) return false;
@@ -375,6 +443,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     case "==": warunekSpelniony = valStr.Replace(" ", "").Equals(warVal.Replace(" ", ""), StringComparison.OrdinalIgnoreCase); break;
                     case "!=": warunekSpelniony = !valStr.Replace(" ", "").Equals(warVal.Replace(" ", ""), StringComparison.OrdinalIgnoreCase); break;
                     case "contains": warunekSpelniony = valStr.IndexOf(warVal, StringComparison.OrdinalIgnoreCase) >= 0; break;
+                    case "notcontains": warunekSpelniony = valStr.IndexOf(warVal, StringComparison.OrdinalIgnoreCase) < 0; break;
                     case "in":
                         string[] mozliweWartosci = warVal.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                         foreach (string mw in mozliweWartosci)

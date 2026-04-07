@@ -39,7 +39,7 @@ Tworzy nową definicję bloku z aktualnie zaznaczonych obiektów.
 ## 🔍 Selekcja i Inspekcja
 
 ### 6. `SelectEntities` **[IsCore: Tak]**
-Główny silnik wyszukiwania. Filtruje obiekty po typach, warstwach i właściwościach.
+Główny silnik wyszukiwania. Filtruje obiekty po typach, warstwach i właściwościach. Wspiera `AdvancedFilters` dla skomplikowanych zapytań (np. `Transparency > 50`, `TextOverride` zawiera tagi formatowania) z użyciem operatorów arytmetycznych i tekstowych.
 
 ### 7. `InspectEntity` **[IsCore: Tak]**
 Pobiera szczegółowy zrzut DXF/Properties dla konkretnego Handle lub pierwszego elementu z zaznaczenia.
