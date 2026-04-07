@@ -85,6 +85,20 @@ namespace Bricscad_AgentAI_V2.Core
                 return $"BŁĄD KRYTYCZNY (ZŁAMANIE PROTOKOŁU): Narzędzie '{toolName}' jest obecnie uśpione (niedostępne w Twoim arsenale). ZABRONIONE JEST wywoływanie narzędzi w ciemno. MUSISZ najpierw wywołać narzędzie 'RequestAdditionalTools' z Action='LoadCategory' i parametrem CategoryName='{toolName}', aby załadować jego schemat. Dopiero po załadowaniu będziesz mógł go użyć.";
             }
 
+            // PRZECHWYCENIE: Dynamiczne ładowanie narzędzi do sesji w locie
+            if (toolName.Equals("RequestAdditionalTools", StringComparison.OrdinalIgnoreCase))
+            {
+                string action = arguments["Action"]?.ToString() ?? "";
+                if (action.Equals("LoadCategory", StringComparison.OrdinalIgnoreCase))
+                {
+                    string categoryName = arguments["CategoryName"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(categoryName))
+                    {
+                        ToolConfigManager.SessionDynamicTags.Add(categoryName);
+                    }
+                }
+            }
+
             try
             {
                 return tool.Execute(doc, arguments);

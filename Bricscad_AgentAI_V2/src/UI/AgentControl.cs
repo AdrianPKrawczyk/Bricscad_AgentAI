@@ -518,6 +518,7 @@ namespace Bricscad_AgentAI_V2.UI
         {
             AgentMemoryState.Clear();
             AgentMemoryState.Variables.Clear();
+            ToolConfigManager.SessionDynamicTags.Clear();
             RebuildSystemPrompt();
             AppendToHistory("SYSTEM", "Konwersacja i pamięć zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
         }

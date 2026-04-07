@@ -20,12 +20,25 @@ namespace Bricscad_AgentAI_V2.Core
     /// </summary>
     public static class ToolConfigManager
     {
-        private static string ConfigPath => Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), 
-            "tools_config.json"
-        );
-
         private static Dictionary<string, ToolSettings> _settings = new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
+        private static string _configPath;
+
+        public static HashSet<string> SessionDynamicTags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static string ConfigPath
+        {
+            get
+            {
+                if (_configPath == null)
+                {
+                    _configPath = Path.Combine(
+                        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                        "tools_config.json"
+                    );
+                }
+                return _configPath;
+            }
+        }
 
         /// <summary>
         /// Inicjalizuje konfigurację. Jeśli plik nie istnieje, generuje domyślny 
@@ -115,6 +128,9 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         public static bool IsToolActive(string apiName, IEnumerable<string> requestedTags)
         {
+            if (SessionDynamicTags.Contains(apiName)) return true;
+            if (requestedTags != null && requestedTags.Any(rt => SessionDynamicTags.Contains(rt))) return true;
+
             if (!_settings.TryGetValue(apiName, out var s)) return false;
 
             // Narzędzia Core są ZAWSZE aktywne
