@@ -77,26 +77,37 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void RebuildSystemPrompt()
         {
-            // Pobieramy unikalne tagi poboczne, np. #warstwy, #bloki
-            string availableCategoriesStr = string.Join(", ", ToolConfigManager.GetAvailableCategories());
+            // 1. Budowanie katalogu uśpionych narzędzi (Pobieramy opisy prosto z C#)
+            var dormantTools = new List<string>();
+            foreach (var tool in _orchestrator.GetRegisteredTools())
+            {
+                var schema = tool.GetToolSchema()?.Function;
+                if (schema == null) continue;
 
+                var settings = ToolConfigManager.GetSettings(schema.Name);
+                if (settings != null && !settings.IsCore)
+                {
+                    string tags = string.IsNullOrEmpty(settings.Tags) ? "BRAK_TAGU" : settings.Tags;
+                    dormantTools.Add($"- Narzędzie: '{schema.Name}' (Tagi: {tags}) -> Opis: {schema.Description}");
+                }
+            }
+            string dormantCatalog = string.Join("\n", dormantTools);
+
+            // 2. Łączenie promptu z nową dynamiczną listą
             string systemPrompt = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. " +
                 "NIGDY nie używaj tagów takich jak [FOR_EACH] czy [CREATE_OBJECT]. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). " +
                 "PAMIĘTAJ: Dla obiektów Circle używaj ZAWSZE 'Center' i 'Radius'. Parametry 'StartPoint' i 'EndPoint' są zarezerwowane WYŁĄCZNIE dla linii. " +
-                "PRZYKŁAD KONCEPCYJNY: Jeśli użytkownik prosi o 'N okręgów co wektor X,Y,Z', użyj narzędzia 'Foreach'. " +
-                "DELEGOWANIE OBLICZEŃ (RPN) [SUPERMOCE]: KRYTYCZNE ZAGROŻENIE BŁĘDEM: Jesteś modelem językowym, a nie kalkulatorem. Twoje obliczenia w pamięci ZAWSZE są błędne. Jeśli w zadaniu musisz dodać, odjąć lub pomnożyć JAKĄKOLWIEK wartość, MASZ CAŁKOWITY ZAKAZ podawania gotowego wyniku liczbowego. ZAMIAST TEGO MUSISZ użyć notacji RPN. " +
+                "PRZYKŁAD KONCEPCYJNY: Jeśli użytkownik prosi o 'N okręgów co wektor X,Y,Z', użyj narzędzia 'Foreach'. W jego parametrze 'GenerateSequence' ustaw Count na zadaną liczbę N, OffsetVector na podany wektor. W parametrze 'Action' przekaż JSON docelowego narzędzia (np. 'CreateObject'), gdzie pole odpowiadające za pozycję ma wartość '{item}'. " +
+                "DELEGOWANIE OBLICZEŃ (RPN) [SUPERMOCE]: KRYTYCZNE ZAGROŻENIE BŁĘDEM: Jesteś modelem językowym, a nie kalkulatorem. Twoje obliczenia w pamięci ZAWSZE są błędne. Jeśli w zadaniu musisz dodać, odjąć lub pomnożyć JAKĄKOLWIEK wartość (współrzędną lub promień), MASZ CAŁKOWITY ZAKAZ podawania gotowego wyniku liczbowego. ZAMIAST TEGO MUSISZ użyć notacji RPN. " +
                 "Składnia RPN: Użyj przedrostka 'RPN: ' wewnątrz wartości parametru (np. '2 2 +'). " +
-                "- Jednostki fizyczne: Zawsze możesz podać wartość wraz z jednostką używając formatu 'WARTOŚĆ_JEDNOSTKA' (np. '100_mm', '5_m'). " +
-                "- Inteligentna konwersja wymiarów: System sam przelicza jednostki! Możesz zlecić 'RPN: 100_mm 20_cm +' a system poprawnie to doda. " +
-                "- KOLORY (ACI / RGB / SYSTEM): Właściwość 'Color' obsługuje 3 formaty. 1. Systemowe: 256 (ByLayer), 0 (ByBlock). 2. ACI: numery 1-255. 3. RGB: 'R,G,B'. " +
-                "- PERCEPCJA WIZUALNA: Jeśli użytkownik pyta o obiekty, które 'wyglądają jak' lub 'są widoczne' w określonym kolorze, ZAWSZE używaj właściwości wirtualnych: 'VisualColor', 'VisualLinetype' itd. " +
-                "- GRUBOŚĆ LINII (LineWeight): -1 = ByLayer, -2 = ByBlock, -3 = Domyślna. Wartości dodatnie to setne milimetra (np. 25 = 0.25 mm). " +
-                "- ŁĄCZENIE TEKSTÓW (CONCAT): Używaj operatora 'CONCAT'. Teksty otaczaj pojedynczym cudzysłowem. Przykład: 'RPN: \\'Poziom +\\' {index} CONCAT'. " +
-                "- ZNAKI NOWEJ LINII: Aby złamać wiersz (MText), używaj podwójnie uciecznionego znaku P (\\\\P). " +
-                "- WARUNKI LOGICZNE (IFTE): [warunek] [prawda] [fałsz] IFTE. " +
-                $"- DOSTĘPNE PAKIETY NARZĘDZI (BARDZO WAŻNE): Aktualnie znasz tylko narzędzia podstawowe (Core). Jeśli użytkownik prosi o operację na strukturze rysunku (np. warstwy, bloki, wymiary, style), a Ty nie masz dedykowanego narzędzia na liście, ZABRONIONE JEST zgadywanie jego parametrów. Zamiast tego jako pierwszy krok MUSISZ użyć narzędzia 'RequestAdditionalTools' z akcją 'LoadCategory'. Dostępne w systemie pakiety narzędzi to: {availableCategoriesStr}. " +
-                "- GEOMETRIA VS METADANE RYSUNKU: Musisz bezwzględnie rozróżniać obiekty graficzne od struktury organizacyjnej. Warstwy to metadane strukturalne - do operacji na nich ZAWSZE używaj 'ManageLayers' (po upewnieniu się, że jest załadowane). " +
-                "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości. Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls).";
+                "- Jednostki fizyczne: Używaj formatu 'WARTOŚĆ_JEDNOSTKA' (np. '100_mm'). System sam je przelicza! " +
+                "- KOLORY (ACI / RGB / SYSTEM): Właściwość 'Color' obsługuje numery (1=Red), systemowe (256=ByLayer) oraz RGB ('R,G,B'). " +
+                "- GRUBOŚĆ LINII (LineWeight): -1 = JakWarstwa, inne to setne milimetra (np. 25 = 0.25 mm). " +
+                "- PERCEPCJA WIZUALNA: Jeśli użytkownik pyta o obiekty, które 'wyświetlają się' w kolorze, użyj właściwości 'VisualColor'. " +
+                "- ZNAKI NOWEJ LINII: W MText i MLeader użyj podwójnie uciecznionego znaku P (\\\\P). " +
+                $"\n\n--- KATALOG NARZĘDZI UŚPIONYCH ---\nAktualnie znasz tylko potężne narzędzia Core (m.in. SelectEntities, CreateObject, ModifyProperties). Jednak w systemie zainstalowane są również inne specjalistyczne narzędzia. Oto ich wykaz:\n{dormantCatalog}\n" +
+                "ZASADA KRYTYCZNA: Jeśli chcesz użyć uśpionego narzędzia z powyższej listy (np. do operacji na warstwach), ZABRONIONE JEST zgadywanie jego parametrów i wywoływanie go od razu. Zamiast tego MUSISZ w pierwszym kroku wywołać narzędzie 'RequestAdditionalTools' z Action='LoadCategory' i podać w CategoryName nazwę tego narzędzia (np. 'ManageLayers') lub jego Tag. Dopiero gdy zostanie załadowane, będziesz mógł z niego skorzystać w kolejnej turze.\n" +
+                "KRYTYCZNE: ZABRONIONE JEST wypisywanie wywołań narzędzi jako tekstu w wiadomości (np. używając bloków tool_request). Wywołania narzędzi MUSZĄ być wysłane w tle, wyłącznie poprzez natywny interfejs API (funkcję tool_calls).";
 
             _conversationHistory = new List<ChatMessage>
             {

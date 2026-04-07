@@ -105,5 +105,10 @@ namespace Bricscad_AgentAI_V2.Core
             }
             return sb.ToString();
         }
+
+        public IEnumerable<IToolV2> GetRegisteredTools()
+        {
+            return _tools.Values;
+        }
     }
 }

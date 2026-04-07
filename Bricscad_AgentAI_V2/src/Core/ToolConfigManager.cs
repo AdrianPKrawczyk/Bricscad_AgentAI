@@ -125,6 +125,9 @@ namespace Bricscad_AgentAI_V2.Core
 
             // Logika filtrowania tagów dla Tool Pools
             if (requestedTags == null || !requestedTags.Any()) return false;
+
+            // ZMIANA: Aktywacja bezpośrednio po nazwie narzędzia (fallback dla braku tagów)
+            if (requestedTags.Any(rt => rt.Equals(apiName, StringComparison.OrdinalIgnoreCase))) return true;
             var toolTags = s.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim().ToLower());
             return requestedTags.Any(rt => toolTags.Contains(rt.ToLower()));
         }
