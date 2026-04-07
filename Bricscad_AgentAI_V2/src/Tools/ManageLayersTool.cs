@@ -68,6 +68,7 @@ namespace Bricscad_AgentAI_V2.Tools
             }
 
             int successCount = 0;
+            string layerToMakeCurrent = null;
 
             try
             {
@@ -115,7 +116,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                     else return $"BŁĄD: Rodzaj linii '{linetype}' nie istnieje w rysunku.";
                                 }
 
-                                if (makeCurrent) db.Clayer = ltr.ObjectId;
+                                if (makeCurrent) layerToMakeCurrent = lName; // Zapamiętujemy, by aktywować PO transakcji
                                 successCount++;
                             }
                             else if (action.Equals("Rename", StringComparison.OrdinalIgnoreCase))
@@ -172,6 +173,20 @@ namespace Bricscad_AgentAI_V2.Tools
                             }
                         }
                         tr.Commit();
+                    }
+
+                    // DRUGA FAZA: Ustawienie jako aktualna po upewnieniu się, że obiekt fizycznie istnieje w bazie
+                    if (!string.IsNullOrEmpty(layerToMakeCurrent))
+                    {
+                        using (Transaction tr2 = db.TransactionManager.StartTransaction())
+                        {
+                            LayerTable lt2 = (LayerTable)tr2.GetObject(db.LayerTableId, OpenMode.ForRead);
+                            if (lt2.Has(layerToMakeCurrent))
+                            {
+                                db.Clayer = lt2[layerToMakeCurrent];
+                            }
+                            tr2.Commit();
+                        }
                     }
                 }
             }
