@@ -50,13 +50,24 @@ namespace Bricscad_AgentAI_V2.Tools
             string newName = args["NewName"]?.ToString() ?? "";
             string color = args["ColorIndex"]?.ToString() ?? "";
             string state = args["State"]?.ToString() ?? "";
-            bool makeCurrent = args["MakeCurrent"] != null && (bool)args["MakeCurrent"];
             string linetype = args["Linetype"]?.ToString() ?? "";
+            
+            // BEZPIECZNE parsowanie booleana z JSON-a
+            bool makeCurrent = false;
+            if (args["MakeCurrent"] != null)
+            {
+                bool.TryParse(args["MakeCurrent"].ToString(), out makeCurrent);
+            }
 
-            if (string.IsNullOrEmpty(layerPattern)) return "BŁĄD: Nazwa warstwy nie może być pusta.";
+            if (string.IsNullOrEmpty(layerPattern)) return "BŁĄD: Nazwa warstwy (LayerName) nie może być pusta.";
+
+            string[] validActions = { "Create", "Toggle", "Rename", "Delete" };
+            if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
+            {
+                return $"BŁĄD: Nieobsługiwana akcja '{action}'. Dozwolone wartości to: Create, Toggle, Rename, Delete.";
+            }
 
             int successCount = 0;
-            StringBuilder sb = new StringBuilder();
 
             try
             {
@@ -76,7 +87,8 @@ namespace Bricscad_AgentAI_V2.Tools
 
                             if (action.Equals("Create", StringComparison.OrdinalIgnoreCase))
                             {
-                                if (isWildcard) continue;
+                                if (isWildcard) return $"BŁĄD: Nie można utworzyć warstwy ze znakami maski (*, ?): {lName}";
+                                
                                 LayerTableRecord ltr;
                                 if (!lt.Has(lName))
                                 {
@@ -91,19 +103,33 @@ namespace Bricscad_AgentAI_V2.Tools
 
                                 // Kolor
                                 if (!string.IsNullOrEmpty(color) && short.TryParse(color, out short cIdx))
+                                {
                                     ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, cIdx);
+                                }
 
                                 // Linetype
                                 if (!string.IsNullOrEmpty(linetype))
                                 {
                                     LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForRead);
                                     if (ltt.Has(linetype)) ltr.LinetypeObjectId = ltt[linetype];
+                                    else return $"BŁĄD: Rodzaj linii '{linetype}' nie istnieje w rysunku.";
                                 }
 
                                 if (makeCurrent) db.Clayer = ltr.ObjectId;
                                 successCount++;
                             }
-                            else if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Rename", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
+                            else if (action.Equals("Rename", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (isWildcard) return "BŁĄD: Zmiana nazwy (Rename) nie obsługuje masek (wildcards).";
+                                if (string.IsNullOrEmpty(newName)) return "BŁĄD: Parametr 'NewName' nie może być pusty.";
+                                if (!lt.Has(lName)) return $"BŁĄD: Warstwa źródłowa '{lName}' nie istnieje.";
+                                if (lt.Has(newName)) return $"BŁĄD: Warstwa docelowa '{newName}' już istnieje.";
+
+                                LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(lt[lName], OpenMode.ForWrite);
+                                ltr.Name = newName;
+                                successCount++;
+                            }
+                            else if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase) || action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
                             {
                                 Regex regex = isWildcard ? new Regex("^" + Regex.Escape(lName).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase) : null;
 
@@ -115,22 +141,18 @@ namespace Bricscad_AgentAI_V2.Tools
                                         if (action.Equals("Toggle", StringComparison.OrdinalIgnoreCase))
                                         {
                                             ltr.UpgradeOpen();
+                                            bool stateValid = true;
+                                            
                                             if (state.Equals("Locked", StringComparison.OrdinalIgnoreCase)) ltr.IsLocked = true;
                                             else if (state.Equals("Unlocked", StringComparison.OrdinalIgnoreCase)) ltr.IsLocked = false;
                                             else if (state.Equals("Frozen", StringComparison.OrdinalIgnoreCase)) { if (db.Clayer != id) ltr.IsFrozen = true; }
                                             else if (state.Equals("Thawed", StringComparison.OrdinalIgnoreCase)) ltr.IsFrozen = false;
                                             else if (state.Equals("Off", StringComparison.OrdinalIgnoreCase)) ltr.IsOff = true;
                                             else if (state.Equals("On", StringComparison.OrdinalIgnoreCase)) ltr.IsOff = false;
-                                            successCount++;
-                                        }
-                                        else if (action.Equals("Rename", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(newName) && !isWildcard)
-                                        {
-                                            if (!lt.Has(newName))
-                                            {
-                                                ltr.UpgradeOpen();
-                                                ltr.Name = newName;
-                                                successCount++;
-                                            }
+                                            else stateValid = false;
+
+                                            if (stateValid) successCount++;
+                                            else return $"BŁĄD: Nieznany lub brakujący stan '{state}'. Dozwolone: Locked, Unlocked, Frozen, Thawed, Off, On.";
                                         }
                                         else if (action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
                                         {
@@ -142,7 +164,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                                     ltr.Erase();
                                                     successCount++;
                                                 }
-                                                catch { }
+                                                catch { } // Pomija błąd np. gdy warstwa nie jest pusta
                                             }
                                         }
                                     }
