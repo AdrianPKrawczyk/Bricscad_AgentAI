@@ -7,6 +7,7 @@ using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json.Linq;
 using Teigha.DatabaseServices;
 using Teigha.Colors;
+using System.Globalization;
 
 namespace Bricscad_AgentAI_V2.Tools
 {
@@ -45,120 +46,120 @@ namespace Bricscad_AgentAI_V2.Tools
                 return "BŁĄD: Pamięć Agenta jest pusta. Użyj najpierw SelectEntitiesTool, by wybrać wymiary.";
             }
 
+            Database db = doc.Database;
             int udane = 0;
             int pominiete = 0;
             var ostrzezenia = new List<string>();
 
             try
             {
+                // 1. Blokada dokumentu zapobiega eLockViolation
                 using (doc.LockDocument())
-                using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                 {
-                    BlockTable bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
-
-                    foreach (ObjectId id in AgentMemoryState.ActiveSelection)
+                    using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
-                        Entity ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
-                        if (ent == null) continue;
-
-                        if (ent is Dimension dim)
+                        foreach (ObjectId id in AgentMemoryState.ActiveSelection)
                         {
-                            bool modified = false;
-
-                            // 1. TextOverride
-                            if (args.TryGetValue("TextOverride", out JToken tokenText))
+                            try
                             {
-                                dim.DimensionText = tokenText.ToString();
-                                modified = true;
-                            }
-
-                            // 2. OverallScale (Dimscale)
-                            if (args.TryGetValue("OverallScale", out JToken tokenScale))
-                            {
-                                if (double.TryParse(tokenScale.ToString(), out double scale))
+                                // 2. KRYTYCZNE: Otwarcie do zapisu (ForWrite)
+                                DBObject obj = tr.GetObject(id, OpenMode.ForWrite);
+                                if (obj is Dimension dim)
                                 {
-                                    dim.Dimscale = scale;
-                                    modified = true;
+                                    bool modified = false;
+
+                                    // TextOverride
+                                    if (args.TryGetValue("TextOverride", out JToken tokText))
+                                    {
+                                        dim.DimensionText = tokText.ToString();
+                                        modified = true;
+                                    }
+
+                                    // OverallScale (Bezpieczne parsowanie, nawet jeśli LLM wyśle string "3.5")
+                                    if (args.TryGetValue("OverallScale", out JToken tokScale))
+                                    {
+                                        if (double.TryParse(tokScale.ToString().Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double scale))
+                                        {
+                                            dim.Dimscale = scale;
+                                            modified = true;
+                                        }
+                                    }
+
+                                    // ArrowBlock (Bezpieczne Arrow Logic z poprzedniego hotfixa)
+                                    if (args.TryGetValue("ArrowBlock", out JToken tokArrow))
+                                    {
+                                        string blkName = tokArrow.ToString();
+                                        try
+                                        {
+                                            ObjectId arrowId = db.GetArrowObjectId(blkName);
+                                            if (!arrowId.IsNull)
+                                            {
+                                                dim.Dimblk = arrowId;
+                                                dim.Dimblk1 = arrowId;
+                                                dim.Dimblk2 = arrowId;
+                                                modified = true;
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            ostrzezenia.Add($"API odrzuciło strzałkę '{blkName}': {ex.Message}");
+                                        }
+                                    }
+
+                                    // TextColor (Bezpieczne parsowanie indeksu koloru ACI)
+                                    if (args.TryGetValue("TextColor", out JToken tokColorT) && short.TryParse(tokColorT.ToString(), out short colT))
+                                    {
+                                        dim.Dimclrt = Color.FromColorIndex(ColorMethod.ByAci, colT);
+                                        modified = true;
+                                    }
+
+                                    // DimLineColor
+                                    if (args.TryGetValue("DimLineColor", out JToken tokColorD) && short.TryParse(tokColorD.ToString(), out short colD))
+                                    {
+                                        dim.Dimclrd = Color.FromColorIndex(ColorMethod.ByAci, colD);
+                                        modified = true;
+                                    }
+
+                                    // ExtLineColor
+                                    if (args.TryGetValue("ExtLineColor", out JToken tokColorE) && short.TryParse(tokColorE.ToString(), out short colE))
+                                    {
+                                        dim.Dimclre = Color.FromColorIndex(ColorMethod.ByAci, colE);
+                                        modified = true;
+                                    }
+
+                                    if (modified)
+                                    {
+                                        udane++;
+                                        // 3. Rekompilacja grafiki wymiaru w pamięci bazy
+                                        dim.RecomputeDimensionBlock(true);
+                                    }
+                                }
+                                else
+                                {
+                                    pominiete++;
                                 }
                             }
-
-                            // 3. TextColor (Dimclrt)
-                            if (args.TryGetValue("TextColor", out JToken tokenTextColor))
+                            catch (Exception entityEx)
                             {
-                                if (short.TryParse(tokenTextColor.ToString(), out short aci))
-                                {
-                                    dim.Dimclrt = Color.FromColorIndex(ColorMethod.ByAci, aci);
-                                    modified = true;
-                                }
-                            }
-
-                            // 4. DimLineColor (Dimclrd)
-                            if (args.TryGetValue("DimLineColor", out JToken tokenDimCol))
-                            {
-                                if (short.TryParse(tokenDimCol.ToString(), out short aci))
-                                {
-                                    dim.Dimclrd = Color.FromColorIndex(ColorMethod.ByAci, aci);
-                                    modified = true;
-                                }
-                            }
-
-                            // 5. ExtLineColor (Dimclre)
-                            if (args.TryGetValue("ExtLineColor", out JToken tokenExtCol))
-                            {
-                                if (short.TryParse(tokenExtCol.ToString(), out short aci))
-                                {
-                                    dim.Dimclre = Color.FromColorIndex(ColorMethod.ByAci, aci);
-                                    modified = true;
-                                }
-                            }
-
-                            // 6. ArrowBlock (Dimblk, Dimblk1, Dimblk2)
-                            if (args.TryGetValue("ArrowBlock", out JToken tokenArrow))
-                            {
-                                string blkName = tokenArrow.ToString();
-                                try
-                                {
-                                    // Silnik Teigha sam wygeneruje blok (np. _ARCHTICK), jeśli nie ma go w tabeli
-                                    ObjectId arrowId = doc.Database.GetArrowObjectId(blkName);
-                                    
-                                    // Musimy nadpisać główny grot ORAZ ewentualne lokalne nadpisania wymiaru
-                                    dim.Dimblk = arrowId;
-                                    dim.Dimblk1 = arrowId;
-                                    dim.Dimblk2 = arrowId;
-                                    
-                                    modified = true;
-                                }
-                                catch (Exception ex)
-                                {
-                                    ostrzezenia.Add($"Ostrzeżenie: API CAD odrzuciło strzałkę '{blkName}'. Powód: {ex.Message}");
-                                }
-                            }
-
-                            if (modified)
-                            {
-                                udane++;
-                                // Zmusza BricsCAD do wygenerowania nowej grafiki wymiaru po zmianie parametrów
-                                dim.RecomputeDimensionBlock(true);
+                                ostrzezenia.Add($"Błąd edycji obiektu {id}: {entityEx.Message}");
                             }
                         }
-                        else
-                        {
-                            pominiete++;
-                        }
+                        tr.Commit();
                     }
 
-                    tr.Commit();
+                    // 4. KRYTYCZNE: Szturchnięcie silnika BricsCAD do odświeżenia okna widoku (Stale UI Fix)
+                    doc.SendStringToExecute("_.REGEN \n", true, false, false);
                 }
 
-                string summary = $"Pomyślnie zmodyfikowano {udane} wymiarów.";
+                string summary = $"SUKCES: Zmodyfikowano {udane} wymiarów.";
                 if (pominiete > 0) summary += $" Pominięto {pominiete} obiektów (nie były wymiarami).";
-                if (ostrzezenia.Count > 0) summary += "\n" + string.Join("\n", ostrzezenia.Distinct());
+                if (ostrzezenia.Count > 0) summary += $" Ostrzeżenia: {string.Join(" | ", ostrzezenia.Distinct())}";
 
                 return summary;
             }
             catch (Exception ex)
             {
-                return $"BŁĄD KRYTYCZNY: {ex.Message}";
+                return $"BŁĄD KRYTYCZNY NARZĘDZIA: {ex.Message}";
             }
         }
     }
