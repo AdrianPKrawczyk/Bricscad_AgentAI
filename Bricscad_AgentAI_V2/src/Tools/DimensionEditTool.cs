@@ -112,27 +112,34 @@ namespace Bricscad_AgentAI_V2.Tools
                                 }
                             }
 
-                            // 6. ArrowBlock (Dimblk)
+                            // 6. ArrowBlock (Dimblk, Dimblk1, Dimblk2)
                             if (args.TryGetValue("ArrowBlock", out JToken tokenArrow))
                             {
                                 string blkName = tokenArrow.ToString();
-                                if (string.IsNullOrEmpty(blkName))
+                                try
                                 {
-                                    dim.Dimblk = ObjectId.Null;
+                                    // Silnik Teigha sam wygeneruje blok (np. _ARCHTICK), jeśli nie ma go w tabeli
+                                    ObjectId arrowId = doc.Database.GetArrowObjectId(blkName);
+                                    
+                                    // Musimy nadpisać główny grot ORAZ ewentualne lokalne nadpisania wymiaru
+                                    dim.Dimblk = arrowId;
+                                    dim.Dimblk1 = arrowId;
+                                    dim.Dimblk2 = arrowId;
+                                    
                                     modified = true;
                                 }
-                                else if (bt.Has(blkName))
+                                catch (Exception ex)
                                 {
-                                    dim.Dimblk = bt[blkName];
-                                    modified = true;
-                                }
-                                else
-                                {
-                                    ostrzezenia.Add($"Ostrzeżenie: Nie znaleziono bloku strzałki '{blkName}' w rysunku.");
+                                    ostrzezenia.Add($"Ostrzeżenie: API CAD odrzuciło strzałkę '{blkName}'. Powód: {ex.Message}");
                                 }
                             }
 
-                            if (modified) udane++;
+                            if (modified)
+                            {
+                                udane++;
+                                // Zmusza BricsCAD do wygenerowania nowej grafiki wymiaru po zmianie parametrów
+                                dim.RecomputeDimensionBlock(true);
+                            }
                         }
                         else
                         {
