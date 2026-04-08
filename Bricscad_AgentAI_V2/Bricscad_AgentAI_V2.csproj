@@ -77,8 +77,10 @@
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
     <Compile Include="src\Tools\ManageLayersTool.cs" />
+    <Compile Include="src\Tools\DimensionEditTool.cs" />
     <Compile Include="src\Tools\ExecuteMacroTool.cs" />
     <Compile Include="src\Tools\ReadPropertyTool.cs" />
+    <Compile Include="src\Tools\InspectEntityTool.cs" />
     <Compile Include="src\Tools\GetPropertiesTool.cs" />
     <Compile Include="src\Tools\AnalyzeSelectionTool.cs" />
     <Compile Include="src\Tools\ReadTextSampleTool.cs" />

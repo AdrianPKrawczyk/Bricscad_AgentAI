@@ -26,6 +26,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnClearLog;
         private Button btnLoadSelection;
         private Label lblDescription;
+        private SplitContainer splitHeader;
 
         public ToolSandboxControl()
         {
@@ -45,35 +46,56 @@ namespace Bricscad_AgentAI_V2.UI
             // --- GÓRA (Panel Sterowania i Edytor) ---
             Panel panTop = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
             
-            Panel panHeader = new Panel { Dock = DockStyle.Top, Height = 180 };
-            
-            Label lblPick = new Label { Text = "🛠️ Wybierz narzędzie:", Dock = DockStyle.Top, Height = 20, ForeColor = Color.LightGray };
+            // SPLIT HEADER (Resizable: góra Wybór, dół Dokumentacja)
+            splitHeader = new SplitContainer 
+            { 
+                Dock = DockStyle.Top, 
+                Orientation = Orientation.Horizontal, 
+                Height = UISettingsManager.Settings.ToolSandboxHeaderHeight,
+                SplitterWidth = 4,
+                BackColor = Color.FromArgb(50, 50, 50)
+            };
+            splitHeader.SplitterMoved += (s, e) => {
+                UISettingsManager.Settings.ToolSandboxHeaderHeight = splitHeader.Height;
+                UISettingsManager.Save();
+            };
+
+            // Panel wyboru (Góra splitera nagłówka)
+            Panel panTools = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 0, 5), BackColor = Color.FromArgb(30, 30, 30) };
+            Label lblPick = new Label { Text = "🛠️ Wybierz narzędzie:", Dock = DockStyle.Top, Height = 25, ForeColor = Color.LightGray };
             cmbTools = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             cmbTools.SelectedIndexChanged += CmbTools_SelectedIndexChanged;
             
-            lblDescription = new Label { Text = "Opis narzędzia...", Dock = DockStyle.Top, Height = 40, ForeColor = Color.DarkGray, Font = new Font(this.Font, FontStyle.Italic), Padding = new Padding(0, 5, 0, 5) };
+            lblDescription = new Label { Text = "Opis narzędzia...", Dock = DockStyle.Top, Height = 45, ForeColor = Color.DarkGray, Font = new Font(this.Font, FontStyle.Italic), Padding = new Padding(0, 5, 0, 5) };
 
-            Label lblExampleTag = new Label { Text = "📋 Wczytaj przykład (Snippets):", Dock = DockStyle.Top, Height = 20, ForeColor = Color.LightGray, Margin = new Padding(0, 5, 0, 0) };
+            Label lblExampleTag = new Label { Text = "📋 Wczytaj przykład (Snippets):", Dock = DockStyle.Top, Height = 25, ForeColor = Color.LightGray, Margin = new Padding(0, 10, 0, 0) };
             cmbExamples = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.Cyan, FlatStyle = FlatStyle.Flat };
             cmbExamples.SelectedIndexChanged += CmbExamples_SelectedIndexChanged;
+            
+            panTools.Controls.Add(cmbExamples);
+            panTools.Controls.Add(lblExampleTag);
+            panTools.Controls.Add(lblDescription);
+            panTools.Controls.Add(cmbTools);
+            panTools.Controls.Add(lblPick);
 
+            // Panel dokumentacji (Dół splitera nagłówka)
+            Panel panDoc = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 5, 0, 0), BackColor = Color.FromArgb(30, 30, 30) };
             txtParamDoc = new RichTextBox
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(35, 35, 35),
                 ForeColor = Color.White,
-                Font = new Font("Consolas", 9f),
+                Font = new Font("Consolas", 10f),
                 ReadOnly = true,
                 BorderStyle = BorderStyle.FixedSingle
             };
-            
-            panHeader.Controls.Add(txtParamDoc);
-            panHeader.Controls.Add(new Label { Text = "📖 Dokumentacja parametrów:", Dock = DockStyle.Top, Height = 20, ForeColor = Color.DarkGray, Font = new Font(this.Font, FontStyle.Bold) });
-            panHeader.Controls.Add(cmbExamples);
-            panHeader.Controls.Add(lblExampleTag);
-            panHeader.Controls.Add(lblDescription);
-            panHeader.Controls.Add(cmbTools);
-            panHeader.Controls.Add(lblPick);
+            txtParamDoc.DoubleClick += TxtParamDoc_DoubleClick;
+
+            panDoc.Controls.Add(txtParamDoc);
+            panDoc.Controls.Add(new Label { Text = "📖 Dokumentacja (Discovery) - Kliknij 2x by wstawić parametr:", Dock = DockStyle.Top, Height = 25, ForeColor = Color.DarkGray, Font = new Font(this.Font, FontStyle.Bold) });
+
+            splitHeader.Panel1.Controls.Add(panTools);
+            splitHeader.Panel2.Controls.Add(panDoc);
 
             Panel panButtons = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(0, 5, 0, 0) };
             btnExecute = CreateButton("🚀 Execute Tool", Color.FromArgb(0, 122, 204), DockStyle.Right, 150);
@@ -99,7 +121,7 @@ namespace Bricscad_AgentAI_V2.UI
             panTop.Controls.Add(txtArgs);
             panTop.Controls.Add(panButtons);
             panTop.Controls.Add(new Label { Text = "⌨️ Edytor Argumentów JSON (komentarze // są dozwolone):", Dock = DockStyle.Top, Height = 25, ForeColor = Color.Orange, Margin = new Padding(0, 5, 0, 0) });
-            panTop.Controls.Add(panHeader);
+            panTop.Controls.Add(splitHeader);
 
             splitMain.Panel1.Controls.Add(panTop);
 
@@ -174,7 +196,7 @@ namespace Bricscad_AgentAI_V2.UI
                 UpdateParamDoc(schema.Function.Parameters);
                 LoadExamples(item.Tool.Examples);
 
-                // Generowanie szablonu JSON
+                // Generowanie MINIMALISTYCZNEGO szablonu JSON (tylko pola Required)
                 var template = GenerateJsonTemplate(schema.Function.Parameters);
                 txtArgs.Text = template;
             }
@@ -237,19 +259,74 @@ namespace Bricscad_AgentAI_V2.UI
             }
         }
 
+        private void TxtParamDoc_DoubleClick(object sender, EventArgs e)
+        {
+            int pos = txtParamDoc.SelectionStart;
+            int lineIdx = txtParamDoc.GetLineFromCharIndex(pos);
+            if (lineIdx < 0 || lineIdx >= txtParamDoc.Lines.Length) return;
+
+            string line = txtParamDoc.Lines[lineIdx];
+            var match = Regex.Match(line, @"•\s*(\w+)");
+            if (match.Success)
+            {
+                string paramName = match.Groups[1].Value;
+                InsertParameterToEditor(paramName);
+            }
+        }
+
+        private void InsertParameterToEditor(string paramName)
+        {
+            string current = txtArgs.Text.Trim();
+            if (current.Contains($"\"{paramName}\""))
+            {
+                // Parametr już istnieje, tylko znajdź go
+                int idx = txtArgs.Text.IndexOf($"\"{paramName}\"");
+                txtArgs.Focus();
+                txtArgs.Select(idx, paramName.Length + 2);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(current) || !current.Contains("{"))
+            {
+                txtArgs.Text = "{\n  \"" + paramName + "\": \"<cursor>\"\n}";
+            }
+            else
+            {
+                int lastBrace = txtArgs.Text.LastIndexOf('}');
+                if (lastBrace >= 0)
+                {
+                    string before = txtArgs.Text.Substring(0, lastBrace).TrimEnd();
+                    bool needsComma = before.Length > 1 && !before.EndsWith("{") && !before.EndsWith(",");
+                    string comma = needsComma ? "," : "";
+                    
+                    string newContent = before + comma + "\n  \"" + paramName + "\": \"<cursor>\"\n}";
+                    txtArgs.Text = newContent;
+                }
+            }
+
+            int cursorIdx = txtArgs.Text.IndexOf("<cursor>");
+            if (cursorIdx >= 0)
+            {
+                txtArgs.Focus();
+                txtArgs.Select(cursorIdx, 8);
+            }
+        }
+
         private string GenerateJsonTemplate(ParametersSchema parameters)
         {
             var sb = new StringBuilder();
             sb.AppendLine("{");
-            if (parameters?.Properties != null)
+            if (parameters?.Properties != null && parameters.Required != null)
             {
-                var props = parameters.Properties.ToList();
-                for (int i = 0; i < props.Count; i++)
+                var requiredProps = parameters.Properties
+                    .Where(p => parameters.Required.Contains(p.Key))
+                    .ToList();
+
+                for (int i = 0; i < requiredProps.Count; i++)
                 {
-                    var prop = props[i];
+                    var prop = requiredProps[i];
                     string val = GetPlaceholderValue(prop.Value);
-                    string comma = (i < props.Count - 1) ? "," : "";
-                    
+                    string comma = (i < requiredProps.Count - 1) ? "," : "";
                     sb.AppendLine($"  \"{prop.Key}\": {val}{comma} // {prop.Value.Description}");
                 }
             }
@@ -261,7 +338,7 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (param.Properties != null && param.Properties.Count > 0)
             {
-                return "{ ... }"; // Uproszczenie dla zagnieżdżonych
+                return "{ ... }";
             }
 
             switch (param.Type?.ToLower())
@@ -282,9 +359,7 @@ namespace Bricscad_AgentAI_V2.UI
                 Log($"--- Uruchamianie: {item.Name} ---", Color.Gold);
                 try
                 {
-                    // Oczyszczanie JSON z komentarzy // przed parsowaniem
                     string cleanJson = Regex.Replace(txtArgs.Text, @"//.*$", "", RegexOptions.Multiline);
-                    
                     var args = JObject.Parse(cleanJson);
                     Document doc = Application.DocumentManager.MdiActiveDocument;
                     
@@ -298,7 +373,7 @@ namespace Bricscad_AgentAI_V2.UI
                 {
                     Log($"[BŁĄD PARSOWANIA/WYKONANIA]: {ex.Message}", Color.Red);
                 }
-                Log("------------------------------------", Color.Gray);
+                Log("------------------------------------", Color.Gold);
             }
         }
 

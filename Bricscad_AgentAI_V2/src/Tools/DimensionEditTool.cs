@@ -91,7 +91,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                         string blkName = tokArrow.ToString();
                                         try
                                         {
-                                            ObjectId arrowId = db.GetArrowObjectId(blkName);
+                                            ObjectId arrowId = GetArrowObjectId(db, blkName);
                                             if (!arrowId.IsNull)
                                             {
                                                 dim.Dimblk = arrowId;
@@ -160,6 +160,29 @@ namespace Bricscad_AgentAI_V2.Tools
             catch (Exception ex)
             {
                 return $"BŁĄD KRYTYCZNY NARZĘDZIA: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Pobiera ObjectId bloku strzałki na podstawie nazwy (np. _ARCHTICK).
+        /// W BricsCAD API V22/V23 wymaga to często SymbolUtilityServices.
+        /// </summary>
+        private ObjectId GetArrowObjectId(Database db, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return ObjectId.Null;
+            
+            // Obsługa standardowego grotu (pusta nazwa w BricsCAD to często Closed Filled)
+            if (name.Equals("_DEFAULT", StringComparison.OrdinalIgnoreCase)) return ObjectId.Null;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                if (bt.Has(name))
+                {
+                    return bt[name];
+                }
+                
+                return ObjectId.Null;
             }
         }
 
