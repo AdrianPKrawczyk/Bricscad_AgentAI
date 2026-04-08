@@ -20,6 +20,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnSave;
         private Button btnDelete;
         private Button btnTestInSandbox;
+        private Button btnRunSequence;
         private SplitContainer splitMain;
 
         public AgentRecipeControl()
@@ -121,7 +122,12 @@ namespace Bricscad_AgentAI_V2.UI
             btnTestInSandbox = CreateButton("🧪 Testuj w Sandboxie", Color.FromArgb(60, 60, 60), DockStyle.Right, 180);
             btnTestInSandbox.Click += BtnTestInSandbox_Click;
 
+            btnRunSequence = CreateButton("🚀 Testuj Sekwencję", Color.SeaGreen, DockStyle.Right, 160);
+            btnRunSequence.Click += BtnRunSequence_Click;
+
             panBottom.Controls.Add(btnSave);
+            panBottom.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 10 }); // Spacer
+            panBottom.Controls.Add(btnRunSequence);
             panBottom.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 10 }); // Spacer
             panBottom.Controls.Add(btnTestInSandbox);
             panBottom.Controls.Add(btnDelete);
@@ -233,20 +239,117 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void BtnTestInSandbox_Click(object sender, EventArgs e)
         {
-            // Prześlij pierwszy element tool_calls do Sandboxa (uproszczenie)
-            // Lub całą sekwencję jeśli Sandbox by to wspierał. 
-            // Obecny Sandbox wykonuje jedno narzędzie.
             try
             {
                 var array = JArray.Parse(txtRecipeJson.Text);
-                if (array.Count > 0)
+                if (array.Count == 0) return;
+
+                if (array.Count == 1)
                 {
-                    // TODO: W przyszłości Sandbox powinien wspierać sekwencje.
-                    // Na razie bierzemy pierwszy call.
-                    MessageBox.Show("Funkcja testowania sekwencji w Sandboxie zostanie wkrótce rozszerzona.");
+                    SendToSandbox(array[0]);
+                }
+                else
+                {
+                    ContextMenuStrip menu = new ContextMenuStrip();
+                    for (int i = 0; i < array.Count; i++)
+                    {
+                        var call = array[i];
+                        string name = call["function"]?["name"]?.ToString() ?? $"Krok {i+1}";
+                        int idx = i;
+                        menu.Items.Add($"{i+1}. {name}", null, (s, ev) => SendToSandbox(call));
+                    }
+                    menu.Show(btnTestInSandbox, new Point(0, btnTestInSandbox.Height));
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd składni JSON: " + ex.Message);
+            }
+        }
+
+        private void SendToSandbox(JToken toolCall)
+        {
+            try
+            {
+                string name = toolCall["function"]?["name"]?.ToString();
+                var args = toolCall["function"]?["arguments"] as JObject;
+
+                if (string.IsNullOrEmpty(name) || args == null)
+                {
+                    // Fallback dla uproszczonego formatu (jeśli ktoś wpisał bez wrapperów)
+                    MessageBox.Show("Niepoprawny format kroku. Krok musi zawierać 'function' z 'name' i 'arguments'.");
+                    return;
+                }
+
+                if (ToolSandboxControl.Instance != null)
+                {
+                    ToolSandboxControl.Instance.LoadToolCall(name, args);
+                    // Switch tab
+                    var studio = this.Parent.Parent as DatasetStudioControl; // Recipes -> TabPage -> TabControl -> DatasetStudio
+                    if (studio != null)
+                    {
+                        foreach (TabPage tp in (studio.Controls[0] as TabControl).TabPages)
+                        {
+                            if (tp.Text.Contains("Sandbox"))
+                            {
+                                (studio.Controls[0] as TabControl).SelectedTab = tp;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd przesyłania do Sandboxa: " + ex.Message);
+            }
+        }
+
+        private void BtnRunSequence_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var array = JArray.Parse(txtRecipeJson.Text);
+                if (array.Count == 0) return;
+
+                var doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                int successCount = 0;
+                var logs = new System.Text.StringBuilder();
+                logs.AppendLine($"--- Rozpoczynanie sekwencji ({DateTime.Now:HH:mm:ss}) ---");
+
+                using (var loc = doc.LockDocument())
+                {
+                    foreach (var call in array)
+                    {
+                        string name = call["function"]?["name"]?.ToString();
+                        var args = call["function"]?["arguments"] as JObject;
+
+                        if (string.IsNullOrEmpty(name) || args == null)
+                        {
+                            logs.AppendLine($"[BŁĄD] Nieprawidłowy format kroku: {call.ToString(Formatting.None)}");
+                            break;
+                        }
+
+                        logs.AppendLine($"[WYKONUJĘ]: {name}...");
+                        string result = ToolOrchestrator.Instance.ExecuteTool(name, args, doc);
+                        logs.AppendLine($"[WYNIK]: {result}");
+
+                        if (result.Contains("BŁĄD")) break;
+                        successCount++;
+                    }
+                }
+
+                logs.AppendLine($"--- Zakończono. Wykonano pomyślnie {successCount}/{array.Count} kroków. ---");
+                MessageBox.Show(logs.ToString(), "Wynik testu sekwencji");
+            }
+            catch (JsonException jex)
+            {
+                MessageBox.Show($"Błąd składni JSON: {jex.Message}\n\nSugestia: Sprawdź czy nie brakuje przecinków między krokami lub cudzysłowów.", "Błąd Walidacji");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd wykonania: " + ex.Message);
+            }
         }
 
         public void InitFromCapture(JArray toolCalls)

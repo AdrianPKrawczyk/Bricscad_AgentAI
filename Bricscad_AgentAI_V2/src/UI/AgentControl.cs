@@ -9,6 +9,8 @@ using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Teigha.DatabaseServices;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Linq;
 using Application = Bricscad.ApplicationServices.Application;
 
 namespace Bricscad_AgentAI_V2.UI
@@ -29,7 +31,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Label lblStats;
         private Label lblStatus;
         private ListBox lstAutocomplete;
-        private string[] availableTags = new[] { "#core", "#bloki", "#warstwy", "#tekst", "#makro", "#all" };
+        private char _lastTriggerChar = '\0';
 
 
         // --- UI Logi Narzędzi ---
@@ -182,7 +184,7 @@ namespace Bricscad_AgentAI_V2.UI
                 Font = new Font("Segoe UI", 9.5f),
                 Cursor = Cursors.Hand
             };
-            lstAutocomplete.Items.AddRange(availableTags);
+            lstAutocomplete.Items.Clear();
             lstAutocomplete.DoubleClick += (s, e) => InsertSelectedTag();
             this.Controls.Add(lstAutocomplete);
             lstAutocomplete.BringToFront();
@@ -490,52 +492,55 @@ namespace Bricscad_AgentAI_V2.UI
                 return;
             }
 
-            // Znajdź początek aktualnie wpisywanego tagu (ostatnie # przed kursorem)
             string textSoFar = txtInput.Text.Substring(0, index);
             int lastHashIndex = textSoFar.LastIndexOf('#');
+            int lastDollarIndex = textSoFar.LastIndexOf('$');
 
-            if (lastHashIndex != -1)
+            int activeIndex = Math.Max(lastHashIndex, lastDollarIndex);
+            if (activeIndex == -1)
             {
-                string searchString = textSoFar.Substring(lastHashIndex).ToLower();
-                
-                // Jeśli po # jest spacja, to już nie filtrujemy tagu
-                if (searchString.Contains(" "))
-                {
-                    lstAutocomplete.Visible = false;
-                    return;
-                }
+                lstAutocomplete.Visible = false;
+                return;
+            }
 
-                // Filtrujemy dostępne tagi
-                var matches = new List<string>();
-                foreach (var tag in availableTags)
-                {
-                    if (tag.StartsWith(searchString, StringComparison.OrdinalIgnoreCase))
-                    {
-                        matches.Add(tag);
-                    }
-                }
+            _lastTriggerChar = textSoFar[activeIndex];
+            string searchString = textSoFar.Substring(activeIndex).ToLower();
 
-                if (matches.Count > 0)
-                {
-                    lstAutocomplete.BeginUpdate();
-                    lstAutocomplete.Items.Clear();
-                    foreach (var m in matches) lstAutocomplete.Items.Add(m);
-                    lstAutocomplete.EndUpdate();
-                    lstAutocomplete.SelectedIndex = 0;
+            if (searchString.Contains(" "))
+            {
+                lstAutocomplete.Visible = false;
+                return;
+            }
 
-                    // Pozycjonowanie listy
-                    Point pos = txtInput.GetPositionFromCharIndex(lastHashIndex);
-                    Point screenPos = txtInput.PointToScreen(pos);
-                    Point clientPos = this.PointToClient(screenPos);
-                    lstAutocomplete.Location = new Point(clientPos.X, clientPos.Y - lstAutocomplete.Height - 5);
-                    
-                    lstAutocomplete.Visible = true;
-                    lstAutocomplete.BringToFront();
-                }
-                else
-                {
-                    lstAutocomplete.Visible = false;
-                }
+            List<string> options = new List<string>();
+            if (_lastTriggerChar == '#')
+            {
+                options.Add("#core");
+                options.Add("#all");
+                options.AddRange(ToolConfigManager.GetAvailableCategories().Select(c => c.StartsWith("#") ? c : "#" + c));
+            }
+            else if (_lastTriggerChar == '$')
+            {
+                options.AddRange(RecipeManager.GetAll().Select(r => "$" + r.Trigger));
+            }
+
+            var matches = options.Where(o => o.StartsWith(searchString, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (matches.Count > 0)
+            {
+                lstAutocomplete.BeginUpdate();
+                lstAutocomplete.Items.Clear();
+                foreach (var m in matches) lstAutocomplete.Items.Add(m);
+                lstAutocomplete.EndUpdate();
+                lstAutocomplete.SelectedIndex = 0;
+
+                Point pos = txtInput.GetPositionFromCharIndex(activeIndex);
+                Point screenPos = txtInput.PointToScreen(pos);
+                Point clientPos = this.PointToClient(screenPos);
+                lstAutocomplete.Location = new Point(clientPos.X, clientPos.Y - lstAutocomplete.Height - 5);
+
+                lstAutocomplete.Visible = true;
+                lstAutocomplete.BringToFront();
             }
             else
             {
@@ -550,14 +555,12 @@ namespace Bricscad_AgentAI_V2.UI
             string tag = lstAutocomplete.SelectedItem.ToString();
             int caretIndex = txtInput.SelectionStart;
 
-            // Znajdujemy indeks ostatniego # przed kursorem
             string textSoFar = txtInput.Text.Substring(0, caretIndex);
-            int hashIndex = textSoFar.LastIndexOf('#');
+            int triggerIndex = textSoFar.LastIndexOf(_lastTriggerChar);
 
-            if (hashIndex != -1)
+            if (triggerIndex != -1)
             {
-                // Podmieniamy tekst od # do kursora na tag + spacja
-                txtInput.Select(hashIndex, caretIndex - hashIndex);
+                txtInput.Select(triggerIndex, caretIndex - triggerIndex);
                 txtInput.SelectedText = tag + " ";
             }
 
@@ -623,6 +626,22 @@ namespace Bricscad_AgentAI_V2.UI
                 extractedTags.Add(match.Value.ToLower());
                 // Usuwamy tag z czystej wiadomości dla LLM
                 cleanMsg = cleanMsg.Replace(match.Value, "").Trim();
+            }
+
+            // 2. Instant Recipe Execution ($trigger$)
+            var recipeMatch = System.Text.RegularExpressions.Regex.Match(rawInput, @"^\$(\w+)\$$");
+            if (recipeMatch.Success)
+            {
+                string trigger = recipeMatch.Groups[1].Value;
+                var recipe = RecipeManager.GetByTrigger(trigger);
+                if (recipe != null)
+                {
+                    AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
+                    AppendToHistory("SYSTEM", $"Wywoływanie recepty: {trigger}...", Color.Orange);
+                    
+                    await Task.Run(() => ExecuteRecipeDirectly(recipe));
+                    return;
+                }
             }
 
             AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
@@ -710,6 +729,38 @@ namespace Bricscad_AgentAI_V2.UI
                 rtbEngineLogs.SelectionStart = rtbEngineLogs.Text.Length;
                 rtbEngineLogs.ScrollToCaret();
             }
+        }
+
+        private void ExecuteRecipeDirectly(AgentRecipe recipe)
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            var logs = new System.Text.StringBuilder();
+            int successCount = 0;
+            int total = recipe.ToolExample.Count;
+
+            using (var loc = doc.LockDocument())
+            {
+                foreach (var call in recipe.ToolExample)
+                {
+                    string name = call["function"]?["name"]?.ToString();
+                    var args = call["function"]?["arguments"] as JObject;
+
+                    if (string.IsNullOrEmpty(name) || args == null) continue;
+
+                    string result = _orchestrator.ExecuteTool(name, args, doc);
+                    if (result.Contains("BŁĄD"))
+                    {
+                        AppendToHistory("BŁĄD RECEPTY", $"Krok {successCount + 1} ({name}): {result}", Color.LightCoral);
+                        return;
+                    }
+                    successCount++;
+                }
+            }
+
+            AppendToHistory("BIELIK", successCount == total 
+                ? $"✅ Recepta `${recipe.Trigger}$` wykonana pomyślnie ({successCount} kroków)." 
+                : $"⚠️ Recepta przerwana. Wykonano {successCount}/{total} kroków.", 
+                isDarkMode ? Color.LightGreen : Color.DarkGreen);
         }
     }
 }

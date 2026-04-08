@@ -1,4 +1,4 @@
-# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.14.0 GOLD)
+# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.17.0 GOLD)
 
 Witaj w wersji **GOLD** systemu Bielik AI V2. Niniejszy podręcznik został przygotowany dla inżynierów i projektantów BricsCAD, którzy chcą w pełni wykorzystać potencjał sztucznej inteligencji zintegrowanej bezpośrednio z silnikiem CAD.
 
@@ -191,7 +191,7 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.16.0 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.17.0 GOLD | BricsCAD Agent AI Project*
 
 ---
 
@@ -213,3 +213,13 @@ Najszybszym sposobem na stworzenie przepisu jest przechwycenie udanej sesji:
 
 ### 10.3. Kategoryzacja Receptur
 W edytorze receptur możesz zaznaczyć kategorie narzędzi (np. `#warstwy`, `#bloki`), które mają zostać automatycznie załadowane do pamięci podręcznej Agenta w momencie użycia przepisu. Eliminuje to potrzebę ręcznego wpisywania tagów przy każdym zapytaniu.
+
+### 10.4. Natychmiastowe Wykonanie ($trigger$) - v2.17.0
+Wersja 2.17.0 wprowadza "Tryb Makra", który pozwala na wykonanie przepisu bez angażowania sztucznej inteligencji.
+- **Składnia**: Zamknij nazwę triggera w dwa znaki dolara, np. `$duplikuj_warstwe$`.
+- **Działanie**: Program od razu wykona zapisaną sekwencję, co jest idealne dla często powtarzanych, pewnych czynności technicznych.
+
+### 10.5. Testowanie i Debugowanie Receptur
+W zakładce **Agent Recipes** znajdziesz dwa tryby weryfikacji:
+1. **🧪 Testuj w Sandboxie**: Przesyła wybrany krok receptury do Tool Sandboxa. Jeśli przepis ma wiele kroków, program zapyta Cię, który z nich chcesz przetestować.
+2. **🚀 Testuj Sekwencję**: Uruchamia cały przepis natychmiast w BricsCAD. W przypadku błędu w składni JSON lub błędnego działania narzędzia, system wyświetli szczegółowy log z diagnozą i sugestią poprawki.

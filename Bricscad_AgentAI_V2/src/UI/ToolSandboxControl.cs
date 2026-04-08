@@ -32,7 +32,10 @@ namespace Bricscad_AgentAI_V2.UI
         {
             InitializeComponent();
             PopulateTools();
+            Instance = this;
         }
+
+        public static ToolSandboxControl Instance { get; private set; }
 
         private void InitializeComponent()
         {
@@ -418,6 +421,21 @@ namespace Bricscad_AgentAI_V2.UI
             txtLog.AppendText(message + Environment.NewLine);
             
             txtLog.ScrollToCaret();
+        }
+
+        public void LoadToolCall(string toolName, JObject arguments)
+        {
+            for (int i = 0; i < cmbTools.Items.Count; i++)
+            {
+                if ((cmbTools.Items[i] as ToolItem).Name.Equals(toolName, StringComparison.OrdinalIgnoreCase))
+                {
+                    cmbTools.SelectedIndex = i;
+                    txtArgs.Text = arguments.ToString(Formatting.Indented);
+                    Log($"[INFO] Załadowano narzędzie {toolName} z recepty.", Color.LightSkyBlue);
+                    return;
+                }
+            }
+            Log($"[BŁĄD] Nie znaleziono narzędzia {toolName} w systemie.", Color.Red);
         }
 
         private class ToolItem
