@@ -118,3 +118,12 @@ Interaktywne środowisko testowe dostępne w **Dataset Studio**. Pozwala na:
 - **Auto-szablony**: Automatyczne generowanie struktury argumentów JSON na podstawie `ToolDefinition`.
 - **Zarzędzanie Pamięcią**: Ręczne ładowanie zaznaczenia z CAD do `AgentMemoryState`.
 - **Diagnostyka**: Logowanie wyników i błędów z pełnym śladem stosu i sygnaturą czasową.
+
+---
+
+## ✨ Receptury i Wzorce (Agent Recipes)
+
+Od wersji **v2.16.0** każde narzędzie może być częścią zapisanego "Przepisu" (Drogowskazu).
+- **Trigger $**: Umożliwia wywołanie sekwencji narzędzi jednym poleceniem.
+- **Few-Shot Prompting**: Receptury są wstrzykiwane jako przykłady `tool_calls`, co pomaga Agentowi zrozumieć poprawne parametry i kolejność wywołań w specyficznym kontekście inżynierskim.
+- **Kategoryzacja**: Wybranie przepisu może automatycznie załadować powiązane kategorie narzędzi (#bloki, #wymiary itp.), zapewniając, że Agent ma dostęp do wymaganego "zestawu instrumentów".

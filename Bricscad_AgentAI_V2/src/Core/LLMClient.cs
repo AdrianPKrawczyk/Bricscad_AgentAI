@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
@@ -44,6 +45,8 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5)
         {
+            PreProcessRecipes(conversationHistory);
+
             var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             int iterations = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -222,6 +225,55 @@ namespace Bricscad_AgentAI_V2.Core
             });
             OnStatusUpdate?.Invoke("Przerwano zapętlenie (zbyt skomplikowany problem lub pętla logiczna LLMa).");
             return "[LLMClient] Przekroczono maksymalną liczbę iteracji (pętla powtórzeń Tool Calls). Przerywam zadanie.";
+        }
+
+        /// <summary>
+        /// Skanuje historię w poszukiwaniu triggerów рецепt ($trigger) i wstrzykuje 
+        /// przykłady Few-Shot bezpośrednio po system prompcie.
+        /// </summary>
+        private void PreProcessRecipes(List<ChatMessage> history)
+        {
+            var userMsgs = history.Where(m => m.Role == "user" && m.Content != null).ToList();
+            if (!userMsgs.Any()) return;
+
+            var discoveredTriggers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var msg in userMsgs)
+            {
+                var matches = Regex.Matches(msg.Content, @"\$(\w+)");
+                foreach (Match m in matches) discoveredTriggers.Add(m.Groups[1].Value);
+            }
+
+            if (!discoveredTriggers.Any()) return;
+
+            int injectionIdx = history.FindIndex(m => m.Role == "system") + 1;
+            if (injectionIdx <= 0) injectionIdx = 0;
+
+            foreach (var trigger in discoveredTriggers)
+            {
+                var recipe = RecipeManager.GetByTrigger(trigger);
+                if (recipe != null)
+                {
+                    history.Insert(injectionIdx++, new ChatMessage 
+                    { 
+                        Role = "user", 
+                        Content = $"PRZYKŁAD DLA TRIGGERA ${trigger}:\n{recipe.Description}" 
+                    });
+
+                    history.Insert(injectionIdx++, new ChatMessage 
+                    { 
+                        Role = "assistant", 
+                        ToolCalls = recipe.ToolExample.ToObject<List<ToolCall>>() 
+                    });
+
+                    if (recipe.AutoLoadCategories != null)
+                    {
+                        foreach (var cat in recipe.AutoLoadCategories)
+                        {
+                            ToolConfigManager.SessionDynamicTags.Add(cat);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>

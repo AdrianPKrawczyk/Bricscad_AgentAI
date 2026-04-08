@@ -53,4 +53,12 @@ namespace Bricscad_AgentAI_V2.Models
         [JsonProperty("items", NullValueHandling = NullValueHandling.Ignore)]
         public Newtonsoft.Json.Linq.JToken Items { get; set; }
     }
+
+    public class AgentRecipe
+    {
+        public string Trigger { get; set; } // np. "kopiuj_osie"
+        public string Description { get; set; } // Instrukcja słowna
+        public Newtonsoft.Json.Linq.JArray ToolExample { get; set; } // Pobrany ciąg tool_calls
+        public List<string> AutoLoadCategories { get; set; } = new List<string>(); // Tagi do załadowania
+    }
 }

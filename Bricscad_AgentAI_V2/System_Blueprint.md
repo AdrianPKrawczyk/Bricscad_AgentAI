@@ -259,3 +259,21 @@ Nowoczesny panel WinForms (Dark Mode) zintegrowany z `AgentControl`.
 **Parametry**:
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
 **Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.
+
+---
+
+## 7. System Agent Recipes (Drogowskazy)
+
+Wprowadzone w **v2.16.0**, stanowi mechanizm wstrzykiwania przykładów Few-Shot do kontekstu LLM, umożliwiając szybkie "przyuczenie" modelu do specyficznych zadań inżynierskich bez konieczności fine-tuningu.
+
+### 7.1. Mechanizm Triggerów ($)
+System monitoruje wiadomości użytkownika pod kątem prefiksu `$`.
+- **Wykrywanie**: `LLMClient.PreProcessRecipes` używa Regex `\$(\w+)` do identyfikacji triggerów.
+- **Wstrzykiwanie**: Jeśli trigger zostanie odnaleziony w `AgentRecipes.json`, system wstrzykuje dwie wiadomości do historii (bezpośrednio po System Prompcie):
+    1. **User**: Treść opisu z receptury (Instrukcja).
+    2. **Assistant**: Tablica `tool_calls` z receptury (Przykład wykonania).
+- **Auto-ładowanie**: Jeśli receptura zawiera kategoryzację, odpowiednie tagi są automatycznie dodawane do `SessionDynamicTags` (Agentic Fallback).
+
+### 7.2. Capture & persistencja
+- **RecipeManager**: Statyczna klasa zarządzająca plikiem `AgentRecipes.json`. Obsługuje operacje CRUD na recepturach.
+- **CaptureSessionAsRecipe**: Metoda w `DatasetStudioControl` parsująca JSONL bieżącej sesji w celu wyekstrahowania wyłącznie pomyślnych wywołań narzędzi, co pozwala na tworzenie przepisów "w locie" z udanych interakcji.

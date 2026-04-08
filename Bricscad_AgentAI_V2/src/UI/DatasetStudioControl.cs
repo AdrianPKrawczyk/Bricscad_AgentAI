@@ -70,6 +70,12 @@ namespace Bricscad_AgentAI_V2.UI
             tabSandbox.Controls.Add(new ToolSandboxControl());
             tabMain.TabPages.Add(tabSandbox);
 
+            var tabRecipes = new TabPage("✨ Agent Recipes");
+            tabRecipes.BackColor = Color.FromArgb(30, 30, 30);
+            var recipeCtrl = new AgentRecipeControl();
+            tabRecipes.Controls.Add(recipeCtrl);
+            tabMain.TabPages.Add(tabRecipes);
+
             this.Controls.Add(tabMain);
         }
 
@@ -87,6 +93,19 @@ namespace Bricscad_AgentAI_V2.UI
             lblTokens = CreateStatLabel("🧠 Tokeny: -");
             lblTokensPerSec = CreateStatLabel("⚡ T/s: -");
             stats.Controls.Add(lblTotalTime); stats.Controls.Add(lblTokens); stats.Controls.Add(lblTokensPerSec);
+
+            var btnCapture = new Button 
+            { 
+                Text = "✨ Przechwyć jako Przepis", 
+                Dock = DockStyle.Right, 
+                Width = 180, 
+                BackColor = Color.FromArgb(120, 80, 20), 
+                ForeColor = Color.White, 
+                FlatStyle = FlatStyle.Flat 
+            };
+            btnCapture.Click += (s, e) => CaptureSessionAsRecipe();
+            
+            header.Controls.Add(btnCapture);
             header.Controls.Add(stats); header.Controls.Add(chkIsolateContext);
 
             // Splitter
@@ -438,9 +457,56 @@ namespace Bricscad_AgentAI_V2.UI
              string trainingPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "Agent_Training_Data_v2_DO_TRENINGU.jsonl");
              try {
                 var obj = JsonConvert.DeserializeObject(txtJsonlEditor.Text);
-                File.AppendAllLines(trainingPath, new[] { JsonConvert.SerializeObject(obj, Formatting.None) });
-                MessageBox.Show("Zapisano.");
-             } catch (Exception ex) { MessageBox.Show("Błąd: " + ex.Message); }
+                 File.AppendAllLines(trainingPath, new[] { JsonConvert.SerializeObject(obj, Formatting.None) });
+                 MessageBox.Show("Zapisano.");
+              } catch (Exception ex) { MessageBox.Show("Błąd: " + ex.Message); }
+         }
+
+        private void CaptureSessionAsRecipe()
+        {
+            if (string.IsNullOrEmpty(txtJsonlEditor.Text)) return;
+            try
+            {
+                var obj = JObject.Parse(txtJsonlEditor.Text);
+                var messages = obj["messages"] as JArray;
+                if (messages == null) return;
+
+                var toolCalls = new JArray();
+                foreach (var msg in messages)
+                {
+                    var calls = msg["tool_calls"] as JArray;
+                    if (calls != null)
+                    {
+                        foreach (var call in calls)
+                        {
+                            // Sprawdzamy czy nie ma błędu w powiązanej odpowiedzi (uproszczenie: capture results that exist)
+                            toolCalls.Add(call);
+                        }
+                    }
+                }
+
+                if (toolCalls.Count == 0)
+                {
+                    MessageBox.Show("W tej sesji nie znaleziono żadnych wywołań narzędzi (tool_calls).");
+                    return;
+                }
+
+                // Znajdź kontrolkę Recipes
+                foreach (TabPage tp in tabMain.TabPages)
+                {
+                    if (tp.Text.Contains("Recipes"))
+                    {
+                        var ctrl = tp.Controls[0] as AgentRecipeControl;
+                        if (ctrl != null)
+                        {
+                            ctrl.InitFromCapture(toolCalls);
+                            tabMain.SelectedTab = tp;
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show("Błąd przechwytywania: " + ex.Message); }
         }
     }
 

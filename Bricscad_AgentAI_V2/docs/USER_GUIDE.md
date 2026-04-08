@@ -191,4 +191,25 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.14.0 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.16.0 GOLD | BricsCAD Agent AI Project*
+
+---
+
+## 🚀 10. Agent Recipes (System Drogowskazów) - NOWOŚĆ v2.16.0
+
+System receptur pozwala na tworzenie "skrótów myślowych" dla Agenta. Zamiast tłumaczyć mu za każdym razem jak ma coś narysować, możesz stworzyć recepturę wywoływaną specjalnym znakiem `$`.
+
+### 10.1. Jak używać znaku `$`?
+Wpisz `$` a następnie nazwę wyzwalacza, aby "pokazać" Agentowi jak ma wykonać dane zadanie.
+- Przykład: *"Zrób to używając $kopiuj_warstwe"*
+- Agent zobaczy Twoją zapisaną wcześniej instrukcję oraz poprawny ciąg wywołań narzędzi, co gwarantuje 100% precyzji.
+
+### 10.2. Tworzenie Przepisów (Capture)
+Najszybszym sposobem na stworzenie przepisu jest przechwycenie udanej sesji:
+1. Pracuj z Agentem w zakładce **Aktualna sesja**, aż osiągniesz pożądany efekt.
+2. Kliknij przycisk **"✨ Przechwyć jako Przepis"**.
+3. System automatycznie przeniesie Cię do zakładki **Agent Recipes**, parsując sesję i wyciągając z niej same wywołania narzędzi.
+4. Nadaj przepisowi nazwę (np. `duplikuj_osie`) i kliknij **Zapisz**.
+
+### 10.3. Kategoryzacja Receptur
+W edytorze receptur możesz zaznaczyć kategorie narzędzi (np. `#warstwy`, `#bloki`), które mają zostać automatycznie załadowane do pamięci podręcznej Agenta w momencie użycia przepisu. Eliminuje to potrzebę ręcznego wpisywania tagów przy każdym zapytaniu.

@@ -279,16 +279,19 @@ namespace Bricscad_AgentAI_V2.UI
             string current = txtArgs.Text.Trim();
             if (current.Contains($"\"{paramName}\""))
             {
-                // Parametr już istnieje, tylko znajdź go
                 int idx = txtArgs.Text.IndexOf($"\"{paramName}\"");
                 txtArgs.Focus();
-                txtArgs.Select(idx, paramName.Length + 2);
+                txtArgs.SelectionStart = idx;
+                txtArgs.SelectionLength = paramName.Length + 2;
                 return;
             }
 
+            string marker = "[[CURSOR]]";
+            string valTemplate = $"\"{marker}\"";
+
             if (string.IsNullOrEmpty(current) || !current.Contains("{"))
             {
-                txtArgs.Text = "{\n  \"" + paramName + "\": \"<cursor>\"\n}";
+                txtArgs.Text = "{\n  \"" + paramName + "\": " + valTemplate + "\n}";
             }
             else
             {
@@ -299,16 +302,18 @@ namespace Bricscad_AgentAI_V2.UI
                     bool needsComma = before.Length > 1 && !before.EndsWith("{") && !before.EndsWith(",");
                     string comma = needsComma ? "," : "";
                     
-                    string newContent = before + comma + "\n  \"" + paramName + "\": \"<cursor>\"\n}";
+                    string newContent = before + comma + "\n  \"" + paramName + "\": " + valTemplate + "\n}";
                     txtArgs.Text = newContent;
                 }
             }
 
-            int cursorIdx = txtArgs.Text.IndexOf("<cursor>");
+            int cursorIdx = txtArgs.Text.IndexOf(marker);
             if (cursorIdx >= 0)
             {
+                txtArgs.Text = txtArgs.Text.Remove(cursorIdx, marker.Length);
                 txtArgs.Focus();
-                txtArgs.Select(cursorIdx, 8);
+                txtArgs.SelectionStart = cursorIdx;
+                txtArgs.SelectionLength = 0;
             }
         }
 
@@ -338,16 +343,16 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (param.Properties != null && param.Properties.Count > 0)
             {
-                return "{ ... }";
+                return "{ }";
             }
 
             switch (param.Type?.ToLower())
             {
-                case "string": return $"\"<{param.Description ?? "wartość"}>\"";
+                case "string": return "\"\"";
                 case "number":
                 case "integer": return "0";
                 case "boolean": return "false";
-                case "array": return "[]";
+                case "array": return "[ ]";
                 default: return "null";
             }
         }

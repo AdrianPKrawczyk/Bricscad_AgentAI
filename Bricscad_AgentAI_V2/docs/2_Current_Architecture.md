@@ -13,6 +13,17 @@ Najbardziej aktualne szczegóły techniczne, schematy baz danych i narzędzi zna
 
 ---
 
+## 4. Moduły Systemowe (Usługi i Kontrolki)
+
+System V2 GOLD jest modułowy. Kluczowe komponenty to:
+- `ToolConfigManager.cs`: Dynamiczne zarządzanie konfiguracją narzędzi, tagami i flagą Early Exit.
+- `RecipeManager.cs`: (NOWOŚĆ v2.16.0) Zarządzanie biblioteką przykładów Few-Shot (Agent Recipes).
+- `EngineTracer.cs`: Diagnostyczny nasłuchiwacz niskopoziomowych zdarzeń silnika ODA Teigha. Izoluje i raportuje problemy z transakcjami dokumentu.
+- `ToolOrchestrator.cs`: Zarządca pakietów narzędziowych, filtrujący prompt na podstawie zapotrzebowania modelu.
+- `DatasetStudioControl.cs`: Centrum dowodzenia mechanizmem Dataset Flywheel i Agent Recipes.
+- `AgentRecipeControl.cs`: Edytor i menedżer receptur (Drogowskazów).
+- `ToolSandboxControl.cs`: Środowisko testowe do izolowanej walidacji narzędzi CAD.
+
 ## 2. Kluczowe Filtry i Prędkość (Early Exit)
 
 W V2 wprowadzono dwa mechanizmy drastycznie obniżające koszty (tokeny) i czas odpowiedzi:

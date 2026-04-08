@@ -108,6 +108,8 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="src\UI\JsonSyntaxHighlighter.cs" />
+    <Compile Include="src\Core\RecipeManager.cs" />
+    <Compile Include="src\UI\AgentRecipeControl.cs" />
     <Compile Include="src\UI\ToolSandboxControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

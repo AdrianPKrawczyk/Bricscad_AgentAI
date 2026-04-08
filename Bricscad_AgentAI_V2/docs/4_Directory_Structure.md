@@ -28,6 +28,7 @@ AgentAI_Workspace/
     │   ├── Core/               # Jądro systemu
     │   │   ├── LLMClient.cs    # Nowy klient HTTP (Tool Calling)
     │   │   ├── Orchestrator.cs # Zarządca narzędzi i mapowanie JSON
+    │   │   ├── RecipeManager.cs # (NOWOŚĆ v2.16.0) Zarządzanie recepturami
     │   │   └── CadWrapper.cs   # Obsługa wątków (_AGENT_RUN_TOOL)
     │   │
     │   ├── Tools/              # Implementacje IToolV2 (Modularne wtyczki)
@@ -37,7 +38,9 @@ AgentAI_Workspace/
     │   │
     │   ├── Models/             # Klasy DTO dla JSON Schema i Tool Calls
     │   ├── UI/                 # Kontrolki WinForms/WPF
-    │   └── Utilities/          # Kalkulator RPN, Jednostki, Loggery
+    │   │   ├── AgentRecipeControl.cs # (NOWOŚĆ v2.16.0) Edytor receptur
+    │   │   └── ...
+    │   ├── Utilities/          # Kalkulator RPN, Jednostki, Loggery
     │
     └── resources/              # Pliki API (BricsCAD_API_Quick.txt itp.)
 ```
