@@ -198,5 +198,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     break;
             }
         }
+        public List<string> Examples => null;
     }
 }
+

@@ -129,5 +129,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 return $"BŁĄD KRYTYCZNY NARZĘDZIA: {ex.Message}";
             }
         }
+        public List<string> Examples => null;
     }
 }
+

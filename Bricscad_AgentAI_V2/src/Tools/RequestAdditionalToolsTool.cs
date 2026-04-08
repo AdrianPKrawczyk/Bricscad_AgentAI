@@ -87,5 +87,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
             return "BŁĄD: Nieznana akcja. Użyj 'ListCategories' lub 'LoadCategory'.";
         }
+        public List<string> Examples => null;
     }
 }
+

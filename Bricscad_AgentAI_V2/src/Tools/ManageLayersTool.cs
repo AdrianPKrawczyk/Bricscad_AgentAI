@@ -308,5 +308,6 @@ namespace Bricscad_AgentAI_V2.Tools
 
         return $"SUKCES: Wykonano akcję '{action}' dla {successCount} warstw(y).";
     }
-}
+    public List<string> Examples => null;
+    }
 }

@@ -223,5 +223,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
             return val.ToString();
         }
+        public List<string> Examples => null;
     }
 }
+

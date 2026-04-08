@@ -84,5 +84,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 return $"BŁĄD WYKONANIA MAKRA: {ex.Message}";
             }
         }
+        public List<string> Examples => null;
     }
 }
+

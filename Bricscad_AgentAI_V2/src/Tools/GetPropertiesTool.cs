@@ -132,5 +132,7 @@ namespace Bricscad_AgentAI_V2.Tools
             if (val is double d) return Math.Round(d, 3).ToString();
             return val.ToString();
         }
+        public List<string> Examples => null;
     }
 }
+

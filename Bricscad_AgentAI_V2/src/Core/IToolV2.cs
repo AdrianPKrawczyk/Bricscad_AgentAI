@@ -1,6 +1,7 @@
 using Bricscad_AgentAI_V2.Models;
 using Bricscad.ApplicationServices;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 
 namespace Bricscad_AgentAI_V2.Core
 {
@@ -22,5 +23,10 @@ namespace Bricscad_AgentAI_V2.Core
         /// <param name="args">Zdeserializowane parametry funkcji wywołanej przez Agenta.</param>
         /// <returns>Odpowiedź informująca o sukcesie lub opisie napotkanego błędu, zwracana potem do LLM.</returns>
         string Execute(Document doc, JObject args);
+
+        /// <summary>
+        /// Lista przykładowych wywołań JSON dla narzędzia (opcjonalna, używana w Sandboxie).
+        /// </summary>
+        List<string> Examples { get; }
     }
 }

@@ -141,5 +141,7 @@ namespace Bricscad_AgentAI_V2.Tools
             double z = parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 0;
             return new Point3d(x, y, z);
         }
+        public List<string> Examples => null;
     }
 }
+

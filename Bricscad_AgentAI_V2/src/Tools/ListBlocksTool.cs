@@ -80,5 +80,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 return $"BŁĄD PODCZAS LISTOWANIA BLOKÓW: {ex.Message}";
             }
         }
+        public List<string> Examples => null;
     }
 }
+

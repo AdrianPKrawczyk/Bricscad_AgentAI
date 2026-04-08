@@ -162,5 +162,12 @@ namespace Bricscad_AgentAI_V2.Tools
                 return $"BŁĄD KRYTYCZNY NARZĘDZIA: {ex.Message}";
             }
         }
+
+        public List<string> Examples => new List<string>
+        {
+            "{\"TextOverride\": \"<>\", \"OverallScale\": 1.0} // Przywróć domyślny pomiar i ustaw skalę 1.0",
+            "{\"TextColor\": 1, \"DimLineColor\": 1, \"ExtLineColor\": 1} // Ustaw wszystkie elementy wymiaru na czerwony (ACI 1)",
+            "{\"ArrowBlock\": \"_ARCHTICK\"} // Zmień strzałki na groty architektoniczne"
+        };
     }
 }

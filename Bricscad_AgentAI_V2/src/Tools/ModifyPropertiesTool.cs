@@ -209,5 +209,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 return $"BŁĄD KRYTYCZNY CAD: {ex.Message}";
             }
         }
+        public List<string> Examples => null;
     }
 }
+

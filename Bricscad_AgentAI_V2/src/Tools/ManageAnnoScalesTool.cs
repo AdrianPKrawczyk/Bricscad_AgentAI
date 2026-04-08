@@ -246,5 +246,7 @@ namespace Bricscad_AgentAI_V2.Tools
         }
 
         private HashSet<string> _warnings = new HashSet<string>();
+        public List<string> Examples => null;
     }
 }
+
