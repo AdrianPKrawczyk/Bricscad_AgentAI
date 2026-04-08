@@ -64,6 +64,12 @@ namespace Bricscad_AgentAI_V2.UI
 
             tabMain.TabPages.Add(tabSession);
             tabMain.TabPages.Add(tabEdit);
+
+            var tabSandbox = new TabPage("🛠️ Tool Sandbox");
+            tabSandbox.BackColor = Color.FromArgb(30, 30, 30);
+            tabSandbox.Controls.Add(new ToolSandboxControl());
+            tabMain.TabPages.Add(tabSandbox);
+
             this.Controls.Add(tabMain);
         }
 

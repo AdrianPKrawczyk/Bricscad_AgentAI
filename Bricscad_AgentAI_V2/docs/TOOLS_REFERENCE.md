@@ -107,3 +107,14 @@ Zadaje pytanie użytkownikowi (Text, Double, Point) w linii komend CAD.
 
 ### 23. `UserChoice` **[IsCore: Tak]**
 Prezentuje listę słów kluczowych do wyboru przez użytkownika.
+
+---
+
+## 🛠️ Narzędzia Deweloperskie (Development Tools)
+
+### Tool Sandbox (ToolSandboxControl)
+Interaktywne środowisko testowe dostępne w **Dataset Studio**. Pozwala na:
+- **Izolowane wywołania**: Uruchamianie `Execute(JObject args)` bezpośrednio na klasach narzędzi.
+- **Auto-szablony**: Automatyczne generowanie struktury argumentów JSON na podstawie `ToolDefinition`.
+- **Zarzędzanie Pamięcią**: Ręczne ładowanie zaznaczenia z CAD do `AgentMemoryState`.
+- **Diagnostyka**: Logowanie wyników i błędów z pełnym śladem stosu i sygnaturą czasową.

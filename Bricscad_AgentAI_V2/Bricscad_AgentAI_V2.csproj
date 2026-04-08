@@ -106,6 +106,9 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="src\UI\JsonSyntaxHighlighter.cs" />
+    <Compile Include="src\UI\ToolSandboxControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="tests\Tools\SelectEntitiesToolTests.cs" />
     <Compile Include="tests\Tools\ModifyPropertiesToolTests.cs" />
     <Compile Include="tests\Tools\ManageLayersToolTests.cs" />
