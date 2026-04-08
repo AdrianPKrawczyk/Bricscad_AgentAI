@@ -22,6 +22,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnDelete;
         private Button btnTestInSandbox;
         private Button btnRunSequence;
+        private Button btnExportGold;
         private SplitContainer splitMain;
 
         public static AgentRecipeControl Instance { get; private set; }
@@ -124,24 +125,29 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Dolne przyciski
             Panel panBottom = new Panel { Dock = DockStyle.Bottom, Height = 50, Padding = new Padding(0, 10, 0, 0) };
-            btnSave = CreateButton("💾 Zapisz Receptę", Color.FromArgb(0, 122, 204), DockStyle.Left, 200);
+            
+            btnSave = CreateButton("💾 Zapisz Receptę", Color.FromArgb(0, 122, 204), DockStyle.Left, 180);
             btnSave.Click += BtnSave_Click;
             
-            btnNew = CreateButton("➕ Nowa Recepta", Color.FromArgb(60, 60, 60), DockStyle.Left, 160);
+            btnNew = CreateButton("➕ Nowa", Color.FromArgb(60, 60, 60), DockStyle.Left, 80);
             btnNew.Click += (s, e) => CreateNewRecipe();
 
-            btnDelete = CreateButton("🗑️ Usuń", Color.FromArgb(180, 40, 40), DockStyle.Right, 100);
+            btnDelete = CreateButton("🗑️ Usuń", Color.FromArgb(180, 40, 40), DockStyle.Right, 80);
             btnDelete.Click += BtnDelete_Click;
 
-            btnTestInSandbox = CreateButton("🧪 Testuj w Sandboxie", Color.FromArgb(60, 60, 60), DockStyle.Right, 180);
+            btnTestInSandbox = CreateButton("🧪 Sandbox", Color.FromArgb(60, 60, 60), DockStyle.Right, 100);
             btnTestInSandbox.Click += BtnTestInSandbox_Click;
 
-            btnRunSequence = CreateButton("🚀 Testuj Sekwencję", Color.SeaGreen, DockStyle.Right, 160);
+            btnRunSequence = CreateButton("🚀 Testuj", Color.SeaGreen, DockStyle.Right, 100);
             btnRunSequence.Click += BtnRunSequence_Click;
+
+            btnExportGold = CreateButton("✨ Złoty", Color.FromArgb(100, 40, 150), DockStyle.Right, 100);
+            btnExportGold.Click += BtnExportGold_Click;
 
             panBottom.Controls.Add(btnSave);
             panBottom.Controls.Add(btnNew);
             panBottom.Controls.Add(btnRunSequence);
+            panBottom.Controls.Add(btnExportGold);
             panBottom.Controls.Add(btnTestInSandbox);
             panBottom.Controls.Add(btnDelete);
 
@@ -409,9 +415,69 @@ namespace Bricscad_AgentAI_V2.UI
         public void InitFromCapture(JArray toolCalls)
         {
             ClearFields();
-            txtTriggerName.Text = "$nowy_przepis";
-            txtRecipeJson.Text = JsonConvert.SerializeObject(toolCalls, Formatting.Indented);
-            txtRecipeDescription.Text = "Przechwycono z sesji dnia " + DateTime.Now.ToString("g");
+            txtRecipeJson.Text = toolCalls.ToString(Formatting.Indented);
+            lstRecipes.SelectedIndex = -1;
+        }
+
+        private void BtnExportGold_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtRecipeJson.Text)) return;
+            if (AgentControl.Instance == null) return;
+
+            try
+            {
+                // 1. Zapytaj o User Query
+                string userQuery = Microsoft.VisualBasic.Interaction.InputBox(
+                    "Wprowadź zapytanie użytkownika, które ma wywołać tę receptę:", 
+                    "Eksport do Złotego Standardu", 
+                    "Narysuj...");
+                if (string.IsNullOrEmpty(userQuery)) return;
+
+                // 2. Zapytaj o dodatkowe tagi (opcjonalnie)
+                string extraTagsStr = Microsoft.VisualBasic.Interaction.InputBox(
+                    "Czy chcesz dodać dodatkowe kategorie narzędzi (oddzielone spacją, np. #wymiary)? Pozostaw puste dla standardowych (#core + tagi recepty).",
+                    "Dodatkowe Narzędzia", 
+                    "");
+
+                var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "#core" };
+                foreach (var cat in clbCategories.CheckedItems.Cast<string>())
+                {
+                    string tag = cat.StartsWith("#") ? cat : "#" + cat;
+                    tags.Add(tag);
+                }
+                if (!string.IsNullOrEmpty(extraTagsStr))
+                {
+                    foreach (var t in extraTagsStr.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        tags.Add(t.StartsWith("#") ? t : "#" + t);
+                    }
+                }
+
+                // 3. Buduj JSONL
+                var goldEntry = new JObject
+                {
+                    ["messages"] = new JArray
+                    {
+                        new JObject { ["role"] = "system", ["content"] = AgentControl.Instance.CurrentSystemPrompt },
+                        new JObject { ["role"] = "user", ["content"] = userQuery },
+                        new JObject { ["role"] = "assistant", ["tool_calls"] = JArray.Parse(txtRecipeJson.Text) }
+                    },
+                    ["tools"] = JArray.FromObject(AgentControl.Instance.Orchestrator.GetToolsPayload(tags))
+                };
+
+                // 4. Zapisz
+                string trainingPath = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), 
+                    "Agent_Training_Data_v2_DO_TRENINGU.jsonl");
+
+                System.IO.File.AppendAllLines(trainingPath, new[] { goldEntry.ToString(Formatting.None) });
+                
+                MessageBox.Show($"Recepta pomyślnie dopisana jako Złoty Standard do pliku:\n{trainingPath}", "Zapisano");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd eksportu: " + ex.Message);
+            }
         }
     }
 }

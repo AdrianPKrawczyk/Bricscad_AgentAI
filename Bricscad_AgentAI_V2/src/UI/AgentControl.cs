@@ -40,6 +40,7 @@ namespace Bricscad_AgentAI_V2.UI
 
         // --- Silnik V2 ---
         private LLMClient _llmClient;
+        public ToolOrchestrator Orchestrator => _orchestrator;
         private ToolOrchestrator _orchestrator;
         private List<ChatMessage> _conversationHistory;
         private bool isDarkMode = true;
@@ -54,6 +55,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnClearDebug;
 
         public static AgentControl Instance { get; private set; }
+        public string CurrentSystemPrompt { get; private set; }
         private TabPage tabChat;
 
         public AgentControl()
@@ -84,7 +86,7 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void RebuildSystemPrompt()
         {
-            string systemPrompt = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). ZABRONIONE jest wypisywanie wywołań w zwykłym tekście.\n\n" +
+            CurrentSystemPrompt = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). ZABRONIONE jest wypisywanie wywołań w zwykłym tekście.\n\n" +
                 "--- 1. DELEGOWANIE OBLICZEŃ I LOGIKI (SUPERMOC RPN) ---\n" +
                 "Jesteś modelem językowym, nie kalkulatorem. ZABRANIA SIĘ wykonywania obliczeń matematycznych w pamięci. Do wszystkich obliczeń wektorowych, matematycznych i tekstowych MUSISZ używać wbudowanego silnika RPN (Odwrotna Notacja Polska). Składnia: wartość zawsze zaczyna się od 'RPN: '.\n" +
                 "- Matematyka (Postfix): Zamiast '2+2' piszesz 'RPN: 2 2 +'. Zamiast '(100/3)+5' piszesz 'RPN: 100 3 / 5 +'.\n" +
@@ -110,7 +112,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             _conversationHistory = new List<ChatMessage>
             {
-                new ChatMessage { Role = "system", Content = systemPrompt }
+                new ChatMessage { Role = "system", Content = CurrentSystemPrompt }
             };
         }
 
