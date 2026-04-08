@@ -70,7 +70,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabSandbox.Controls.Add(new ToolSandboxControl());
             tabMain.TabPages.Add(tabSandbox);
 
-            var tabRecipes = new TabPage("✨ Agent Recipes");
+            var tabRecipes = new TabPage("✨ Recepty");
             tabRecipes.BackColor = Color.FromArgb(30, 30, 30);
             var recipeCtrl = new AgentRecipeControl();
             tabRecipes.Controls.Add(recipeCtrl);
@@ -494,7 +494,7 @@ namespace Bricscad_AgentAI_V2.UI
                 // Znajdź kontrolkę Recipes
                 foreach (TabPage tp in tabMain.TabPages)
                 {
-                    if (tp.Text.Contains("Recipes"))
+                    if (tp.Text.Contains("Recepty"))
                     {
                         var ctrl = tp.Controls[0] as AgentRecipeControl;
                         if (ctrl != null)

@@ -104,10 +104,15 @@ namespace Bricscad_AgentAI_V2.UI
             btnExecute = CreateButton("🚀 Execute Tool", Color.FromArgb(0, 122, 204), DockStyle.Right, 150);
             btnExecute.Click += BtnExecute_Click;
             
+            var btnSendToRecipe = CreateButton("✨ Wyślij do Recepty", Color.FromArgb(120, 80, 20), DockStyle.Right, 180);
+            btnSendToRecipe.Click += BtnSendToRecipe_Click;
+
             btnLoadSelection = CreateButton("🎯 Load CAD Selection", Color.FromArgb(60, 60, 60), DockStyle.Left, 180);
             btnLoadSelection.Click += BtnLoadSelection_Click;
 
             panButtons.Controls.Add(btnExecute);
+            panButtons.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 10 });
+            panButtons.Controls.Add(btnSendToRecipe);
             panButtons.Controls.Add(btnLoadSelection);
 
             txtArgs = new RichTextBox
@@ -436,6 +441,56 @@ namespace Bricscad_AgentAI_V2.UI
                 }
             }
             Log($"[BŁĄD] Nie znaleziono narzędzia {toolName} w systemie.", Color.Red);
+        }
+
+        private void BtnSendToRecipe_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var toolItem = cmbTools.SelectedItem as ToolItem;
+                if (toolItem == null) return;
+                var args = JObject.Parse(txtArgs.Text);
+
+                var recipes = RecipeManager.GetAll();
+                ContextMenuStrip menu = new ContextMenuStrip();
+
+                foreach (var r in recipes)
+                {
+                    string trigger = r.Trigger;
+                    menu.Items.Add($"Допиши do: ${trigger}", null, (s, ev) => SendToRecipe(trigger, toolItem.Name, args));
+                }
+
+                menu.Items.Add(new ToolStripSeparator());
+                menu.Items.Add("➕ Nowa Recepta...", null, (s, ev) => {
+                    string name = Microsoft.VisualBasic.Interaction.InputBox("Podaj nazwę dla nowej recepty:", "Nowa Recepta", "moja_recepta");
+                    if (!string.IsNullOrEmpty(name)) SendToRecipe(name, toolItem.Name, args);
+                });
+
+                menu.Show(sender as Control, new Point(0, (sender as Control).Height));
+            }
+            catch (Exception ex) { MessageBox.Show("Błąd: " + ex.Message); }
+        }
+
+        private void SendToRecipe(string trigger, string toolName, JObject args)
+        {
+            if (AgentRecipeControl.Instance != null)
+            {
+                AgentRecipeControl.Instance.AppendToolCall(trigger, toolName, args);
+                
+                // Switch tab
+                var tabControl = this.Parent.Parent as TabControl;
+                if (tabControl != null)
+                {
+                    foreach (TabPage tp in tabControl.TabPages)
+                    {
+                        if (tp.Text.Contains("Recepty"))
+                        {
+                            tabControl.SelectedTab = tp;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         private class ToolItem

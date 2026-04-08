@@ -56,6 +56,7 @@
       <HintPath>C:\Program Files\Bricsys\BricsCAD V22 pl_PL\TD_Mgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>

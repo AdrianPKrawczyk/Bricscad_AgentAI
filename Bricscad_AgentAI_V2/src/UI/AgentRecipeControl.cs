@@ -18,16 +18,27 @@ namespace Bricscad_AgentAI_V2.UI
         private RichTextBox txtRecipeJson;
         private CheckedListBox clbCategories;
         private Button btnSave;
+        private Button btnNew;
         private Button btnDelete;
         private Button btnTestInSandbox;
         private Button btnRunSequence;
         private SplitContainer splitMain;
+
+        public static AgentRecipeControl Instance { get; private set; }
 
         public AgentRecipeControl()
         {
             InitializeComponent();
             RefreshList();
             LoadCategories();
+            Instance = this;
+
+            this.Load += (s, e) => {
+                if (UISettingsManager.Settings.AgentRecipeSplitterDistance <= 200)
+                {
+                    splitMain.SplitterDistance = (int)(this.Width * 0.25);
+                }
+            };
         }
 
         private void InitializeComponent()
@@ -113,10 +124,13 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Dolne przyciski
             Panel panBottom = new Panel { Dock = DockStyle.Bottom, Height = 50, Padding = new Padding(0, 10, 0, 0) };
-            btnSave = CreateButton("💾 Zapisz Przepis", Color.FromArgb(0, 122, 204), DockStyle.Right, 150);
+            btnSave = CreateButton("💾 Zapisz Receptę", Color.FromArgb(0, 122, 204), DockStyle.Left, 200);
             btnSave.Click += BtnSave_Click;
             
-            btnDelete = CreateButton("🗑️ Usuń", Color.FromArgb(120, 40, 40), DockStyle.Left, 100);
+            btnNew = CreateButton("➕ Nowa Recepta", Color.FromArgb(60, 60, 60), DockStyle.Left, 160);
+            btnNew.Click += (s, e) => CreateNewRecipe();
+
+            btnDelete = CreateButton("🗑️ Usuń", Color.FromArgb(180, 40, 40), DockStyle.Right, 100);
             btnDelete.Click += BtnDelete_Click;
 
             btnTestInSandbox = CreateButton("🧪 Testuj w Sandboxie", Color.FromArgb(60, 60, 60), DockStyle.Right, 180);
@@ -126,9 +140,8 @@ namespace Bricscad_AgentAI_V2.UI
             btnRunSequence.Click += BtnRunSequence_Click;
 
             panBottom.Controls.Add(btnSave);
-            panBottom.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 10 }); // Spacer
+            panBottom.Controls.Add(btnNew);
             panBottom.Controls.Add(btnRunSequence);
-            panBottom.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 10 }); // Spacer
             panBottom.Controls.Add(btnTestInSandbox);
             panBottom.Controls.Add(btnDelete);
 
@@ -178,7 +191,7 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (lstRecipes.SelectedIndex < 0) return;
             string trigger = lstRecipes.SelectedItem.ToString();
-            var recipe = RecipeManager.GetByTrigger(trigger);
+            var recipe = RecipeManager.GetByTrigger(trigger.TrimStart('$'));
             if (recipe != null)
             {
                 txtTriggerName.Text = "$" + recipe.Trigger;
@@ -276,7 +289,6 @@ namespace Bricscad_AgentAI_V2.UI
 
                 if (string.IsNullOrEmpty(name) || args == null)
                 {
-                    // Fallback dla uproszczonego formatu (jeśli ktoś wpisał bez wrapperów)
                     MessageBox.Show("Niepoprawny format kroku. Krok musi zawierać 'function' z 'name' i 'arguments'.");
                     return;
                 }
@@ -284,8 +296,7 @@ namespace Bricscad_AgentAI_V2.UI
                 if (ToolSandboxControl.Instance != null)
                 {
                     ToolSandboxControl.Instance.LoadToolCall(name, args);
-                    // Switch tab
-                    var studio = this.Parent.Parent as DatasetStudioControl; // Recipes -> TabPage -> TabControl -> DatasetStudio
+                    var studio = this.Parent.Parent as DatasetStudioControl;
                     if (studio != null)
                     {
                         foreach (TabPage tp in (studio.Controls[0] as TabControl).TabPages)
@@ -349,6 +360,49 @@ namespace Bricscad_AgentAI_V2.UI
             catch (Exception ex)
             {
                 MessageBox.Show("Błąd wykonania: " + ex.Message);
+            }
+        }
+
+        private void CreateNewRecipe()
+        {
+            string name = Microsoft.VisualBasic.Interaction.InputBox("Podaj nazwę (trigger) dla nowej recepty (bez znaku $):", "Nowa Recepta", "moja_nowa_recepta");
+            if (string.IsNullOrEmpty(name)) return;
+
+            txtTriggerName.Text = name;
+            txtRecipeDescription.Text = "Opis recepty...";
+            txtRecipeJson.Text = "[\n  {\n    \"function\": {\n      \"name\": \"tool_name\",\n      \"arguments\": {}\n    }\n  }\n]";
+            
+            foreach (int i in clbCategories.CheckedIndices.Cast<int>().ToList()) clbCategories.SetItemChecked(i, false);
+            lstRecipes.SelectedIndex = -1;
+        }
+
+        public void AppendToolCall(string trigger, string toolName, JObject args)
+        {
+            var recipe = RecipeManager.GetByTrigger(trigger);
+            if (recipe == null)
+            {
+                recipe = new AgentRecipe { Trigger = trigger, Description = "Automatycznie stworzona z Sandboxa", ToolExample = new JArray() };
+            }
+
+            var call = new JObject
+            {
+                ["function"] = new JObject
+                {
+                    ["name"] = toolName,
+                    ["arguments"] = args
+                }
+            };
+            recipe.ToolExample.Add(call);
+            RecipeManager.AddOrUpdate(recipe);
+            RefreshList();
+
+            for (int i = 0; i < lstRecipes.Items.Count; i++)
+            {
+                if (lstRecipes.Items[i].ToString().Equals("$" + trigger, StringComparison.OrdinalIgnoreCase))
+                {
+                    lstRecipes.SelectedIndex = i;
+                    break;
+                }
             }
         }
 
