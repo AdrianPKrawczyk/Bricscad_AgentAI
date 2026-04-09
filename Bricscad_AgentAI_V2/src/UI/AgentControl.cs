@@ -69,8 +69,8 @@ namespace Bricscad_AgentAI_V2.UI
             AppendToHistory("SYSTEM", "Bielik V2 GOLD gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
         }        private void InitializeEngineV2()
         {
-            _orchestrator = new ToolOrchestrator();
-            _orchestrator.Initialize(); // Ważne: Inicjalizacja skanowania narzędzi (w tym ExecuteMacroTool)
+            _orchestrator = ToolOrchestrator.Instance;
+            // Inicjalizacja skanowania narzędzi odbywa się automatycznie przy pierwszym dostępie do Instance
 
             // Konfigurowalny endpoint
             _llmClient = new LLMClient("http://localhost:1234/v1/chat/completions", "not-needed", _orchestrator);
@@ -406,7 +406,7 @@ namespace Bricscad_AgentAI_V2.UI
             ToolConfigManager.UpdateSettings(newSettings);
             
             // WYMUSZENIE ODŚWIEŻENIA W LOCIE
-            _orchestrator.Initialize();
+            _orchestrator.RefreshTools();
             RebuildSystemPrompt();
             
             MessageBox.Show("Konfiguracja narzędzi została zapisana i zaaplikowana w locie!", "Agent AI V2", MessageBoxButtons.OK, MessageBoxIcon.Information);

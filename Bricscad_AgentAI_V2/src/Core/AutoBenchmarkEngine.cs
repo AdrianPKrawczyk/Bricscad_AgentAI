@@ -64,8 +64,7 @@ namespace Bricscad_AgentAI_V2.Core
         {
             OnLogMessage?.Invoke(this, "=== PRE-FLIGHT SCHEMA CHECK ===");
             
-            var orchestrator = new ToolOrchestrator();
-            orchestrator.Initialize();
+            var orchestrator = ToolOrchestrator.Instance;
 
             var toolType = typeof(IToolV2);
             var types = Assembly.GetExecutingAssembly().GetTypes()

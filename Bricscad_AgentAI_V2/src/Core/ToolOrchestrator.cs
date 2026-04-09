@@ -16,17 +16,42 @@ namespace Bricscad_AgentAI_V2.Core
     {
         private readonly Dictionary<string, IToolV2> _tools = new Dictionary<string, IToolV2>();
 
+        private static ToolOrchestrator _instance;
+        private static readonly object _lock = new object();
+
         /// <summary>
-        /// Globalna instancja orkiestratora dla narzędzi rekurencyjnych (np. Foreach).
+        /// Globalna, bezpieczna wątkowo instancja orkiestratora.
+        /// Automatycznie inicjalizuje się przy pierwszym wywołaniu.
         /// </summary>
-        public static ToolOrchestrator Instance { get; private set; }
+        public static ToolOrchestrator Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (_lock)
+                    {
+                        if (_instance == null)
+                        {
+                            _instance = new ToolOrchestrator();
+                            _instance.Initialize();
+                        }
+                    }
+                }
+                return _instance;
+            }
+        }
+
+        /// <summary>
+        /// Prywatny konstruktor zapobiega tworzeniu instancji przez 'new' z zewnątrz.
+        /// </summary>
+        private ToolOrchestrator() { }
 
         /// <summary>
         /// Automatycznie skanuje bieżący zestaw klas w poszukiwaniu implementacji IToolV2.
         /// </summary>
-        public void Initialize()
+        private void Initialize()
         {
-            Instance = this;
             _tools.Clear();
             
             var toolType = typeof(IToolV2);
@@ -55,6 +80,14 @@ namespace Bricscad_AgentAI_V2.Core
             ToolConfigManager.Initialize(_tools.Values);
         }
 
+        /// <summary>
+        /// Wymusza ponowne przeskanowanie narzędzi (np. po zmianie konfiguracji).
+        /// </summary>
+        public void RefreshTools()
+        {
+            Initialize();
+        }
+
         public List<ToolDefinition> GetToolsPayload(IEnumerable<string> requestedTags)
         {
             return _tools.Values
@@ -63,26 +96,16 @@ namespace Bricscad_AgentAI_V2.Core
                 .ToList();
         }
 
-        /// <summary>
-        /// [DEPRECATED] Używaj wersji z parametrem tags.
-        /// </summary>
         public List<ToolDefinition> GetToolsPayload()
         {
             return GetToolsPayload(null);
         }
 
-        /// <summary>
-        /// Wywołuje wskazane narzędzie na podstawie nazwy rzuconej przez LLM.
-        /// </summary>
-        /// <param name="toolName">Nazwa funkcji z tool_calls.</param>
-        /// <param name="arguments">Zdeserializowane argumenty JSON.</param>
-        /// <param name="doc">Aktywny dokument CAD.</param>
-        /// <returns>Wynik działania narzędzia (string) do przekazania z powrotem do Agenta.</returns>
         public string ExecuteTool(string toolName, JObject arguments, Document doc)
         {
             if (!_tools.TryGetValue(toolName, out var tool))
             {
-                return $"BŁĄD KRYTYCZNY (ZŁAMANIE PROTOKOŁU): Narzędzie '{toolName}' jest obecnie uśpione (niedostępne w Twoim arsenale). ZABRONIONE JEST wywoływanie narzędzi w ciemno. MUSISZ najpierw wywołać narzędzie 'RequestAdditionalTools' z Action='LoadCategory' i parametrem CategoryName='{toolName}', aby załadować jego schemat. Dopiero po załadowaniu będziesz mógł go użyć.";
+                return $"BŁĄD KRYTYCZNY (ZŁAMANIE PROTOKOŁU): Narzędzie '{toolName}' jest obecnie uśpione. MUSISZ najpierw wywołać narzędzie 'RequestAdditionalTools'.";
             }
 
             // PRZECHWYCENIE: Dynamiczne ładowanie narzędzi do sesji w locie
