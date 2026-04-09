@@ -27,7 +27,11 @@ Uruchamia panel automatycznych testów (Benchmark).
 Ręczne wywołanie narzędzia ReadXData.
 - **Działanie**: Pozwala na szybki podgląd metadanych XData zaznaczonych obiektów bezpośrednio w konsoli CAD.
 
-### 5. `AGENT_TESTER_V2`
+### 5. `AI_SETXDATA`
+Ręczne wywołanie narzędzia WriteXData.
+- **Działanie**: Pozwala na zapisanie metadanych XData do zaznaczonych obiektów. Wymaga podania nazwy aplikacji oraz danych w formacie JSON.
+
+### 6. `AGENT_TESTER_V2`
 Uruchamia panel testera V1-compatible.
 - **Działanie**: Pozwala na wysyłanie surowych zapytań JSON do orchestratora w celach debugowania schematów.
 

@@ -97,6 +97,7 @@
     <Compile Include="src\Tools\ForeachTool.cs" />
     <Compile Include="src\Tools\RequestAdditionalToolsTool.cs" />
     <Compile Include="src\Tools\ReadXDataTool.cs" />
+    <Compile Include="src\Tools\WriteXDataTool.cs" />
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -120,6 +121,7 @@
     <Compile Include="tests\Tools\ManageLayersToolTests.cs" />
     <Compile Include="tests\Tools\ForeachToolTests.cs" />
     <Compile Include="tests\Tools\ReadXDataToolTests.cs" />
+    <Compile Include="tests\Tools\WriteXDataToolTests.cs" />
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
   </ItemGroup>

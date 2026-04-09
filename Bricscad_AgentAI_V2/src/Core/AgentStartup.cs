@@ -244,6 +244,47 @@ namespace Bricscad_AgentAI_V2.Core
             string result = ToolOrchestrator.Instance.ExecuteTool("ReadXData", args, doc);
             ed.WriteMessage($"\n\n--- WYNIK ODCZYTU XDATA ---\n{result}\n---------------------------\n");
         }
+        [CommandMethod("AI_SETXDATA", CommandFlags.UsePickSet | CommandFlags.Redraw)]
+        public void CommandAiSetXData()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            SyncSelectionWithMemory(ed);
+
+            if (AgentMemoryState.ActiveSelection.Length == 0)
+            {
+                ed.WriteMessage("\n[Błąd]: Najpierw zaznacz obiekty do zapisu XData.");
+                return;
+            }
+
+            PromptStringOptions appOpts = new PromptStringOptions("\nPodaj nazwę aplikacji (RegApp): ");
+            PromptResult appRes = ed.GetString(appOpts);
+            if (appRes.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(appRes.StringResult)) return;
+
+            PromptStringOptions dataOpts = new PromptStringOptions("\nPodaj wpisy w formacie JSON (np. [{\"Type\": \"String\", \"Value\": \"Hello\"}]): ");
+            dataOpts.AllowSpaces = true;
+            PromptResult dataRes = ed.GetString(dataOpts);
+            if (dataRes.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(dataRes.StringResult)) return;
+
+            try
+            {
+                JArray entries = JArray.Parse(dataRes.StringResult);
+                JObject args = new JObject
+                {
+                    ["AppName"] = appRes.StringResult.Trim(),
+                    ["Entries"] = entries
+                };
+
+                string result = ToolOrchestrator.Instance.ExecuteTool("WriteXData", args, doc);
+                ed.WriteMessage($"\n\n--- WYNIK ZAPISU XDATA ---\n{result}\n---------------------------\n");
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage($"\n[Błąd]: Niepoprawny format danych JSON: {ex.Message}");
+            }
+        }
+
 
         // ==============================================================
         // RPN ENGINE CLI (v2.20.3 - V1 Sync)

@@ -56,7 +56,10 @@ Pobiera zestaw właściwości dla wszystkich obiektów w `ActiveSelection` (tryb
 ### 11. `ReadXData` **[TAG: #data]**
 Odczytuje rozszerzone dane (XData) z obiektów. Pozwala filtrować po nazwie aplikacji (`AppName`) i zapisywać wynik do zmiennej.
 
-### 12. `ReadTextSample` **[TAG: #tekst]**
+### 12. `WriteXData` **[TAG: #data]**
+Zapisuje lub nadpisuje rozszerzone dane (XData) dla obiektów. Automatycznie rejestruje aplikację (RegApp).
+
+### 13. `ReadTextSample` **[TAG: #tekst]**
 Pobiera reprezentatywną próbkę treści z dużych zbiorów tekstów.
 
 ---

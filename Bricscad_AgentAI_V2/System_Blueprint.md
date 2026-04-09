@@ -188,6 +188,14 @@ Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w
 - `SaveAs` (string, Optional): Nazwa zmiennej do zapisu wyniku JSON.
 **Uwagi**: Narzędzie iteruje po zaznaczeniu i zwraca strukturę JSON zawierającą uchwyty (Handles) oraz pary Typ/Wartość dla XData.
 
+### WriteXDataTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.WriteXDataTool`
+**Cel**: Zapisywanie lub nadpisywanie danych XData dla obiektów w aktywnym zaznaczeniu.
+**Parametry**:
+- `AppName` (string, Required): Nazwa zarejestrowanej aplikacji (RegApp).
+- `Entries` (array, Required): Lista obiektów zawierających `Type` (String, Double, Int) oraz `Value`.
+**Uwagi**: Automatycznie rejestruje aplikację (`RegApp`) w tabeli systemowej, jeśli nie istnieje. Nadpisuje istniejące dane XData dla wskazanej aplikacji.
+
 ---
 
 ## Mechanizm Data Flywheel (Dataset Studio)
