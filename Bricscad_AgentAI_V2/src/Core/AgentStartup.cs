@@ -217,5 +217,94 @@ namespace Bricscad_AgentAI_V2.Core
             ed.WriteMessage($"\n\n--- WYNIK EDYCJI WYMIARÓW ---\n{result}\n-----------------------------\n");
         }
 
+
+        // ==============================================================
+        // RPN ENGINE CLI
+        // ==============================================================
+
+        [CommandMethod("RPN", CommandFlags.Transparent)]
+        public void CommandRpn()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptStringOptions opts = new PromptStringOptions("\n[RPN] Wpisz wyrażenie (np. '10 20 +') lub '?' dla pomocy: ");
+            opts.AllowSpaces = true;
+            PromptResult res = ed.GetString(opts);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                string input = res.StringResult.Trim();
+                if (input == "?")
+                {
+                    WypiszSciageRpn(ed);
+                    return;
+                }
+
+                try
+                {
+                    string result = RpnCalculator.Evaluate(input, null, null, ed);
+                    ed.WriteMessage($"\n[RPN] Wynik: {result}");
+                    RpnCalculator.SaveStackToDwg(doc.Database);
+                }
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage($"\n[RPN Błąd]: {ex.Message}");
+                }
+            }
+        }
+
+        [CommandMethod("CALC", CommandFlags.Transparent)]
+        public void CommandCalc()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptStringOptions opts = new PromptStringOptions("\n[CALC] Wyrażenie: ");
+            opts.AllowSpaces = true;
+            PromptResult res = ed.GetString(opts);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                string input = res.StringResult.Trim();
+                if (input == "?")
+                {
+                    WypiszSciageRpn(ed);
+                    return;
+                }
+
+                try
+                {
+                    string result = RpnCalculator.Evaluate(input, null, null, ed);
+                    ed.WriteMessage($"\n[CALC] Wynik: {result}");
+                    RpnCalculator.SaveStackToDwg(doc.Database);
+                }
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage($"\n[CALC Błąd]: {ex.Message}");
+                }
+            }
+        }
+
+        [CommandMethod("STOS", CommandFlags.Transparent)]
+        public void CommandStos()
+        {
+            var stack = RpnCalculator.GetStack();
+            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
+                $"\n--- AKTUALNY STOS AGENTA ---\n{string.Join("\n", stack)}\n---------------------------");
+        }
+
+        private void WypiszSciageRpn(Editor ed)
+        {
+            ed.WriteMessage("\n--- ŚCIĄGAWKA RPN AGENTA ---");
+            ed.WriteMessage("\nPodstawowe: +, -, *, /, ^ (potęga), SQRT (pierwiastek)");
+            ed.WriteMessage("\nStos: DROP (usuń T), SWAP (zamień X z Y), DUP (duplikuj X), CLEAR (czyść)");
+            ed.WriteMessage("\nStałe: #PI, #G (9.81), #C (światło), #UNITL (jedn. rysunku), #UNITA (pole rysunku)");
+            ed.WriteMessage("\nJednostki: 10_m, 50_mm, 2_degC, 10_m2, 5_kg/m3");
+            ed.WriteMessage("\nKonwersja: 'mm' CONVE (na mm), 'm' +UNIT (nadaj m)");
+            ed.WriteMessage("\nCAD: DL (odległość), DX/DY/DZ (przyłosty), AREA (pole - wkrótce)");
+            ed.WriteMessage("\nZmienne: 10 $X STO (zapisz do $X), $X RCL (czytaj $X)");
+            ed.WriteMessage("\n---------------------------");
+        }
     }
 }

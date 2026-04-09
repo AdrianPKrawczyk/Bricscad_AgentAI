@@ -296,31 +296,32 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
-        // ==============================================================
-        // ZAPIS/ODCZYT DWG
-        // ==============================================================
-        public static void LoadFromDWG(Document doc)
+        public static List<string> GetStack()
         {
-            if (doc == null || _loadedDocs.Contains(doc)) return;
+            return CurrentStack.Select(o => GetString(o)).ToList();
+        }
+
+        // ==============================================================
+        // ZAPIS/ODCZYT DWG (V2 Standard)
+        // ==============================================================
+        public static void LoadStackFromDwg(Database db)
+        {
+            if (db == null) return;
             try
             {
-                using (Transaction tr = doc.TransactionManager.StartTransaction())
+                using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
-                    DBDictionary nod = (DBDictionary)tr.GetObject(doc.Database.NamedObjectsDictionaryId, OpenMode.ForRead);
-                    if (nod.Contains("BIELIK_RPN_MEMORY"))
+                    DBDictionary nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
+                    if (nod.Contains("BIELIK_RPN_STACK"))
                     {
-                        DBDictionary dict = (DBDictionary)tr.GetObject(nod.GetAt("BIELIK_RPN_MEMORY"), OpenMode.ForRead);
-                        if (dict.Contains("STACK"))
+                        Xrecord xRec = (Xrecord)tr.GetObject(nod.GetAt("BIELIK_RPN_STACK"), OpenMode.ForRead);
+                        if (xRec.Data != null)
                         {
-                            Xrecord xRec = (Xrecord)tr.GetObject(dict.GetAt("STACK"), OpenMode.ForRead);
-                            if (xRec.Data != null)
+                            var stack = CurrentStack;
+                            stack.Clear();
+                            foreach (TypedValue tv in xRec.Data)
                             {
-                                var stack = CurrentStack;
-                                stack.Clear();
-                                foreach (TypedValue tv in xRec.Data)
-                                {
-                                    if (tv.Value.ToString() != "EMPTY_STACK") stack.Add(tv.Value.ToString());
-                                }
+                                if (tv.Value.ToString() != "EMPTY_STACK") stack.Add(tv.Value.ToString());
                             }
                         }
                     }
@@ -328,7 +329,45 @@ namespace Bricscad_AgentAI_V2.Core
                 }
             }
             catch { }
-            finally { _loadedDocs.Add(doc); }
+        }
+
+        public static void SaveStackToDwg(Database db)
+        {
+            if (db == null) return;
+            try
+            {
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    DBDictionary nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForWrite);
+                    Xrecord xRec = new Xrecord();
+                    ResultBuffer rb = new ResultBuffer();
+                    var stack = CurrentStack;
+                    if (stack.Count == 0) rb.Add(new TypedValue((int)DxfCode.Text, "EMPTY_STACK"));
+                    else foreach (var item in stack) rb.Add(new TypedValue((int)DxfCode.XTextString, GetString(item)));
+                    xRec.Data = rb;
+
+                    if (nod.Contains("BIELIK_RPN_STACK"))
+                    {
+                        ObjectId oldId = nod.GetAt("BIELIK_RPN_STACK");
+                        DBObject oldObj = tr.GetObject(oldId, OpenMode.ForWrite);
+                        oldObj.Erase();
+                    }
+                    nod.SetAt("BIELIK_RPN_STACK", xRec);
+                    tr.AddNewlyCreatedDBObject(xRec, true);
+                    tr.Commit();
+                }
+            }
+            catch { }
+        }
+
+        // ==============================================================
+        // ZAPIS/ODCZYT DWG (Legacy/Compat)
+        // ==============================================================
+        public static void LoadFromDWG(Document doc)
+        {
+            if (doc == null || _loadedDocs.Contains(doc)) return;
+            LoadStackFromDwg(doc.Database);
+            _loadedDocs.Add(doc);
         }
 
         public static void SaveToDWG(Document doc)

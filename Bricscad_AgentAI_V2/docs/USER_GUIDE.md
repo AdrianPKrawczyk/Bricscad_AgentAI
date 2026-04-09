@@ -1,4 +1,4 @@
-# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.19.0 GOLD)
+# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.20.1 GOLD)
 
 Witaj w wersji **GOLD** systemu Bielik AI V2. Niniejszy podręcznik został przygotowany dla inżynierów i projektantów BricsCAD, którzy chcą w pełni wykorzystać potencjał sztucznej inteligencji zintegrowanej bezpośrednio z silnikiem CAD.
 
@@ -43,6 +43,16 @@ Podczas modyfikacji właściwości (`ModifyProperties`), Agent automatycznie udo
 
 > [!TIP]
 > Jeśli chcesz mieć pewność, że Agent użyje obliczeń, napisz: *"Zastosuj formułę RPN: [twoje działanie]"*.
+
+### 2.3. Interfejs CLI dla Kalkulatora (Nowość v2.20.1)
+Możesz korzystać z mocy obliczeniowej Agenta bezpośrednio w linii poleceń BricsCAD bez otwierania panelu.
+
+- **`RPN`**: Interaktywny tryb obliczeń. Wpisz `RPN`, a następnie wyrażenie lub `?` dla pomocy.
+- **`CALC`**: Szybkie przeliczenie (np. `CALC 5 5 +`). Obsługuje te same operatory i stałe co silnik główny.
+- **`STOS`**: Wyświetla aktualną zawartość stosu matematycznego Agenta zapisaną w rysunku.
+
+### 2.4. Trwałość Stosu (DWG Persistence)
+Stos Agenta (wyniki Twoich obliczeń) jest zapisywany wewnątrz pliku `.dwg`. Jeśli wykonasz obliczenie, zamkniesz rysunek i wrócisz do niego jutro – Twoje wyniki będą na Ciebie czekać (sprawdź komendą `STOS`).
 
 ---
 
@@ -191,7 +201,7 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.19.0 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.20.1 GOLD | BricsCAD Agent AI Project*
 
 ---
 

@@ -67,7 +67,14 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
-                if (toExecute.StartsWith("LISP:", StringComparison.OrdinalIgnoreCase))
+                if (toExecute.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string rpnExpr = toExecute.Substring(4).Trim();
+                    string evaluated = RpnCalculator.Evaluate(rpnExpr, null, null, doc.Editor);
+                    doc.SendStringToExecute(evaluated + "\n", true, false, false);
+                    return $"SUKCES: Wykonano RPN i wysłano wynik: {evaluated}";
+                }
+                else if (toExecute.StartsWith("LISP:", StringComparison.OrdinalIgnoreCase))
                 {
                     string lispCode = toExecute.Substring(5);
                     doc.SendStringToExecute(lispCode + " ", true, false, false);
