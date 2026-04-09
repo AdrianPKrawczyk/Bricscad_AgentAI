@@ -31,7 +31,11 @@ Ręczne wywołanie narzędzia ReadXData.
 Ręczne wywołanie narzędzia WriteXData.
 - **Działanie**: Pozwala na zapisanie metadanych XData do zaznaczonych obiektów. Wymaga podania nazwy aplikacji oraz danych w formacie JSON.
 
-### 6. `AGENT_TESTER_V2`
+### 6. `AI_FINDXDATA`
+Ręczne wywołanie narzędzia FindXData.
+- **Działanie**: Skanuje zaznaczenie lub definicję bloku pod kątem obecności metadanych XData. Obsługuje rekurencyjne przeszukiwanie zagnieżdżonych bloków.
+
+### 7. `AGENT_TESTER_V2`
 Uruchamia panel testera V1-compatible.
 - **Działanie**: Pozwala na wysyłanie surowych zapytań JSON do orchestratora w celach debugowania schematów.
 

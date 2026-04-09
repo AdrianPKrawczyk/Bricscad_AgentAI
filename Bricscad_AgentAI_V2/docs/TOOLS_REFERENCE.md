@@ -59,7 +59,10 @@ Odczytuje rozszerzone dane (XData) z obiektów. Pozwala filtrować po nazwie apl
 ### 12. `WriteXData` **[TAG: #data]**
 Zapisuje lub nadpisuje rozszerzone dane (XData) dla obiektów. Automatycznie rejestruje aplikację (RegApp).
 
-### 13. `ReadTextSample` **[TAG: #tekst]**
+### 13. `FindXData` **[TAG: #data]**
+Skanuje zaznaczone obiekty lub wnętrze definicji bloku (rekurencyjnie) w poszukiwaniu elementów posiadających metadane XData.
+
+### 14. `ReadTextSample` **[TAG: #tekst]**
 Pobiera reprezentatywną próbkę treści z dużych zbiorów tekstów.
 
 ---

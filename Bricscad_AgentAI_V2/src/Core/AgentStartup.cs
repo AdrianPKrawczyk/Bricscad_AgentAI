@@ -284,6 +284,41 @@ namespace Bricscad_AgentAI_V2.Core
                 ed.WriteMessage($"\n[Błąd]: Niepoprawny format danych JSON: {ex.Message}");
             }
         }
+        [CommandMethod("AI_FINDXDATA", CommandFlags.UsePickSet | CommandFlags.Redraw)]
+        public void CommandAiFindXData()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptKeywordOptions pko = new PromptKeywordOptions("\nTryb skanowania [Zaznaczenie/Blok]: ");
+            pko.Keywords.Add("Zaznaczenie", "Zaznaczenie", "Zaznaczenie (Selection)");
+            pko.Keywords.Add("Blok", "Blok", "Blok (Block)");
+            pko.Keywords.Default = "Zaznaczenie";
+            pko.AllowNone = true;
+
+            PromptResult pr = ed.GetKeywords(pko);
+            if (pr.Status != PromptStatus.OK) return;
+
+            JObject args = new JObject();
+            if (pr.StringResult == "Zaznaczenie")
+            {
+                SyncSelectionWithMemory(ed);
+                args["Mode"] = "Selection";
+            }
+            else
+            {
+                PromptStringOptions pso = new PromptStringOptions("\nPodaj nazwę bloku: ");
+                PromptResult psr = ed.GetString(pso);
+                if (psr.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(psr.StringResult)) return;
+                
+                args["Mode"] = "Block";
+                args["BlockName"] = psr.StringResult.Trim();
+            }
+
+            string result = ToolOrchestrator.Instance.ExecuteTool("FindXData", args, doc);
+            ed.WriteMessage($"\n\n--- WYNIK SKANOWANIA XDATA ---\n{result}\n------------------------------\n");
+        }
+
 
 
         // ==============================================================

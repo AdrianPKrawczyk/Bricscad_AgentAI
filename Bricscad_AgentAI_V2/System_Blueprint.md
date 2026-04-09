@@ -196,6 +196,15 @@ Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w
 - `Entries` (array, Required): Lista obiektów zawierających `Type` (String, Double, Int) oraz `Value`.
 **Uwagi**: Automatycznie rejestruje aplikację (`RegApp`) w tabeli systemowej, jeśli nie istnieje. Nadpisuje istniejące dane XData dla wskazanej aplikacji.
 
+### FindXDataTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.FindXDataTool`
+**Cel**: Skanowanie obiektów (zaznaczenie lub definicje bloków) w poszukiwaniu jakichkolwiek metadanych XData.
+**Parametry**:
+- `Mode` (string, Required): 'Selection' lub 'Block'.
+- `BlockName` (string, Optional): Nazwa bloku do skanowania (wymagane w trybie 'Block').
+- `SaveAs` (string, Optional): Zmienna do zapisu listy uchwytów (Handles).
+**Uwagi**: Obsługuje **rekurencyjne skanowanie** zagnieżdżonych referencji blokowych z zabezpieczeniem przed pętlami nieskończonymi.
+
 ---
 
 ## Mechanizm Data Flywheel (Dataset Studio)
