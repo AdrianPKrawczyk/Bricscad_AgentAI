@@ -75,7 +75,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         idsToScan = AgentMemoryState.ActiveSelection;
                         if (idsToScan == null || !idsToScan.Any())
-                            return "BŁĄD: Tryb 'Selection' wymaga wcześniejszego zaznaczenia obiektów (ActiveSelection jest puste).";
+                            return "BŁĄD: Tryb 'Selection' wymaga wcześniejszego zaznaczenia obiektów.";
                     }
                     else if (mode.Equals("Block", StringComparison.OrdinalIgnoreCase))
                     {
@@ -96,7 +96,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
 
                     // SKANOWANIE REKURENCYJNE
-                    ScanRecursive(idsToScan, tr, foundHandles, reportLines, visitedBlocks);
+                    ScanRecursive(idsToScan, tr, foundHandles, reportLines, visitedBlocks, "");
 
                     tr.Commit();
                 }
@@ -120,7 +120,7 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
 
-        private void ScanRecursive(IEnumerable<ObjectId> ids, Transaction tr, List<string> foundHandles, List<string> reportLines, HashSet<ObjectId> visitedBlocks)
+        private void ScanRecursive(IEnumerable<ObjectId> ids, Transaction tr, List<string> foundHandles, List<string> reportLines, HashSet<ObjectId> visitedBlocks, string indent)
         {
             foreach (ObjectId id in ids)
             {
@@ -142,7 +142,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         if (apps.Count > 0)
                         {
                             foundHandles.Add(ent.Handle.ToString());
-                            reportLines.Add($"- [{ent.GetType().Name}] (Handle: {ent.Handle}), Apps: {string.Join(", ", apps)}");
+                            reportLines.Add($"{indent}- [{ent.GetType().Name}] (Handle: {ent.Handle}), Apps: {string.Join(", ", apps)}");
                         }
                     }
                 }
@@ -154,7 +154,8 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (visitedBlocks.Add(btrId))
                     {
                         BlockTableRecord subBtr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-                        ScanRecursive(subBtr.Cast<ObjectId>(), tr, foundHandles, reportLines, visitedBlocks);
+                        reportLines.Add($"{indent}  [Wchodzę do struktury bloku: {subBtr.Name}]");
+                        ScanRecursive(subBtr.Cast<ObjectId>(), tr, foundHandles, reportLines, visitedBlocks, indent + "  ");
                     }
                 }
             }

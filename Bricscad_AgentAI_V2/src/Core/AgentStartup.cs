@@ -290,27 +290,22 @@ namespace Bricscad_AgentAI_V2.Core
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
 
-            PromptKeywordOptions pko = new PromptKeywordOptions("\nTryb skanowania [Zaznaczenie/Blok]: ");
-            pko.Keywords.Add("Zaznaczenie", "Zaznaczenie", "Zaznaczenie (Selection)");
-            pko.Keywords.Add("Blok", "Blok", "Blok (Block)");
-            pko.Keywords.Default = "Zaznaczenie";
-            pko.AllowNone = true;
-
-            PromptResult pr = ed.GetKeywords(pko);
-            if (pr.Status != PromptStatus.OK) return;
+            SyncSelectionWithMemory(ed);
 
             JObject args = new JObject();
-            if (pr.StringResult == "Zaznaczenie")
+
+            if (AgentMemoryState.ActiveSelection.Length > 0)
             {
-                SyncSelectionWithMemory(ed);
+                // Automatyczne skanowanie zaznaczenia (w tym bloków)
                 args["Mode"] = "Selection";
             }
             else
             {
-                PromptStringOptions pso = new PromptStringOptions("\nPodaj nazwę bloku: ");
+                // Brak zaznaczenia - pytamy o blok
+                PromptStringOptions pso = new PromptStringOptions("\nNic nie zaznaczono. Podaj nazwę bloku do przeskanowania: ");
                 PromptResult psr = ed.GetString(pso);
                 if (psr.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(psr.StringResult)) return;
-                
+
                 args["Mode"] = "Block";
                 args["BlockName"] = psr.StringResult.Trim();
             }
