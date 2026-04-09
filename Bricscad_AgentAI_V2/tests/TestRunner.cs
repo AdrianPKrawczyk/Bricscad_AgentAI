@@ -10,6 +10,7 @@ namespace Bricscad_AgentAI_V2.Tests
             try
             {
                 ForeachToolTests.RunTests();
+                ReadXDataToolTests.RunTests();
                 Console.WriteLine("WSZYSTKIE TESTY ZAKOŃCZONE SUKCESEM.");
             }
             catch (Exception ex)

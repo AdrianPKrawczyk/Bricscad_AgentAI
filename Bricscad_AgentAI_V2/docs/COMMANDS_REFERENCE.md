@@ -23,7 +23,11 @@ Przezroczysta (Transparent) wersja komendy Agenta.
 Uruchamia panel automatycznych testów (Benchmark).
 - **Działanie**: Automatycznie przełącza paletę na zakładkę Benchmark. Służy do weryfikacji modeli LLM na statycznych scenariuszach (Mock).
 
-### 4. `AGENT_TESTER_V2`
+### 4. `AI_XDATA`
+Ręczne wywołanie narzędzia ReadXData.
+- **Działanie**: Pozwala na szybki podgląd metadanych XData zaznaczonych obiektów bezpośrednio w konsoli CAD.
+
+### 5. `AGENT_TESTER_V2`
 Uruchamia panel testera V1-compatible.
 - **Działanie**: Pozwala na wysyłanie surowych zapytań JSON do orchestratora w celach debugowania schematów.
 

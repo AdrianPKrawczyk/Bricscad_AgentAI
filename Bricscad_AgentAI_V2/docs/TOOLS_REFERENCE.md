@@ -53,7 +53,10 @@ Odczytuje konkretną właściwość i opcjonalnie zapisuje ją do zmiennej Agent
 ### 10. `GetProperties` **[IsCore: Tak]**
 Pobiera zestaw właściwości dla wszystkich obiektów w `ActiveSelection` (tryb Lite/Full).
 
-### 11. `ReadTextSample` **[TAG: #tekst]**
+### 11. `ReadXData` **[TAG: #data]**
+Odczytuje rozszerzone dane (XData) z obiektów. Pozwala filtrować po nazwie aplikacji (`AppName`) i zapisywać wynik do zmiennej.
+
+### 12. `ReadTextSample` **[TAG: #tekst]**
 Pobiera reprezentatywną próbkę treści z dużych zbiorów tekstów.
 
 ---

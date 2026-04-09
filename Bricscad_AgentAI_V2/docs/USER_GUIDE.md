@@ -86,9 +86,11 @@ Zamiast ogólnych właściwości, używaj dedykowanego narzędzia do "anatomii" 
 - **Stylizacja**: Niezależne kolory dla tekstu, linii głównej i linii pomocniczych.
 - **Grot Strzałki**: Wybieraj predefiniowane bloki (np. `_ARCHTICK` dla kreski).
 
-### 4.2. Inteligentne Wybieranie Kreskowań
-Dzięki nowemu mechanizmowi rzutowania typów, Agent bezbłędnie rozróżnia zwykłe kreskowania od **gradientów**.
-- Przykład: *"Zaznacz wszystkie gradienty i ustaw im przezroczystość 80%"*.
+### 4.3. Rozszerzone dane (XData) - `ReadXData`
+Agent posiada teraz narzędzie do "głębokiej inspekcji" metadanych ukrytych w obiektach DWG.
+- **Zastosowanie**: Odczytywanie danych z zewnętrznych systemów (np. ERP, GIS) zapisanych jako XData.
+- **Filtrowanie**: Możesz poprosić o dane konkretnej aplikacji: *"Odczytaj XData dla aplikacji 'MY_BIM_APP'"*.
+- **Pamięć**: Możesz zapisać te metadane do zmiennej i użyć ich w formule RPN.
 
 ---
 

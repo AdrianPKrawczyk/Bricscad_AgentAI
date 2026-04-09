@@ -180,6 +180,14 @@ Narzędzie do wyświetlania listy opcji (słów kluczowych) do wyboru przez uży
 ### ForeachTool
 Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w zmiennych Agenta (@Variables). Pozwala modelowi LLM na przejrzysty wgląd w dane przed iteracją.
 
+### ReadXDataTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.ReadXDataTool`
+**Cel**: Odczyt rozszerzonych danych (XData) z obiektów w aktywnym zaznaczeniu.
+**Parametry**:
+- `AppName` (string, Optional): Nazwa zarejestrowanej aplikacji (RegApp).
+- `SaveAs` (string, Optional): Nazwa zmiennej do zapisu wyniku JSON.
+**Uwagi**: Narzędzie iteruje po zaznaczeniu i zwraca strukturę JSON zawierającą uchwyty (Handles) oraz pary Typ/Wartość dla XData.
+
 ---
 
 ## Mechanizm Data Flywheel (Dataset Studio)

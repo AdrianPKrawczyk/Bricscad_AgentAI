@@ -214,10 +214,36 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             string result = ToolOrchestrator.Instance.ExecuteTool("DimensionEditTool", args, doc);
-            ed.WriteMessage($"\n\n--- WYNIK EDYCJI WYMIARÓW ---\n{result}\n-----------------------------\n");
         }
 
+        [CommandMethod("AI_XDATA", CommandFlags.UsePickSet | CommandFlags.Redraw)]
+        public void CommandAiXData()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
 
+            SyncSelectionWithMemory(ed);
+
+            if (AgentMemoryState.ActiveSelection.Length == 0)
+            {
+                ed.WriteMessage("\n[Błąd]: Najpierw zaznacz obiekty do odczytu XData.");
+                return;
+            }
+
+            PromptStringOptions opts = new PromptStringOptions("\nPodaj nazwę aplikacji (Enter dla wszystkich): ");
+            opts.AllowSpaces = true;
+            PromptResult res = ed.GetString(opts);
+
+            JObject args = new JObject();
+            if (res.Status == PromptStatus.OK && !string.IsNullOrWhiteSpace(res.StringResult))
+            {
+                args["AppName"] = res.StringResult.Trim();
+            }
+
+            // Używamy orkiestratora, aby zachować spójność z logiką V2
+            string result = ToolOrchestrator.Instance.ExecuteTool("ReadXData", args, doc);
+            ed.WriteMessage($"\n\n--- WYNIK ODCZYTU XDATA ---\n{result}\n---------------------------\n");
+        }
 
         // ==============================================================
         // RPN ENGINE CLI (v2.20.3 - V1 Sync)
