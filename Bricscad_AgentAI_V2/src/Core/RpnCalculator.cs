@@ -435,14 +435,14 @@ namespace Bricscad_AgentAI_V2.Core
 
             PromptPointOptions ppo1 = new PromptPointOptions($"\n[{mode}] Wskaż pierwszy punkt: ");
             PromptPointResult ppr1 = ed.GetPoint(ppo1);
-            if (ppr1.Status != PromptStatus.OK) throw new Exception("Anulowano wskazywanie.");
-
+            if (ppr1.Status != PromptStatus.OK) throw new Exception("[RPN] Anulowano pomiar.");
+ 
             PromptPointOptions ppo2 = new PromptPointOptions($"\n[{mode}] Wskaż drugi punkt: ");
             ppo2.UseBasePoint = true; ppo2.BasePoint = ppr1.Value;
             if (mode == "DX" || mode == "DY") ppo2.UseDashedLine = true;
-
+ 
             PromptPointResult ppr2 = ed.GetPoint(ppo2);
-            if (ppr2.Status != PromptStatus.OK) throw new Exception("Anulowano wskazywanie.");
+            if (ppr2.Status != PromptStatus.OK) throw new Exception("[RPN] Anulowano pomiar.");
 
             Point3d p1 = ppr1.Value; Point3d p2 = ppr2.Value;
             double dist = mode == "DX" ? Math.Abs(p2.X - p1.X) : mode == "DY" ? Math.Abs(p2.Y - p1.Y) : mode == "DZ" ? Math.Abs(p2.Z - p1.Z) : p1.DistanceTo(p2);

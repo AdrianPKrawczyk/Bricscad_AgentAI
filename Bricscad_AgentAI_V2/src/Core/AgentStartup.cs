@@ -218,8 +218,9 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
 
+
         // ==============================================================
-        // RPN ENGINE CLI
+        // RPN ENGINE CLI (FINAL v2.20.2)
         // ==============================================================
 
         [CommandMethod("RPN", CommandFlags.Transparent)]
@@ -227,29 +228,35 @@ namespace Bricscad_AgentAI_V2.Core
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
+            RpnCalculator.LoadStackFromDwg(doc.Database);
 
-            PromptStringOptions opts = new PromptStringOptions("\n[RPN] Wpisz wyrażenie (np. '10 20 +') lub '?' dla pomocy: ");
-            opts.AllowSpaces = true;
-            PromptResult res = ed.GetString(opts);
-
-            if (res.Status == PromptStatus.OK)
+            ed.WriteMessage("\n[Agent RPN] Tryb interaktywny. Wpisz '?' dla pomocy, 'EXIT' lub puste by wyjść.");
+            
+            while (true)
             {
+                // Podgląd górnej części stosu
+                string view = RpnCalculator.GetHPStackView(3).Replace("\n", " | ");
+                ed.WriteMessage($"\nSTACK: {view}");
+                
+                PromptStringOptions opts = new PromptStringOptions("\nRPN >> ");
+                opts.AllowSpaces = true;
+                PromptResult res = ed.GetString(opts);
+
+                if (res.Status != PromptStatus.OK) break;
                 string input = res.StringResult.Trim();
-                if (input == "?")
-                {
-                    WypiszSciageRpn(ed);
-                    return;
-                }
+                if (string.IsNullOrEmpty(input) || input.ToUpperInvariant() == "EXIT" || input.ToUpperInvariant() == "QUIT") break;
+
+                if (input == "?") { WypiszSciageRpn(ed); continue; }
 
                 try
                 {
                     string result = RpnCalculator.Evaluate(input, null, null, ed);
-                    ed.WriteMessage($"\n[RPN] Wynik: {result}");
+                    ed.WriteMessage($"\nWynik: {result}");
                     RpnCalculator.SaveStackToDwg(doc.Database);
                 }
                 catch (System.Exception ex)
                 {
-                    ed.WriteMessage($"\n[RPN Błąd]: {ex.Message}");
+                    ed.WriteMessage($"\n{ex.Message}");
                 }
             }
         }
@@ -259,7 +266,10 @@ namespace Bricscad_AgentAI_V2.Core
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
+            RpnCalculator.LoadStackFromDwg(doc.Database);
 
+            // BricsCAD w trybie .NET przy ed.GetString() z CommandFlags.Transparent 
+            // potrafi przechwycić tekst wpisany po nazwie komendy z bufora.
             PromptStringOptions opts = new PromptStringOptions("\n[CALC] Wyrażenie: ");
             opts.AllowSpaces = true;
             PromptResult res = ed.GetString(opts);
@@ -267,11 +277,8 @@ namespace Bricscad_AgentAI_V2.Core
             if (res.Status == PromptStatus.OK)
             {
                 string input = res.StringResult.Trim();
-                if (input == "?")
-                {
-                    WypiszSciageRpn(ed);
-                    return;
-                }
+                if (string.IsNullOrEmpty(input)) return;
+                if (input == "?") { WypiszSciageRpn(ed); return; }
 
                 try
                 {
@@ -289,21 +296,39 @@ namespace Bricscad_AgentAI_V2.Core
         [CommandMethod("STOS", CommandFlags.Transparent)]
         public void CommandStos()
         {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            RpnCalculator.LoadStackFromDwg(doc.Database);
             var stack = RpnCalculator.GetStack();
-            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
-                $"\n--- AKTUALNY STOS AGENTA ---\n{string.Join("\n", stack)}\n---------------------------");
+            
+            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n--- STOS AGENTA (DWG PERSISTENT) ---");
+            if (stack.Count == 0)
+            {
+                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n(Stos jest pusty)");
+            }
+            else
+            {
+                for (int i = 0; i < stack.Count; i++)
+                {
+                    Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n  {stack.Count - i}: {stack[i]}");
+                }
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n-------------------------------------");
         }
 
         private void WypiszSciageRpn(Editor ed)
         {
             ed.WriteMessage("\n--- ŚCIĄGAWKA RPN AGENTA ---");
             ed.WriteMessage("\nPodstawowe: +, -, *, /, ^ (potęga), SQRT (pierwiastek)");
-            ed.WriteMessage("\nStos: DROP (usuń T), SWAP (zamień X z Y), DUP (duplikuj X), CLEAR (czyść)");
-            ed.WriteMessage("\nStałe: #PI, #G (9.81), #C (światło), #UNITL (jedn. rysunku), #UNITA (pole rysunku)");
+            ed.WriteMessage("\nStos: DROP (usuń), SWAP (zamień), DUP (duplikuj), CLEAR (czyść)");
+            ed.WriteMessage("\nStałe: #PI, #G (9.81), #C (światło), #UNITL (jedn. rysunku)");
             ed.WriteMessage("\nJednostki: 10_m, 50_mm, 2_degC, 10_m2, 5_kg/m3");
             ed.WriteMessage("\nKonwersja: 'mm' CONVE (na mm), 'm' +UNIT (nadaj m)");
-            ed.WriteMessage("\nCAD: DL (odległość), DX/DY/DZ (przyłosty), AREA (pole - wkrótce)");
-            ed.WriteMessage("\nZmienne: 10 $X STO (zapisz do $X), $X RCL (czytaj $X)");
+            ed.WriteMessage("\n\nPOMIARY CAD (Wymagają kliknięcia punktów):");
+            ed.WriteMessage("\n  DL  - Odległość między punktami.");
+            ed.WriteMessage("\n  DX  - Różnica współrzędnych X.");
+            ed.WriteMessage("\n  DY  - Różnica współrzędnych Y.");
+            ed.WriteMessage("\n  DZ  - Różnica współrzędnych Z.");
+            ed.WriteMessage("\n\nZmienne: 10 $X STO (zapisz do $X), $X RCL (czytaj $X)");
             ed.WriteMessage("\n---------------------------");
         }
     }
