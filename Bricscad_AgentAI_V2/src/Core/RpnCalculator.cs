@@ -426,6 +426,60 @@ namespace Bricscad_AgentAI_V2.Core
         private static object Pop() { var s = CurrentStack; if (s.Count == 0) throw new Exception("Stos jest pusty!"); object item = s[s.Count - 1]; s.RemoveAt(s.Count - 1); return item; }
         private static object Peek() { var s = CurrentStack; if (s.Count == 0) throw new Exception("Stos jest pusty!"); return s[s.Count - 1]; }
 
+        /// <summary>
+        /// Zwraca wartość ze szczytu stosu przeliczoną na jednostki rysunku (dla długości)
+        /// lub surową wartość liczbową (dla innych wymiarów).
+        /// </summary>
+        public static double GetTopAsRawCadValue()
+        {
+            var stack = CurrentStack;
+            if (stack.Count == 0) return 0;
+            object top = stack[stack.Count - 1];
+
+            PhysicalValue pv;
+            if (top is PhysicalValue p) pv = p;
+            else if (top is string s)
+            {
+                if (double.TryParse(s.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double n))
+                    pv = new PhysicalValue(n, new UnitDim());
+                else
+                    try { pv = GetPhys(s); } catch { return 0; }
+            }
+            else return 0;
+
+            // 1. Sprawdzamy czy to długość (L=1, reszta 0)
+            bool isLength = pv.Dim.L == 1 && pv.Dim.M == 0 && pv.Dim.T == 0 && pv.Dim.I == 0 &&
+                            pv.Dim.Theta == 0 && pv.Dim.N == 0 && pv.Dim.J == 0;
+
+            if (isLength)
+            {
+                short insunits = Convert.ToInt16(Application.GetSystemVariable("INSUNITS"));
+                string targetUnit = "m"; // Default
+                if (insunits == 4) targetUnit = "mm";
+                else if (insunits == 5) targetUnit = "cm";
+                else if (insunits == 6) targetUnit = "m";
+
+                if (UnitEngine.Units.TryGetValue(targetUnit, out var uDef))
+                {
+                    return pv.Value / uDef.Value;
+                }
+            }
+
+            // 2. Jeśli to nie długość lub brak dopasowania jednostek rysunku
+            // zwracamy "display value" (jak UVAL)
+            double displayVal = pv.Value;
+            if (!string.IsNullOrEmpty(pv.PrefUnit))
+            {
+                try
+                {
+                    var pUnit = UnitEngine.ParseUnit(pv.PrefUnit);
+                    displayVal = (displayVal / pUnit.Value) - pUnit.Offset;
+                }
+                catch { }
+            }
+            return displayVal;
+        }
+
         // ==============================================================
         // INTEGRACJA BricsCAD (DL, DX, DY, DZ) + SCALOWANIE INSUNITS
         // ==============================================================

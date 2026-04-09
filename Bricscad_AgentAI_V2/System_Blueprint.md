@@ -1,4 +1,4 @@
-# System# Baza Wiedzy (System Blueprint)
+# System Baza Wiedzy (System Blueprint)
 
 ## Architektura Tool Calling (V2)
 Nowa architektura porzuca parsowanie Regex z V1 na rzecz wbudowanego wsparcia modeli LLM dla Tool Calling. System został ustanowiony wokół interfejsu `IToolV2` oraz klas `ToolModels`.
@@ -15,7 +15,7 @@ System automatycznie optymalizuje okno kontekstowe poprzez przycinanie długich 
 ### 4. Dynamiczne Zarządzanie Kontekstem (Semantic Tool Routing)
 Wprowadzone w **v2.7.0 GOLD**, pozwala na selektywne ładowanie narzędzi do promptu LLM w zależności od potrzeb.
 - **Tagowanie Narzędzi**: Każde narzędzie deklaruje `ToolTags` (np. `#bloki`, `#warstwy`). Narzędzia `#core` są ładowane zawsze.
-- **Pre-procesing (AgentControl.cs)**: Tekst użytkownika jest skanowany pod kątem hashtagów. Znalezione tagi są wycinane z wiadomości i przekazywane jako `initialTags` do `SendMessageReActAsync`.
+- **Pre-procesing (AgentControl.cs)**: Tekst użytkownika jest skanowany pod kontem hashtagów. Znalezione tagi są wycinane z wiadomości i przekazywane jako `initialTags` do `SendMessageReActAsync`.
 - **Filtrowanie (ToolOrchestrator.cs)**: Metoda `GetToolsPayload(requestedTags)` zwraca tylko narzędzia pasujące do zestawu: `#core` OR `requestedTags` (lub wszystkie, jeśli podano `#all`).
 - **Agentic Fallback**: Jeśli model potrzebuje dodatkowych narzędzi, wywołuje `RequestAdditionalTools`. `LLMClient` przechwytuje to wywołanie, aktualizuje lokalny zbiór tagów i w następnej iteracji pętli ReAct przesyła rozszerzony zestaw narzędzi.
 - **Early Exit (Fast Mode)**: Wprowadzone w **v2.9.0**, drastycznie redukuje latencję przy prostych operacjach.
@@ -24,16 +24,16 @@ Wprowadzone w **v2.7.0 GOLD**, pozwala na selektywne ładowanie narzędzi do pro
         1. Wszystkie wywołane narzędzia mają flagę `SupportsEarlyExit` ustawioną na `true` w `tools_config.json`.
         2. Wszystkie narzędzia zwróciły wynik niebędący błędem.
         - **Korzyść**: Eliminuje "pusty" przejazd do LLM tylko po to, by usłyszeć "Zrobione".
-21: 
-22: ### 5. Monitorowanie Wydajności (`LLMStats`)
-23: Zunifikowany model statystyk pozwala na spójne raportowanie wydajności we wszystkich kontrolek UI (`AgentControl`, `AgentTesterControl`, `DatasetStudioControl`).
-24: - **Model**: `TotalTimeMs`, `PromptTokens`, `CompletionTokens`, `TotalTokens`, `TokensPerSecond`.
-25: - **Aproksymacja**: Przy braku natywnej obsługi tokenów przez lokalne API OpenSource, system stosuje przelicznik 4 znaki = 1 token.
-32: 
-33: ### 6. Specjalizacja Narzędzi i Hard-Cast (v2.14.0)
-34: W celu uniknięcia "konfliktu narzędzi" oraz błędów refleksji w silniku Teigha, wprowadzono dwa mechanizmy:
-35: - **Separation of Concerns**: Narzędzia uniwersalne (np. `ModifyPropertiesTool`) są celowo ograniczane do właściwości wspólnych (`Entity`), podczas gdy skomplikowane obiekty (Wymiary, Teksty) obsługiwane są przez dedykowane klasy (np. `DimensionEditTool`, `TextEditTool`).
-36: - **Hard-Cast Fallback**: W `SelectEntitiesTool.cs`, mechanizm refleksji jest poprzedzony jawnym rzutowaniem typu (`if (ent is Hatch hatch) ...`). Pozwala to na dostęp do właściwości "niewidocznych" dla standardowej refleksji, takich jak `HatchObjectType`.
+
+### 5. Monitorowanie Wydajności (`LLMStats`)
+Zunifikowany model statystyk pozwala na spójne raportowanie wydajności we wszystkich kontrolek UI (`AgentControl`, `AgentTesterControl`, `DatasetStudioControl`).
+- **Model**: `TotalTimeMs`, `PromptTokens`, `CompletionTokens`, `TotalTokens`, `TokensPerSecond`.
+- **Aproksymacja**: Przy braku natywnej obsługi tokenów przez lokalne API OpenSource, system stosuje przelicznik 4 znaki = 1 token.
+
+### 6. Specjalizacja Narzędzi i Hard-Cast (v2.14.0)
+W celu uniknięcia "konfliktu narzędzi" oraz błędów refleksji w silniku Teigha, wprowadzono dwa mechanizmy:
+- **Separation of Concerns**: Narzędzia uniwersalne (np. `ModifyPropertiesTool`) są celowo ograniczane do właściwości wspólnych (`Entity`), podczas gdy skomplikowane obiekty (Wymiary, Teksty) obsługiwane są przez dedykowane klasy (np. `DimensionEditTool`, `TextEditTool`).
+- **Hard-Cast Fallback**: W `SelectEntitiesTool.cs`, mechanizm refleksji jest poprzedzony jawnym rzutowaniem typu (`if (ent is Hatch hatch) ...`). Pozwala to na dostęp do właściwości "niewidocznych" dla standardowej refleksji, takich jak `HatchObjectType`.
 
 ## Zarządzanie Stanem (State)
 
@@ -51,7 +51,7 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 ### Core Services
 - `AgentMemoryState.cs`: Przechowuje globalny stan zaznaczenia (`ActiveSelection`) oraz słownik zmiennych (`Variables`). Elementy te są wstrzykiwane do argumentów narzędzi przed ich wykonaniem.
 - `PropertyValidator.cs`: Tarcza anty-halucynacyjna. Skanuje pliki bazy wiedzy API BricsCAD i weryfikuje poprawność atrybutów dla danej klasy obiektu. Chroni przed błędami refleksji.
-- `RpnCalculator.cs`: Silnik matematyczny obsługujący wyrażenia odwrotnej notacji polskiej, pozwalający na dynamiczne przeliczanie wartości (np. `$OLD_RADIUS 10 +`).
+- `RpnCalculator.cs`: Silnik matematyczny obsługujący wyrażenia odwrotnej notacji polskiej z trwałością sesyjną. Wspiera fizyczną analizę wymiarową (UnitEngine) oraz inteligentne wstrzykiwanie wyników do CAD.
 - `ToolConfigManager.cs`: Dynamiczne zarządzanie konfiguracją narzędzi, tagami i flagą Early Exit.
 - `EngineTracer.cs`: Diagnostyczny nasłuchiwacz niskopoziomowych zdarzeń silnika ODA Teigha. Izoluje i raportuje problemy z transakcjami dokumentu.
 - `ToolOrchestrator.cs`: Zarządca pakietów narzędziowych, filtrujący prompt na podstawie zapotrzebowania modelu.
@@ -135,16 +135,14 @@ Słownik `Dictionary<string, string>` przechowujący zmienne sesji (prefix `@`).
 Służy do inteligentnego próbkowania treści tekstowych z dużych zbiorów obiektów, chroniąc kontekst LLM przed przepełnieniem.
 
 ### TextEditTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.TextEditTool`
 Kombajn do edycji i formatowania tekstów. Obsługuje `DBText` i `MText`. Pozwala na edycję treści (`Append`, `Prepend`, `Replace`) oraz zaawansowane formatowanie RTF dla `MText` (podświetlanie słów, czyszczenie formatu).
 
-### ManageAnnoScalesTool
-...
-136: 
-137: ### DimensionEditTool
-138: **Klasa**: `Bricscad_AgentAI_V2.Tools.DimensionEditTool`
-139: **Cel**: Precyzyjna edycja anatomii wymiarów.
-140: **Parametry**: `TextOverride`, `OverallScale`, `ArrowBlock`, `TextColor`, `DimLineColor`, `ExtLineColor`.
-141: **Uwagi**: Obsługuje mapowanie nazw bloków strzałek (np. `_ARCHTICK`) oraz bezpośrednią modyfikację zmiennych stylu (DimVars).
+### DimensionEditTool
+**Klasa**: `Bricscad_AgentAI_V2.Tools.DimensionEditTool`
+**Cel**: Precyzyjna edycja anatomii wymiarów.
+**Parametry**: `TextOverride`, `OverallScale`, `ArrowBlock`, `TextColor`, `DimLineColor`, `ExtLineColor`.
+**Uwagi**: Obsługuje mapowanie nazw bloków strzałek (np. `_ARCHTICK`) oraz bezpośrednią modyfikację zmiennych stylu (DimVars).
 
 ### EditBlockTool
 Zaawansowane narzędzie do chirurgicznej edycji wnętrza bloku (`BlockTableRecord`). Pozwala na modyfikację geometrii, tekstów i właściwości obiektów wewnątrz definicji bloku, co skutkuje aktualizacją wszystkich jego wystąpień. Obsługuje rekurencję i filtrowanie.
@@ -183,17 +181,17 @@ Narzędzie do wyświetlania listy opcji (słów kluczowych) do wyboru przez uży
 Narzędzie pomocnicze do "rozpakowywania" i analizy list elementów zapisanych w zmiennych Agenta (@Variables). Pozwala modelowi LLM na przejrzysty wgląd w dane przed iteracją.
 
 ---
-154: 
-155: ## Mechanizm Data Flywheel (Dataset Studio)
-156: 
-157: Wprowadzone w **v2.10.0**, umożliwia ciągłe doskonalenie modelu poprzez zbieranie "Złotych Standardów" (Golden Standards) bezpośrednio podczas pracy inżynierskiej.
-158: 
-159: ### Snapshotting
-160: Po każdym udanym zakończeniu pętli ReAct (w `AgentControl.cs`), system wykonuje snapshot historii `ChatML`.
-161: - **Deserializacja**: Historia jest czyszczona z pustych pól (`NullValueHandling.Ignore`).
-162: - **Pamięć sesji**: Snapshot trafia do `DatasetStudioControl`, gdzie użytkownik może go zweryfikować.
-163: 
-164: ### Context Slicer (✂️ Krajalnica)
+
+## Mechanizm Data Flywheel (Dataset Studio)
+
+Wprowadzone w **v2.10.0**, umożliwia ciągłe doskonalenie modelu poprzez zbieranie "Złotych Standardów" (Golden Standards) bezpośrednio podczas pracy inżynierskiej.
+
+### Snapshotting
+Po każdym udanym zakończeniu pętli ReAct (w `AgentControl.cs`), system wykonuje snapshot historii `ChatML`.
+- **Deserializacja**: Historia jest czyszczona z pustych pól (`NullValueHandling.Ignore`).
+- **Pamięć sesji**: Snapshot trafia do `DatasetStudioControl`, gdzie użytkownik może go zweryfikować.
+
+### Context Slicer (✂️ Krajalnica)
 Wprowadzone w **v2.11.0**, rozwiązuje problem *Context Poisoning* w danych treningowych. 
 - **Logika**: Pozwala na izolację pojedynczego "turnu" (Sytem + Ostatni User + Tool Responses + Assistant Answer).
 - **Deep Copy**: Snapshoty w pamięci są izolowane od bieżącej sesji czatu.
@@ -202,78 +200,65 @@ Wprowadzone w **v2.11.0**, rozwiązuje problem *Context Poisoning* w danych tren
 - **Format**: Standard OpenAI Fine-tuning (Messages JSON structure).
 - **Zapis**: Każda sesja to jedna linijka w pliku `.jsonl`.
 - **Lokalizacja**: Folder wtyczki (`Assembly.Location`), nazwa pliku: `Agent_Training_Data_v2_DO_TRENINGU.jsonl`.
-168: 
-169: ---
+
+---
 
 ## Ekosystem Testowy (AutoBenchmark V2)
 
 ### Architektura
-
 Izolowane laboratorium analityczne do walidacji modeli LLM. Celowo **nie zawiera** mechanizmu eksportu do JSONL — stanowi wyizolowany Test Set (zapobiega Data Leakage).
 
 ### Przepływ
-
 ```
 User Prompt → [PRAWDZIWY LLM] → tool_calls
                                      ↓
                     [Benchmark] przechwytuje wywołanie
                                      ↓
-                 SimulatedCADResponses[ToolName] → wiadomość roli "tool"
+                    SimulatedCADResponses[ToolName] → wiadomość roli "tool"
                                      ↓
                     [PRAWDZIWY LLM] kontynuuje / kończy
 ```
 
-### Komponenty
-
-#### `BenchmarkModels.cs` (POCO)
-- `BenchmarkConfig` — korzeń pliku testowego JSON.
-- `BenchmarkTest` — definicja testu z `MockMemoryVariables`, `SimulatedCADResponses`, `ValidationRules`.
-- `RecordedToolCall` — materiał dowodowy (zapisane wywołanie LLM).
-- `ValidationRule` — reguła walidacji (patrz typy poniżej).
-
+### Componenty
 #### `AutoBenchmarkEngine.cs` (Silnik)
 - **Pre-flight Schema Check** — instancjonuje wszystkie `IToolV2`, weryfikuje `Name` i `Description`. Jeden błąd = halt całego benchmarku.
 - **Memory Sandbox** — czyści `AgentMemoryState.Variables` i `ActiveSelection` przed każdym testem; wstrzykuje `MockMemoryVariables`.
-- **Stopwatch** — mierzy `ExecutionTimeMs` per test (od pierwszego promptu do końca odpowiedzi LLM).
-- **Multi-Turn Loop** — przechwytuje `tool_calls` i wstrzykuje mocki jako wiadomości roli `"tool"` (standard OpenAI).
-- **Walidator (Auto-Sędzia)** — 4 typy reguł:
-  - `ToolCalled` — sprawdza, czy LLM wywołał oczekiwane narzędzie.
-  - `ArgumentMatch` — sprawdza wartość argumentu JSON przez prostą ścieżkę (np. `Properties[0].PropertyName`).
-  - `SequenceMatch` — weryfikuje kolejność wywołań narzędzi.
-  - `EvaluateRPN_Argument` — ewaluuje formułę RPN z argumentu przez `RpnCalculator`.
-- **Raportowanie** — zapisuje `*_FULL_*.json` i `*_ERRORS_*.json` w podfolderze modelu.
-
-#### `LLMClient.SendMessageBenchmarkAsync`
-Nowa metoda (OCP — stara niezmieniona). Zastępuje realne wywołania CAD mockowanymi odpowiedziami ze słownika.
-
-### Warstwa UI (Interfejs Użytkownika)
-
-#### `AutoBenchmarkControl.cs`
-Nowoczesny panel WinForms (Dark Mode) zintegrowany z `AgentControl`.
-- **Zasoby**: `DataGridView` (lista testów), `ProgressBar` (postęp), `RichTextBox` (logi i szczegóły JSON).
-- **Thread Safety**: Wykorzystuje mechanizm `Invoke/BeginInvoke` do bezpiecznej aktualizacji kontrolek z wątków asynchronicznych silnika.
-- **Interakcja**: Pozwala na wczytywanie plików JSON, uruchamianie/zatrzymywanie testów oraz inspekcję szczegółowych wyników po kliknięciu w wiersz tabeli.
-
-#### `AgentStartup.cs`
-- Komenda `AGENT_BENCHMARK_V2`: Otwiera natywną paletę BricsCAD i automatycznie przełącza widok na trzecią zakładkę (Benchmark), inicjując środowisko testowe.
-**Parametry**:
-- `SaveAs` (string, Optional): Nazwa zmiennej do zapisu próbek.
-**Uwagi**: Wykorzystuje algorytm nieliniowego próbkowania (`sqrt(n)`, max 15). Pobiera czysty tekst (`MText.Text`) ignorując kody formatowania RTF. Wiele próbek w pamięci jest łączonych separatorem ` | `.
+- **Walidator (Auto-Sędzia)** — weryfikuje poprawność wywołań na podstawie reguł (ToolCalled, ArgumentMatch, SequenceMatch).
 
 ---
 
 ## 7. System Agent Recipes (Drogowskazy)
 
-Wprowadzone w **v2.16.0**, stanowi mechanizm wstrzykiwania przykładów Few-Shot do kontekstu LLM, umożliwiając szybkie "przyuczenie" modelu do specyficznych zadań inżynierskich bez konieczności fine-tuningu.
+Wprowadzone w **v2.16.0**, stanowi mechanizm wstrzykiwania przykładów Few-Shot do kontekstu LLM.
 
 ### 7.1. Mechanizm Triggerów ($)
 System monitoruje wiadomości użytkownika pod kątem prefiksu `$`.
 - **Wykrywanie**: `LLMClient.PreProcessRecipes` używa Regex `\$(\w+)` do identyfikacji triggerów.
-- **Wstrzykiwanie**: Jeśli trigger zostanie odnaleziony w `AgentRecipes.json`, system wstrzykuje dwie wiadomości do historii (bezpośrednio po System Prompcie):
-    1. **User**: Treść opisu z receptury (Instrukcja).
-    2. **Assistant**: Tablica `tool_calls` z receptury (Przykład wykonania).
-- **Auto-ładowanie**: Jeśli receptura zawiera kategoryzację, odpowiednie tagi są automatycznie dodawane do `SessionDynamicTags` (Agentic Fallback).
+- **Wstrzykiwanie**: Jeśli trigger zostanie odnaleziony w `AgentRecipes.json`, system wstrzykuje wiadomości instruktażowe do historii konwersacji.
 
 ### 7.2. Capture & persistencja
 - **RecipeManager**: Statyczna klasa zarządzająca plikiem `AgentRecipes.json`. Obsługuje operacje CRUD na recepturach.
-- **CaptureSessionAsRecipe**: Metoda w `DatasetStudioControl` parsująca JSONL bieżącej sesji w celu wyekstrahowania wyłącznie pomyślnych wywołań narzędzi, co pozwala na tworzenie przepisów "w locie" z udanych interakcji.
+- **CaptureSessionAsRecipe**: Metoda w `DatasetStudioControl` parsująca JSONL bieżącej sesji w celu wyekstrahowania wyłącznie pomyślnych wywołań narzędzi.
+
+---
+
+## 8. Silnik RPN V2 (v2.20.4 GOLD)
+
+Zmigrowany i rozbudowany silnik obliczeniowy zapewniający deterministyczną matematykę inżynierską.
+
+### 8.1. Trwałość w DWG (NOD)
+Dane stosu są przechowywane w **Named Object Dictionary** pod kluczem `BIELIK_RPN_STACK` jako obiekt `Xrecord`.
+- **Zapis**: Wywoływany atomowo po każdej udanej operacji w CLI lub narzędziu.
+- **Odczyt**: Inicjalizowany przy starcie komend `RPN`/`CALC` lub wywołaniu przez Agenta.
+
+### 8.2. Interaktywne CLI i Pętla CAD
+Komendy `RPN` i `CALC` wykorzystują `Editor.GetString` w pętli `while(true)`. 
+- **Flags.Transparent**: Pozwala na wywoływanie kalkulatora znakami `'RPN` wewnątrz innych poleceń.
+- **Stack Preview**: Przed każdym zapytaniem o dane, system odświeża i wyświetla 6 poziomów stosu w konsoli CAD.
+
+### 8.3. Inteligentne Wstrzykiwanie (Injection)
+Mechanizm `GetTopAsRawCadValue()` rozwiązuje problem niezgodności typów między kalkulatorem a linią poleceń CAD.
+- **Unit Detection**: Pobiera `INSUNITS` aktywnego rysunku.
+- **Auto-Conversion**: Jeśli na stosie jest wartość o wymiarze długości (`L=1`), zostaje przeliczona na jednostki rysunku (np. metry -> milimetry).
+- **Raw Value Fallback**: Dla innych wymiarów (pole, masa), wstrzykiwana jest surowa wartość liczbowa (`DisplayValue`), ułatwiając wprowadzanie parametrów do poleceń CAD.
+- **Formatting**: Wynik jest zawsze przekazywany z kropką jako separatorem (`InvariantCulture`), co zapobiega błędom w lokalizacjach nie-anglojęzycznych.

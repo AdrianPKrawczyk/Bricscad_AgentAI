@@ -1,4 +1,4 @@
-# BricsCAD Agent AI V2: Commands Reference (v2.10.x GOLD)
+# BricsCAD Agent AI V2: Commands Reference (v2.20.4 GOLD)
 
 Poniższa lista zawiera wszystkie komendy zarejestrowane w systemie BricsCAD przez wtyczkę Agent AI V2.
 
@@ -29,9 +29,28 @@ Uruchamia panel testera V1-compatible.
 
 ---
 
+## 🧮 Komendy Kalkulatora RPN (v2.20.4)
+
+### 5. `RPN`
+Interaktywny kalkulator Odwrotnej Notacji Polskiej z trwałością w DWG.
+- **Flaga**: Transparent (można wywołać jako `'RPN`).
+- **Nowość**: Automatyczne wstrzykiwanie wyniku do linii poleceń CAD po naciśnięciu `Enter`.
+- **Unit-Clean**: Automatycznie konwertuje jednostki długości na jednostki rysunku (`INSUNITS`).
+
+### 6. `CALC`
+Szybka pętla obliczeniowa (tylko odczyt).
+- **Flaga**: Transparent.
+- **Zastosowanie**: Wykonywanie obliczeń bez wstrzykiwania wyniku do bufora CAD.
+
+### 7. `STOS`
+Diagnostyczny podgląd stosu RPN.
+- **Działanie**: Wypisuje ponumerowaną listę wszystkich elementów aktualnie znajdujących się na stosie w bieżącym rysunku.
+
+---
+
 ## ⚙️ Komendy Wewnętrzne (Systemowe)
 
-### 5. `AGENT_RUN_TOOL_V2`
+### 8. `AGENT_RUN_TOOL_V2`
 Krytyczna komenda mechanizmu **Thread Safety**. Jest wywoływana niejawnie przez `LLMClient`.
 - **Działanie**: Bezpiecznie wykonuje narzędzia CAD na głównym wątku BricsCAD, zapobiegając crashom przy asynchronicznym Tool Callingu.
 

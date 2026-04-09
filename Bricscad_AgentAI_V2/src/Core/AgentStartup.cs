@@ -220,7 +220,7 @@ namespace Bricscad_AgentAI_V2.Core
 
 
         // ==============================================================
-        // RPN ENGINE CLI (FINAL v2.20.2)
+        // RPN ENGINE CLI (v2.20.3 - V1 Sync)
         // ==============================================================
 
         [CommandMethod("RPN", CommandFlags.Transparent)]
@@ -230,34 +230,45 @@ namespace Bricscad_AgentAI_V2.Core
             Editor ed = doc.Editor;
             RpnCalculator.LoadStackFromDwg(doc.Database);
 
-            ed.WriteMessage("\n[Agent RPN] Tryb interaktywny. Wpisz '?' dla pomocy, 'EXIT' lub puste by wyjść.");
+            ed.WriteMessage("\n--- INTERAKTYWNY KALKULATOR RPN ---");
+            ed.WriteMessage("\nWpisuj operatory, '?' pomoc. Pusty [ENTER] by WSTRZYKNĄĆ wynik.");
             
             while (true)
             {
-                // Podgląd górnej części stosu
-                string view = RpnCalculator.GetHPStackView(3).Replace("\n", " | ");
-                ed.WriteMessage($"\nSTACK: {view}");
+                // Odświeżanie stosu w konsoli
+                ed.WriteMessage("\n========================");
+                ed.WriteMessage("\n" + RpnCalculator.GetHPStackView(6));
+                ed.WriteMessage("\n========================");
                 
-                PromptStringOptions opts = new PromptStringOptions("\nRPN >> ");
+                PromptStringOptions opts = new PromptStringOptions("\n[RPN] >> ");
                 opts.AllowSpaces = true;
                 PromptResult res = ed.GetString(opts);
 
                 if (res.Status != PromptStatus.OK) break;
                 string input = res.StringResult.Trim();
-                if (string.IsNullOrEmpty(input) || input.ToUpperInvariant() == "EXIT" || input.ToUpperInvariant() == "QUIT") break;
-
+                
+                if (string.IsNullOrEmpty(input) || input == "=") break;
                 if (input == "?") { WypiszSciageRpn(ed); continue; }
 
                 try
                 {
-                    string result = RpnCalculator.Evaluate(input, null, null, ed);
-                    ed.WriteMessage($"\nWynik: {result}");
+                    RpnCalculator.Evaluate(input, null, null, ed);
                     RpnCalculator.SaveStackToDwg(doc.Database);
                 }
                 catch (System.Exception ex)
                 {
-                    ed.WriteMessage($"\n{ex.Message}");
+                    ed.WriteMessage($"\n[Błąd RPN]: {ex.Message}");
                 }
+            }
+
+            // WSTRZYKIWANIE WYNIKU (Transparent mode support)
+            if (RpnCalculator.GetStackState() != "Stos jest pusty.")
+            {
+                double cadVal = RpnCalculator.GetTopAsRawCadValue();
+                string result = cadVal.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                
+                ed.WriteMessage($"\n>> Wstrzyknięto wartość (unit-cleaned): {result} <<\n");
+                doc.SendStringToExecute(result + "\n", true, false, false);
             }
         }
 
@@ -268,27 +279,32 @@ namespace Bricscad_AgentAI_V2.Core
             Editor ed = doc.Editor;
             RpnCalculator.LoadStackFromDwg(doc.Database);
 
-            // BricsCAD w trybie .NET przy ed.GetString() z CommandFlags.Transparent 
-            // potrafi przechwycić tekst wpisany po nazwie komendy z bufora.
-            PromptStringOptions opts = new PromptStringOptions("\n[CALC] Wyrażenie: ");
-            opts.AllowSpaces = true;
-            PromptResult res = ed.GetString(opts);
+            ed.WriteMessage("\n--- INTERAKTYWNY KALKULATOR (ODCZYT) ---");
 
-            if (res.Status == PromptStatus.OK)
+            while (true)
             {
+                ed.WriteMessage("\n========================");
+                ed.WriteMessage("\n" + RpnCalculator.GetHPStackView(6));
+                ed.WriteMessage("\n========================");
+                
+                PromptStringOptions opts = new PromptStringOptions("\n[CALC] >> ");
+                opts.AllowSpaces = true;
+                PromptResult res = ed.GetString(opts);
+
+                if (res.Status != PromptStatus.OK) break;
                 string input = res.StringResult.Trim();
-                if (string.IsNullOrEmpty(input)) return;
-                if (input == "?") { WypiszSciageRpn(ed); return; }
+                
+                if (string.IsNullOrEmpty(input) || input == "=") break;
+                if (input == "?") { WypiszSciageRpn(ed); continue; }
 
                 try
                 {
-                    string result = RpnCalculator.Evaluate(input, null, null, ed);
-                    ed.WriteMessage($"\n[CALC] Wynik: {result}");
+                    RpnCalculator.Evaluate(input, null, null, ed);
                     RpnCalculator.SaveStackToDwg(doc.Database);
                 }
                 catch (System.Exception ex)
                 {
-                    ed.WriteMessage($"\n[CALC Błąd]: {ex.Message}");
+                    ed.WriteMessage($"\n[Błąd RPN]: {ex.Message}");
                 }
             }
         }
@@ -298,38 +314,26 @@ namespace Bricscad_AgentAI_V2.Core
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             RpnCalculator.LoadStackFromDwg(doc.Database);
-            var stack = RpnCalculator.GetStack();
+            var ed = doc.Editor;
             
-            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n--- STOS AGENTA (DWG PERSISTENT) ---");
-            if (stack.Count == 0)
-            {
-                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n(Stos jest pusty)");
-            }
-            else
-            {
-                for (int i = 0; i < stack.Count; i++)
-                {
-                    Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n  {stack.Count - i}: {stack[i]}");
-                }
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n-------------------------------------");
+            ed.WriteMessage("\n--- AKTUALNY STAN STOSU RPN ---");
+            ed.WriteMessage("\n" + RpnCalculator.GetStackState());
+            ed.WriteMessage("-------------------------------\n");
         }
 
         private void WypiszSciageRpn(Editor ed)
         {
-            ed.WriteMessage("\n--- ŚCIĄGAWKA RPN AGENTA ---");
-            ed.WriteMessage("\nPodstawowe: +, -, *, /, ^ (potęga), SQRT (pierwiastek)");
-            ed.WriteMessage("\nStos: DROP (usuń), SWAP (zamień), DUP (duplikuj), CLEAR (czyść)");
-            ed.WriteMessage("\nStałe: #PI, #G (9.81), #C (światło), #UNITL (jedn. rysunku)");
-            ed.WriteMessage("\nJednostki: 10_m, 50_mm, 2_degC, 10_m2, 5_kg/m3");
-            ed.WriteMessage("\nKonwersja: 'mm' CONVE (na mm), 'm' +UNIT (nadaj m)");
-            ed.WriteMessage("\n\nPOMIARY CAD (Wymagają kliknięcia punktów):");
-            ed.WriteMessage("\n  DL  - Odległość między punktami.");
-            ed.WriteMessage("\n  DX  - Różnica współrzędnych X.");
-            ed.WriteMessage("\n  DY  - Różnica współrzędnych Y.");
-            ed.WriteMessage("\n  DZ  - Różnica współrzędnych Z.");
-            ed.WriteMessage("\n\nZmienne: 10 $X STO (zapisz do $X), $X RCL (czytaj $X)");
-            ed.WriteMessage("\n---------------------------");
+            ed.WriteMessage("\n\n=======================================================");
+            ed.WriteMessage("\n                 ŚCIĄGA KALKULATORA RPN                  ");
+            ed.WriteMessage("\n=======================================================");
+            ed.WriteMessage("\n [GEOMETRIA] DL, DX, DY, DZ - Pomiary interaktywne");
+            ed.WriteMessage("\n [STOS]      SWAP, DUP, DROP, CLEAR, PICK");
+            ed.WriteMessage("\n [MATEMA]    +, -, *, /, ^, SQRT, SIN, COS, ROUND, ABS");
+            ed.WriteMessage("\n [JEDNOSTKI] 10_m, 50_mm, cm2, kg/m3 itd. CONVE (konwersja)");
+            ed.WriteMessage("\n [ZMIENNE]   10 $X STO (zapis), $X RCL (odczyt)");
+            ed.WriteMessage("\n [INFO]      Pusty [ENTER] lub '=' kończy pracę.");
+            ed.WriteMessage("\n             Dla RPN: wysyła wynik do linii poleceń CAD.");
+            ed.WriteMessage("\n=======================================================\n");
         }
     }
 }

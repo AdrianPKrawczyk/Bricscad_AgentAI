@@ -1,4 +1,4 @@
-# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.20.1 GOLD)
+# BricsCAD Agent AI V2: Profesjonalny Podręcznik Użytkownika (v2.20.4 GOLD)
 
 Witaj w wersji **GOLD** systemu Bielik AI V2. Niniejszy podręcznik został przygotowany dla inżynierów i projektantów BricsCAD, którzy chcą w pełni wykorzystać potencjał sztucznej inteligencji zintegrowanej bezpośrednio z silnikiem CAD.
 
@@ -44,15 +44,17 @@ Podczas modyfikacji właściwości (`ModifyProperties`), Agent automatycznie udo
 > [!TIP]
 > Jeśli chcesz mieć pewność, że Agent użyje obliczeń, napisz: *"Zastosuj formułę RPN: [twoje działanie]"*.
 
-### 2.3. Interfejs CLI dla Kalkulatora (Nowość v2.20.1)
-Możesz korzystać z mocy obliczeniowej Agenta bezpośrednio w linii poleceń BricsCAD bez otwierania panelu.
+### 2.3. Interfejs CLI dla Kalkulatora (v2.20.4)
+Możesz korzystać z mocy obliczeniowej Agenta bezpośrednio w linii poleceń BricsCAD.
 
-- **`RPN`**: Interaktywny tryb obliczeń. Wpisz `RPN`, a następnie wyrażenie lub `?` dla pomocy.
-- **`CALC`**: Szybkie przeliczenie (np. `CALC 5 5 +`). Obsługuje te same operatory i stałe co silnik główny.
-- **`STOS`**: Wyświetla aktualną zawartość stosu matematycznego Agenta zapisaną w rysunku.
+- **`RPN`**: Interaktywny tryb obliczeń z **podglądem stosu na żywo**.
+    - **Wstrzykiwanie**: Po zakończeniu (pusty Enter), wynik trafia do aktywnego polecenia BricsCAD.
+    - **Unit-Clean**: System automatycznie przelicza jednostki długości (np. `1_m` -> `1000` dla rysunku w mm) i usuwa sufiks jednostki przed wstrzyknięciem.
+- **`CALC`**: Pętla obliczeniowa (tylko odczyt). Idealna do szybkich przeliczeń bez wpływania na historię poleceń CAD.
+- **`STOS`**: Wyświetla aktualną, pełną zawartość stosu matematycznego zapisaną w rysunku.
 
 ### 2.4. Trwałość Stosu (DWG Persistence)
-Stos Agenta (wyniki Twoich obliczeń) jest zapisywany wewnątrz pliku `.dwg`. Jeśli wykonasz obliczenie, zamkniesz rysunek i wrócisz do niego jutro – Twoje wyniki będą na Ciebie czekać (sprawdź komendą `STOS`).
+Stos Agenta jest zapisywany wewnątrz pliku `.dwg` w słowniku NOD (`BIELIK_RPN_STACK`). Dane są odświeżane po każdej operacji, co gwarantuje ich bezpieczeństwo.
 
 ---
 
@@ -201,7 +203,7 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.20.1 GOLD | BricsCAD Agent AI Project*
+*Wersja Systemu: v2.20.4 GOLD | BricsCAD Agent AI Project*
 
 ---
 
