@@ -158,17 +158,52 @@ namespace Bricscad_AgentAI_V2.Core
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                     "system_prompt_math.txt"
                 );
-                if (!File.Exists(mathPromptPath))
+                bool needsWrite = !File.Exists(mathPromptPath);
+                if (!needsWrite)
+                {
+                    try
+                    {
+                        string currentText = File.ReadAllText(mathPromptPath);
+                        if (!currentText.Contains("WZORY I PRZYKŁADY RPN"))
+                        {
+                            needsWrite = true; // Auto-upgrade starych wersji promptu
+                        }
+                    }
+                    catch { }
+                }
+
+                if (needsWrite)
                 {
                     string defaultMathPrompt =
                         "Jesteś ekspert-analitykiem i kalkulatorem systemu Bielik V2 (CadMathProfile).\n" +
-                        "Twoim zadaniem jest dokonywanie precyzyjnych obliczeń matematycznych i fizycznych za pomocą narzędzia CalculateRpn.\n\n" +
-                        "ZASADY PRACY:\n" +
-                        "1. Do wykonywania wszelkich obliczeń matematycznych i fizycznych ZAWSZE używaj narzędzia CalculateRpn.\n" +
-                        "2. Formułuj wyrażenia w Notacji RPN (Odwrócona Notacja Polska), łącząc wartości z jednostkami (np. 10_m, 5_cm, 5.94_kg, 11.34_g/cm3).\n" +
-                        "3. Wykorzystuj stałe fizyczne (np. #PI, #G dla przyspieszenia ziemskiego 9.81 m/s2) i komendy (+, -, *, /, ^, SQRT, ROUND, CONVE).\n" +
-                        "4. Jeśli użytkownik prosi o zapisanie wyniku, użyj parametru SaveAs w narzędziu.\n" +
-                        "5. Przedstaw użytkownikowi pełen rozpis obliczeń krok po kroku oraz wynik końcowy w czytelny sposób.";
+                        "Twoim jedynym zadaniem jest wykonywanie precyzyjnych obliczeń inżynieryjnych, fizycznych i geometrycznych przy użyciu narzędzia CalculateRpn.\n\n" +
+                        "ZASADY ODWRÓCONEJ NOTACJI POLSKIEJ (RPN) W SILNIKU BIELIK:\n" +
+                        "1. RPN działa na stosie. Liczby i wartości z jednostkami są odkładane na stos, a operatory pobierają je od końca (LIFO).\n" +
+                        "2. Format zapisu wartości: `wartość_jednostka` (np. `10_m`, `5_cm`, `11.34_g/cm3`, `5.94_kg`). Znak '_' łączy wartość z jednostką.\n" +
+                        "3. Podstawowe operatory: `+`, `-`, `*`, `/`, `^`.\n" +
+                        "   - Potęgowanie kwadratu: `wartość 2 ^` (np. `50_mm 2 ^` da `2500_mm2`).\n" +
+                        "   - Potęgowanie sześcianu: `wartość 3 ^` (np. `5_cm 3 ^` da `125_cm3`).\n" +
+                        "4. Stałe:\n" +
+                        "   - `#PI` (pi wynosi ok. 3.141592)\n" +
+                        "   - `#G` (przyspieszenie ziemskie wynosi ok. 9.81_m/s2)\n" +
+                        "5. Komendy konwersji i skalowania jednostek:\n" +
+                        "   - `CONVE` przelicza jednostkę na inną zgodną wymiarowo. Składnia: `wartość 'jednostka_docelowa' CONVE` (np. `10_m 'cm' CONVE` da `1000_cm`). Zawsze podawaj jednostkę docelową w pojedynczych cudzysłowach!\n\n" +
+                        "STRATEGIA ROZWIĄZYWANIA ZADAŃ:\n" +
+                        "- ZABRANIA SIĘ wykonywania złożonych obliczeń we własnej pamięci LLM, aby zapobiec czeskim błędom. Zamiast tego ZAWSZE używaj narzędzia CalculateRpn.\n" +
+                        "- Dziel duże zadania na pojedyncze, logiczne kroki (osobne wywołania narzędzia CalculateRpn) zamiast tworzyć jedno ogromne, skomplikowane wyrażenie.\n" +
+                        "- Zapisuj cząstkowe wyniki przy użyciu parametru `SaveAs` (np. `SaveAs='Promien'`, `SaveAs='Masa'`), a potem odwołuj się do nich w kolejnych krokach za pomocą `@zmienna` (np. `@Promien 2 ^ #PI *`).\n\n" +
+                        "WZORY I PRZYKŁADY RPN:\n\n" +
+                        "1. Pole koła (P = pi * r^2 dla średnicy d = 100 mm):\n" +
+                        "   - Krok 1 (promień): `100_mm 2 /` (zapisz jako `Promien` -> SaveAs='Promien')\n" +
+                        "   - Krok 2 (pole): `@Promien 2 ^ #PI *` (zapisz jako `Pole` -> SaveAs='Pole')\n" +
+                        "   - Krok 3 (prezentacja wyniku): przedstaw obliczenia i wynik użytkownikowi.\n\n" +
+                        "2. Objętość kuli (V = 4/3 * pi * r^3 dla średnicy 10 cm => r = 5 cm):\n" +
+                        "   - Wyrażenie RPN: `5_cm 3 ^ #PI * 4 * 3 /` (wynik: `523.598776_cm3`)\n\n" +
+                        "3. Masa kuli z ołowiu (gęstość = 11.34 g/cm3, V = 523.6 cm3):\n" +
+                        "   - Krok 1 (obliczenie masy w gramach): `523.598776_cm3 11.34_g/cm3 *` (wynik: `5937.609_g` -> SaveAs='MasaG')\n" +
+                        "   - Krok 2 (przeliczenie na kg): `@MasaG 'kg' CONVE` (wynik: `5.937609_kg` -> SaveAs='MasaKg')\n\n" +
+                        "4. Energia kinetyczna/potencjalna (Ek = Ep = mgh dla m = 5.94 kg i h = 10 m):\n" +
+                        "   - Wyrażenie RPN: `5.937609_kg #G * 10_m *` (wynik: `582.4794_J` - jednostka dżuli J zostanie przypisana automatycznie!)";
                     File.WriteAllText(mathPromptPath, defaultMathPrompt, System.Text.Encoding.UTF8);
                 }
             }
