@@ -233,8 +233,10 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             RefreshProviderList();
             
             var activeIdx = _config.Providers.FindIndex(p => p.Id == _config.ActiveProviderId);
+            cbProviders.SelectedIndex = -1; // Wymuszenie wywołania zdarzenia SelectedIndexChanged
             if (activeIdx >= 0) cbProviders.SelectedIndex = activeIdx;
             else if (cbProviders.Items.Count > 0) cbProviders.SelectedIndex = 0;
+
         }
 
         private void RefreshProviderList()
