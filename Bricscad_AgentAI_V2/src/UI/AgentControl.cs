@@ -825,7 +825,8 @@ namespace Bricscad_AgentAI_V2.UI
                 {
                     // Przekazujemy wyłuskane tagi do klienta LLM
                     bool earlyExit = chkEarlyExit.Checked;
-                    return await _llmClient.SendMessageReActAsync(_conversationHistory, doc, extractedTags, earlyExit);
+                    var result = await _llmClient.SendMessageReActAsync(_conversationHistory, new CadExecutionContext(doc), extractedTags, earlyExit);
+                    return result.DisplayMessage;
                 });
 
                 AppendToHistory("BIELIK", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);

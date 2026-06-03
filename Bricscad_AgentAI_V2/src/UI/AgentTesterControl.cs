@@ -274,7 +274,8 @@ namespace Bricscad_AgentAI_V2.UI
                 };
 
                 Document doc = Application.DocumentManager.MdiActiveDocument;
-                string response = await _client.SendMessageReActAsync(_currentHistory, doc);
+                var result = await _client.SendMessageReActAsync(_currentHistory, new CadExecutionContext(doc));
+                string response = result.DisplayMessage;
                 
                 txtGeneratedV2.SelectionColor = Color.LightGray;
                 txtGeneratedV2.AppendText($"[FINAL RESPONSE]: {response}\n");
@@ -296,7 +297,8 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 _currentHistory.Add(new ChatMessage { Role = "user", Content = reply });
                 Document doc = Application.DocumentManager.MdiActiveDocument;
-                string response = await _client.SendMessageReActAsync(_currentHistory, doc);
+                var result = await _client.SendMessageReActAsync(_currentHistory, new CadExecutionContext(doc));
+                string response = result.DisplayMessage;
                 txtGeneratedV2.AppendText($"\n[REPLY RESPONSE]: {response}\n");
             }
             catch (Exception ex) { txtGeneratedV2.AppendText("\nBŁĄD REPLy: " + ex.Message); }

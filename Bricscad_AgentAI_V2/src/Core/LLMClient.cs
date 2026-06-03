@@ -38,8 +38,9 @@ namespace Bricscad_AgentAI_V2.Core
         /// <summary>
         /// Wysyła konwersację do serwera LLM i w razie zgłoszenia potrzeby użycia narzędzia (Tool Call)
         /// zarządza pętlą ReAct - samodzielnie wywołuje narzędzie i odsyła wynik.
+        /// Zwraca obiekt AgentExecutionResult po zakończeniu cyklu Workera.
         /// </summary>
-        public async Task<string> SendMessageReActAsync(List<ChatMessage> conversationHistory, Document doc, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5)
+        public async Task<AgentExecutionResult> SendMessageReActAsync(List<ChatMessage> conversationHistory, IExecutionContext context, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5)
         {
             PreProcessRecipes(conversationHistory);
 
@@ -53,6 +54,10 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            
+            // Pula narzędzi stała dla cyklu życia Workera
+            var staticToolsPayload = _orchestrator.GetToolsPayload(currentTags);
+
             int iterations = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalSentChars = 0;
@@ -64,13 +69,11 @@ namespace Bricscad_AgentAI_V2.Core
                 OnStatusUpdate?.Invoke($"Wysyłanie zapytania do struktury (iteracja {iterations}/{maxIterations})...");
 
                 config = LLMConfigManager.GetActiveProvider();
-                // 1. Przygotuj payload - KRYTYCZNE: Odświeżamy listę narzędzi w każdej iteracji, 
-                // aby uwzględnić nowo załadowane kategorie (Agentic Fallback / LoadCategory).
                 var requestPayload = new Dictionary<string, object>
                 {
                     { "model", config.ModelName },
                     { "messages", conversationHistory },
-                    { "tools", _orchestrator.GetToolsPayload(currentTags) },
+                    { "tools", staticToolsPayload },
                     { "tool_choice", "auto" },
                     { "temperature", config.Temperature },
                     { "max_tokens", config.MaxTokens }
@@ -126,7 +129,7 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     sw.Stop();
                     OnStatusUpdate?.Invoke("Błąd połączenia z lokalnym LLM API.");
-                    return $"Błąd połączenia: {ex.Message}";
+                    return AgentExecutionResult.Failure($"Błąd połączenia: {ex.Message}");
                 }
 
                 string responseBody = await response.Content.ReadAsStringAsync();
@@ -137,7 +140,7 @@ namespace Bricscad_AgentAI_V2.Core
                 if (messageNode == null)
                 {
                     sw.Stop();
-                    return "Błąd parsowania odpowiedzi z modelu (brak 'message').";
+                    return AgentExecutionResult.Failure("Błąd parsowania odpowiedzi z modelu (brak 'message').");
                 }
 
                 // Deserializacja asystenta
@@ -160,7 +163,7 @@ namespace Bricscad_AgentAI_V2.Core
                         CompletionTokens = totalRecvChars / 4 
                     });
                     
-                    return assistantMessage.Content?.ToString() ?? "(Model nie zwrócił tekstu)";
+                    return AgentExecutionResult.Success(assistantMessage.Content?.ToString() ?? "(Model nie zwrócił tekstu)");
                 }
 
                 // 4. Mamy tool_calls! Realizujemy ich logikę na lokalnej maszynie C#
@@ -193,30 +196,13 @@ namespace Bricscad_AgentAI_V2.Core
                             canEarlyExitThisTurn = false;
                         }
 
-                        toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, doc);
+                        // Przekazanie kontekstu do doca (tymczasowy most dla ToolOrchestrator, który wymaga Doc)
+                        toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, context.CadDocument);
 
                         // Jeśli wynik zawiera błąd, nie możemy zrobić Early Exit
                         if (toolExecutionResult.ToLower().Contains("błąd") || toolExecutionResult.ToLower().Contains("error"))
                         {
                             canEarlyExitThisTurn = false;
-                        }
-
-                        // Agentic Fallback: Jeśli model poprosił o dodatkowe pule narzędzi, 
-                        // aktualizujemy lokalny zbiór tagów dla następnych iteracji pętli ReAct.
-                        // Agentic Fallback: Obsługa nowego formatu RequestAdditionalTools
-                        if (functionName.Equals("RequestAdditionalTools", StringComparison.OrdinalIgnoreCase))
-                        {
-                            string action = argumentsParsed["Action"]?.ToString() ?? "";
-                            if (action.Equals("LoadCategory", StringComparison.OrdinalIgnoreCase))
-                            {
-                                string tag = argumentsParsed["CategoryName"]?.ToString() ?? "";
-                                if (!string.IsNullOrEmpty(tag))
-                                {
-                                    tag = tag.Trim();
-                                    if (!tag.StartsWith("#")) tag = "#" + tag;
-                                    currentTags.Add(tag);
-                                }
-                            }
                         }
                     }
                     catch (Exception ex)
@@ -286,7 +272,7 @@ namespace Bricscad_AgentAI_V2.Core
                         PromptTokens = totalSentChars / 4, 
                         CompletionTokens = totalRecvChars / 4 
                     });
-                    return "Operacja wykonana pomyślnie (Tryb Szybki).";
+                    return AgentExecutionResult.Success("Operacja wykonana pomyślnie (Tryb Szybki).");
                 }
 
                 // Po obsłużeniu WSZYSTKICH narzedzi w tej paczce, pętla 'while' wróci na samą górę 
@@ -301,7 +287,7 @@ namespace Bricscad_AgentAI_V2.Core
                 CompletionTokens = totalRecvChars / 4 
             });
             OnStatusUpdate?.Invoke("Przerwano zapętlenie (zbyt skomplikowany problem lub pętla logiczna LLMa).");
-            return "[LLMClient] Przekroczono maksymalną liczbę iteracji (pętla powtórzeń Tool Calls). Przerywam zadanie.";
+            return AgentExecutionResult.Failure("[LLMClient] Przekroczono maksymalną liczbę iteracji (pętla powtórzeń Tool Calls). Przerywam zadanie.");
         }
 
         /// <summary>
