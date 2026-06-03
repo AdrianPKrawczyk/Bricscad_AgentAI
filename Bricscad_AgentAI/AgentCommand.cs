@@ -1177,38 +1177,46 @@ namespace BricsCAD_Agent
             Editor ed = doc.Editor;
             try
             {
-                string entityTypeStr = Regex.Match(json, @"\""EntityType\""\s*:\s*\""([^\""]+)\""").Groups[1].Value;
+                // --- Parsowanie JSON przez JObject zamiast Regex ---
+                JObject jsonObj;
+                try
+                {
+                    jsonObj = JObject.Parse(json);
+                }
+                catch (JsonReaderException jex)
+                {
+                    ed.WriteMessage($"\n[Błąd Parsowania JSON]: Model wygenerował uszkodzony JSON. Szczegóły: {jex.Message}");
+                    return 0;
+                }
 
-                // --- DODAJ TĘ LINIJKĘ: Ciche tłumaczenie halucynacji modelu na poprawny kod API ---
+                string entityTypeStr = jsonObj["EntityType"]?.ToString() ?? "";
+
+                // Ciche tłumaczenie halucynacji modelu na poprawny kod API
                 if (entityTypeStr.Contains("*Entity") || entityTypeStr == "*") entityTypeStr = "Entity";
+                if (string.IsNullOrEmpty(entityTypeStr)) return 0;
 
-                string trybStr = "New";
-                Match trybMatch = Regex.Match(json, @"\""Mode\""\s*:\s*\""([^\""]+)\""");
-                if (trybMatch.Success) trybStr = trybMatch.Groups[1].Value;
-
-                string scopeStr = "Model";
-                Match scopeMatch = Regex.Match(json, @"\""Scope\""\s*:\s*\""([^\""]+)\""");
-                if (scopeMatch.Success) scopeStr = scopeMatch.Groups[1].Value;
+                string trybStr = jsonObj["Mode"]?.ToString() ?? "New";
+                string scopeStr = jsonObj["Scope"]?.ToString() ?? "Model";
 
                 var warunki = new List<(string Prop, string Op, string Val)>();
 
-                // PANCERNY REGEX: Oddziela wartości w cudzysłowach od wartości bez cudzysłowów (liczbowych i logicznych)
-                MatchCollection matches = Regex.Matches(json, @"\""Property\""\s*:\s*\""([^\""]+)\"".*?\""Operator\""\s*:\s*\""([^\""]+)\"".*?\""Value\""\s*:\s*(?:\""([^\""]*)\""|([^\""\s,}]+))", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-                foreach (Match m in matches)
+                JArray conditions = jsonObj["Conditions"] as JArray;
+                if (conditions != null)
                 {
-                    string prop = m.Groups[1].Value;
-                    string op = m.Groups[2].Value;
+                    foreach (JToken cond in conditions)
+                    {
+                        string prop = cond["Property"]?.ToString() ?? "";
+                        string op = cond["Operator"]?.ToString() ?? "";
+                        // .ToString() na JToken daje czysty tekst bez cudzysłowów,
+                        // niezależnie czy Value to string, liczba czy boolean
+                        string val = cond["Value"]?.ToString() ?? "";
 
-                    // Łapiemy cokolwiek regex znalazł
-                    string val = !string.IsNullOrEmpty(m.Groups[3].Value) ? m.Groups[3].Value : m.Groups[4].Value;
-
-                    // CZYSTKA TOTALNA: Usuwamy z nazwy wszelkie backslashe (\) oraz same znaki cudzysłowów (") !
-                    val = val.Replace("\\", "").Replace("\"", "").Trim();
-
-                    warunki.Add((prop, op, val));
+                        if (!string.IsNullOrEmpty(prop) && !string.IsNullOrEmpty(op))
+                        {
+                            warunki.Add((prop, op, val));
+                        }
+                    }
                 }
-
-                if (string.IsNullOrEmpty(entityTypeStr)) return 0;
 
                 if (entityTypeStr.Equals("Clear", StringComparison.OrdinalIgnoreCase))
                 {
