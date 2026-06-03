@@ -104,21 +104,36 @@ namespace Bricscad_AgentAI_V2.Core
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                     "system_prompt_supervisor.txt"
                 );
-                if (!File.Exists(supervisorPromptPath))
+                bool needsWrite = !File.Exists(supervisorPromptPath);
+                if (!needsWrite)
+                {
+                    try
+                    {
+                        string currentText = File.ReadAllText(supervisorPromptPath);
+                        if (!currentText.Contains("CadGeometryProfile"))
+                        {
+                            needsWrite = true; // Auto-upgrade starych wersji promptu
+                        }
+                    }
+                    catch { }
+                }
+
+                if (needsWrite)
                 {
                     string defaultSupervisorPrompt = 
                         "Jesteś Głównym Menedżerem (Supervisorem) systemu Bielik V2 w BricsCAD.\n" +
                         "Twoim jedynym zadaniem jest zarządzanie i przekazywanie zadań do wyspecjalizowanych ekspertów.\n" +
                         "ZABRANIA SIĘ samodzielnego wykonywania zadań CAD, rysowania, zmieniania właściwości itp.\n" +
                         "ZABRANIA SIĘ prowadzenia luźnych konwersacji z użytkownikiem, tłumaczenia swojego toku myślenia w zwykłym tekście lub zadawania pytań o oprogramowanie CAD (użytkownik ZAWSZE pracuje w BricsCAD).\n\n" +
-                        "Dostępne profile ekspertów:\n" +
-                        "- CadProfile: ekspert od wszelkich zadań CAD (zaznaczanie, rysowanie, modyfikacja, warstwy, bloki, teksty, wymiary, xdata).\n\n" +
+                        "Dostępne profile ekspertów (wybierz najbardziej optymalny do danego zadania):\n" +
+                        "- CadGeometryProfile: ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
+                        "- CadBlocksProfile: ekspert od bloków i atrybutów (tworzenie bloków, wstawianie, listowanie, edycja atrybutów bloku).\n" +
+                        "- CadMetadataProfile: ekspert od analityki rysunku, pomiarów, XData (czytanie właściwości, metadane XData, wyszukiwanie w rysunku, inspekcja obiektów, zrzuty ekranu CAD).\n" +
+                        "- CadProfile: uniwersalny profil awaryjny (używaj tylko jeśli zadanie łączy wiele z powyższych dziedzin w jeden ciąg).\n\n" +
                         "ZASADY UŻYCIA NARZĘDZI:\n" +
-                        "1. Jeśli użytkownik prosi o operację CAD (np. zaznaczenie, zmianę koloru, narysowanie obiektu, edycję warstwy itp.), MUSISZ natychmiast wywołać narzędzie DelegateTask.\n" +
-                        "2. W parametrze TargetProfile ustaw wartość \"CadProfile\".\n" +
-                        "3. W parametrze TaskDescription podaj dokładne zlecenia użytkownika.\n" +
-                        "4. ZABRANIA SIĘ pisania odpowiedzi zwykłym tekstem przed wywołaniem narzędzia. Zwróć bezpośrednio wywołanie DelegateTask.\n" +
-                        "5. Po otrzymaniu wyniku od eksperta, przedstaw go krótko i rzeczowo użytkownikowi.";
+                        "1. Jeśli użytkownik prosi o operację CAD, MUSISZ natychmiast wywołać narzędzie DelegateTask, dobierając właściwy TargetProfile.\n" +
+                        "2. ZABRANIA SIĘ pisania odpowiedzi zwykłym tekstem przed wywołaniem narzędzia. Zwróć bezpośrednio wywołanie DelegateTask.\n" +
+                        "3. Po otrzymaniu wyniku od eksperta, przedstaw go krótko i rzeczowo użytkownikowi.";
                     File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
                 }
             }
@@ -204,6 +219,45 @@ namespace Bricscad_AgentAI_V2.Core
                 }
             }
 
+            // 3. Zabezpieczenie/Synchronizacja CadGeometryProfile
+            if (!_config.Profiles.TryGetValue("CadGeometryProfile", out var geomProf))
+            {
+                geomProf = new AgentProfileConfig 
+                { 
+                    SystemPromptFile = "system_prompt.txt", 
+                    AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool" },
+                    AllowedTags = new List<string> { "#cad" }
+                };
+                _config.Profiles["CadGeometryProfile"] = geomProf;
+                changed = true;
+            }
+
+            // 4. Zabezpieczenie/Synchronizacja CadBlocksProfile
+            if (!_config.Profiles.TryGetValue("CadBlocksProfile", out var blocksProf))
+            {
+                blocksProf = new AgentProfileConfig 
+                { 
+                    SystemPromptFile = "system_prompt.txt", 
+                    AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
+                    AllowedTags = new List<string> { "#bloki" }
+                };
+                _config.Profiles["CadBlocksProfile"] = blocksProf;
+                changed = true;
+            }
+
+            // 5. Zabezpieczenie/Synchronizacja CadMetadataProfile
+            if (!_config.Profiles.TryGetValue("CadMetadataProfile", out var metadataProf))
+            {
+                metadataProf = new AgentProfileConfig 
+                { 
+                    SystemPromptFile = "system_prompt.txt", 
+                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea" },
+                    AllowedTags = new List<string> { "#xdata" }
+                };
+                _config.Profiles["CadMetadataProfile"] = metadataProf;
+                changed = true;
+            }
+
             if (changed) SaveConfig();
         }
 
@@ -248,6 +302,27 @@ namespace Bricscad_AgentAI_V2.Core
                     "FindXData", "CaptureVisionArea"
                 },
                 AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
+            };
+
+            _config.Profiles["CadGeometryProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt.txt",
+                AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool" },
+                AllowedTags = new List<string> { "#cad" }
+            };
+
+            _config.Profiles["CadBlocksProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt.txt",
+                AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
+                AllowedTags = new List<string> { "#bloki" }
+            };
+
+            _config.Profiles["CadMetadataProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt.txt",
+                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea" },
+                AllowedTags = new List<string> { "#xdata" }
             };
 
             // BEZWZGLĘDNY ZAPIS PO WYGENEROWANIU

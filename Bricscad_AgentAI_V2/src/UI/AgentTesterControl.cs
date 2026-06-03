@@ -124,6 +124,9 @@ namespace Bricscad_AgentAI_V2.UI
             cbProfiles.Items.Add("Brak (Wszystkie Narzędzia / Monolit)");
             cbProfiles.Items.Add("CadProfile");
             cbProfiles.Items.Add("SupervisorProfile");
+            cbProfiles.Items.Add("CadGeometryProfile");
+            cbProfiles.Items.Add("CadBlocksProfile");
+            cbProfiles.Items.Add("CadMetadataProfile");
             cbProfiles.SelectedIndex = 1; // CadProfile domyślnie
             panProfile.Controls.Add(cbProfiles);
             panProfile.Controls.Add(lblProfile);

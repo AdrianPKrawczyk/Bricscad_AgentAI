@@ -15,9 +15,10 @@ namespace Bricscad_AgentAI_V2.Core
         private static ObjectId[] _activeSelection = new ObjectId[0];
 
         /// <summary>
-        /// Globalny słownik przechowujący zmienne sesji Agenta (@zmienna).
+        /// Globalny magazyn przechowujący zmienne sesji Agenta (@zmienna) z automatycznym
+        /// lustrzanym odbiciem na Blackboardzie (dla architektury Multi-Agent).
         /// </summary>
-        public static Dictionary<string, string> Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public static readonly VariableStore Variables = new VariableStore();
 
         /// <summary>
         /// Zbiór referencji do aktualnie wyizolowanych (lub zaznaczonych) obiektów w dokumencie.
@@ -77,5 +78,54 @@ namespace Bricscad_AgentAI_V2.Core
         {
             _activeSelection = new ObjectId[0];
         }
+    }
+
+    /// <summary>
+    /// Klasa owijająca słownik zmiennych Agenta, automatycznie synchronizująca wpisy
+    /// z globalną tablicą ogłoszeń (Blackboard) dla architektury wieloagentowej.
+    /// </summary>
+    public class VariableStore
+    {
+        private readonly Dictionary<string, string> _dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        public string this[string key]
+        {
+            get
+            {
+                return _dict.TryGetValue(key, out var val) ? val : null;
+            }
+            set
+            {
+                _dict[key] = value;
+                try
+                {
+                    SharedMemoryState.Write(key, value);
+                }
+                catch { }
+            }
+        }
+
+        public void Clear()
+        {
+            _dict.Clear();
+            try
+            {
+                SharedMemoryState.Clear();
+            }
+            catch { }
+        }
+
+        public bool ContainsKey(string key)
+        {
+            return _dict.ContainsKey(key);
+        }
+
+        public bool TryGetValue(string key, out string value)
+        {
+            return _dict.TryGetValue(key, out value);
+        }
+
+        public ICollection<string> Keys => _dict.Keys;
+        public int Count => _dict.Count;
     }
 }

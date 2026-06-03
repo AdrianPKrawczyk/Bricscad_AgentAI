@@ -50,6 +50,20 @@ namespace Bricscad_AgentAI_V2.Tools
                                     Type = "string",
                                     Description = "Tylko dla Read: Nazwa zmiennej do zapisu zagregowanych wartości (bez @)."
                                 }
+                            },
+                            {
+                                "FilterTag", new ToolParameter
+                                {
+                                    Type = "string",
+                                    Description = "Opcjonalnie: Tag atrybutu służący do filtrowania (np. 'ID')."
+                                }
+                            },
+                            {
+                                "FilterValue", new ToolParameter
+                                {
+                                    Type = "string",
+                                    Description = "Opcjonalnie: Wartość atrybutu filtrującego (np. 'A2')."
+                                }
                             }
                         },
                         Required = new List<string> { "Action" }
@@ -62,6 +76,8 @@ namespace Bricscad_AgentAI_V2.Tools
         {
             string action = args["Action"]?.ToString();
             string saveAs = args["SaveAs"]?.ToString();
+            string filterTag = args["FilterTag"]?.ToString();
+            string filterValue = args["FilterValue"]?.ToString();
             JArray attrList = args["Attributes"] as JArray;
 
             var ids = AgentMemoryState.ActiveSelection;
@@ -82,6 +98,26 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         BlockReference br = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
                         if (br == null) continue;
+
+                        // Filtrowanie po atrybucie
+                        if (!string.IsNullOrEmpty(filterTag))
+                        {
+                            bool isMatch = false;
+                            foreach (ObjectId attId in br.AttributeCollection)
+                            {
+                                AttributeReference attRef = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
+                                if (attRef != null && !attRef.IsErased && attRef.Tag.Equals(filterTag, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string val = attRef.IsMTextAttribute ? attRef.MTextAttribute.Text : attRef.TextString;
+                                    if (val != null && val.Trim().Equals(filterValue?.Trim(), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        isMatch = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!isMatch) continue;
+                        }
 
                         blocksProcessed++;
                         var processedTagsInThisBlock = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
