@@ -62,9 +62,11 @@
   <ItemGroup>
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
+    <Compile Include="src\Models\LLMConfigModels.cs" />
     <Compile Include="src\Core\IToolV2.cs" />
     <Compile Include="src\Core\ToolOrchestrator.cs" />
     <Compile Include="src\Core\LLMClient.cs" />
+    <Compile Include="src\Core\LLMConfigManager.cs" />
     <Compile Include="src\Core\AgentStartup.cs" />
     <Compile Include="src\Core\AgentMemoryState.cs" />
     <Compile Include="src\Core\PropertyValidator.cs" />
@@ -99,6 +101,7 @@
     <Compile Include="src\Tools\ReadXDataTool.cs" />
     <Compile Include="src\Tools\WriteXDataTool.cs" />
     <Compile Include="src\Tools\FindXDataTool.cs" />
+    <Compile Include="src\Tools\CaptureVisionAreaTool.cs" />
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -112,8 +115,13 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="src\UI\JsonSyntaxHighlighter.cs" />
+    <Compile Include="src\UI\Forms\LLMConfigDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="src\Core\RecipeManager.cs" />
-    <Compile Include="src\UI\AgentRecipeControl.cs" />
+    <Compile Include="src\UI\AgentRecipeControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="src\UI\ToolSandboxControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

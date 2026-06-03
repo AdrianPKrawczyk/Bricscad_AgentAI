@@ -205,7 +205,37 @@ Dane są dopisywane do pliku `Agent_Training_Data_v2_DO_TRENINGU.jsonl` w folder
 > [!IMPORTANT]
 > **Bezpieczeństwo**: Agent V2 wykonuje większość operacji wewnątrz transakcji. Jeśli wystąpi błąd krytyczny, system spróbuje wycofać zmiany (Rollback), aby nie uszkodzić rysunku.
 
-*Wersja Systemu: v2.20.4 GOLD | BricsCAD Agent AI Project*
+---
+
+## 👁️ 11. Możliwości Wizyjne (Multimodal Vision) - NOWOŚĆ v2.20.8
+
+Wersja **v2.20.8 GOLD** wprowadza obsługę modeli multimodalnych (VLM). Agent może teraz "widzieć" Twój rysunek, co pozwala na analizę elementów, które nie są natywnie rozpoznawalne (np. raster, PDF, skomplikowane symbole graficzne).
+
+### 11.1. Przechwytywanie obszaru - `CaptureVisionArea`
+Narzędzie to pozwala na wskazanie okna w BricsCAD, które zostanie "uwiecznione" i przesłane do Agenta.
+- **Działanie**: Program wykonuje `ZoomWindow` do wskazanego obszaru, odczekuje na odświeżenie grafiki i wykonuje zrzut ekranu wysokiej jakości.
+- **Przetwarzanie**: Obraz jest automatycznie dołączany do Twojego zapytania jako wiadomość użytkownika z zakodowanym obrazem (standard OpenAI Vision).
+
+### 11.2. Polecenia CLI dla Wizji
+Możesz wywoływać funkcje wizyjne bezpośrednio z paska poleceń BricsCAD:
+
+- **`SKAN`**: Szybkie przechwytywanie. Pozwala wskazać obszar i zapisuje obraz do folderu tymczasowego. Idealne, gdy chcesz najpierw coś zaznaczyć, a potem zapytać Agenta.
+- **`AI_VISION`**: Pełny proces analityczny. 
+    1. Wskazujesz obszar.
+    2. Wpisujesz pytanie (np. "Odczytaj tabelkę z tego rysunku").
+    3. Agent automatycznie otrzymuje obraz i Twoje pytanie, a następnie zwraca odpowiedź.
+
+> [!IMPORTANT]
+> **Prywatność i Pamięć**: Wszystkie zrzuty ekranu (`AgentVision_*.jpg`) są przechowywane w systemowym folderze `%TEMP%`. Agent automatycznie czyści ten folder przy każdym uruchomieniu wtyczki, aby nie zajmować miejsca na dysku.
+
+### 11.3. Kiedy używać Wizji?
+- **OCR Tabel**: Szybkie przepisywanie danych z tabel tekstowych, które są "rozbitymi" liniami/tekstem.
+- **Wyjaśnianie Błędów**: Pokaż Agentowi fragment rysunku i zapytaj: "Dlaczego te kreskowania nachodzą na siebie?".
+- **Inwentaryzacja**: Analiza podkładów rastrowych (skanów) w celu zliczenia symboli.
+
+---
+
+*Wersja Systemu: v2.20.8 GOLD | BricsCAD Agent AI Project*
 
 ---
 

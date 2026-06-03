@@ -9,14 +9,35 @@ namespace Bricscad_AgentAI_V2.Models
         [JsonProperty("role")]
         public string Role { get; set; }
 
+        /// <summary>
+        /// Treść wiadomości. Może być 'string' dla tekstu lub 'List<VisionContentPart>' dla treści multimodalnych.
+        /// </summary>
         [JsonProperty("content", NullValueHandling = NullValueHandling.Ignore)]
-        public string Content { get; set; }
+        public object Content { get; set; }
 
         [JsonProperty("tool_calls", NullValueHandling = NullValueHandling.Ignore)]
         public List<ToolCall> ToolCalls { get; set; }
 
         [JsonProperty("tool_call_id", NullValueHandling = NullValueHandling.Ignore)]
         public string ToolCallId { get; set; }
+    }
+
+    public class VisionContentPart
+    {
+        [JsonProperty("type")]
+        public string Type { get; set; } // "text" lub "image_url"
+
+        [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
+        public string Text { get; set; }
+
+        [JsonProperty("image_url", NullValueHandling = NullValueHandling.Ignore)]
+        public VisionImageUrl ImageUrl { get; set; }
+    }
+
+    public class VisionImageUrl
+    {
+        [JsonProperty("url")]
+        public string Url { get; set; } // Format: "data:image/jpeg;base64,{base64_string}"
     }
 
     public class ToolCall

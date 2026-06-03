@@ -30,7 +30,13 @@ Zunifikowany model statystyk pozwala na spójne raportowanie wydajności we wszy
 - **Model**: `TotalTimeMs`, `PromptTokens`, `CompletionTokens`, `TotalTokens`, `TokensPerSecond`.
 - **Aproksymacja**: Przy braku natywnej obsługi tokenów przez lokalne API OpenSource, system stosuje przelicznik 4 znaki = 1 token.
 
-### 6. Specjalizacja Narzędzi i Hard-Cast (v2.14.0)
+### 6. Filar Multimodalny (Vision - v2.20.x)
+Wprowadzone w **v2.20.8**, umożliwia analizę wzrokową rysunku przez modele VLM (np. Qwen-VL, GPT-4o).
+- **Abstrakcja Wiadomości**: Klasa `ChatMessage` używa teraz pola `Content` typu `object` zamiast `string`. Pozwala to na przesyłanie tekstu lub tablicy `VisionItem` (Text + Image URL Base64).
+- **Vision Interceptor (`LLMClient.cs`)**: System automatycznie skanuje historię przed wysłaniem do API. Jeśli wykryje tag `[VISION_IMAGE_CAPTURED]|ścieżka`, odczytuje plik z dysku, konwertuje go na Base64 i wstrzykuje jako nową wiadomość użytkownika (wymóg API VLM).
+- **Natywny Zoom & Capture**: Narzędzie `CaptureVisionArea` wykonuje natywne zbliżenie do obszaru, wymusza flush grafiki i używa `Win32 CopyFromScreen` do pobrania zrzutu aktywnego okna rysunku.
+
+### 7. Specjalizacja Narzędzi i Hard-Cast (v2.14.0)
 W celu uniknięcia "konfliktu narzędzi" oraz błędów refleksji w silniku Teigha, wprowadzono dwa mechanizmy:
 - **Separation of Concerns**: Narzędzia uniwersalne (np. `ModifyPropertiesTool`) są celowo ograniczane do właściwości wspólnych (`Entity`), podczas gdy skomplikowane obiekty (Wymiary, Teksty) obsługiwane są przez dedykowane klasy (np. `DimensionEditTool`, `TextEditTool`).
 - **Hard-Cast Fallback**: W `SelectEntitiesTool.cs`, mechanizm refleksji jest poprzedzony jawnym rzutowaniem typu (`if (ent is Hatch hatch) ...`). Pozwala to na dostęp do właściwości "niewidocznych" dla standardowej refleksji, takich jak `HatchObjectType`.

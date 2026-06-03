@@ -65,6 +65,9 @@ Skanuje zaznaczone obiekty lub wnętrze definicji bloku (rekurencyjnie) w poszuk
 ### 14. `ReadTextSample` **[TAG: #tekst]**
 Pobiera reprezentatywną próbkę treści z dużych zbiorów tekstów.
 
+### 15. `CaptureVisionArea` **[IsCore: Tak]**
+Pozwala na wykonanie zrzutu ekranu z wybranego obszaru rysunku. Służy jako wejście dla analizy Multimodalnej (VLM).
+
 ---
 
 ## 🔧 Edycja i Moduły

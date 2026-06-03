@@ -12,6 +12,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using Application = Bricscad.ApplicationServices.Application;
+using Bricscad_AgentAI_V2.UI.Forms;
 
 namespace Bricscad_AgentAI_V2.UI
 {
@@ -65,6 +66,9 @@ namespace Bricscad_AgentAI_V2.UI
             ApplyTheme();
             Instance = this;
 
+            LLMConfigManager.OnConfigChanged += UpdateModelLabel;
+            UpdateModelLabel();
+
             // Inicjalizacja wiadomosci powitalnych
             AppendToHistory("SYSTEM", "Bielik V2 GOLD gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
         }        private void InitializeEngineV2()
@@ -72,8 +76,7 @@ namespace Bricscad_AgentAI_V2.UI
             _orchestrator = ToolOrchestrator.Instance;
             // Inicjalizacja skanowania narzędzi odbywa się automatycznie przy pierwszym dostępie do Instance
 
-            // Konfigurowalny endpoint
-            _llmClient = new LLMClient("http://localhost:1234/v1/chat/completions", "not-needed", _orchestrator);
+            _llmClient = new LLMClient(_orchestrator);
             
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
@@ -82,6 +85,21 @@ namespace Bricscad_AgentAI_V2.UI
             _benchmarkEngine = new AutoBenchmarkEngine(_llmClient);
 
             RebuildSystemPrompt();
+        }
+
+        private void UpdateModelLabel()
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(UpdateModelLabel));
+                return;
+            }
+            var config = LLMConfigManager.GetActiveProvider();
+            _activeModel = config != null ? $"{config.Name} / {config.ModelName}" : "Brak dostawcy";
+            if (lblStatus != null)
+            {
+                UpdateStatusHUD("Gotowy.");
+            }
         }
 
         private void RebuildSystemPrompt()
@@ -207,7 +225,25 @@ namespace Bricscad_AgentAI_V2.UI
                 Padding = new Padding(10, 0, 0, 0)
             };
 
+            Button btnSettings = new Button
+            {
+                Text = "⚙️",
+                Dock = DockStyle.Right,
+                Width = 40,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnSettings.FlatAppearance.BorderSize = 0;
+            btnSettings.Click += (s, e) => {
+                var dialog = new Forms.LLMConfigDialog();
+                dialog.ShowDialog();
+            };
+
             panInput.Controls.Add(chkEarlyExit);
+            panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panInput.Controls.Add(btnSettings);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnReset);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
@@ -763,6 +799,11 @@ namespace Bricscad_AgentAI_V2.UI
                 ? $"✅ Recepta `${recipe.Trigger}$` wykonana pomyślnie ({successCount} kroków)." 
                 : $"⚠️ Recepta przerwana. Wykonano {successCount}/{total} kroków.", 
                 isDarkMode ? Color.LightGreen : Color.DarkGreen);
+        }
+        public async void ExternalProcessPrompt(string prompt)
+        {
+            if (string.IsNullOrEmpty(prompt)) return;
+            await ProcessInputAsync(prompt);
         }
     }
 }

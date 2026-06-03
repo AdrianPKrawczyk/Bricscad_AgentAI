@@ -21,8 +21,6 @@ namespace Bricscad_AgentAI_V2.Core
     public class LLMClient
     {
         private readonly HttpClient _httpClient;
-        private readonly string _endpointUrl;
-        private readonly string _apiKey;
         private readonly ToolOrchestrator _orchestrator;
 
         // Delegaty do aktualizacji interfejsu użytkownika w trybie asynchronicznym (niewątkującym bazy CAD)
@@ -30,12 +28,10 @@ namespace Bricscad_AgentAI_V2.Core
         public event Action<string> OnToolCallLogged;
         public event Action<LLMStats> OnStatsUpdate; // Obiekt ze statystykami
 
-        public LLMClient(string endpointUrl, string apiKey, ToolOrchestrator orchestrator)
+        public LLMClient(ToolOrchestrator orchestrator)
         {
             _httpClient = new HttpClient();
             _httpClient.Timeout = TimeSpan.FromMinutes(5);
-            _endpointUrl = endpointUrl;
-            _apiKey = apiKey;
             _orchestrator = orchestrator;
         }
 
@@ -58,24 +54,49 @@ namespace Bricscad_AgentAI_V2.Core
                 iterations++;
                 OnStatusUpdate?.Invoke($"Wysyłanie zapytania do struktury (iteracja {iterations}/{maxIterations})...");
 
+                var config = LLMConfigManager.GetActiveProvider();
                 // 1. Przygotuj payload - KRYTYCZNE: Odświeżamy listę narzędzi w każdej iteracji, 
                 // aby uwzględnić nowo załadowane kategorie (Agentic Fallback / LoadCategory).
-                var requestPayload = new
+                var requestPayload = new Dictionary<string, object>
                 {
-                    model = "local-model",
-                    messages = conversationHistory,
-                    tools = _orchestrator.GetToolsPayload(currentTags),
-                    tool_choice = "auto"
+                    { "model", config.ModelName },
+                    { "messages", conversationHistory },
+                    { "tools", _orchestrator.GetToolsPayload(currentTags) },
+                    { "tool_choice", "auto" },
+                    { "temperature", config.Temperature },
+                    { "max_tokens", config.MaxTokens }
                 };
+
+                if (config.TopP > 0.0 && config.TopP != 1.0) requestPayload["top_p"] = config.TopP;
+                if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
+                if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
+                if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+                if (!string.IsNullOrEmpty(config.ReasoningEffort) && config.ReasoningEffort != "none")
+                {
+                    requestPayload["reasoning_effort"] = config.ReasoningEffort;
+                }
 
                 string jsonContent = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings 
                 { 
                     NullValueHandling = NullValueHandling.Ignore 
                 });
-                totalSentChars += jsonContent.Length;
                 
-                var request = new HttpRequestMessage(HttpMethod.Post, _endpointUrl);
-                request.Headers.Add("Authorization", $"Bearer {_apiKey}");
+                // Obliczamy długość wysłanych znaków (aproksymacja tokenów)
+                int payloadLength = jsonContent.Length;
+                totalSentChars += payloadLength;
+                var request = new HttpRequestMessage(HttpMethod.Post, config.EndpointUrl);
+                
+                if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                {
+                    request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                }
+                
+                if (config.EndpointUrl.Contains("openrouter"))
+                {
+                    if (!string.IsNullOrEmpty(config.SiteUrl)) request.Headers.Add("HTTP-Referer", config.SiteUrl);
+                    if (!string.IsNullOrEmpty(config.SiteName)) request.Headers.Add("X-Title", config.SiteName);
+                }
+
                 request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 // 2. Wyślij zapytanie
@@ -123,7 +144,7 @@ namespace Bricscad_AgentAI_V2.Core
                         CompletionTokens = totalRecvChars / 4 
                     });
                     
-                    return assistantMessage.Content ?? "(Model nie zwrócił tekstu)";
+                    return assistantMessage.Content?.ToString() ?? "(Model nie zwrócił tekstu)";
                 }
 
                 // 4. Mamy tool_calls! Realizujemy ich logikę na lokalnej maszynie C#
@@ -188,14 +209,54 @@ namespace Bricscad_AgentAI_V2.Core
                     }
 
                     // 5. Dodaj odpowiedź z roli zastrzeżonej "tool"
-                    var toolResponseMessage = new ChatMessage
+                    // V2 VISION: Specjalne traktowanie zrzutów ekranu
+                    if (toolExecutionResult.StartsWith("[VISION_IMAGE_CAPTURED]|"))
                     {
-                        Role = "tool",
-                        ToolCallId = toolCall.Id,
-                        Content = toolExecutionResult
-                    };
-                    
-                    conversationHistory.Add(toolResponseMessage);
+                        string imagePath = toolExecutionResult.Split('|')[1];
+                        
+                        // Dodajemy standardową odpowiedź 'tool' aby zamknąć strukturę wywołania
+                        conversationHistory.Add(new ChatMessage
+                        {
+                            Role = "tool",
+                            ToolCallId = toolCall.Id,
+                            Content = "Obraz został przechwycony pomyślnie. Zrzut ekranu jest dołączony poniżej."
+                        });
+
+                        try
+                        {
+                            // Konwersja na Base64 i wstrzyknięcie roli 'user' (wymóg większości VLM)
+                            byte[] imageBytes = System.IO.File.ReadAllBytes(imagePath);
+                            string base64String = Convert.ToBase64String(imageBytes);
+
+                            var visionContent = new List<VisionContentPart>
+                            {
+                                new VisionContentPart { Type = "text", Text = "Oto zrzut ekranu obszaru rysunku, o który prosiłeś. Przeanalizuj go uważnie." },
+                                new VisionContentPart
+                                {
+                                    Type = "image_url",
+                                    ImageUrl = new VisionImageUrl { Url = $"data:image/jpeg;base64,{base64String}" }
+                                }
+                            };
+
+                            conversationHistory.Add(new ChatMessage { Role = "user", Content = visionContent });
+                            OnStatusUpdate?.Invoke("Obraz wstrzyknięty do rozmowy. Czekam na analizę wizualną...");
+                        }
+                        catch (Exception ex)
+                        {
+                            OnStatusUpdate?.Invoke($"Błąd przetwarzania obrazu Vision: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        // Standardowa odpowiedź tekstowa
+                        var toolResponseMessage = new ChatMessage
+                        {
+                            Role = "tool",
+                            ToolCallId = toolCall.Id,
+                            Content = toolExecutionResult
+                        };
+                        conversationHistory.Add(toolResponseMessage);
+                    }
                 }
                 
                 // KRYTYCZNE: Sprawdzenie Early Exit PO dodaniu wszystkich wyników do historii.
@@ -228,7 +289,7 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         /// <summary>
-        /// Skanuje historię w poszukiwaniu triggerów рецепt ($trigger) i wstrzykuje 
+        /// Skanuje historię w poszukiwaniu triggerów recept ($trigger) i wstrzykuje 
         /// przykłady Few-Shot bezpośrednio po system prompcie.
         /// </summary>
         private void PreProcessRecipes(List<ChatMessage> history)
@@ -239,8 +300,11 @@ namespace Bricscad_AgentAI_V2.Core
             var discoveredTriggers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var msg in userMsgs)
             {
-                var matches = Regex.Matches(msg.Content, @"\$(\w+)");
-                foreach (Match m in matches) discoveredTriggers.Add(m.Groups[1].Value);
+                if (msg.Content is string textContent)
+                {
+                    var matches = Regex.Matches(textContent, @"\$(\w+)");
+                    foreach (Match m in matches) discoveredTriggers.Add(m.Groups[1].Value);
+                }
             }
 
             if (!discoveredTriggers.Any()) return;
@@ -285,10 +349,10 @@ namespace Bricscad_AgentAI_V2.Core
             const int maxLength = 500;
             foreach (var message in history)
             {
-                if (message.Role == "tool" && message.Content?.Length > maxLength)
+                if (message.Role == "tool" && message.Content is string contentStr && contentStr.Length > maxLength)
                 {
-                    int originalLength = message.Content.Length;
-                    message.Content = $"{message.Content.Substring(0, 100)}... [PRZYCIĘTO {originalLength - 100} znaków dla oszczędności tokenów]";
+                    int originalLength = contentStr.Length;
+                    message.Content = $"{contentStr.Substring(0, 100)}... [PRZYCIĘTO {originalLength - 100} znaków dla oszczędności tokenów]";
                 }
             }
         }
@@ -314,22 +378,45 @@ namespace Bricscad_AgentAI_V2.Core
                 if (ct.IsCancellationRequested) break;
                 iterations++;
 
+                var config = LLMConfigManager.GetActiveProvider();
                 // 1. Buduj i wyślij payload do prawdziwego LLM
-                var requestPayload = new
+                var requestPayload = new Dictionary<string, object>
                 {
-                    model = "local-model",
-                    messages = history,
-                    tools = _orchestrator.GetToolsPayload(),
-                    tool_choice = "auto"
+                    { "model", config.ModelName },
+                    { "messages", history },
+                    { "tools", _orchestrator.GetToolsPayload() },
+                    { "tool_choice", "auto" },
+                    { "temperature", config.Temperature },
+                    { "max_tokens", config.MaxTokens }
                 };
+
+                if (config.TopP > 0.0 && config.TopP != 1.0) requestPayload["top_p"] = config.TopP;
+                if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
+                if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
+                if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+                if (!string.IsNullOrEmpty(config.ReasoningEffort) && config.ReasoningEffort != "none")
+                {
+                    requestPayload["reasoning_effort"] = config.ReasoningEffort;
+                }
 
                 string jsonContent = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings
                 {
                     NullValueHandling = NullValueHandling.Ignore
                 });
 
-                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, _endpointUrl);
-                request.Headers.Add("Authorization", $"Bearer {_apiKey}");
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, config.EndpointUrl);
+                
+                if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                {
+                    request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                }
+                
+                if (config.EndpointUrl.Contains("openrouter"))
+                {
+                    if (!string.IsNullOrEmpty(config.SiteUrl)) request.Headers.Add("HTTP-Referer", config.SiteUrl);
+                    if (!string.IsNullOrEmpty(config.SiteName)) request.Headers.Add("X-Title", config.SiteName);
+                }
+
                 request.Content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 System.Net.Http.HttpResponseMessage response;

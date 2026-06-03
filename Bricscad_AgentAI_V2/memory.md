@@ -83,6 +83,15 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.20.5 GOLD [READ XDATA] - Nowe narzędzie `ReadXData` do odczytu metadanych XData. Dodano komendę CLI `AI_XDATA` oraz pełną dokumentację techniczną.
 - v2.20.6 GOLD [WRITE XDATA] - Implementacja narzędzia `WriteXData` z obsługą automatycznej rejestracji RegApp oraz komendą CLI `AI_SETXDATA`.
 - v2.20.7 GOLD [FIND XDATA] - Implementacja narzędzia `FindXData` z obsługą rekurencyjnego skanowania bloków oraz komendą CLI `AI_FINDXDATA`.
+- v2.20.8 GOLD [MULTIMODAL VISION] - Wdrożenie obsługi modeli VLM (Vision).
+    - Implementacja `CaptureVisionAreaTool` (Win32 P/Invoke screenshot).
+    - Rozszerzenie `ChatMessage` o pole `Content` (object) dla standardu GPT-4o Vision.
+    - Automatyczne wstrzykiwanie Base64 obrazów do historii sesji w `LLMClient`.
+    - Nowe polecenia CLI: `SKAN` (zrzut ekranu) i `AI_VISION` (zrzut + pytanie).
+- v2.20.9 GOLD [VISION e15 FIX] - Naprawa krytycznego błędu `eVetoed` (e15) w module Vision.
+    - Rezygnacja z COM `ZoomWindow` na rzecz natywnego logicznego manipulowania `ViewTableRecord`.
+    - Poprawa cyklu życia `ViewTableRecord` (naprawa błędu use-after-dispose).
+    - Usunięcie flagi `Transparent` z poleceń wizyjnych celem umożliwienia zmian widoku.
 
 ## Decjzje Architektoniczne
 - **Semantic Tool Routing**: System dynamicznego dobierania narzędzi na podstawie tagów (#core, #bloki, itp.). Od v2.8.0 zarządzany przez `ToolConfigManager`.
@@ -94,3 +103,58 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **UI Autocomplete**: Naprawiono przechwytywanie klawiszy Tab/Enter przez migrację do `ProcessCmdKey` w `AgentControl.cs`.
 - **Build CS0111/CS0103**: Naprawiono błędy kompilacji po masowej refaktoryzacji (dodanie plików do .csproj oraz usunięcie duplikatu klasy w UserInputTool.cs).
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
+
+## 2026-06-03T10:45:17+02:00
+### [ZREALIZOWANO]
+- Przeprowadzono szczegółową analizę architektury projektu w wersji V2 (Function Calling, LLMClient ReAct, RPN, Dataset Studio, CLI, system receptur i faza Vision).
+- Przeanalizowano wytyczne, instrukcje i zasady w dokumentacji projektu.
+### [STAN_SYSTEMU]
+- System w pełni stabilny i przeanalizowany, gotowy do dalszego rozwoju.
+### [BLOKADY / PROBLEMY]
+- Brak napotkanych trudności w procesie analizy.
+### [KOLEJNY_KROK]
+- Oczekiwanie na konkretne zadania implementacyjne od użytkownika.
+
+## 2026-06-03T11:31:40+02:00
+### [ZREALIZOWANO]
+- Przeanalizowano pliki konfiguracyjne LLM (LLMConfigModels.cs, LLMClient.cs) w celu identyfikacji parametrów, które można przekazać do dostawców API (OpenAI, OpenRouter, LM Studio).
+- Opracowano listę potencjalnych rozszerzeń konfiguracji (m.in. reasoning_effort, thinking budget, top_p, seed, frequency/presence penalties).
+### [STAN_SYSTEMU]
+- System jest gotowy na wprowadzenie zmian w konfiguracji dostawców. Parametry są obecnie ograniczone do Model, Temperature, MaxTokens, ApiKey i EndpointUrl.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Ewentualna implementacja dodatkowych pól w LLMProviderConfig i LLMConfigDialog na życzenie użytkownika.
+
+## 2026-06-03T11:34:52+02:00
+### [ZREALIZOWANO]
+- Przeanalizowano przydatność parametrów LLM specyficznych dla silników lokalnych (Ollama, LM Studio, llama.cpp): top_p, top_k, min_p, repeat_penalty oraz stop sequences.
+- Opracowano plan integracji parametrów samplingu dla modeli lokalnych w celu poprawy deterministyczności i stabilności Tool Callingu na małych modelach (np. Qwen, DeepSeek).
+### [STAN_SYSTEMU]
+- System bez zmian kodu źródłowego. Przeprowadzono analizę wpływu parametrów lokalnych na API.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na decyzję użytkownika co do implementacji rozszerzonych parametrów lokalnych.
+
+## 2026-06-03T11:38:50+02:00
+### [ZREALIZOWANO]
+- Wdrożono rozszerzone parametry konfiguracji dostawców LLM (TopP, TopK, MinP, RepetitionPenalty, ReasoningEffort) w modelach danych C# (LLMConfigModels.cs), silniku klienta (LLMClient.cs) oraz formularzu UI (LLMConfigDialog.cs).
+- Pomyślnie skompilowano i zweryfikowano projekt Bricscad_AgentAI_V2 za pomocą dotnet build.
+### [STAN_SYSTEMU]
+- System w pełni zaktualizowany o obsługę zaawansowanych parametrów dla modeli lokalnych i chmurowych. Wszystkie zmiany są wstecznie kompatybilne.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na uruchomienie i testy użytkownika w środowisku BricsCAD.
+
+## 2026-06-03T11:42:24+02:00
+### [ZREALIZOWANO]
+- Wdrożono czytelny interfejs pomocy i podpowiedzi (ToolTips) dla wszystkich zaawansowanych parametrów konfiguracji dostawców (Temperature, Max Tokens, Top-P, Top-K, Min-P, Repetition Penalty, Reasoning Effort).
+- Pomyślnie skompilowano i przetestowano aplikację.
+### [STAN_SYSTEMU]
+- System w pełni zaktualizowany o opisy parametrów podpowiedzi tooltip. Stabilny i gotowy do użycia.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na dalsze wytyczne od użytkownika.

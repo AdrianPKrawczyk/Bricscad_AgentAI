@@ -16,7 +16,7 @@ namespace Bricscad_AgentAI_V2.Tests.Core
         private static void TestInitialization()
         {
             var orchestrator = ToolOrchestrator.Instance;
-            var client = new LLMClient("http://localhost:1234/v1/chat/completions", "key", orchestrator);
+            var client = new LLMClient(orchestrator);
             
             Debug.Assert(client != null, "Client initialization failed");
         }

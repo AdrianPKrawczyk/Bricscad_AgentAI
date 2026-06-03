@@ -60,6 +60,19 @@ Diagnostyczny podgląd stosu RPN.
 
 ---
 
+## 👁️ Komendy Wizyjne (v2.20.8 GOLD)
+
+### 8. `SKAN`
+Szybki zrzut ekranu wybranego obszaru.
+- **Działanie**: Pozwala na manualne wykonanie zrzutu obszaru rysunku do folderu TEMP bez udziału AI.
+
+### 9. `AI_VISION`
+Pełna analiza wizualna rysunku.
+- **Działanie**: Przechwytuje obszar, a następnie otwiera prompt z pytaniem do Agenta (np. "Co to za symbol?"). Automatycznie przesyła obraz do modelu VLM.
+- **Wymagania**: Wymaga modelu obsługującego Vision (Multimodal).
+
+---
+
 ## ⚙️ Komendy Wewnętrzne (Systemowe)
 
 ### 8. `AGENT_RUN_TOOL_V2`

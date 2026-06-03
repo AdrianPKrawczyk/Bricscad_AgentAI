@@ -8,14 +8,37 @@ using Bricscad_AgentAI_V2.Core;
 using Newtonsoft.Json.Linq;
 using Teigha.DatabaseServices;
 using System.Linq;
+using System.Collections.Generic;
+using Bricscad_AgentAI_V2.Models;
 
 [assembly: CommandClass(typeof(Bricscad_AgentAI_V2.Core.AgentStartup))]
 
 namespace Bricscad_AgentAI_V2.Core
 {
-    public class AgentStartup
+    public class AgentStartup : IExtensionApplication
     {
         private static PaletteSet _paletteSet = null;
+
+        public void Initialize()
+        {
+            CleanupVisionCache();
+        }
+
+        public void Terminate() { }
+
+        private void CleanupVisionCache()
+        {
+            try
+            {
+                string tempDir = System.IO.Path.GetTempPath();
+                string[] files = System.IO.Directory.GetFiles(tempDir, "AgentVision_*.jpg");
+                foreach (var file in files)
+                {
+                    try { System.IO.File.Delete(file); } catch { }
+                }
+            }
+            catch { }
+        }
 
         [CommandMethod("AGENT_V2")]
         public void ShowAgentPanel()
@@ -312,6 +335,79 @@ namespace Bricscad_AgentAI_V2.Core
 
             string result = ToolOrchestrator.Instance.ExecuteTool("FindXData", args, doc);
             ed.WriteMessage($"\n\n--- WYNIK SKANOWANIA XDATA ---\n{result}\n------------------------------\n");
+        }
+
+        [CommandMethod("SKAN")]
+        public void CommandSkan()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+            
+            // Bezpośrednie wywołanie narzędzia CaptureVisionArea
+            string result = ToolOrchestrator.Instance.ExecuteTool("CaptureVisionArea", new JObject(), doc);
+            
+            if (result.StartsWith("[VISION_IMAGE_CAPTURED]|"))
+            {
+                string path = result.Split('|')[1];
+                ed.WriteMessage($"\n[SKAN]: Zrzut zapisany pomyślnie: {path}");
+            }
+            else
+            {
+                ed.WriteMessage($"\n[SKAN]: {result}");
+            }
+        }
+
+        [CommandMethod("AI_VISION")]
+        public void CommandAiVision()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            // 1. Wykonaj zrzut
+            string toolResult = ToolOrchestrator.Instance.ExecuteTool("CaptureVisionArea", new JObject(), doc);
+            if (!toolResult.StartsWith("[VISION_IMAGE_CAPTURED]|"))
+            {
+                ed.WriteMessage($"\n[AI_VISION]: Błąd przechwytywania: {toolResult}");
+                return;
+            }
+
+            // 2. Przygotuj prompt dla Agenta
+            PromptStringOptions pso = new PromptStringOptions("\nCo mam sprawdzić na tym zrzucie? (np. 'Odczytaj tabelkę'): ");
+            pso.DefaultValue = "Przeanalizuj ten obszar i opisz co widzisz.";
+            PromptResult psr = ed.GetString(pso);
+            if (psr.Status != PromptStatus.OK) return;
+
+            string userPrompt = string.IsNullOrWhiteSpace(psr.StringResult) ? pso.DefaultValue : psr.StringResult;
+
+            // 3. Uruchom Agenta w trybie Vision (wstrzykujemy obraz do historii)
+            // Uwaga: To wymaga, aby LLMClient przechwycił tag [VISION_IMAGE_CAPTURED]
+            // Ponieważ wywołujemy to z CLI, musimy "udawać" pętlę ReAct lub po prostu wysłać wiadomość.
+            // Najprościej: pokażemy panel Agenta i wyślemy tam zapytanie (jeśli obsługuje interfejs CLI).
+            // W V2 GOLD commands_reference sugeruje, że to wywołuje Agenta.
+            
+            ed.WriteMessage("\n[AI_VISION]: Przesyłam obraz do analizy...");
+
+            // W V2 wywołujemy RunVisionTask (musimy go dodać do AgentControl lub LLMClient)
+            // Na razie wygramy to przez QuickAiCommand z wstrzyknięciem wyniku narzędzia
+            
+            if (_paletteSet == null) ShowAgentPanel();
+            
+            var control = AgentControl.Instance;
+            if (control != null)
+            {
+                // Wstrzykujemy wynik narzędzia bezpośrednio do orkiestratora lub symulujemy pętlę
+                // W tym przypadku najprościej będzie wywołać SendMessageReActAsync z gotową historią.
+                var history = new List<ChatMessage>
+                {
+                    new ChatMessage { Role = "user", Content = userPrompt }
+                };
+                
+                // LLMClient obsłuży toolResult jeśli go "wstrzykniemy" jako asystent+tool_call+tool_result
+                // Ale komenda AI_VISION ma być prostsza: Capture -> Send to LLM
+                
+                // Wykorzystamy istniejący ExecuteTool flow w LLMClient (przez prompt)
+                control.ExternalProcessPrompt($"{userPrompt} (Wywołaj CaptureVisionArea i użyj ostatniego wyniku: {toolResult})");
+            }
         }
 
 
