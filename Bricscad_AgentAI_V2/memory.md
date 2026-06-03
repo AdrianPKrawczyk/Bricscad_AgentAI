@@ -187,3 +187,33 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Brak.
 ### [KOLEJNY_KROK]
 - Czekanie na weryfikację ze strony użytkownika.
+
+## 2026-06-03T14:00:00+02:00
+### [ZREALIZOWANO]
+- Wdrożono dynamiczne zarządzanie promptem systemowym z poziomu UI wtyczki BricsCAD:
+  - Dodano nową, ostatnią zakładkę "⚙️ Ustawienia" w panelu głównym `AgentControl.cs`.
+  - Umieszczono na niej edytor tekstowy `txtSystemPromptEditor` (RichTextBox) wyświetlający aktualną treść promptu.
+  - Zaimplementowano obsługę zapisu przez przycisk "💾 Zapisz Prompt", który nadpisuje plik `system_prompt.txt` na dysku i wywołuje `RebuildSystemPrompt()`, odświeżając stan w pamięci aktywnej sesji czatu.
+  - Zsynchronizowano edytor z metodą `RebuildSystemPrompt()`, dzięki czemu przy każdym resecie pamięci lub wczytaniu ustawień treść w edytorze jest aktualizowana.
+  - Dodano pełne wsparcie kolorystyczne (ApplyTheme) dla nowo dodanych kontrolek.
+- Zweryfikowano poprawność kompilacji - kompilacja zakończyła się pełnym sukcesem (0 błędów, 0 ostrzeżeń), a plik DLL został pomyślnie przebudowany.
+### [STAN_SYSTEMU]
+- System stabilny, rozbudowany o kompletną zakładkę ustawień ułatwiającą dynamiczną pracę z promptem systemowym w locie bez restartu BricsCAD i bez rekompilacji.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Uruchomienie wtyczki w programie BricsCAD i weryfikacja nowej zakładki "Ustawienia".
+
+## 2026-06-03T14:15:00+02:00
+### [ZREALIZOWANO]
+- Przebudowano strukturę zakładki "⚙️ Ustawienia" w `AgentControl.cs` w celu wdrożenia architektury zagnieżdżonych podzakładek (TabControl):
+  - Utworzono podzakładkę "Prompt" przeznaczoną do edycji promptu systemowego.
+  - Dodano do podzakładki przycisk "📂 Otwórz folder" wywołujący `System.Diagnostics.Process` z argumentem `/select` w celu otwarcia Eksploratora Windows i automatycznego zaznaczenia pliku `system_prompt.txt`.
+  - Dostosowano mechanizm `ApplyTheme` do aplikowania motywów kolorystycznych (tła i czcionek) również dla nowo powstałego kontenera podzakładek `tabSettingsSub` i jego dzieci.
+- Przeprowadzono pomyślną kompilację (0 błędów, 0 ostrzeżeń).
+### [STAN_SYSTEMU]
+- System stabilny, zorganizowany pod kątem przyszłej rozbudowy ustawień, z wygodną integracją z systemowym menedżerem plików (Explorer).
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Czekanie na weryfikację ze strony użytkownika.

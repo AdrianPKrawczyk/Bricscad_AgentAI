@@ -55,6 +55,13 @@ namespace Bricscad_AgentAI_V2.UI
         private CheckBox chkEnableTracer;
         private Button btnClearDebug;
 
+        // --- UI Ustawienia ---
+        private TabPage tabSettings;
+        private TabControl tabSettingsSub;
+        private TabPage tabPromptSub;
+        private RichTextBox txtSystemPromptEditor;
+        private Button btnSaveSystemPrompt;
+
         public static AgentControl Instance { get; private set; }
         public string CurrentSystemPrompt { get; private set; }
         private TabPage tabChat;
@@ -104,6 +111,51 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void RebuildSystemPrompt()
         {
+            string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string filePath = System.IO.Path.Combine(dllDir, "system_prompt.txt");
+
+            if (System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    CurrentSystemPrompt = System.IO.File.ReadAllText(filePath, System.Text.Encoding.UTF8);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Błąd odczytu system_prompt.txt: {ex.Message}");
+                    LoadEmbeddedSystemPrompt();
+                }
+            }
+            else
+            {
+                LoadEmbeddedSystemPrompt();
+                try
+                {
+                    System.IO.File.WriteAllText(filePath, CurrentSystemPrompt, System.Text.Encoding.UTF8);
+                }
+                catch { }
+            }
+
+            _conversationHistory = new List<ChatMessage>
+            {
+                new ChatMessage { Role = "system", Content = CurrentSystemPrompt }
+            };
+
+            if (txtSystemPromptEditor != null)
+            {
+                if (txtSystemPromptEditor.InvokeRequired)
+                {
+                    txtSystemPromptEditor.Invoke(new Action(() => txtSystemPromptEditor.Text = CurrentSystemPrompt));
+                }
+                else
+                {
+                    txtSystemPromptEditor.Text = CurrentSystemPrompt;
+                }
+            }
+        }
+
+        private void LoadEmbeddedSystemPrompt()
+        {
             CurrentSystemPrompt = "Jesteś asystentem BricsCAD (Bielik V2 GOLD). Działaj precyzyjnie używając narzędzi. Komunikuj się WYŁĄCZNIE poprzez natywne wywołania funkcji (tool_calls). ZABRONIONE jest wypisywanie wywołań w zwykłym tekście.\n\n" +
                 "--- 1. DELEGOWANIE OBLICZEŃ I LOGIKI (SUPERMOC RPN) ---\n" +
                 "Jesteś modelem językowym, nie kalkulatorem. ZABRANIA SIĘ wykonywania obliczeń matematycznych w pamięci. Do wszystkich obliczeń wektorowych, matematycznych i tekstowych MUSISZ używać wbudowanego silnika RPN (Odwrotna Notacja Polska). Składnia: wartość zawsze zaczyna się od 'RPN: '.\n" +
@@ -125,13 +177,8 @@ namespace Bricscad_AgentAI_V2.UI
                 "ABSOLUTNIE ZABRONIONE JEST używanie narzędzi bazowych do tworzenia lub edycji metadanych (np. używanie CreateObject do zrobienia nowej warstwy).\n\n" +
                 "--- 4. DYNAMICZNE ODKRYWANIE NARZĘDZI (DISCOVERABILITY) ---\n" +
                 "Twój domyślny, początkowy arsenał (tools) zawiera tylko potężne narzędzia bazowe (Core). BricsCAD posiada jednak dziesiątki zaawansowanych, uśpionych pakietów narzędzi (np. do zarządzania strukturą warstw, edycji atrybutów, manipulacji skalami opisowymi).\n" +
-                "Jeśli użytkownik prosi Cię o operację, do której NIE WIDZISZ gotowego narzędzia w swojej liście 'tools' (np. prosi o zablokowanie warstwy), ZABRONIONE JEST ZGADYWANIE jego nazwy i parametrów.\n" +
+                "If użytkownik prosi Cię o operację, do której NIE WIDZISZ gotowego narzędzia w swojej liście 'tools' (np. prosi o zablokowanie warstwy), ZABRONIONE JEST ZGADYWANIE jego nazwy i parametrów.\n" +
                 "Zamiast tego MUSISZ w pierwszym kroku wywołać 'RequestAdditionalTools'. Jeśli wiesz jakiego narzędzia brakuje (np. pamiętasz 'ManageLayers'), użyj od razu akcji 'LoadCategory'. Jeśli nie wiesz, użyj 'ListCategories', aby pobrać katalog uśpionych narzędzi.";
-
-            _conversationHistory = new List<ChatMessage>
-            {
-                new ChatMessage { Role = "system", Content = CurrentSystemPrompt }
-            };
         }
 
         private void InitializeStandardUI()
@@ -408,6 +455,76 @@ namespace Bricscad_AgentAI_V2.UI
             tabDebug.Controls.Add(panDebugTop);
             tabControl.TabPages.Add(tabDebug);
 
+            // ==========================================
+            // ZAKŁADKA 8: USTAWIENIA (PANEL BAZOWY)
+            // ==========================================
+            tabSettings = new TabPage("⚙️ Ustawienia");
+            tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
+
+            // PODZAKŁADKA: Prompt
+            tabPromptSub = new TabPage("Prompt");
+            Panel panSettingsTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
+            Label lblSettingsTitle = new Label 
+            { 
+                Text = "Edytor Promptu Systemowego:", 
+                Dock = DockStyle.Left, 
+                ForeColor = Color.White, 
+                Font = new Font(this.Font, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Width = 220
+            };
+
+            btnSaveSystemPrompt = new Button 
+            { 
+                Text = "💾 Zapisz Prompt", 
+                Width = 120, 
+                Dock = DockStyle.Right,
+                BackColor = Color.SeaGreen,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font(this.Font, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnSaveSystemPrompt.Click += BtnSaveSystemPrompt_Click;
+
+            var btnOpenPromptDir = new Button 
+            { 
+                Text = "📂 Otwórz folder", 
+                Width = 130, 
+                Dock = DockStyle.Right,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font(this.Font, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnOpenPromptDir.Click += BtnOpenPromptDir_Click;
+
+            panSettingsTop.Controls.Add(lblSettingsTitle);
+            panSettingsTop.Controls.Add(btnSaveSystemPrompt);
+            panSettingsTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panSettingsTop.Controls.Add(btnOpenPromptDir);
+
+            txtSystemPromptEditor = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.White,
+                Font = new Font("Consolas", 10f),
+                BorderStyle = BorderStyle.None,
+                Multiline = true,
+                ScrollBars = RichTextBoxScrollBars.Both
+            };
+            txtSystemPromptEditor.Text = CurrentSystemPrompt;
+
+            tabPromptSub.Controls.Add(txtSystemPromptEditor);
+            tabPromptSub.Controls.Add(panSettingsTop);
+            
+            tabSettingsSub.TabPages.Add(tabPromptSub);
+            tabSettings.Controls.Add(tabSettingsSub);
+            tabControl.TabPages.Add(tabSettings);
+
+
             // Rejestracja callbacku
             EngineTracer.SetLogCallback(AppendEngineLog);
 
@@ -415,6 +532,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             this.Controls.Add(tabControl);
         }
+
 
         private void LoadToolConfigToGrid()
         {
@@ -480,6 +598,17 @@ namespace Bricscad_AgentAI_V2.UI
             txtHistory.ForeColor = fgText;
             txtToolLogs.ForeColor = Color.LightSkyBlue;
             txtInput.ForeColor = fgText;
+
+            if (txtSystemPromptEditor != null)
+            {
+                txtSystemPromptEditor.BackColor = bgMain;
+                txtSystemPromptEditor.ForeColor = fgText;
+            }
+
+            if (tabSettingsSub != null)
+            {
+                foreach (TabPage page in tabSettingsSub.TabPages) page.BackColor = bgMain;
+            }
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -804,6 +933,46 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (string.IsNullOrEmpty(prompt)) return;
             await ProcessInputAsync(prompt);
+        }
+
+        private void BtnSaveSystemPrompt_Click(object sender, EventArgs e)
+        {
+            if (txtSystemPromptEditor == null) return;
+
+            string newPrompt = txtSystemPromptEditor.Text;
+            string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string filePath = System.IO.Path.Combine(dllDir, "system_prompt.txt");
+
+            try
+            {
+                System.IO.File.WriteAllText(filePath, newPrompt, System.Text.Encoding.UTF8);
+                RebuildSystemPrompt();
+                MessageBox.Show("Prompt systemowy został pomyślnie zapisany i zaktualizowany w locie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu promptu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnOpenPromptDir_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string filePath = System.IO.Path.Combine(dllDir, "system_prompt.txt");
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    RebuildSystemPrompt();
+                }
+
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
