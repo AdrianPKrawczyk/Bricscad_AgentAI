@@ -129,12 +129,14 @@ namespace Bricscad_AgentAI_V2.Core
                 HttpResponseMessage response;
                 try
                 {
+                    BielikLogger.LogInfo($"[LLM REQ] Model={config.ModelName}, Endpoint={config.EndpointUrl}, Tools={staticToolsPayload?.Count ?? 0}, Iteration={iterations}");
                     response = await _httpClient.SendAsync(request);
                     response.EnsureSuccessStatusCode();
                 }
                 catch (Exception ex)
                 {
                     sw.Stop();
+                    BielikLogger.LogError($"[LLM ERR] Połączenie nieudane: {ex.Message}", ex);
                     OnStatusUpdate?.Invoke("Błąd połączenia z lokalnym LLM API.");
                     return AgentExecutionResult.Failure($"Błąd połączenia: {ex.Message}");
                 }
@@ -142,17 +144,36 @@ namespace Bricscad_AgentAI_V2.Core
                 string responseBody = await response.Content.ReadAsStringAsync();
                 totalRecvChars += responseBody.Length;
 
+                BielikLogger.LogInfo($"[LLM RESP] Status={(int)response.StatusCode} ({response.StatusCode}), BodyLength={responseBody.Length}");
+
                 var jsonResponse = JObject.Parse(responseBody);
                 var messageNode = jsonResponse["choices"]?[0]?["message"];
                 if (messageNode == null)
                 {
                     sw.Stop();
+                    BielikLogger.LogWarn("[LLM WARN] Otrzymano nieprawidłową odpowiedź (brak węzła 'choices[0].message').");
                     return AgentExecutionResult.Failure("Błąd parsowania odpowiedzi z modelu (brak 'message').");
                 }
 
                 // Deserializacja asystenta
                 var assistantMessage = messageNode.ToObject<ChatMessage>();
                 conversationHistory.Add(assistantMessage);
+
+                if (assistantMessage.ToolCalls != null && assistantMessage.ToolCalls.Any())
+                {
+                    foreach (var tc in assistantMessage.ToolCalls)
+                    {
+                        string argsStr = tc.Function?.Arguments;
+                        if (argsStr != null && argsStr.Length > 200) argsStr = argsStr.Substring(0, 200) + "...";
+                        BielikLogger.LogInfo($"[LLM TOOLCALL] ID={tc.Id}, Name={tc.Function?.Name}, Args={argsStr}");
+                    }
+                }
+                else
+                {
+                    string contentStr = assistantMessage.Content?.ToString();
+                    if (contentStr != null && contentStr.Length > 150) contentStr = contentStr.Substring(0, 150) + "...";
+                    BielikLogger.LogInfo($"[LLM TEXT] Response: {contentStr}");
+                }
 
                 // 3. Sprawdź warunek zakończenia: jeśli brak wywołań funkcji -> koniec.
                 if (assistantMessage.ToolCalls == null || !assistantMessage.ToolCalls.Any())

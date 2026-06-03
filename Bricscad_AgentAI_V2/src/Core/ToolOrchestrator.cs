@@ -145,6 +145,7 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (!_tools.TryGetValue(toolName, out var tool))
             {
+                BielikLogger.LogWarn($"[TOOL WARN] Próba wywołania uśpionego narzędzia: {toolName}");
                 return $"BŁĄD KRYTYCZNY (ZŁAMANIE PROTOKOŁU): Narzędzie '{toolName}' jest obecnie uśpione. MUSISZ najpierw wywołać narzędzie 'RequestAdditionalTools'.";
             }
 
@@ -157,6 +158,7 @@ namespace Bricscad_AgentAI_V2.Core
                     string categoryName = arguments["CategoryName"]?.ToString() ?? "";
                     if (!string.IsNullOrEmpty(categoryName))
                     {
+                        BielikLogger.LogInfo($"[TOOL DYNAMIC] Żądanie dynamicznego ładowania tagu/kategorii: {categoryName}");
                         ToolConfigManager.SessionDynamicTags.Add(categoryName);
                     }
                 }
@@ -164,11 +166,21 @@ namespace Bricscad_AgentAI_V2.Core
 
             try
             {
+                string argsStr = arguments?.ToString(Newtonsoft.Json.Formatting.None);
+                if (argsStr != null && argsStr.Length > 250) argsStr = argsStr.Substring(0, 250) + "...";
+                BielikLogger.LogInfo($"[TOOL START] Wywołanie: {toolName}, Argumenty: {argsStr}");
+
                 var cadContext = context as CadExecutionContext;
-                return tool.Execute(cadContext?.CadDocument, arguments);
+                string result = tool.Execute(cadContext?.CadDocument, arguments);
+
+                string resPreview = result;
+                if (resPreview != null && resPreview.Length > 150) resPreview = resPreview.Substring(0, 150) + "...";
+                BielikLogger.LogInfo($"[TOOL END] Sukces: {toolName}, Wynik: {resPreview}");
+                return result;
             }
             catch (Exception ex)
             {
+                BielikLogger.LogError($"[TOOL ERR] Błąd krytyczny w narzędziu '{toolName}': {ex.Message}", ex);
                 return $"Błąd wykonania narzędzia '{toolName}': {ex.Message}";
             }
         }

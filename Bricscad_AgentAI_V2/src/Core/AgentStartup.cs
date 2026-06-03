@@ -22,9 +22,47 @@ namespace Bricscad_AgentAI_V2.Core
         public void Initialize()
         {
             CleanupVisionCache();
+            try
+            {
+                BielikLogger.RegisterMainThread();
+                BielikLogger.LogInfo("Inicjalizacja wtyczki Bielik AI V2 GOLD...");
+
+                AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+                System.Windows.Forms.Application.ThreadException += Application_ThreadException;
+            }
+            catch (System.Exception ex)
+            {
+                try { BielikLogger.LogError("Błąd podczas rejestrowania obsługi wyjątków startupu", ex); } catch { }
+            }
         }
 
-        public void Terminate() { }
+        public void Terminate() 
+        {
+            try
+            {
+                BielikLogger.LogInfo("Zamykanie wtyczki Bielik AI V2 GOLD.");
+            }
+            catch { }
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            try
+            {
+                var ex = e.ExceptionObject as System.Exception;
+                BielikLogger.LogCritical("!!! KRYTYCZNY WYJĄTEK APLIKACJI (Unhandled AppDomain Exception) - BricsCAD może ulec awarii !!!", ex);
+            }
+            catch { }
+        }
+
+        private void Application_ThreadException(object sender, System.Threading.ThreadExceptionEventArgs e)
+        {
+            try
+            {
+                BielikLogger.LogError("!!! WYJĄTEK WĄTKU UI (Unhandled UI Thread Exception) !!!", e.Exception);
+            }
+            catch { }
+        }
 
         private void CleanupVisionCache()
         {

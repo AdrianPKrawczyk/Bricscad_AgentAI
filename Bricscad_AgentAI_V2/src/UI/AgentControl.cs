@@ -64,6 +64,14 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnSaveSystemPrompt;
         private ComboBox cbPromptFile;
 
+        // --- UI Diagnostyka (Logi Aplikacji) ---
+        private TabPage tabDiagnosticsSub;
+        private RichTextBox rtbAppLogs;
+        private Button btnOpenAppLogFile;
+        private Button btnClearAppLog;
+        private Button btnRefreshAppLog;
+        private CheckBox chkEnableAppLogging;
+
         public static AgentControl Instance { get; private set; }
         public string CurrentSystemPrompt { get; private set; }
         private TabPage tabChat;
@@ -537,6 +545,112 @@ namespace Bricscad_AgentAI_V2.UI
             tabPromptSub.Controls.Add(panSettingsTop);
             
             tabSettingsSub.TabPages.Add(tabPromptSub);
+
+            // ==========================================
+            // PODZAKŁADKA: Diagnostyka (BielikLogger log)
+            // ==========================================
+            tabDiagnosticsSub = new TabPage("Diagnostyka");
+            Panel panDiagnosticsTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
+
+            chkEnableAppLogging = new CheckBox
+            {
+                Text = "Włącz logowanie debugowania",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Dock = DockStyle.Left,
+                Checked = BielikLogger.IsEnabled
+            };
+            chkEnableAppLogging.CheckedChanged += (s, e) => BielikLogger.IsEnabled = chkEnableAppLogging.Checked;
+
+            btnRefreshAppLog = new Button
+            {
+                Text = "🔄 Odśwież log",
+                Width = 100,
+                Dock = DockStyle.Right,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnRefreshAppLog.Click += (s, e) => RefreshAppLogView();
+
+            btnClearAppLog = new Button
+            {
+                Text = "🗑️ Wyczyść",
+                Width = 90,
+                Dock = DockStyle.Right,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnClearAppLog.Click += (s, e) => {
+                if (MessageBox.Show("Czy na pewno chcesz wyczyścić plik logu debugowania?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    BielikLogger.ClearLog();
+                    RefreshAppLogView();
+                }
+            };
+
+            btnOpenAppLogFile = new Button
+            {
+                Text = "📂 Otwórz plik logu",
+                Width = 130,
+                Dock = DockStyle.Right,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnOpenAppLogFile.Click += (s, e) => {
+                try
+                {
+                    string path = BielikLogger.GetLogPath();
+                    if (System.IO.File.Exists(path))
+                    {
+                        System.Diagnostics.Process.Start("notepad.exe", path);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Plik logu jeszcze nie istnieje. Zostanie utworzony po zapisaniu pierwszych logów.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd otwierania logu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            panDiagnosticsTop.Controls.Add(chkEnableAppLogging);
+            panDiagnosticsTop.Controls.Add(btnOpenAppLogFile);
+            panDiagnosticsTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panDiagnosticsTop.Controls.Add(btnClearAppLog);
+            panDiagnosticsTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panDiagnosticsTop.Controls.Add(btnRefreshAppLog);
+
+            rtbAppLogs = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.Black,
+                ForeColor = Color.LightGray,
+                Font = new Font("Consolas", 9f),
+                BorderStyle = BorderStyle.None,
+                Multiline = true,
+                ScrollBars = RichTextBoxScrollBars.Both
+            };
+
+            tabDiagnosticsSub.Controls.Add(rtbAppLogs);
+            tabDiagnosticsSub.Controls.Add(panDiagnosticsTop);
+            tabSettingsSub.TabPages.Add(tabDiagnosticsSub);
+
+            tabSettingsSub.SelectedIndexChanged += (s, e) => {
+                if (tabSettingsSub.SelectedTab == tabDiagnosticsSub)
+                {
+                    RefreshAppLogView();
+                }
+            };
+
             tabSettings.Controls.Add(tabSettingsSub);
             tabControl.TabPages.Add(tabSettings);
 
@@ -558,6 +672,20 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 dgvTools.Rows.Add(kvp.Key, kvp.Value.IsCore, kvp.Value.Tags, kvp.Value.SupportsEarlyExit);
             }
+        }
+
+        private void RefreshAppLogView()
+        {
+            try
+            {
+                if (rtbAppLogs != null)
+                {
+                    rtbAppLogs.Text = BielikLogger.ReadLastLines(150);
+                    rtbAppLogs.SelectionStart = rtbAppLogs.Text.Length;
+                    rtbAppLogs.ScrollToCaret();
+                }
+            }
+            catch { }
         }
 
         private void BtnSaveConfig_Click(object sender, EventArgs e)
@@ -619,6 +747,12 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 txtSystemPromptEditor.BackColor = bgMain;
                 txtSystemPromptEditor.ForeColor = fgText;
+            }
+
+            if (rtbAppLogs != null)
+            {
+                rtbAppLogs.BackColor = isDarkMode ? Color.Black : Color.FromArgb(245, 245, 245);
+                rtbAppLogs.ForeColor = isDarkMode ? Color.LightGray : Color.Black;
             }
 
             if (tabSettingsSub != null)
