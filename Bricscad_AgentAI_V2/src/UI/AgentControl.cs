@@ -23,6 +23,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnSaveConfig;
         private CheckBox chkEarlyExit;
         private DatasetStudioControl datasetStudio;
+        public DatasetStudioControl DatasetStudio => datasetStudio;
 
         // --- UI Czat ---
         private RichTextBox txtHistory;
@@ -61,6 +62,7 @@ namespace Bricscad_AgentAI_V2.UI
         private TabPage tabPromptSub;
         private RichTextBox txtSystemPromptEditor;
         private Button btnSaveSystemPrompt;
+        private ComboBox cbPromptFile;
 
         public static AgentControl Instance { get; private set; }
         public string CurrentSystemPrompt { get; private set; }
@@ -464,13 +466,27 @@ namespace Bricscad_AgentAI_V2.UI
             Panel panSettingsTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
             Label lblSettingsTitle = new Label 
             { 
-                Text = "Edytor Promptu Systemowego:", 
+                Text = "Plik promptu:", 
                 Dock = DockStyle.Left, 
                 ForeColor = Color.White, 
                 Font = new Font(this.Font, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft,
-                Width = 220
+                Width = 95
             };
+
+            cbPromptFile = new ComboBox
+            {
+                Dock = DockStyle.Left,
+                Width = 220,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cbPromptFile.Items.Add("system_prompt.txt (CAD Expert)");
+            cbPromptFile.Items.Add("system_prompt_supervisor.txt (Supervisor)");
+            cbPromptFile.SelectedIndex = 0;
+            cbPromptFile.SelectedIndexChanged += CbPromptFile_SelectedIndexChanged;
 
             btnSaveSystemPrompt = new Button 
             { 
@@ -498,6 +514,8 @@ namespace Bricscad_AgentAI_V2.UI
             };
             btnOpenPromptDir.Click += BtnOpenPromptDir_Click;
 
+            panSettingsTop.Controls.Add(cbPromptFile);
+            panSettingsTop.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
             panSettingsTop.Controls.Add(lblSettingsTitle);
             panSettingsTop.Controls.Add(btnSaveSystemPrompt);
             panSettingsTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
@@ -933,19 +951,60 @@ namespace Bricscad_AgentAI_V2.UI
             await ProcessInputAsync(prompt);
         }
 
+        private void CbPromptFile_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbPromptFile == null || txtSystemPromptEditor == null) return;
+            
+            string filename = cbPromptFile.SelectedIndex == 1 ? "system_prompt_supervisor.txt" : "system_prompt.txt";
+            string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string filePath = System.IO.Path.Combine(dllDir, filename);
+
+            if (System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    txtSystemPromptEditor.Text = System.IO.File.ReadAllText(filePath, System.Text.Encoding.UTF8);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd odczytu pliku promptu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                if (filename == "system_prompt.txt")
+                {
+                    txtSystemPromptEditor.Text = CurrentSystemPrompt;
+                }
+                else
+                {
+                    txtSystemPromptEditor.Text = "";
+                }
+            }
+        }
+
         private void BtnSaveSystemPrompt_Click(object sender, EventArgs e)
         {
             if (txtSystemPromptEditor == null) return;
 
             string newPrompt = txtSystemPromptEditor.Text;
             string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string filePath = System.IO.Path.Combine(dllDir, "system_prompt.txt");
+            string filename = cbPromptFile.SelectedIndex == 1 ? "system_prompt_supervisor.txt" : "system_prompt.txt";
+            string filePath = System.IO.Path.Combine(dllDir, filename);
 
             try
             {
                 System.IO.File.WriteAllText(filePath, newPrompt, System.Text.Encoding.UTF8);
-                RebuildSystemPrompt();
-                MessageBox.Show("Prompt systemowy został pomyślnie zapisany i zaktualizowany w locie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                
+                if (filename == "system_prompt.txt")
+                {
+                    RebuildSystemPrompt();
+                }
+                else
+                {
+                    _supervisor?.ClearHistory();
+                }
+                MessageBox.Show($"Prompt ({filename}) został pomyślnie zapisany i zaktualizowany w locie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -958,11 +1017,13 @@ namespace Bricscad_AgentAI_V2.UI
             try
             {
                 string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string filePath = System.IO.Path.Combine(dllDir, "system_prompt.txt");
+                string filename = cbPromptFile.SelectedIndex == 1 ? "system_prompt_supervisor.txt" : "system_prompt.txt";
+                string filePath = System.IO.Path.Combine(dllDir, filename);
 
                 if (!System.IO.File.Exists(filePath))
                 {
-                    RebuildSystemPrompt();
+                    if (filename == "system_prompt.txt") RebuildSystemPrompt();
+                    else ToolConfigManager.Initialize(ToolOrchestrator.Instance.GetRegisteredTools());
                 }
 
                 System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");

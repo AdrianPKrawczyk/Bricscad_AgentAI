@@ -59,6 +59,8 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         public static void Initialize(IEnumerable<IToolV2> registeredTools)
         {
+            EnsureSupervisorPromptFile();
+
             if (File.Exists(ConfigPath))
             {
                 try
@@ -94,6 +96,38 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
+        private static void EnsureSupervisorPromptFile()
+        {
+            try
+            {
+                string supervisorPromptPath = Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "system_prompt_supervisor.txt"
+                );
+                if (!File.Exists(supervisorPromptPath))
+                {
+                    string defaultSupervisorPrompt = 
+                        "Jesteś Głównym Menedżerem (Supervisorem) systemu Bielik V2 w BricsCAD.\n" +
+                        "Twoim jedynym zadaniem jest zarządzanie i przekazywanie zadań do wyspecjalizowanych ekspertów.\n" +
+                        "ZABRANIA SIĘ samodzielnego wykonywania zadań CAD, rysowania, zmieniania właściwości itp.\n" +
+                        "ZABRANIA SIĘ prowadzenia luźnych konwersacji z użytkownikiem, tłumaczenia swojego toku myślenia w zwykłym tekście lub zadawania pytań o oprogramowanie CAD (użytkownik ZAWSZE pracuje w BricsCAD).\n\n" +
+                        "Dostępne profile ekspertów:\n" +
+                        "- CadProfile: ekspert od wszelkich zadań CAD (zaznaczanie, rysowanie, modyfikacja, warstwy, bloki, teksty, wymiary, xdata).\n\n" +
+                        "ZASADY UŻYCIA NARZĘDZI:\n" +
+                        "1. Jeśli użytkownik prosi o operację CAD (np. zaznaczenie, zmianę koloru, narysowanie obiektu, edycję warstwy itp.), MUSISZ natychmiast wywołać narzędzie DelegateTask.\n" +
+                        "2. W parametrze TargetProfile ustaw wartość \"CadProfile\".\n" +
+                        "3. W parametrze TaskDescription podaj dokładne zlecenia użytkownika.\n" +
+                        "4. ZABRANIA SIĘ pisania odpowiedzi zwykłym tekstem przed wywołaniem narzędzia. Zwróć bezpośrednio wywołanie DelegateTask.\n" +
+                        "5. Po otrzymaniu wyniku od eksperta, przedstaw go krótko i rzeczowo użytkownikowi.";
+                    File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_supervisor.txt: {ex.Message}");
+            }
+        }
+
         private static void SyncWithTools(IEnumerable<IToolV2> registeredTools)
         {
             bool changed = false;
@@ -106,6 +140,70 @@ namespace Bricscad_AgentAI_V2.Core
                     changed = true;
                 }
             }
+
+            if (_config.Profiles == null)
+            {
+                _config.Profiles = new Dictionary<string, AgentProfileConfig>(StringComparer.OrdinalIgnoreCase);
+                changed = true;
+            }
+
+            // 1. Zabezpieczenie/Synchronizacja SupervisorProfile
+            if (!_config.Profiles.TryGetValue("SupervisorProfile", out var supervisorProf))
+            {
+                supervisorProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_supervisor.txt" };
+                _config.Profiles["SupervisorProfile"] = supervisorProf;
+                changed = true;
+            }
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask" };
+            if (supervisorProf.AllowedTools == null)
+            {
+                supervisorProf.AllowedTools = new List<string>();
+                changed = true;
+            }
+            foreach (var tool in supervisorDefaults)
+            {
+                if (!supervisorProf.AllowedTools.Contains(tool))
+                {
+                    supervisorProf.AllowedTools.Add(tool);
+                    changed = true;
+                }
+            }
+
+            // 2. Zabezpieczenie/Synchronizacja CadProfile
+            if (!_config.Profiles.TryGetValue("CadProfile", out var cadProf))
+            {
+                cadProf = new AgentProfileConfig { SystemPromptFile = "system_prompt.txt", AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" } };
+                _config.Profiles["CadProfile"] = cadProf;
+                changed = true;
+            }
+            if (cadProf.SystemPromptFile != "system_prompt.txt")
+            {
+                cadProf.SystemPromptFile = "system_prompt.txt";
+                changed = true;
+            }
+            var cadDefaults = new List<string> 
+            { 
+                "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", 
+                "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice",
+                "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
+                "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
+                "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
+                "FindXData", "CaptureVisionArea"
+            };
+            if (cadProf.AllowedTools == null)
+            {
+                cadProf.AllowedTools = new List<string>();
+                changed = true;
+            }
+            foreach (var tool in cadDefaults)
+            {
+                if (!cadProf.AllowedTools.Contains(tool))
+                {
+                    cadProf.AllowedTools.Add(tool);
+                    changed = true;
+                }
+            }
+
             if (changed) SaveConfig();
         }
 
@@ -139,8 +237,16 @@ namespace Bricscad_AgentAI_V2.Core
             
             _config.Profiles["CadProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt_cad.txt",
-                AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard" },
+                SystemPromptFile = "system_prompt.txt",
+                AllowedTools = new List<string> 
+                { 
+                    "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", 
+                    "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice",
+                    "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
+                    "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
+                    "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
+                    "FindXData", "CaptureVisionArea"
+                },
                 AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
             };
 

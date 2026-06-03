@@ -102,6 +102,20 @@ namespace Bricscad_AgentAI_V2.Tools
                     maxIterations: 10, 
                     profileName: targetProfile).GetAwaiter().GetResult();
 
+                // --- DATASET STUDIO INTEGRATION FOR WORKER ---
+                try
+                {
+                    var historySnapshot = new List<ChatMessage>(localHistory);
+                    var toolsSnapshot = ToolOrchestrator.Instance.GetToolsPayloadForProfile(targetProfile);
+                    Bricscad_AgentAI_V2.UI.AgentControl.Instance?.DatasetStudio.AddSessionRecord(
+                        $"[{targetProfile}] {taskDescription}", 
+                        historySnapshot, 
+                        toolsSnapshot, 
+                        client.LastStats
+                    );
+                }
+                catch { }
+
                 if (result.IsSuccess)
                 {
                     return $"Zadanie zakończone przez '{targetProfile}'. Zwrócony wynik: {result.DisplayMessage}";

@@ -27,6 +27,7 @@ namespace Bricscad_AgentAI_V2.Core
         public event Action<string> OnStatusUpdate;
         public event Action<string> OnToolCallLogged;
         public event Action<LLMStats> OnStatsUpdate; // Obiekt ze statystykami
+        public LLMStats LastStats { get; private set; }
 
         public LLMClient(ToolOrchestrator orchestrator)
         {
@@ -160,9 +161,8 @@ namespace Bricscad_AgentAI_V2.Core
                     OnStatusUpdate?.Invoke("Formułowanie ostatecznej odpowiedzi...");
                     TrimHistory(conversationHistory);
                     
-                    sw.Stop();
                     // Zgłoś statystyki (aproksymacja 4 znaki = 1 token)
-                    OnStatsUpdate?.Invoke(new LLMStats 
+                    RaiseStatsUpdate(new LLMStats 
                     { 
                         TotalTimeMs = sw.ElapsedMilliseconds, 
                         PromptTokens = totalSentChars / 4, 
@@ -272,7 +272,7 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     sw.Stop();
                     OnStatusUpdate?.Invoke("⚡ [Early Exit] Operacja wykonana pomyślnie. Zamykam pętlę ReAct.");
-                    OnStatsUpdate?.Invoke(new LLMStats 
+                    RaiseStatsUpdate(new LLMStats 
                     { 
                         TotalTimeMs = sw.ElapsedMilliseconds, 
                         PromptTokens = totalSentChars / 4, 
@@ -286,7 +286,7 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             sw.Stop();
-            OnStatsUpdate?.Invoke(new LLMStats 
+            RaiseStatsUpdate(new LLMStats 
             { 
                 TotalTimeMs = sw.ElapsedMilliseconds, 
                 PromptTokens = totalSentChars / 4, 
@@ -392,7 +392,7 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     { "model", config.ModelName },
                     { "messages", history },
-                    { "tools", _orchestrator.GetToolsPayload() },
+                    { "tools", _orchestrator.GetToolsPayload(new[] { "#all" }) },
                     { "tool_choice", "auto" },
                     { "temperature", config.Temperature },
                     { "max_tokens", config.MaxTokens }
@@ -561,6 +561,12 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 OnStatusUpdate?.Invoke($"[Auto-Load] Wyjątek podczas ładowania: {ex.Message}");
             }
+        }
+
+        private void RaiseStatsUpdate(LLMStats stats)
+        {
+            LastStats = stats;
+            OnStatsUpdate?.Invoke(stats);
         }
     }
 }

@@ -41,6 +41,7 @@ namespace Bricscad_AgentAI_V2.UI
         private ProgressBar pbProgress;
         private Label lblScore, lblTotalTime;
         private Button btnLoad, btnTest, btnSaveReport;
+        private ComboBox cbProfiles;
         
         // --- Interakcja ---
         private TextBox txtUserReply;
@@ -116,6 +117,17 @@ namespace Bricscad_AgentAI_V2.UI
 
             txtPrompt = CreateLabelledRichTextBox(panRight, "Pytanie (User Prompt):", 80, Color.Cyan);
             txtExpectedV1 = CreateLabelledTextBox(panRight, "Oczekiwany Tag (V1 Reference):", Color.Orange);
+
+            Panel panProfile = new Panel { Dock = DockStyle.Top, Height = 30, Margin = new Padding(0, 5, 0, 5) };
+            Label lblProfile = new Label { Text = "Profil Agenta:", Dock = DockStyle.Left, Width = 100, ForeColor = Color.LightSkyBlue, TextAlign = ContentAlignment.MiddleLeft };
+            cbProfiles = new ComboBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
+            cbProfiles.Items.Add("Brak (Wszystkie Narzędzia / Monolit)");
+            cbProfiles.Items.Add("CadProfile");
+            cbProfiles.Items.Add("SupervisorProfile");
+            cbProfiles.SelectedIndex = 1; // CadProfile domyślnie
+            panProfile.Controls.Add(cbProfiles);
+            panProfile.Controls.Add(lblProfile);
+            panRight.Controls.Add(panProfile);
             
             btnTest = new Button { Text = "🚀 TESTUJ INTENCJĘ I WYKONAJ (V2)", Dock = DockStyle.Top, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 10, 0, 10) };
             btnTest.Click += BtnTest_Click;
@@ -254,6 +266,20 @@ namespace Bricscad_AgentAI_V2.UI
             _isUpdating = false;
         }
 
+        private string LoadSystemPromptForProfile(string profileName)
+        {
+            var profiles = ToolConfigManager.GetProfiles();
+            if (profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
+            {
+                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
+                if (File.Exists(path))
+                {
+                    return File.ReadAllText(path, System.Text.Encoding.UTF8);
+                }
+            }
+            return "Jesteś asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie.";
+        }
+
         private async void BtnTest_Click(object sender, EventArgs e)
         {
             if (lbTests.SelectedIndex < 0) return;
@@ -268,13 +294,29 @@ namespace Bricscad_AgentAI_V2.UI
                 AgentMemoryState.Clear();
                 AgentMemoryState.Variables.Clear();
 
+                string selectedProfile = cbProfiles.SelectedItem?.ToString();
+                string profileName = null;
+                string systemPrompt = "Jesteś asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie.";
+
+                if (selectedProfile == "CadProfile")
+                {
+                    profileName = "CadProfile";
+                    systemPrompt = LoadSystemPromptForProfile("CadProfile");
+                }
+                else if (selectedProfile == "SupervisorProfile")
+                {
+                    profileName = "SupervisorProfile";
+                    systemPrompt = LoadSystemPromptForProfile("SupervisorProfile");
+                }
+
                 _currentHistory = new List<ChatMessage> {
-                    new ChatMessage { Role = "system", Content = "Jesteś asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie." },
+                    new ChatMessage { Role = "system", Content = systemPrompt },
                     new ChatMessage { Role = "user", Content = t.Question }
                 };
 
                 Document doc = Application.DocumentManager.MdiActiveDocument;
-                var result = await _client.SendMessageReActAsync(_currentHistory, new CadExecutionContext(doc));
+                var tags = profileName == null ? new[] { "#all" } : null;
+                var result = await _client.SendMessageReActAsync(_currentHistory, new CadExecutionContext(doc), tags, true, 10, profileName);
                 string response = result.DisplayMessage;
                 
                 txtGeneratedV2.SelectionColor = Color.LightGray;
@@ -295,9 +337,15 @@ namespace Bricscad_AgentAI_V2.UI
             btnReply.Enabled = false;
             try
             {
+                string selectedProfile = cbProfiles.SelectedItem?.ToString();
+                string profileName = null;
+                if (selectedProfile == "CadProfile") profileName = "CadProfile";
+                else if (selectedProfile == "SupervisorProfile") profileName = "SupervisorProfile";
+
                 _currentHistory.Add(new ChatMessage { Role = "user", Content = reply });
                 Document doc = Application.DocumentManager.MdiActiveDocument;
-                var result = await _client.SendMessageReActAsync(_currentHistory, new CadExecutionContext(doc));
+                var tags = profileName == null ? new[] { "#all" } : null;
+                var result = await _client.SendMessageReActAsync(_currentHistory, new CadExecutionContext(doc), tags, true, 10, profileName);
                 string response = result.DisplayMessage;
                 txtGeneratedV2.AppendText($"\n[REPLY RESPONSE]: {response}\n");
             }

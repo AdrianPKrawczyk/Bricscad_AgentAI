@@ -106,9 +106,36 @@ namespace Bricscad_AgentAI_V2.Core
             if (ToolConfigManager.GetProfiles().TryGetValue(profileName, out var profile))
             {
                 var allowedTools = new HashSet<string>(profile.AllowedTools ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                var allowedTags = new HashSet<string>(profile.AllowedTags ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+
                 return _tools.Values
                     .Select(t => t.GetToolSchema())
-                    .Where(schema => schema?.Function != null && allowedTools.Contains(schema.Function.Name))
+                    .Where(schema => 
+                    {
+                        if (schema?.Function == null) return false;
+                        string toolName = schema.Function.Name;
+
+                        // 1. Bezpośrednio dozwolone w profilu
+                        if (allowedTools.Contains(toolName)) return true;
+
+                        // 2. Aktywowane dynamicznie w sesji
+                        if (ToolConfigManager.SessionDynamicTags.Contains(toolName)) return true;
+
+                        // 3. Sprawdzenie tagów narzędzia z dozwolonymi/dynamicznymi tagami
+                        var toolSettings = ToolConfigManager.GetSettings(toolName);
+                        if (toolSettings != null && !string.IsNullOrEmpty(toolSettings.Tags))
+                        {
+                            var toolTags = toolSettings.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                                           .Select(tag => tag.Trim().ToLower());
+                            foreach (var tag in toolTags)
+                            {
+                                if (allowedTags.Contains(tag) || ToolConfigManager.SessionDynamicTags.Contains(tag))
+                                    return true;
+                            }
+                        }
+
+                        return false;
+                    })
                     .ToList();
             }
             return new List<ToolDefinition>();
