@@ -14,13 +14,26 @@ namespace Bricscad_AgentAI_V2.Core
         public bool SupportsEarlyExit { get; set; }
     }
 
+    public class AgentProfileConfig
+    {
+        public string SystemPromptFile { get; set; }
+        public List<string> AllowedTools { get; set; } = new List<string>();
+        public List<string> AllowedTags { get; set; } = new List<string>();
+    }
+
+    public class ToolConfigRoot
+    {
+        public Dictionary<string, ToolSettings> Tools { get; set; } = new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, AgentProfileConfig> Profiles { get; set; } = new Dictionary<string, AgentProfileConfig>(StringComparer.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Zarządza dynamiczną konfiguracją narzędzi (IsCore, Tagi) zapisaną w JSON.
     /// Zapobiega twardemu kodowaniu tagów wewnątrz klas IToolV2.
     /// </summary>
     public static class ToolConfigManager
     {
-        private static Dictionary<string, ToolSettings> _settings = new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
+        private static ToolConfigRoot _config = new ToolConfigRoot();
         private static string _configPath;
 
         public static HashSet<string> SessionDynamicTags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -51,8 +64,21 @@ namespace Bricscad_AgentAI_V2.Core
                 try
                 {
                     string json = File.ReadAllText(ConfigPath);
-                    _settings = JsonConvert.DeserializeObject<Dictionary<string, ToolSettings>>(json) 
-                                ?? new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
+                    // Próba deserializacji do nowego formatu
+                    var root = JsonConvert.DeserializeObject<ToolConfigRoot>(json);
+                    if (root != null && root.Tools != null)
+                    {
+                        _config = root;
+                    }
+                    else
+                    {
+                        // Fallback dla starego formatu
+                        var oldSettings = JsonConvert.DeserializeObject<Dictionary<string, ToolSettings>>(json);
+                        if (oldSettings != null)
+                        {
+                            _config.Tools = oldSettings;
+                        }
+                    }
                     
                     // Uzupełnij o ewentualne nowe narzędzia, których nie ma w JSON
                     SyncWithTools(registeredTools);
@@ -74,9 +100,9 @@ namespace Bricscad_AgentAI_V2.Core
             foreach (var tool in registeredTools)
             {
                 string name = tool.GetToolSchema()?.Function?.Name ?? tool.GetType().Name;
-                if (!_settings.ContainsKey(name))
+                if (!_config.Tools.ContainsKey(name))
                 {
-                    _settings[name] = new ToolSettings { IsCore = false, Tags = "", SupportsEarlyExit = false };
+                    _config.Tools[name] = new ToolSettings { IsCore = false, Tags = "", SupportsEarlyExit = false };
                     changed = true;
                 }
             }
@@ -85,8 +111,8 @@ namespace Bricscad_AgentAI_V2.Core
 
         private static void GenerateDefaultConfig(IEnumerable<IToolV2> registeredTools)
         {
-            _settings.Clear();
-            var coreTools = new[] { "CreateObject", "SelectEntities", "ModifyProperties", "Foreach", "RequestAdditionalTools", "UserInput", "UserChoice" };
+            _config = new ToolConfigRoot();
+            var coreTools = new[] { "CreateObject", "SelectEntities", "ModifyProperties", "Foreach", "RequestAdditionalTools", "UserInput", "UserChoice", "WriteToBlackboard", "ReadFromBlackboard" };
             var earlyExitTools = new[] { "CreateObject", "ModifyProperties", "ManageLayers", "InsertBlock", "CreateBlock", "ExecuteMacro" };
 
             foreach (var tool in registeredTools)
@@ -95,7 +121,7 @@ namespace Bricscad_AgentAI_V2.Core
                 if (schema == null || schema.Function == null) continue;
                 string apiName = schema.Function.Name;
 
-                _settings[apiName] = new ToolSettings
+                _config.Tools[apiName] = new ToolSettings
                 {
                     IsCore = coreTools.Contains(apiName, StringComparer.OrdinalIgnoreCase),
                     SupportsEarlyExit = earlyExitTools.Contains(apiName, StringComparer.OrdinalIgnoreCase),
@@ -103,22 +129,38 @@ namespace Bricscad_AgentAI_V2.Core
                 };
             }
             
+            // Generowanie domyślnych profili
+            _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt_supervisor.txt",
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask" },
+                AllowedTags = new List<string>()
+            };
+            
+            _config.Profiles["CadProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt_cad.txt",
+                AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard" },
+                AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
+            };
+
             // BEZWZGLĘDNY ZAPIS PO WYGENEROWANIU
-            string json = JsonConvert.SerializeObject(_settings, Formatting.Indented);
-            File.WriteAllText(ConfigPath, json);
+            SaveConfig();
         }
 
         public static void SaveConfig()
         {
-            string json = JsonConvert.SerializeObject(_settings, Formatting.Indented);
+            string json = JsonConvert.SerializeObject(_config, Formatting.Indented);
             File.WriteAllText(ConfigPath, json);
         }
 
-        public static Dictionary<string, ToolSettings> GetAllSettings() => _settings;
+        public static Dictionary<string, ToolSettings> GetAllSettings() => _config.Tools;
+
+        public static Dictionary<string, AgentProfileConfig> GetProfiles() => _config.Profiles;
 
         public static void UpdateSettings(Dictionary<string, ToolSettings> newSettings)
         {
-            _settings = newSettings;
+            _config.Tools = newSettings;
             SaveConfig();
         }
 
@@ -131,7 +173,7 @@ namespace Bricscad_AgentAI_V2.Core
             if (SessionDynamicTags.Contains(apiName)) return true;
             if (requestedTags != null && requestedTags.Any(rt => SessionDynamicTags.Contains(rt))) return true;
 
-            if (!_settings.TryGetValue(apiName, out var s)) return false;
+            if (!_config.Tools.TryGetValue(apiName, out var s)) return false;
 
             // Narzędzia Core są ZAWSZE aktywne
             if (s.IsCore) return true;
@@ -153,7 +195,7 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         public static IEnumerable<string> GetAvailableCategories()
         {
-            return _settings.Values
+            return _config.Tools.Values
                 .SelectMany(s => s.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
                 .Select(t => t.Trim())
                 .Where(t => !string.IsNullOrEmpty(t))
@@ -165,7 +207,7 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         public static IEnumerable<string> GetToolsInCategory(string category)
         {
-            return _settings
+            return _config.Tools
                 .Where(kv => kv.Value.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                                          .Any(t => t.Trim().Equals(category, StringComparison.OrdinalIgnoreCase)))
                 .Select(kv => kv.Key);
@@ -173,7 +215,7 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static ToolSettings GetSettings(string toolClassName)
         {
-            if (_settings.TryGetValue(toolClassName, out var s)) return s;
+            if (_config.Tools.TryGetValue(toolClassName, out var s)) return s;
             return null;
         }
     }

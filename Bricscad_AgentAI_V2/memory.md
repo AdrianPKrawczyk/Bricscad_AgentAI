@@ -271,3 +271,17 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Drobne błędy kompilacji (nieaktualne nazwy klas `ToolFunction` na `FunctionSchema` w nowych narzędziach) - błyskawicznie naprawione.
 ### [KOLEJNY_KROK]
 - Krok 3: Profile Narzędzi (`ToolConfigManager.cs`).
+
+## 2026-06-03T20:14:00+02:00
+### [ZREALIZOWANO]
+- Wykonano Krok 3 z `12_Mulitagent_upgrade.md`: Restrukturyzacja zarządzania narzędziami.
+- Wprowadzono nową strukturę konfiguracji JSON w `ToolConfigManager.cs` (`ToolConfigRoot`), grupującą definicje narzędzi oraz nowe Profile Agentów.
+- Zdefiniowano profile (np. `SupervisorProfile`, `CadProfile`) ze zdefiniowanymi przypisaniami ścieżek do pliku promptu systemowego oraz dostępnych narzędzi (`AllowedTools`) i tagów (`AllowedTags`).
+- Dodano wsteczną kompatybilność podczas ładowania (automatyczna migracja starej płaskiej struktury do nowej `ToolConfigRoot`).
+- Skorygowano UI w `AgentControl.cs` podpinając przywróconą metodę `UpdateSettings`.
+### [STAN_SYSTEMU]
+- Kompilacja przebiegła pomyślnie. Nowy plik `tools_config.json` z profilami generuje się bezbłędnie. Agenci mogą być teraz instancjowani z określonym profilem kompetencji.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Krok 4: Implementacja Supervisora (Nadrzędna pętla sterująca).
