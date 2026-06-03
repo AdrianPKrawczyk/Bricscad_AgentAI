@@ -66,6 +66,7 @@
     <Compile Include="src\Models\AgentExecutionResult.cs" />
     <Compile Include="src\Core\IToolV2.cs" />
     <Compile Include="src\Core\IExecutionContext.cs" />
+    <Compile Include="src\Core\SharedMemoryState.cs" />
     <Compile Include="src\Core\ToolOrchestrator.cs" />
     <Compile Include="src\Core\LLMClient.cs" />
     <Compile Include="src\Core\LLMConfigManager.cs" />
@@ -82,6 +83,8 @@
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
     <Compile Include="src\Tools\ManageLayersTool.cs" />
+    <Compile Include="src\Tools\WriteToBlackboardTool.cs" />
+    <Compile Include="src\Tools\ReadFromBlackboardTool.cs" />
     <Compile Include="src\Tools\DimensionEditTool.cs" />
     <Compile Include="src\Tools\ExecuteMacroTool.cs" />
     <Compile Include="src\Tools\ReadPropertyTool.cs" />

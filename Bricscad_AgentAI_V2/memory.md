@@ -258,3 +258,16 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Brak.
 ### [KOLEJNY_KROK]
 - Krok 2: Wdrożenie Blackboard (współdzielony stan).
+
+## 2026-06-03T20:12:00+02:00
+### [ZREALIZOWANO]
+- Wykonano Krok 2 z `12_Mulitagent_upgrade.md`: Wdrożono Blackboard (Współdzielony Stan).
+- Utworzono klasę `SharedMemoryState` (`ConcurrentDictionary<string, string>`) dla bezpiecznej wymiany danych między agentami.
+- Utworzono i podpięto do projektu narzędzia: `WriteToBlackboardTool` oraz `ReadFromBlackboardTool`.
+- Kompilacja przebiegła pomyślnie.
+### [STAN_SYSTEMU]
+- System posiada teraz tablicę ogłoszeń do trwałego przechowywania i przekazywania danych kontekstowych między różnymi izolowanymi sesjami konwersacyjnymi.
+### [BLOKADY / PROBLEMY]
+- Drobne błędy kompilacji (nieaktualne nazwy klas `ToolFunction` na `FunctionSchema` w nowych narzędziach) - błyskawicznie naprawione.
+### [KOLEJNY_KROK]
+- Krok 3: Profile Narzędzi (`ToolConfigManager.cs`).
