@@ -13,6 +13,8 @@ namespace Bricscad_AgentAI_V2.Tests
                 ReadXDataToolTests.RunTests();
                 WriteXDataToolTests.RunTests();
                 FindXDataToolTests.RunTests();
+                SelectEntitiesToolTests.RunTests();
+                CalculateRpnToolTests.RunTests();
                 Console.WriteLine("WSZYSTKIE TESTY ZAKOŃCZONE SUKCESEM.");
             }
             catch (Exception ex)

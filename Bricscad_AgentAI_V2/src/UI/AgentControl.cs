@@ -493,6 +493,7 @@ namespace Bricscad_AgentAI_V2.UI
             };
             cbPromptFile.Items.Add("system_prompt.txt (CAD Expert)");
             cbPromptFile.Items.Add("system_prompt_supervisor.txt (Supervisor)");
+            cbPromptFile.Items.Add("system_prompt_math.txt (Math Expert)");
             cbPromptFile.SelectedIndex = 0;
             cbPromptFile.SelectedIndexChanged += CbPromptFile_SelectedIndexChanged;
 
@@ -1089,7 +1090,9 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (cbPromptFile == null || txtSystemPromptEditor == null) return;
             
-            string filename = cbPromptFile.SelectedIndex == 1 ? "system_prompt_supervisor.txt" : "system_prompt.txt";
+            string filename = "system_prompt.txt";
+            if (cbPromptFile.SelectedIndex == 1) filename = "system_prompt_supervisor.txt";
+            else if (cbPromptFile.SelectedIndex == 2) filename = "system_prompt_math.txt";
             string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string filePath = System.IO.Path.Combine(dllDir, filename);
 
@@ -1123,7 +1126,9 @@ namespace Bricscad_AgentAI_V2.UI
 
             string newPrompt = txtSystemPromptEditor.Text;
             string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string filename = cbPromptFile.SelectedIndex == 1 ? "system_prompt_supervisor.txt" : "system_prompt.txt";
+            string filename = "system_prompt.txt";
+            if (cbPromptFile.SelectedIndex == 1) filename = "system_prompt_supervisor.txt";
+            else if (cbPromptFile.SelectedIndex == 2) filename = "system_prompt_math.txt";
             string filePath = System.IO.Path.Combine(dllDir, filename);
 
             try
@@ -1151,7 +1156,9 @@ namespace Bricscad_AgentAI_V2.UI
             try
             {
                 string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string filename = cbPromptFile.SelectedIndex == 1 ? "system_prompt_supervisor.txt" : "system_prompt.txt";
+                string filename = "system_prompt.txt";
+                if (cbPromptFile.SelectedIndex == 1) filename = "system_prompt_supervisor.txt";
+                else if (cbPromptFile.SelectedIndex == 2) filename = "system_prompt_math.txt";
                 string filePath = System.IO.Path.Combine(dllDir, filename);
 
                 if (!System.IO.File.Exists(filePath))

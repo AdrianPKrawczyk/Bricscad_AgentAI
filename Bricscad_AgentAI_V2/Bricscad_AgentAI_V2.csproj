@@ -98,6 +98,7 @@
     <Compile Include="src\Tools\TextEditTool.cs" />
     <Compile Include="src\Tools\ManageAnnoScalesTool.cs" />
     <Compile Include="src\Tools\EditBlockTool.cs" />
+    <Compile Include="src\Tools\CalculateRpnTool.cs" />
     <Compile Include="src\Tools\EditAttributesTool.cs" />
     <Compile Include="src\Tools\ListBlocksTool.cs" />
     <Compile Include="src\Tools\InsertBlockTool.cs" />
@@ -134,6 +135,7 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="tests\Tools\SelectEntitiesToolTests.cs" />
+    <Compile Include="tests\Tools\CalculateRpnToolTests.cs" />
     <Compile Include="tests\Tools\ModifyPropertiesToolTests.cs" />
     <Compile Include="tests\Tools\ManageLayersToolTests.cs" />
     <Compile Include="tests\Tools\ForeachToolTests.cs" />

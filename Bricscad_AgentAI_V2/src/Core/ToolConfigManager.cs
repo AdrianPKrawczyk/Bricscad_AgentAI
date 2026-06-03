@@ -60,6 +60,7 @@ namespace Bricscad_AgentAI_V2.Core
         public static void Initialize(IEnumerable<IToolV2> registeredTools)
         {
             EnsureSupervisorPromptFile();
+            EnsureMathPromptFile();
 
             if (File.Exists(ConfigPath))
             {
@@ -110,7 +111,7 @@ namespace Bricscad_AgentAI_V2.Core
                     try
                     {
                         string currentText = File.ReadAllText(supervisorPromptPath);
-                        if (!currentText.Contains("CadGeometryProfile") || !currentText.Contains("PYTANIA OGÓLNE"))
+                        if (!currentText.Contains("CadGeometryProfile") || !currentText.Contains("PYTANIA OGÓLNE") || !currentText.Contains("CadMathProfile"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -134,6 +135,7 @@ namespace Bricscad_AgentAI_V2.Core
                         "- CadGeometryProfile: ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
                         "- CadBlocksProfile: ekspert od bloków i atrybutów (tworzenie bloków, wstawianie, listowanie, edycja atrybutów bloku).\n" +
                         "- CadMetadataProfile: ekspert od analityki rysunku, pomiarów, XData (czytanie właściwości, metadane XData, wyszukiwanie w rysunku, inspekcja obiektów, zrzuty ekranu CAD).\n" +
+                        "- CadMathProfile: ekspert od obliczeń matematycznych, fizycznych, konwersji jednostek i analizy wymiarowej rysunku.\n" +
                         "- CadProfile: uniwersalny profil awaryjny (używaj tylko jeśli zadanie łączy wiele z powyższych dziedzin w jeden ciąg).";
                     File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
                 }
@@ -141,6 +143,34 @@ namespace Bricscad_AgentAI_V2.Core
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_supervisor.txt: {ex.Message}");
+            }
+        }
+
+        private static void EnsureMathPromptFile()
+        {
+            try
+            {
+                string mathPromptPath = Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "system_prompt_math.txt"
+                );
+                if (!File.Exists(mathPromptPath))
+                {
+                    string defaultMathPrompt =
+                        "Jesteś ekspert-analitykiem i kalkulatorem systemu Bielik V2 (CadMathProfile).\n" +
+                        "Twoim zadaniem jest dokonywanie precyzyjnych obliczeń matematycznych i fizycznych za pomocą narzędzia CalculateRpn.\n\n" +
+                        "ZASADY PRACY:\n" +
+                        "1. Do wykonywania wszelkich obliczeń matematycznych i fizycznych ZAWSZE używaj narzędzia CalculateRpn.\n" +
+                        "2. Formułuj wyrażenia w Notacji RPN (Odwrócona Notacja Polska), łącząc wartości z jednostkami (np. 10_m, 5_cm, 5.94_kg, 11.34_g/cm3).\n" +
+                        "3. Wykorzystuj stałe fizyczne (np. #PI, #G dla przyspieszenia ziemskiego 9.81 m/s2) i komendy (+, -, *, /, ^, SQRT, ROUND, CONVE).\n" +
+                        "4. Jeśli użytkownik prosi o zapisanie wyniku, użyj parametru SaveAs w narzędziu.\n" +
+                        "5. Przedstaw użytkownikowi pełen rozpis obliczeń krok po kroku oraz wynik końcowy w czytelny sposób.";
+                    File.WriteAllText(mathPromptPath, defaultMathPrompt, System.Text.Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_math.txt: {ex.Message}");
             }
         }
 
@@ -259,6 +289,19 @@ namespace Bricscad_AgentAI_V2.Core
                 changed = true;
             }
 
+            // 6. Zabezpieczenie/Synchronizacja CadMathProfile
+            if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
+            {
+                mathProf = new AgentProfileConfig 
+                { 
+                    SystemPromptFile = "system_prompt_math.txt", 
+                    AllowedTools = new List<string> { "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
+                    AllowedTags = new List<string> { "#math", "#obliczenia" }
+                };
+                _config.Profiles["CadMathProfile"] = mathProf;
+                changed = true;
+            }
+
             if (changed) SaveConfig();
         }
 
@@ -324,6 +367,13 @@ namespace Bricscad_AgentAI_V2.Core
                 SystemPromptFile = "system_prompt.txt",
                 AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea" },
                 AllowedTags = new List<string> { "#xdata" }
+            };
+
+            _config.Profiles["CadMathProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt_math.txt",
+                AllowedTools = new List<string> { "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
+                AllowedTags = new List<string> { "#math", "#obliczenia" }
             };
 
             // BEZWZGLĘDNY ZAPIS PO WYGENEROWANIU

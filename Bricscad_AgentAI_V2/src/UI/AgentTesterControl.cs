@@ -127,6 +127,7 @@ namespace Bricscad_AgentAI_V2.UI
             cbProfiles.Items.Add("CadGeometryProfile");
             cbProfiles.Items.Add("CadBlocksProfile");
             cbProfiles.Items.Add("CadMetadataProfile");
+            cbProfiles.Items.Add("CadMathProfile");
             cbProfiles.SelectedIndex = 1; // CadProfile domyślnie
             panProfile.Controls.Add(cbProfiles);
             panProfile.Controls.Add(lblProfile);
