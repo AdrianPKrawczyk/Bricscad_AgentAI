@@ -43,7 +43,7 @@ namespace Bricscad_AgentAI_V2.UI
         private LLMClient _llmClient;
         public ToolOrchestrator Orchestrator => _orchestrator;
         private ToolOrchestrator _orchestrator;
-        private List<ChatMessage> _conversationHistory;
+        private SupervisorOrchestrator _supervisor;
         private bool isDarkMode = true;
         private string _activeModel = "LM Studio / local-model"; // Domyślny model
         private AutoBenchmarkEngine _benchmarkEngine;
@@ -84,6 +84,7 @@ namespace Bricscad_AgentAI_V2.UI
             // Inicjalizacja skanowania narzędzi odbywa się automatycznie przy pierwszym dostępie do Instance
 
             _llmClient = new LLMClient(_orchestrator);
+            _supervisor = new SupervisorOrchestrator(_llmClient);
             
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
@@ -136,10 +137,7 @@ namespace Bricscad_AgentAI_V2.UI
                 catch { }
             }
 
-            _conversationHistory = new List<ChatMessage>
-            {
-                new ChatMessage { Role = "system", Content = CurrentSystemPrompt }
-            };
+            _supervisor?.ClearHistory();
 
             if (txtSystemPromptEditor != null)
             {
@@ -740,6 +738,7 @@ namespace Bricscad_AgentAI_V2.UI
             AgentMemoryState.Clear();
             AgentMemoryState.Variables.Clear();
             ToolConfigManager.SessionDynamicTags.Clear();
+            _supervisor?.ClearHistory();
             RebuildSystemPrompt();
             AppendToHistory("SYSTEM", "Konwersacja i pamięć zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
         }
@@ -816,27 +815,25 @@ namespace Bricscad_AgentAI_V2.UI
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
-            _conversationHistory.Add(new ChatMessage { Role = "user", Content = cleanMsg });
-            UpdateStatusHUD("Oczekiwanie na analizę...");
+            // _conversationHistory zostaje usunięte - wszystko leci przez Supervisora
+            UpdateStatusHUD("Oczekiwanie na analizę przez Supervisora...");
 
             try
             {
                 string aiResponse = await Task.Run(async () => 
                 {
-                    // Przekazujemy wyłuskane tagi do klienta LLM
-                    bool earlyExit = chkEarlyExit.Checked;
-                    var result = await _llmClient.SendMessageReActAsync(_conversationHistory, new CadExecutionContext(doc), extractedTags, earlyExit);
+                    var result = await _supervisor.ProcessInputAsync(cleanMsg, new CadExecutionContext(doc));
                     return result.DisplayMessage;
                 });
 
-                AppendToHistory("BIELIK", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);
+                AppendToHistory("BIELIK (Supervisor)", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);
 
                 // --- DATASET STUDIO INTEGRATION ---
                 try
                 {
                     // KRYTYCZNE: Izolacja snapshotu przez głęboką kopię listy
-                    var historySnapshot = new List<ChatMessage>(_conversationHistory);
-                    var toolsSnapshot = _orchestrator.GetToolsPayload(extractedTags);
+                    var historySnapshot = new List<ChatMessage>(_supervisor.GetHistory());
+                    var toolsSnapshot = _orchestrator.GetToolsPayloadForProfile("SupervisorProfile");
                     datasetStudio.AddSessionRecord($"[{DateTime.Now:HH:mm:ss}] {rawInput}", historySnapshot, toolsSnapshot, _lastStats);
                 }
                 catch { /* Silent fail for dataset studio integration */ }
@@ -915,7 +912,7 @@ namespace Bricscad_AgentAI_V2.UI
 
                     if (string.IsNullOrEmpty(name) || args == null) continue;
 
-                    string result = _orchestrator.ExecuteTool(name, args, doc);
+                    string result = _orchestrator.ExecuteTool(name, args, new CadExecutionContext(doc));
                     if (result.Contains("BŁĄD"))
                     {
                         AppendToHistory("BŁĄD RECEPTY", $"Krok {successCount + 1} ({name}): {result}", Color.LightCoral);

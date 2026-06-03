@@ -387,7 +387,7 @@ namespace Bricscad_AgentAI_V2.UI
                             string argsRaw = call["function"]?["arguments"]?.ToString();
                             if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(argsRaw))
                             {
-                                ToolOrchestrator.Instance.ExecuteTool(name, JObject.Parse(argsRaw), doc);
+                                ToolOrchestrator.Instance.ExecuteTool(name, JObject.Parse(argsRaw), new CadExecutionContext(doc));
                             }
                         }
                     }

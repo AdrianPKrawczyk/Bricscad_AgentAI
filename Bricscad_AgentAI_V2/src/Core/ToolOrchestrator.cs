@@ -101,7 +101,20 @@ namespace Bricscad_AgentAI_V2.Core
             return GetToolsPayload(null);
         }
 
-        public string ExecuteTool(string toolName, JObject arguments, Document doc)
+        public List<ToolDefinition> GetToolsPayloadForProfile(string profileName)
+        {
+            if (ToolConfigManager.GetProfiles().TryGetValue(profileName, out var profile))
+            {
+                var allowedTools = new HashSet<string>(profile.AllowedTools ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                return _tools.Values
+                    .Select(t => t.GetToolSchema())
+                    .Where(schema => schema?.Function != null && allowedTools.Contains(schema.Function.Name))
+                    .ToList();
+            }
+            return new List<ToolDefinition>();
+        }
+
+        public string ExecuteTool(string toolName, JObject arguments, IExecutionContext context)
         {
             if (!_tools.TryGetValue(toolName, out var tool))
             {
@@ -124,7 +137,8 @@ namespace Bricscad_AgentAI_V2.Core
 
             try
             {
-                return tool.Execute(doc, arguments);
+                var cadContext = context as CadExecutionContext;
+                return tool.Execute(cadContext?.CadDocument, arguments);
             }
             catch (Exception ex)
             {

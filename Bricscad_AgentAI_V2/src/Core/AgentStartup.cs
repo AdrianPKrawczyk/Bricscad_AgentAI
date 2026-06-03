@@ -141,7 +141,7 @@ namespace Bricscad_AgentAI_V2.Core
                         return;
                     }
 
-                    string result = ToolOrchestrator.Instance.ExecuteTool(toolName, args, doc);
+                    string result = ToolOrchestrator.Instance.ExecuteTool(toolName, args, new CadExecutionContext(doc));
                     ed.WriteMessage($"\n\n--- WYNIK WYKONANIA AI_RUN ---\n{result}\n------------------------------\n");
                 }
                 catch (System.Exception ex)
@@ -187,7 +187,7 @@ namespace Bricscad_AgentAI_V2.Core
                     catch (System.Exception) { ed.WriteMessage("\n[Błąd]: Niepoprawny JSON argumentów. Używam {}."); }
                 }
 
-                string result = ToolOrchestrator.Instance.ExecuteTool(toolName, args, doc);
+                string result = ToolOrchestrator.Instance.ExecuteTool(toolName, args, new CadExecutionContext(doc));
                 ed.WriteMessage($"\n\n--- WYNIK NARZĘDZIA {toolName} ---\n{result}\n----------------------------------\n");
             }
         }
@@ -207,7 +207,7 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             JObject args = new JObject { ["Mode"] = "Full" };
-            string result = ToolOrchestrator.Instance.ExecuteTool("GetPropertiesTool", args, doc);
+            string result = ToolOrchestrator.Instance.ExecuteTool("GetPropertiesTool", args, new CadExecutionContext(doc));
             ed.WriteMessage($"\n\n--- AI_PROPS (FULL MODE) ---\n{result}\n----------------------------\n");
         }
 
@@ -236,7 +236,7 @@ namespace Bricscad_AgentAI_V2.Core
                 catch (System.Exception) { ed.WriteMessage("\n[Błąd]: Niepoprawny JSON. Używam {}."); }
             }
 
-            string result = ToolOrchestrator.Instance.ExecuteTool("DimensionEditTool", args, doc);
+            string result = ToolOrchestrator.Instance.ExecuteTool("DimensionEditTool", args, new CadExecutionContext(doc));
         }
 
         [CommandMethod("AI_XDATA", CommandFlags.UsePickSet | CommandFlags.Redraw)]
@@ -264,7 +264,7 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             // Używamy orkiestratora, aby zachować spójność z logiką V2
-            string result = ToolOrchestrator.Instance.ExecuteTool("ReadXData", args, doc);
+            string result = ToolOrchestrator.Instance.ExecuteTool("ReadXData", args, new CadExecutionContext(doc));
             ed.WriteMessage($"\n\n--- WYNIK ODCZYTU XDATA ---\n{result}\n---------------------------\n");
         }
         [CommandMethod("AI_SETXDATA", CommandFlags.UsePickSet | CommandFlags.Redraw)]
@@ -299,7 +299,7 @@ namespace Bricscad_AgentAI_V2.Core
                     ["Entries"] = entries
                 };
 
-                string result = ToolOrchestrator.Instance.ExecuteTool("WriteXData", args, doc);
+                string result = ToolOrchestrator.Instance.ExecuteTool("WriteXData", args, new CadExecutionContext(doc));
                 ed.WriteMessage($"\n\n--- WYNIK ZAPISU XDATA ---\n{result}\n---------------------------\n");
             }
             catch (System.Exception ex)
@@ -333,7 +333,7 @@ namespace Bricscad_AgentAI_V2.Core
                 args["BlockName"] = psr.StringResult.Trim();
             }
 
-            string result = ToolOrchestrator.Instance.ExecuteTool("FindXData", args, doc);
+            string result = ToolOrchestrator.Instance.ExecuteTool("FindXData", args, new CadExecutionContext(doc));
             ed.WriteMessage($"\n\n--- WYNIK SKANOWANIA XDATA ---\n{result}\n------------------------------\n");
         }
 
@@ -344,7 +344,7 @@ namespace Bricscad_AgentAI_V2.Core
             Editor ed = doc.Editor;
             
             // Bezpośrednie wywołanie narzędzia CaptureVisionArea
-            string result = ToolOrchestrator.Instance.ExecuteTool("CaptureVisionArea", new JObject(), doc);
+            string result = ToolOrchestrator.Instance.ExecuteTool("CaptureVisionArea", new JObject(), new CadExecutionContext(doc));
             
             if (result.StartsWith("[VISION_IMAGE_CAPTURED]|"))
             {
@@ -364,7 +364,7 @@ namespace Bricscad_AgentAI_V2.Core
             Editor ed = doc.Editor;
 
             // 1. Wykonaj zrzut
-            string toolResult = ToolOrchestrator.Instance.ExecuteTool("CaptureVisionArea", new JObject(), doc);
+            string toolResult = ToolOrchestrator.Instance.ExecuteTool("CaptureVisionArea", new JObject(), new CadExecutionContext(doc));
             if (!toolResult.StartsWith("[VISION_IMAGE_CAPTURED]|"))
             {
                 ed.WriteMessage($"\n[AI_VISION]: Błąd przechwytywania: {toolResult}");

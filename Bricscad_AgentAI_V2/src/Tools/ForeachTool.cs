@@ -182,7 +182,7 @@ namespace Bricscad_AgentAI_V2.Tools
                             toolArgs.Remove("ToolName");
                         }
 
-                        string res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, doc);
+                        string res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, new CadExecutionContext(doc));
                         
                         if (res.StartsWith("SUKCES"))
                         {

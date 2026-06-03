@@ -378,7 +378,7 @@ namespace Bricscad_AgentAI_V2.UI
                     
                     using (var loc = doc.LockDocument())
                     {
-                        string result = ToolOrchestrator.Instance.ExecuteTool(item.Name, args, doc);
+                        string result = ToolOrchestrator.Instance.ExecuteTool(item.Name, args, new CadExecutionContext(doc));
                         Log($"[WYNIK]: {result}", result.Contains("BŁĄD") ? Color.OrangeRed : Color.LimeGreen);
                     }
                 }

@@ -348,7 +348,7 @@ namespace Bricscad_AgentAI_V2.UI
                         }
 
                         logs.AppendLine($"[WYKONUJĘ]: {name}...");
-                        string result = ToolOrchestrator.Instance.ExecuteTool(name, args, doc);
+                        string result = ToolOrchestrator.Instance.ExecuteTool(name, args, new CadExecutionContext(doc));
                         logs.AppendLine($"[WYNIK]: {result}");
 
                         if (result.Contains("BŁĄD")) break;

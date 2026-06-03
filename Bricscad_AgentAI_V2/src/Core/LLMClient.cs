@@ -40,7 +40,7 @@ namespace Bricscad_AgentAI_V2.Core
         /// zarządza pętlą ReAct - samodzielnie wywołuje narzędzie i odsyła wynik.
         /// Zwraca obiekt AgentExecutionResult po zakończeniu cyklu Workera.
         /// </summary>
-        public async Task<AgentExecutionResult> SendMessageReActAsync(List<ChatMessage> conversationHistory, IExecutionContext context, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5)
+        public async Task<AgentExecutionResult> SendMessageReActAsync(List<ChatMessage> conversationHistory, IExecutionContext context, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5, string profileName = null)
         {
             PreProcessRecipes(conversationHistory);
 
@@ -53,10 +53,16 @@ namespace Bricscad_AgentAI_V2.Core
                 await TryLoadModelAsync(config);
             }
 
-            var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-            
-            // Pula narzędzi stała dla cyklu życia Workera
-            var staticToolsPayload = _orchestrator.GetToolsPayload(currentTags);
+            List<ToolDefinition> staticToolsPayload;
+            if (!string.IsNullOrEmpty(profileName))
+            {
+                staticToolsPayload = _orchestrator.GetToolsPayloadForProfile(profileName);
+            }
+            else
+            {
+                var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+                staticToolsPayload = _orchestrator.GetToolsPayload(currentTags);
+            }
 
             int iterations = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -197,7 +203,7 @@ namespace Bricscad_AgentAI_V2.Core
                         }
 
                         // Przekazanie kontekstu do doca (tymczasowy most dla ToolOrchestrator, który wymaga Doc)
-                        toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, context.CadDocument);
+                        toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, context);
 
                         // Jeśli wynik zawiera błąd, nie możemy zrobić Early Exit
                         if (toolExecutionResult.ToLower().Contains("błąd") || toolExecutionResult.ToLower().Contains("error"))
