@@ -216,19 +216,26 @@ namespace Bricscad_AgentAI_V2.Tools
                                 
                                 try 
                                 {
-                                    foreach (string czesc in zagniezdzenia)
+                                    if (rzeczywistaWlasciwosc.Equals("EntityType", StringComparison.OrdinalIgnoreCase) || rzeczywistaWlasciwosc.Equals("Type", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        if (wartoscObiektu == null) break;
-                                        var propInfo = wartoscObiektu.GetType().GetProperty(czesc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                                        wartoscObiektu = ent.GetType().Name;
+                                    }
+                                    else
+                                    {
+                                        foreach (string czesc in zagniezdzenia)
+                                        {
+                                            if (wartoscObiektu == null) break;
+                                            var propInfo = wartoscObiektu.GetType().GetProperty(czesc, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
 
-                                        if (propInfo != null && propInfo.CanRead)
-                                        {
-                                            wartoscObiektu = propInfo.GetValue(wartoscObiektu);
-                                        }
-                                        else
-                                        {
-                                            wartoscObiektu = null;
-                                            break;
+                                            if (propInfo != null && propInfo.CanRead)
+                                            {
+                                                wartoscObiektu = propInfo.GetValue(wartoscObiektu);
+                                            }
+                                            else
+                                            {
+                                                wartoscObiektu = null;
+                                                break;
+                                            }
                                         }
                                     }
                                 } 
@@ -355,6 +362,10 @@ namespace Bricscad_AgentAI_V2.Tools
                                             if (transPercent > 90) transPercent = 90.0;
                                             currentVal = transPercent;
                                         }
+                                        else if (filter.Prop.Equals("EntityType", StringComparison.OrdinalIgnoreCase) || filter.Prop.Equals("Type", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            currentVal = ent.GetType().Name;
+                                        }
                                         else 
                                         {
                                             // [HOTFIX v2.14.0]: JAWNE RZUTOWANIE (Hard-cast fallback) dla problematycznych właściwości Teigha
@@ -437,6 +448,26 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
         
+        private static bool IsWildcardMatch(string text, string pattern)
+        {
+            if (text == null || pattern == null) return false;
+            string cleanText = text.Trim();
+            string cleanPattern = pattern.Trim();
+            if (cleanPattern == "*") return true;
+            
+            string regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(cleanPattern)
+                                              .Replace("\\*", ".*")
+                                              .Replace("\\?", ".") + "$";
+            try
+            {
+                return System.Text.RegularExpressions.Regex.IsMatch(cleanText, regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static bool ValidateLogicCondition(string valStr, string op, string warVal)
         {
             if (valStr == null) return false;
@@ -461,8 +492,26 @@ namespace Bricscad_AgentAI_V2.Tools
             {
                 switch (op.ToLower())
                 {
-                    case "==": warunekSpelniony = valStr.Replace(" ", "").Equals(warVal.Replace(" ", ""), StringComparison.OrdinalIgnoreCase); break;
-                    case "!=": warunekSpelniony = !valStr.Replace(" ", "").Equals(warVal.Replace(" ", ""), StringComparison.OrdinalIgnoreCase); break;
+                    case "==": 
+                        if (warVal.Contains("*") || warVal.Contains("?"))
+                        {
+                            warunekSpelniony = IsWildcardMatch(valStr, warVal);
+                        }
+                        else
+                        {
+                            warunekSpelniony = valStr.Replace(" ", "").Equals(warVal.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+                        }
+                        break;
+                    case "!=": 
+                        if (warVal.Contains("*") || warVal.Contains("?"))
+                        {
+                            warunekSpelniony = !IsWildcardMatch(valStr, warVal);
+                        }
+                        else
+                        {
+                            warunekSpelniony = !valStr.Replace(" ", "").Equals(warVal.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+                        }
+                        break;
                     case "contains": warunekSpelniony = valStr.IndexOf(warVal, StringComparison.OrdinalIgnoreCase) >= 0; break;
                     case "notcontains": warunekSpelniony = valStr.IndexOf(warVal, StringComparison.OrdinalIgnoreCase) < 0; break;
                     case "in":
@@ -483,4 +532,3 @@ namespace Bricscad_AgentAI_V2.Tools
         public List<string> Examples => null;
     }
 }
-

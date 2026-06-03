@@ -36,6 +36,13 @@ namespace Bricscad_AgentAI_V2.Tests.Tools
             
             // In array
             Debug.Assert(SelectEntitiesTool.ValidateLogicCondition("Linia1", "in", "Linia,Linia1,Linia2") == true, "String In failed");
+
+            // Wildcards
+            Debug.Assert(SelectEntitiesTool.ValidateLogicCondition("BlockReference", "==", "*BlockReference") == true, "Wildcard suffix match failed");
+            Debug.Assert(SelectEntitiesTool.ValidateLogicCondition("BlockReference", "==", "Block*") == true, "Wildcard prefix match failed");
+            Debug.Assert(SelectEntitiesTool.ValidateLogicCondition("BlockReference", "==", "*Reference") == true, "Wildcard suffix match failed 2");
+            Debug.Assert(SelectEntitiesTool.ValidateLogicCondition("BlockReference", "==", "*kRef*") == true, "Wildcard middle match failed");
+            Debug.Assert(SelectEntitiesTool.ValidateLogicCondition("Polyline", "!=", "*BlockReference") == true, "Wildcard negative match failed");
         }
     }
 }
