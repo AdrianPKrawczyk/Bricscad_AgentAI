@@ -18,6 +18,13 @@ namespace Bricscad_AgentAI_V2.UI.Forms
         private NumericUpDown numTemp, numTokens;
         private NumericUpDown numTopP, numTopK, numMinP, numRepPenalty;
         private ComboBox cbReasoningEffort;
+
+        // LM Studio Load Parameters
+        private ComboBox cbGpu;
+        private NumericUpDown numLoadCtx, numTtl;
+        private CheckBox chkAutoLoad, chkFlashAtt, chkOffloadKv;
+        private Button btnLoadModel;
+
         private ComboBox cbModels;
         private Button btnSave, btnAdd, btnRemove, btnFetchModels;
 
@@ -34,7 +41,7 @@ namespace Bricscad_AgentAI_V2.UI.Forms
         private void InitializeComponent()
         {
             this.Text = "⚙️ Ustawienia Dostawców LLM";
-            this.Size = new Size(500, 680);
+            this.Size = new Size(500, 840);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -56,7 +63,7 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             panTop.Controls.Add(btnAdd);
             panTop.Controls.Add(btnRemove);
 
-            var panForm = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 13, Padding = new Padding(10) };
+            var panForm = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 18, Padding = new Padding(10) };
             panForm.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             panForm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -94,7 +101,59 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             };
             panForm.Controls.Add(cbReasoningEffort, 1, 10);
 
-            txtSiteName = AddFormField(panForm, 11, "Site Name (OpenRouter):");
+            // Wiersz 11: Pusta linia jako separator sekcji LM Studio
+            panForm.Controls.Add(new Label { Text = "--- PARAMETRY ŁADOWANIA (LM STUDIO) ---", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.DarkGray, Font = new Font(this.Font, FontStyle.Italic | FontStyle.Bold) }, 0, 11);
+            panForm.SetColumnSpan(panForm.GetControlFromPosition(0, 11), 2);
+
+            // Wiersz 12: AutoLoad i przycisk LoadModel
+            panForm.Controls.Add(new Label { Text = "Dynamiczne VRAM:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 12);
+            var panAutoLoad = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
+            chkAutoLoad = new CheckBox { Text = "Auto-ładuj", AutoSize = true, Location = new Point(0, 5), ForeColor = Color.White };
+            chkAutoLoad.CheckedChanged += (s, e) => {
+                if (!_isUpdatingUI && _currentEditing != null)
+                    _currentEditing.AutoLoadModel = chkAutoLoad.Checked;
+            };
+            btnLoadModel = new Button { Text = "⚡ Załaduj do VRAM", Location = new Point(100, 0), Width = 150, Height = 28, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold) };
+            btnLoadModel.Click += BtnLoadModel_Click;
+            panAutoLoad.Controls.Add(chkAutoLoad);
+            panAutoLoad.Controls.Add(btnLoadModel);
+            panForm.Controls.Add(panAutoLoad, 1, 12);
+
+            // Wiersz 13: GPU Offload
+            panForm.Controls.Add(new Label { Text = "GPU Offload (VRAM):", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 13);
+            cbGpu = new ComboBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.White };
+            cbGpu.Items.AddRange(new object[] { "default", "max", "off", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9" });
+            cbGpu.TextChanged += (s, e) => {
+                if (!_isUpdatingUI && _currentEditing != null)
+                    _currentEditing.GpuOffload = cbGpu.Text;
+            };
+            panForm.Controls.Add(cbGpu, 1, 13);
+
+            // Wiersz 14: LoadContextLength
+            numLoadCtx = AddNumericField(panForm, 14, "Context Length (Load):", 0, 128000, 0, 1000m);
+
+            // Wiersz 15: TtlSeconds
+            numTtl = AddNumericField(panForm, 15, "Czas TTL (sekundy):", 0, 86400, 0, 60m);
+
+            // Wiersz 16: FlashAttention i OffloadKvCache
+            panForm.Controls.Add(new Label { Text = "Optymalizacje:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 16);
+            var panOpts = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
+            chkFlashAtt = new CheckBox { Text = "Flash Att.", AutoSize = true, Location = new Point(0, 5), ForeColor = Color.White };
+            chkFlashAtt.CheckedChanged += (s, e) => {
+                if (!_isUpdatingUI && _currentEditing != null)
+                    _currentEditing.FlashAttention = chkFlashAtt.Checked;
+            };
+            chkOffloadKv = new CheckBox { Text = "Offload KV", AutoSize = true, Location = new Point(100, 5), ForeColor = Color.White };
+            chkOffloadKv.CheckedChanged += (s, e) => {
+                if (!_isUpdatingUI && _currentEditing != null)
+                    _currentEditing.OffloadKvCache = chkOffloadKv.Checked;
+            };
+            panOpts.Controls.Add(chkFlashAtt);
+            panOpts.Controls.Add(chkOffloadKv);
+            panForm.Controls.Add(panOpts, 1, 16);
+
+            // Wiersz 17: Site Name
+            txtSiteName = AddFormField(panForm, 17, "Site Name (OpenRouter):");
 
             // Konfiguracja podpowiedzi (ToolTips)
             var toolTip = new ToolTip
@@ -111,6 +170,15 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             toolTip.SetToolTip(numMinP, "Min-P:\nDynamiczny próg prawdopodobieństwa. Odrzuca tokeny, których prawdopodobieństwo jest mniejsze niż np. 5% (0.05) w stosunku do najmocniejszego tokenu. Świetna, nowoczesna alternatywa dla Top-P.");
             toolTip.SetToolTip(numRepPenalty, "Repetition Penalty:\nKara za powtarzalność słów. Wartość > 1.0 (np. 1.1 - 1.2) skutecznie chroni mniejsze modele lokalne przed wpadaniem w pętle nieskończone.");
             toolTip.SetToolTip(cbReasoningEffort, "Reasoning Effort (np. gpt-oss-20b, o1, o3-mini):\nKontroluje stopień zaangażowania procesu myślowego modelu (Chain of Thought).");
+
+            // Nowe Tooltipy dla parametrów ładowania LM Studio
+            toolTip.SetToolTip(chkAutoLoad, "Auto-ładuj:\nJeśli włączone, wtyczka przed każdym zapytaniem wyśle żądanie /api/v1/models/load do LM Studio, upewniając się, że model jest w pamięci przed egzekucją czatu.");
+            toolTip.SetToolTip(btnLoadModel, "⚡ Załaduj do VRAM:\nNatychmiast wysyła żądanie do LM Studio, aby załadować wybrany model z poniższymi parametrami VRAM.");
+            toolTip.SetToolTip(cbGpu, "GPU Offload (VRAM):\n[Niedostępne w REST API] LM Studio nie pozwala na przekazywanie proporcji GPU bezpośrednio w żądaniu ładowania REST API. Model zostanie załadowany przy użyciu domyślnego profilu GPU ustawionego w GUI aplikacji LM Studio.");
+            toolTip.SetToolTip(numLoadCtx, "Context Length (Load):\nRozmiar kontekstu modelu ustawiany przy ładowaniu w LM Studio (np. 8192). Wartość 0 używa domyślnej dla modelu.");
+            toolTip.SetToolTip(numTtl, "Czas TTL (sekundy):\nCzas bezczynności w sekundach, po którym LM Studio automatycznie wyładuje model z pamięci VRAM i zwolni pamięć GPU (np. 300 sekund = 5 minut, 0 = wyłączony).");
+            toolTip.SetToolTip(chkFlashAtt, "Flash Attention:\nOptymalizacja uwagi. Zmniejsza zużycie pamięci i przyspiesza generowanie na kompatybilnych kartach GPU.");
+            toolTip.SetToolTip(chkOffloadKv, "Offload KV Cache:\nOdciąża cache klucz-wartość (KV Cache) do GPU, co dodatkowo przyspiesza generowanie przy długim kontekście.");
 
             var panBottom = new Panel { Dock = DockStyle.Bottom, Height = 50, Padding = new Padding(10) };
             btnSave = new Button { Text = "💾 Zapisz i Wybierz", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, BackColor = Color.SeaGreen, Font = new Font(this.Font, FontStyle.Bold) };
@@ -131,7 +199,7 @@ namespace Bricscad_AgentAI_V2.UI.Forms
                 if (row == 0) _currentEditing.Name = tb.Text;
                 else if (row == 1) _currentEditing.EndpointUrl = tb.Text;
                 else if (row == 2) _currentEditing.ApiKey = tb.Text;
-                else if (row == 11) _currentEditing.SiteName = tb.Text;
+                else if (row == 17) _currentEditing.SiteName = tb.Text;
             };
             panel.Controls.Add(tb, 1, row);
             return tb;
@@ -149,6 +217,8 @@ namespace Bricscad_AgentAI_V2.UI.Forms
                 else if (row == 7) _currentEditing.TopK = (int)num.Value;
                 else if (row == 8) _currentEditing.MinP = (double)num.Value;
                 else if (row == 9) _currentEditing.RepetitionPenalty = (double)num.Value;
+                else if (row == 14) _currentEditing.LoadContextLength = (int)num.Value;
+                else if (row == 15) _currentEditing.TtlSeconds = (int)num.Value;
             };
             panel.Controls.Add(num, 1, row);
             return num;
@@ -204,6 +274,14 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             numRepPenalty.Value = (decimal)_currentEditing.RepetitionPenalty;
             
             cbReasoningEffort.Text = string.IsNullOrEmpty(_currentEditing.ReasoningEffort) ? "none" : _currentEditing.ReasoningEffort;
+
+            // Parametry LM Studio
+            chkAutoLoad.Checked = _currentEditing.AutoLoadModel;
+            cbGpu.Text = string.IsNullOrEmpty(_currentEditing.GpuOffload) ? "default" : _currentEditing.GpuOffload;
+            numLoadCtx.Value = _currentEditing.LoadContextLength;
+            numTtl.Value = _currentEditing.TtlSeconds;
+            chkFlashAtt.Checked = _currentEditing.FlashAttention;
+            chkOffloadKv.Checked = _currentEditing.OffloadKvCache;
 
             txtSiteName.Text = _currentEditing.SiteName;
 
@@ -283,6 +361,95 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             {
                 btnFetchModels.Enabled = true;
                 btnFetchModels.Text = "🔄";
+            }
+        }
+
+        private async void BtnLoadModel_Click(object sender, EventArgs e)
+        {
+            if (_currentEditing == null) return;
+
+            btnLoadModel.Enabled = false;
+            btnLoadModel.Text = "Ładowanie...";
+
+            try
+            {
+                // Safeguard przed wysłaniem do chmury
+                string url = _currentEditing.EndpointUrl;
+                if (url.Contains("openrouter.ai") || url.Contains("api.openai.com"))
+                {
+                    MessageBox.Show("Dostawcy chmurowi (np. OpenRouter, OpenAI) nie obsługują dynamicznego ładowania modeli przez API.", "Wskazówka", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (url.Contains("/v1/chat/completions"))
+                {
+                    url = url.Replace("/v1/chat/completions", "");
+                }
+                else if (url.Contains("/chat/completions"))
+                {
+                    url = url.Replace("/chat/completions", "");
+                }
+
+                string loadUrl = url.TrimEnd('/') + "/api/v1/models/load";
+
+                var loadPayload = new Dictionary<string, object>
+                {
+                    { "model", _currentEditing.ModelName }
+                };
+
+                if (_currentEditing.LoadContextLength > 0)
+                {
+                    loadPayload["context_length"] = _currentEditing.LoadContextLength;
+                }
+
+                if (_currentEditing.TtlSeconds > 0)
+                {
+                    loadPayload["ttl"] = _currentEditing.TtlSeconds;
+                }
+
+                if (_currentEditing.FlashAttention)
+                {
+                    loadPayload["flash_attention"] = true;
+                }
+
+                if (_currentEditing.OffloadKvCache)
+                {
+                    loadPayload["offload_kv_cache_to_gpu"] = true;
+                }
+
+                string jsonContent = Newtonsoft.Json.JsonConvert.SerializeObject(loadPayload);
+
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromMinutes(3);
+                    if (!string.IsNullOrEmpty(_currentEditing.ApiKey) && _currentEditing.ApiKey != "not-needed")
+                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_currentEditing.ApiKey}");
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, loadUrl)
+                    {
+                        Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json")
+                    };
+
+                    var response = await client.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Model został pomyślnie załadowany do pamięci VRAM w LM Studio.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        string responseBody = await response.Content.ReadAsStringAsync();
+                        MessageBox.Show($"Błąd serwera LM Studio ({response.StatusCode}): {responseBody}\n\nUpewnij się, że model o podanej nazwie jest zainstalowany.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Wyjątek komunikacji: {ex.Message}\n\nUpewnij się, że serwer lokalny działa pod wskazanym adresem URL.", "Błąd połączenia", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnLoadModel.Enabled = true;
+                btnLoadModel.Text = "⚡ Załaduj do VRAM";
             }
         }
 

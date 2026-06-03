@@ -43,6 +43,15 @@ namespace Bricscad_AgentAI_V2.Core
         {
             PreProcessRecipes(conversationHistory);
 
+            var config = LLMConfigManager.GetActiveProvider();
+            
+            // Dynamiczne ładowanie modelu (tylko lokalnie dla LM Studio)
+            if (config.AutoLoadModel && (config.EndpointUrl.Contains("1234") || config.EndpointUrl.Contains("localhost") || config.EndpointUrl.Contains("127.0.0.1") || config.EndpointUrl.Contains("100.104.")))
+            {
+                OnStatusUpdate?.Invoke("Inicjalizacja automatycznego ładowania modelu...");
+                await TryLoadModelAsync(config);
+            }
+
             var currentTags = new HashSet<string>(initialTags ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             int iterations = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -54,7 +63,7 @@ namespace Bricscad_AgentAI_V2.Core
                 iterations++;
                 OnStatusUpdate?.Invoke($"Wysyłanie zapytania do struktury (iteracja {iterations}/{maxIterations})...");
 
-                var config = LLMConfigManager.GetActiveProvider();
+                config = LLMConfigManager.GetActiveProvider();
                 // 1. Przygotuj payload - KRYTYCZNE: Odświeżamy listę narzędzi w każdej iteracji, 
                 // aby uwzględnić nowo załadowane kategorie (Agentic Fallback / LoadCategory).
                 var requestPayload = new Dictionary<string, object>
@@ -68,9 +77,16 @@ namespace Bricscad_AgentAI_V2.Core
                 };
 
                 if (config.TopP > 0.0 && config.TopP != 1.0) requestPayload["top_p"] = config.TopP;
-                if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
-                if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
-                if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+
+                // Safeguard dla oficjalnego API OpenAI/Azure OpenAI, które nie akceptują lokalnych parametrów samplingu
+                bool isStrictOpenAI = config.EndpointUrl.Contains("api.openai.com") || config.EndpointUrl.Contains("openai.azure.com");
+                if (!isStrictOpenAI)
+                {
+                    if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
+                    if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
+                    if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+                }
+
                 if (!string.IsNullOrEmpty(config.ReasoningEffort) && config.ReasoningEffort != "none")
                 {
                     requestPayload["reasoning_effort"] = config.ReasoningEffort;
@@ -391,9 +407,16 @@ namespace Bricscad_AgentAI_V2.Core
                 };
 
                 if (config.TopP > 0.0 && config.TopP != 1.0) requestPayload["top_p"] = config.TopP;
-                if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
-                if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
-                if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+
+                // Safeguard dla oficjalnego API OpenAI/Azure OpenAI, które nie akceptują lokalnych parametrów samplingu
+                bool isStrictOpenAI = config.EndpointUrl.Contains("api.openai.com") || config.EndpointUrl.Contains("openai.azure.com");
+                if (!isStrictOpenAI)
+                {
+                    if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
+                    if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
+                    if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+                }
+
                 if (!string.IsNullOrEmpty(config.ReasoningEffort) && config.ReasoningEffort != "none")
                 {
                     requestPayload["reasoning_effort"] = config.ReasoningEffort;
@@ -475,6 +498,76 @@ namespace Bricscad_AgentAI_V2.Core
                         Content = mockContent
                     });
                 }
+            }
+        }
+
+        /// <summary>
+        /// Wysyła żądanie ładowania modelu do LM Studio REST API.
+        /// </summary>
+        private async Task TryLoadModelAsync(LLMProviderConfig config)
+        {
+            try
+            {
+                string baseUrl = config.EndpointUrl;
+                if (baseUrl.Contains("/v1/chat/completions"))
+                {
+                    baseUrl = baseUrl.Replace("/v1/chat/completions", "");
+                }
+                else if (baseUrl.Contains("/chat/completions"))
+                {
+                    baseUrl = baseUrl.Replace("/chat/completions", "");
+                }
+                
+                string loadUrl = baseUrl.TrimEnd('/') + "/api/v1/models/load";
+
+                var loadPayload = new Dictionary<string, object>
+                {
+                    { "model", config.ModelName }
+                };
+                if (config.LoadContextLength > 0)
+                {
+                    loadPayload["context_length"] = config.LoadContextLength;
+                }
+
+                if (config.TtlSeconds > 0)
+                {
+                    loadPayload["ttl"] = config.TtlSeconds;
+                }
+
+                if (config.FlashAttention)
+                {
+                    loadPayload["flash_attention"] = true;
+                }
+
+                if (config.OffloadKvCache)
+                {
+                    loadPayload["offload_kv_cache_to_gpu"] = true;
+                }
+
+                string jsonContent = JsonConvert.SerializeObject(loadPayload);
+                var request = new HttpRequestMessage(HttpMethod.Post, loadUrl);
+                
+                if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                {
+                    request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                }
+
+                request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorMsg = await response.Content.ReadAsStringAsync();
+                    OnStatusUpdate?.Invoke($"[Auto-Load] Błąd ładowania: {response.StatusCode} - {errorMsg}");
+                }
+                else
+                {
+                    OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} załadowany pomyślnie.");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnStatusUpdate?.Invoke($"[Auto-Load] Wyjątek podczas ładowania: {ex.Message}");
             }
         }
     }

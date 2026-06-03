@@ -19,6 +19,14 @@ namespace Bricscad_AgentAI_V2.Models
         public double MinP { get; set; } = 0.0;
         public double RepetitionPenalty { get; set; } = 1.0;
         public string ReasoningEffort { get; set; } = "none";
+
+        // Parametry dynamicznego ładowania modelu (LM Studio)
+        public bool AutoLoadModel { get; set; } = false;
+        public string GpuOffload { get; set; } = "default";
+        public int LoadContextLength { get; set; } = 0;
+        public int TtlSeconds { get; set; } = 0;
+        public bool FlashAttention { get; set; } = false;
+        public bool OffloadKvCache { get; set; } = false;
         
         // Specyficzne dla OpenRouter
         public string SiteUrl { get; set; } = "";
