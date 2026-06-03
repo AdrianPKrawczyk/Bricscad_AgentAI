@@ -77,9 +77,17 @@ namespace Bricscad_AgentAI_V2.Tools
             // 4. Inicjalizacja klienta i synchroniczne oczekiwanie (działamy w Task.Run w LLMClient)
             var client = new LLMClient(ToolOrchestrator.Instance);
             
-            // Podpinamy eventy do głównego okna - możemy je zignorować lub propagować, 
-            // ale Supervisor zarządza UI wyżej. Dla logów konsolowych:
-            client.OnStatusUpdate += (msg) => System.Diagnostics.Debug.WriteLine($"[{targetProfile}] {msg}");
+            client.OnStatusUpdate += (msg) => {
+                System.Diagnostics.Debug.WriteLine($"[{targetProfile}] {msg}");
+                Bricscad_AgentAI_V2.UI.AgentControl.Instance?.UpdateStatusHUD($"[{targetProfile}] {msg}");
+            };
+            client.OnToolCallLogged += (log) => {
+                Bricscad_AgentAI_V2.UI.AgentControl.Instance?.AppendToolLog($"--- [{targetProfile}] ---\n{log}");
+            };
+            client.OnStatsUpdate += (stats) => {
+                // Opcjonalnie możemy agregować statystyki, na razie przekazujemy
+                Bricscad_AgentAI_V2.UI.AgentControl.Instance?.UpdateStatsHUD(stats);
+            };
 
             var context = new CadExecutionContext(doc);
 

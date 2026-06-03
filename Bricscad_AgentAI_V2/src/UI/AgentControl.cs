@@ -743,7 +743,7 @@ namespace Bricscad_AgentAI_V2.UI
             AppendToHistory("SYSTEM", "Konwersacja i pamięć zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
         }
 
-        private void UpdateStatusHUD(string status)
+        public void UpdateStatusHUD(string status)
         {
             if (this.InvokeRequired)
             {
@@ -753,7 +753,7 @@ namespace Bricscad_AgentAI_V2.UI
             lblStatus.Text = $"[Model: {_activeModel}] {status}";
         }
 
-        private void UpdateStatsHUD(LLMStats stats)
+        public void UpdateStatsHUD(LLMStats stats)
         {
             if (this.InvokeRequired)
             {
@@ -764,7 +764,7 @@ namespace Bricscad_AgentAI_V2.UI
             lblStats.Text = $"Czas: {stats.TotalTimeMs}ms | In: {stats.PromptTokens} | Out: {stats.CompletionTokens} | T/s: {stats.TokensPerSecond:F1}";
         }
 
-        private void AppendToolLog(string rawJsonCall)
+        public void AppendToolLog(string rawJsonCall)
         {
             if (this.InvokeRequired)
             {
