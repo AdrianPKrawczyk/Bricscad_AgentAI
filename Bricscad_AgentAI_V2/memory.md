@@ -440,4 +440,20 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Weryfikacja delegowania obliczeń do `CadMathProfile` w programie BricsCAD.
 
+## 2026-06-04T00:30:00+02:00
+### [ZREALIZOWANO]
+- Skorygowano i rozbudowano prompt systemowy Math Experta (`system_prompt_math.txt`):
+  - Dodano szczegółowe zasady działania notacji RPN na stosie i formatowania wartości z jednostkami (np. `10_m`, `11.34_g/cm3`).
+  - Nakazano podział złożonych obliczeń na mniejsze, precyzyjne kroki cząstkowe (osobne wywołania `CalculateRpn`) zamiast jednego gigantycznego wyrażenia, co eliminuje błędy zapętlenia modelu i przekroczenia limitu tokenów.
+  - Zaimplementowano instrukcje korzystania z parametrów `SaveAs` i `@zmienna` do przechowywania wartości cząstkowych.
+  - Dodano gotowe, poprawne wzory i przykłady RPN dla obliczania pola koła ($\pi r^2$), objętości kuli ($\frac{4}{3} \pi r^3$), masy ołowiu oraz energii kinetycznej ($mgh$).
+  - Dodano automatyczny upgrade (auto-upgrade) szablonu promptu w oparciu o obecność tagu `"WZORY I PRZYKŁADY RPN"`.
+  - Pomyślnie przebudowano i skompilowano wtyczkę (0 błędów, 0 ostrzeżeń).
+### [STAN_SYSTEMU]
+- Math Expert posiada kompletną i szczegółową bazę wiedzy na temat składni RPN i strategii podziału obliczeń na kroki, co zabezpiecza go przed błędnymi operacjami stosu i zapętleniami.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Ponowne przetestowanie obliczeń (koło i kula) w BricsCAD.
+
 
