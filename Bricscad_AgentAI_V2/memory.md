@@ -620,3 +620,16 @@ Ten dokument sÅ‚uÅ¼y jako zewnÄ™trzna pamiÄ™Ä‡ dÅ‚ugotrwaÅ‚a dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Weryfikacja dziaÄ¹â€šania wtyczki w Ä¹â€ºrodowisku uruchomieniowym BricsCAD.
 
+
+## 2026-06-05T01:40:00+02:00
+### [ZREALIZOWANO]
+- **Refaktoryzacja zak³adki agentów (UI AgentControl)**: Przeprojektowano zak³adkê " Agenci\ w interfejsie u¿ytkownika. Zast¹piono tabelê przypisywania skilli wygodn¹ list¹ typu CheckedListBox (chlbAgentTools) powi¹zan¹ z wybranym profilem.
+- **Dodanie Leksykonu Skilli**: Wprowadzono listê wszystkich dostêpnych w systemie narzêdzi/skilli (lbAllTools) wraz z podgl¹dem ich schematów JSON (tbToolSchema) generowanych automatycznie na podstawie definicji parametrów wysy³anych do LLM.
+- **Wsparcie dla konfiguracji profilowych w UI**: Powi¹zano listê wyboru promptów systemowych bezpoœrednio z wybranym agentem. Dodano przycisk umo¿liwiaj¹cy natychmiastowe otwarcie powi¹zanego pliku promptu systemowego w Notatniku.
+- **Aktualizacja zapisu profilu**: Dodano logikê zapisu przypisanego pliku promptu i zestawu dozwolonych narzêdzi do ools_config.json za pomoc¹ ToolConfigManager.UpdateAgentProfile.
+### [STAN_SYSTEMU]
+- System kompiluje siê w pe³ni poprawnie (0 b³êdów, 0 ostrze¿eñ). UI poprawnie synchronizuje konfiguracje profili agentów.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Testowanie nowej zak³adki Agenci bezpoœrednio w BricsCAD.

@@ -446,6 +446,16 @@ namespace Bricscad_AgentAI_V2.Core
             SaveConfig();
         }
 
+        public static void UpdateAgentProfile(string profileName, string promptFile, List<string> allowedTools)
+        {
+            if (_config.Profiles.TryGetValue(profileName, out var profile))
+            {
+                profile.SystemPromptFile = promptFile;
+                profile.AllowedTools = allowedTools;
+                SaveConfig();
+            }
+        }
+
         /// <summary>
         /// Sprawdza, czy narzędzie o podanej nazwie klasy powinno być aktywne 
         /// dla zestawu żądanych tagów.

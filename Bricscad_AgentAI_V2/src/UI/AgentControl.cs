@@ -19,8 +19,6 @@ namespace Bricscad_AgentAI_V2.UI
     public class AgentControl : UserControl
     {
         private TabControl tabControl;
-        private DataGridView dgvTools;
-        private Button btnSaveConfig;
         private CheckBox chkEarlyExit;
         private DatasetStudioControl datasetStudio;
         public DatasetStudioControl DatasetStudio => datasetStudio;
@@ -59,10 +57,27 @@ namespace Bricscad_AgentAI_V2.UI
         // --- UI Ustawienia ---
         private TabPage tabSettings;
         private TabControl tabSettingsSub;
-        private TabPage tabPromptSub;
+        
+        // --- UI Agenci ---
+        private TabPage tabAgents;
+        private TabControl tabAgentsSub;
+        // Przegląd
+        private TabPage tabAgentsOverview;
+        private ListBox lbAgents;
+        private TextBox txtAgentDescription;
+        private ComboBox cbAgentPromptFile;
+        private Button btnOpenAgentPromptInOverview;
+        private CheckedListBox chlbAgentTools;
+        private Button btnSaveAgentProfile;
+        // Prompt
+        private TabPage tabAgentPrompt;
         private RichTextBox txtSystemPromptEditor;
         private Button btnSaveSystemPrompt;
         private ComboBox cbPromptFile;
+        // Skille
+        private TabPage tabAgentSkills;
+        private ListBox lbAllTools;
+        private RichTextBox rtbToolSchema;
 
         // --- UI Diagnostyka (Logi Aplikacji) ---
         private TabPage tabDiagnosticsSub;
@@ -385,44 +400,209 @@ namespace Bricscad_AgentAI_V2.UI
             tabTester.Controls.Add(new AgentTesterControl(_llmClient));
 
             // ==========================================
-            // ZAKŁADKA 5: KONFIGURACJA TAGÓW
+            // ZAKŁADKA 5: AGENCI (Przegląd, Prompt, Skille)
             // ==========================================
-            TabPage tabTags = new TabPage("🏷 Tagi / Core");
-            dgvTools = new DataGridView
+            tabAgents = new TabPage("🤖 Agenci");
+            tabAgentsSub = new TabControl { Dock = DockStyle.Fill };
+            
+            // PODZAKŁADKA 1: Przegląd
+            tabAgentsOverview = new TabPage("👨‍💻 Przegląd");
+            lbAgents = new ListBox
             {
-                Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                BackgroundColor = Color.FromArgb(30, 30, 30),
-                ForeColor = Color.Black, // Tekst w komórkach (WinForms DataGrid ma czasem problemy z ciemnym motywem bez pełnego owner-draw)
-                AllowUserToAddRows = false,
-                RowHeadersVisible = false
+                Dock = DockStyle.Left,
+                Width = 200,
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.White,
+                Font = new Font(this.Font.FontFamily, 11f, FontStyle.Regular),
+                IntegralHeight = false
             };
             
-            dgvTools.Columns.Add(new DataGridViewTextBoxColumn { Name = "ToolName", HeaderText = "Narzędzie", ReadOnly = true });
-            dgvTools.Columns.Add(new DataGridViewCheckBoxColumn { Name = "IsCore", HeaderText = "Core (#core)" });
-            dgvTools.Columns.Add(new DataGridViewTextBoxColumn { Name = "Tags", HeaderText = "Tagi (rozdzielane przecinkiem)" });
-            dgvTools.Columns.Add(new DataGridViewCheckBoxColumn { Name = "EarlyExit", HeaderText = "⚡ Early Exit" });
-
-            btnSaveConfig = new Button
+            Panel panAgentOverviewRight = new Panel { Dock = DockStyle.Fill };
+            
+            // Górny panel opisu i wyboru promptu
+            Panel panAgentOverviewTop = new Panel { Dock = DockStyle.Top, Height = 130, Padding = new Padding(10) };
+            txtAgentDescription = new TextBox
             {
-                Text = "💾 Zapisz konfigurację narzędzi",
+                Dock = DockStyle.Top,
+                Height = 80,
+                Multiline = true,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.LightGray,
+                Font = new Font("Consolas", 10f),
+                BorderStyle = BorderStyle.None,
+                ScrollBars = ScrollBars.Vertical
+            };
+            
+            Panel panAgentPromptSelection = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(0, 10, 0, 0) };
+            Label lblAgentPrompt = new Label { Text = "Plik promptu:", Dock = DockStyle.Left, ForeColor = Color.White, Width = 90, TextAlign = ContentAlignment.MiddleLeft };
+            cbAgentPromptFile = new ComboBox { Dock = DockStyle.Left, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            cbAgentPromptFile.Items.AddRange(new object[] { "system_prompt.txt", "system_prompt_supervisor.txt", "system_prompt_math.txt" });
+            
+            btnOpenAgentPromptInOverview = new Button { Text = "📝 Otwórz w Notatniku", Dock = DockStyle.Left, Width = 150, Margin = new Padding(10, 0, 0, 0), BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnOpenAgentPromptInOverview.Click += BtnOpenAgentPromptInOverview_Click;
+
+            panAgentPromptSelection.Controls.Add(btnOpenAgentPromptInOverview);
+            panAgentPromptSelection.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
+            panAgentPromptSelection.Controls.Add(cbAgentPromptFile);
+            panAgentPromptSelection.Controls.Add(lblAgentPrompt);
+            
+            panAgentOverviewTop.Controls.Add(panAgentPromptSelection);
+            panAgentOverviewTop.Controls.Add(txtAgentDescription);
+            
+            // Dolny panel skilli
+            Panel panAgentOverviewBottom = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
+            Label lblAgentSkills = new Label { Text = "Przypisane Skille (Dozwolone Narzędzia):", Dock = DockStyle.Top, ForeColor = Color.White, Height = 25 };
+            chlbAgentTools = new CheckedListBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                CheckOnClick = true
+            };
+            // Wypełniamy listę wszystkich skilli raz
+            foreach (var key in ToolConfigManager.GetAllSettings().Keys) chlbAgentTools.Items.Add(key);
+
+            btnSaveAgentProfile = new Button
+            {
+                Text = "💾 Zapisz Profil Agenta",
                 Dock = DockStyle.Bottom,
                 Height = 40,
                 BackColor = Color.FromArgb(0, 122, 204),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
             };
-            btnSaveConfig.Click += BtnSaveConfig_Click;
+            btnSaveAgentProfile.Click += BtnSaveAgentProfile_Click;
 
-            tabTags.Controls.Add(dgvTools);
-            tabTags.Controls.Add(btnSaveConfig);
+            panAgentOverviewBottom.Controls.Add(chlbAgentTools);
+            panAgentOverviewBottom.Controls.Add(lblAgentSkills);
+            panAgentOverviewBottom.Controls.Add(btnSaveAgentProfile);
+
+            panAgentOverviewRight.Controls.Add(panAgentOverviewBottom);
+            panAgentOverviewRight.Controls.Add(panAgentOverviewTop);
+
+            tabAgentsOverview.Controls.Add(panAgentOverviewRight);
+            tabAgentsOverview.Controls.Add(new Splitter() { Dock = DockStyle.Left, Width = 5, BackColor = Color.FromArgb(45, 45, 45) });
+            tabAgentsOverview.Controls.Add(lbAgents);
+
+            // Inicjalizacja profili po zbudowaniu prawej strony
+            lbAgents.SelectedIndexChanged += LbAgents_SelectedIndexChanged;
+            
+            // Zasilenie profili
+            var profiles = ToolConfigManager.GetProfiles();
+            foreach (var key in profiles.Keys)
+            {
+                lbAgents.Items.Add(key);
+            }
+            if (lbAgents.Items.Count > 0) lbAgents.SelectedIndex = 0;
+
+            // PODZAKŁADKA 2: Prompt
+            tabAgentPrompt = new TabPage("📝 Prompt");
+            Panel panAgentsPromptTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
+            Label lblPromptTitle = new Label 
+            { 
+                Text = "Wybierz profil:", 
+                Dock = DockStyle.Left, 
+                ForeColor = Color.White, 
+                Font = new Font(this.Font, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Width = 100
+            };
+
+            cbPromptFile = new ComboBox
+            {
+                Dock = DockStyle.Left,
+                Width = 220,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            foreach (var key in profiles.Keys) cbPromptFile.Items.Add(key);
+            cbPromptFile.SelectedIndexChanged += CbPromptFile_SelectedIndexChanged;
+
+            btnSaveSystemPrompt = new Button 
+            { 
+                Text = "💾 Zapisz Prompt", 
+                Width = 120, 
+                Dock = DockStyle.Right,
+                BackColor = Color.SeaGreen,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font(this.Font, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnSaveSystemPrompt.Click += BtnSaveSystemPrompt_Click;
+
+            panAgentsPromptTop.Controls.Add(cbPromptFile);
+            panAgentsPromptTop.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
+            panAgentsPromptTop.Controls.Add(lblPromptTitle);
+            panAgentsPromptTop.Controls.Add(btnSaveSystemPrompt);
+
+            txtSystemPromptEditor = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.White,
+                Font = new Font("Consolas", 10f),
+                BorderStyle = BorderStyle.None,
+                Multiline = true,
+                ScrollBars = RichTextBoxScrollBars.Both
+            };
+
+            tabAgentPrompt.Controls.Add(txtSystemPromptEditor);
+            tabAgentPrompt.Controls.Add(panAgentsPromptTop);
+            
+            if (cbPromptFile.Items.Count > 0) cbPromptFile.SelectedIndex = 0;
+
+            // PODZAKŁADKA 3: Skille / Narzędzia (Leksykon)
+            tabAgentSkills = new TabPage("🛠️ Leksykon Skilli");
+            lbAllTools = new ListBox
+            {
+                Dock = DockStyle.Left,
+                Width = 250,
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.White,
+                Font = new Font(this.Font.FontFamily, 10f, FontStyle.Regular),
+                IntegralHeight = false
+            };
+            rtbToolSchema = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.LightGreen,
+                Font = new Font("Consolas", 10f),
+                BorderStyle = BorderStyle.None,
+                ScrollBars = RichTextBoxScrollBars.Both
+            };
+            
+            // Wypełnienie listy narzędzi
+            var allToolsSettings = ToolConfigManager.GetAllSettings();
+            foreach (var key in allToolsSettings.Keys)
+            {
+                lbAllTools.Items.Add(key);
+            }
+            lbAllTools.SelectedIndexChanged += LbAllTools_SelectedIndexChanged;
+            if (lbAllTools.Items.Count > 0) lbAllTools.SelectedIndex = 0;
+
+            tabAgentSkills.Controls.Add(rtbToolSchema);
+            tabAgentSkills.Controls.Add(new Splitter() { Dock = DockStyle.Left, Width = 5, BackColor = Color.FromArgb(45, 45, 45) });
+            tabAgentSkills.Controls.Add(lbAllTools);
+
+            // Dodajemy podzakładki do Agenci
+            tabAgentsSub.TabPages.Add(tabAgentsOverview);
+            tabAgentsSub.TabPages.Add(tabAgentPrompt);
+            tabAgentsSub.TabPages.Add(tabAgentSkills);
+            tabAgents.Controls.Add(tabAgentsSub);
 
             // Dodajemy widoki
             tabControl.TabPages.Add(tabChat);
             tabControl.TabPages.Add(tabDev);
             tabControl.TabPages.Add(tabBenchmark);
             tabControl.TabPages.Add(tabTester);
-            tabControl.TabPages.Add(tabTags);
+            tabControl.TabPages.Add(tabAgents);
             
             var tabDataset = new TabPage("💾 Dataset Studio");
             tabDataset.Controls.Add(datasetStudio);
@@ -477,83 +657,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabSettings = new TabPage("⚙️ Ustawienia");
             tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
 
-            // PODZAKŁADKA: Prompt
-            tabPromptSub = new TabPage("Prompt");
-            Panel panSettingsTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
-            Label lblSettingsTitle = new Label 
-            { 
-                Text = "Plik promptu:", 
-                Dock = DockStyle.Left, 
-                ForeColor = Color.White, 
-                Font = new Font(this.Font, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft,
-                Width = 95
-            };
-
-            cbPromptFile = new ComboBox
-            {
-                Dock = DockStyle.Left,
-                Width = 220,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Color.FromArgb(50, 50, 50),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            cbPromptFile.Items.Add("system_prompt.txt (CAD Expert)");
-            cbPromptFile.Items.Add("system_prompt_supervisor.txt (Supervisor)");
-            cbPromptFile.Items.Add("system_prompt_math.txt (Math Expert)");
-            cbPromptFile.SelectedIndex = 0;
-            cbPromptFile.SelectedIndexChanged += CbPromptFile_SelectedIndexChanged;
-
-            btnSaveSystemPrompt = new Button 
-            { 
-                Text = "💾 Zapisz Prompt", 
-                Width = 120, 
-                Dock = DockStyle.Right,
-                BackColor = Color.SeaGreen,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font(this.Font, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnSaveSystemPrompt.Click += BtnSaveSystemPrompt_Click;
-
-            var btnOpenPromptDir = new Button 
-            { 
-                Text = "📂 Otwórz folder", 
-                Width = 130, 
-                Dock = DockStyle.Right,
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font(this.Font, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnOpenPromptDir.Click += BtnOpenPromptDir_Click;
-
-            panSettingsTop.Controls.Add(cbPromptFile);
-            panSettingsTop.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
-            panSettingsTop.Controls.Add(lblSettingsTitle);
-            panSettingsTop.Controls.Add(btnSaveSystemPrompt);
-            panSettingsTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
-            panSettingsTop.Controls.Add(btnOpenPromptDir);
-
-            txtSystemPromptEditor = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(30, 30, 30),
-                ForeColor = Color.White,
-                Font = new Font("Consolas", 10f),
-                BorderStyle = BorderStyle.None,
-                Multiline = true,
-                ScrollBars = RichTextBoxScrollBars.Both
-            };
-            txtSystemPromptEditor.Text = CurrentSystemPrompt;
-
-            tabPromptSub.Controls.Add(txtSystemPromptEditor);
-            tabPromptSub.Controls.Add(panSettingsTop);
-            
-            tabSettingsSub.TabPages.Add(tabPromptSub);
+            // Podzakładka Prompt została przeniesiona do tabAgents
 
             // ==========================================
             // PODZAKŁADKA: Diagnostyka (BielikLogger log)
@@ -667,21 +771,9 @@ namespace Bricscad_AgentAI_V2.UI
             // Rejestracja callbacku
             EngineTracer.SetLogCallback(AppendEngineLog);
 
-            LoadToolConfigToGrid();
-
             this.Controls.Add(tabControl);
         }
 
-
-        private void LoadToolConfigToGrid()
-        {
-            dgvTools.Rows.Clear();
-            var settings = ToolConfigManager.GetAllSettings();
-            foreach (var kvp in settings)
-            {
-                dgvTools.Rows.Add(kvp.Key, kvp.Value.IsCore, kvp.Value.Tags, kvp.Value.SupportsEarlyExit);
-            }
-        }
 
         private void RefreshAppLogView()
         {
@@ -695,28 +787,6 @@ namespace Bricscad_AgentAI_V2.UI
                 }
             }
             catch { }
-        }
-
-        private void BtnSaveConfig_Click(object sender, EventArgs e)
-        {
-            var newSettings = new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
-            foreach (DataGridViewRow row in dgvTools.Rows)
-            {
-                if (row.Cells["ToolName"].Value == null) continue;
-                string name = row.Cells["ToolName"].Value.ToString();
-                bool isCore = (bool)(row.Cells["IsCore"].Value ?? false);
-                string tags = row.Cells["Tags"].Value?.ToString() ?? "";
-                bool earlyExit = (bool)(row.Cells["EarlyExit"].Value ?? false);
-                
-                newSettings[name] = new ToolSettings { IsCore = isCore, Tags = tags, SupportsEarlyExit = earlyExit };
-            }
-            ToolConfigManager.UpdateSettings(newSettings);
-            
-            // WYMUSZENIE ODŚWIEŻENIA W LOCIE
-            _orchestrator.RefreshTools();
-            RebuildSystemPrompt();
-            
-            MessageBox.Show("Konfiguracja narzędzi została zapisana i zaaplikowana w locie!", "Agent AI V2", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         public void SwitchToBenchmark()
@@ -767,6 +837,7 @@ namespace Bricscad_AgentAI_V2.UI
             if (tabSettingsSub != null)
             {
                 foreach (TabPage page in tabSettingsSub.TabPages) page.BackColor = bgMain;
+                foreach (TabPage page in tabAgentsSub.TabPages) page.BackColor = bgMain;
             }
         }
 
@@ -1096,13 +1167,93 @@ namespace Bricscad_AgentAI_V2.UI
             await ProcessInputAsync(prompt);
         }
 
+        private void LbAgents_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lbAgents.SelectedItem == null) return;
+            string profileName = lbAgents.SelectedItem.ToString();
+            
+            var profiles = ToolConfigManager.GetProfiles();
+            if (profiles.TryGetValue(profileName, out var profile))
+            {
+                // Ustaw plik promptu w cb
+                int promptIndex = cbAgentPromptFile.FindStringExact(profile.SystemPromptFile);
+                if (promptIndex >= 0) cbAgentPromptFile.SelectedIndex = promptIndex;
+                else if (cbAgentPromptFile.Items.Count > 0) cbAgentPromptFile.SelectedIndex = 0;
+
+                // Odśwież zaznaczenia skilli
+                for (int i = 0; i < chlbAgentTools.Items.Count; i++)
+                {
+                    string toolName = chlbAgentTools.Items[i].ToString();
+                    bool isActive = profile.AllowedTools != null && profile.AllowedTools.Contains(toolName, StringComparer.OrdinalIgnoreCase);
+                    chlbAgentTools.SetItemChecked(i, isActive);
+                }
+            }
+        }
+
+        private void BtnOpenAgentPromptInOverview_Click(object sender, EventArgs e)
+        {
+            if (cbAgentPromptFile.SelectedItem == null) return;
+            string filename = cbAgentPromptFile.SelectedItem.ToString();
+            string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string filePath = System.IO.Path.Combine(dllDir, filename);
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                System.IO.File.WriteAllText(filePath, "Podstawowy prompt...", System.Text.Encoding.UTF8);
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start("notepad.exe", filePath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania pliku w Notatniku: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnSaveAgentProfile_Click(object sender, EventArgs e)
+        {
+            if (lbAgents.SelectedItem == null || cbAgentPromptFile.SelectedItem == null) return;
+            string profileName = lbAgents.SelectedItem.ToString();
+            string promptFile = cbAgentPromptFile.SelectedItem.ToString();
+            
+            List<string> selectedTools = new List<string>();
+            foreach (var item in chlbAgentTools.CheckedItems)
+            {
+                selectedTools.Add(item.ToString());
+            }
+
+            ToolConfigManager.UpdateAgentProfile(profileName, promptFile, selectedTools);
+            MessageBox.Show($"Zaktualizowano profil: {profileName}", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void LbAllTools_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lbAllTools.SelectedItem == null) return;
+            string toolName = lbAllTools.SelectedItem.ToString();
+            
+            var tools = ToolOrchestrator.Instance.GetRegisteredTools();
+            var tool = tools.FirstOrDefault(t => t.GetType().Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+            if (tool != null)
+            {
+                rtbToolSchema.Text = Newtonsoft.Json.JsonConvert.SerializeObject(tool.GetToolSchema(), Newtonsoft.Json.Formatting.Indented);
+            }
+            else
+            {
+                rtbToolSchema.Text = "Nie można załadować schematu dla tego narzędzia.";
+            }
+        }
+
         private void CbPromptFile_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cbPromptFile == null || txtSystemPromptEditor == null) return;
+            if (cbPromptFile == null || txtSystemPromptEditor == null || cbPromptFile.SelectedItem == null) return;
             
-            string filename = "system_prompt.txt";
-            if (cbPromptFile.SelectedIndex == 1) filename = "system_prompt_supervisor.txt";
-            else if (cbPromptFile.SelectedIndex == 2) filename = "system_prompt_math.txt";
+            string profileName = cbPromptFile.SelectedItem.ToString();
+            var profiles = ToolConfigManager.GetProfiles();
+            if (!profiles.TryGetValue(profileName, out var profile)) return;
+            
+            string filename = string.IsNullOrEmpty(profile.SystemPromptFile) ? "system_prompt.txt" : profile.SystemPromptFile;
             string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string filePath = System.IO.Path.Combine(dllDir, filename);
 
@@ -1119,69 +1270,32 @@ namespace Bricscad_AgentAI_V2.UI
             }
             else
             {
-                if (filename == "system_prompt.txt")
-                {
-                    txtSystemPromptEditor.Text = CurrentSystemPrompt;
-                }
-                else
-                {
-                    txtSystemPromptEditor.Text = "";
-                }
+                txtSystemPromptEditor.Text = "";
             }
         }
 
         private void BtnSaveSystemPrompt_Click(object sender, EventArgs e)
         {
-            if (txtSystemPromptEditor == null) return;
+            if (txtSystemPromptEditor == null || cbPromptFile.SelectedItem == null) return;
 
+            string profileName = cbPromptFile.SelectedItem.ToString();
+            var profiles = ToolConfigManager.GetProfiles();
+            if (!profiles.TryGetValue(profileName, out var profile)) return;
+            
+            string filename = string.IsNullOrEmpty(profile.SystemPromptFile) ? "system_prompt.txt" : profile.SystemPromptFile;
             string newPrompt = txtSystemPromptEditor.Text;
             string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string filename = "system_prompt.txt";
-            if (cbPromptFile.SelectedIndex == 1) filename = "system_prompt_supervisor.txt";
-            else if (cbPromptFile.SelectedIndex == 2) filename = "system_prompt_math.txt";
             string filePath = System.IO.Path.Combine(dllDir, filename);
 
             try
             {
                 System.IO.File.WriteAllText(filePath, newPrompt, System.Text.Encoding.UTF8);
-                
-                if (filename == "system_prompt.txt")
-                {
-                    RebuildSystemPrompt();
-                }
-                else
-                {
-                    _supervisor?.ClearHistory();
-                }
-                MessageBox.Show($"Prompt ({filename}) został pomyślnie zapisany i zaktualizowany w locie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _supervisor?.ClearHistory();
+                MessageBox.Show($"Prompt ({filename}) został pomyślnie zapisany dla profilu {profileName}!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd zapisu promptu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void BtnOpenPromptDir_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string dllDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string filename = "system_prompt.txt";
-                if (cbPromptFile.SelectedIndex == 1) filename = "system_prompt_supervisor.txt";
-                else if (cbPromptFile.SelectedIndex == 2) filename = "system_prompt_math.txt";
-                string filePath = System.IO.Path.Combine(dllDir, filename);
-
-                if (!System.IO.File.Exists(filePath))
-                {
-                    if (filename == "system_prompt.txt") RebuildSystemPrompt();
-                    else ToolConfigManager.Initialize(ToolOrchestrator.Instance.GetRegisteredTools());
-                }
-
-                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd otwierania folderu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
