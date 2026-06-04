@@ -607,3 +607,16 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
  -   B r a k . 
  # # #   [ K O L E J N Y _ K R O K ] 
  -   C o m m i t   z m i a n   n a   r e p o z y t o r i u m   G i t H u b . 
+
+## 2026-06-04T21:30:00+02:00
+### [ZREALIZOWANO]
+- **Renderowanie LaTeX w czacie**: Zaimplementowano klasÄ™ `LatexToUnicodeConverter` konwertujÄ…cÄ… surowe formuĹ‚y LaTeX (`$...`, `$$...$$`) na czytelny tekst Unicode (indeksy gĂłrne/dolne, symbole matematyczne i litery greckie).
+- **Integracja UI**: Zintegrowano konwerter z metodÄ… `AppendToHistory` w `AgentControl.cs`, poprawiajÄ…c prezentacjÄ™ wynikĂłw obliczeĹ„ modelu w formancie `RichTextBox`.
+- **Testy jednostkowe**: Dodano zestaw testĂłw w `LatexToUnicodeConverterTests.cs` weryfikujÄ…cy poprawnoĹ›Ä‡ konwersji jednostek, notacji naukowej oraz wzorĂłw matematycznych. Testy zintegrowano z konsolowym `TestRunner.cs`.
+### [STAN_SYSTEMU]
+- System kompiluje siÄ™ bez bĹ‚Ä™dĂłw. Nowy mechanizm automatycznie i w locie przeksztaĹ‚ca formuĹ‚y matematyczne generowane przez AI na czytelnÄ… formÄ™ tekstowÄ… Unicode.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Weryfikacja dziaĹ‚ania wtyczki w Ĺ›rodowisku uruchomieniowym BricsCAD.
+

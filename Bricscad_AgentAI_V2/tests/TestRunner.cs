@@ -14,6 +14,7 @@ namespace Bricscad_AgentAI_V2.Tests
                 WriteXDataToolTests.RunTests();
                 FindXDataToolTests.RunTests();
                 SelectEntitiesToolTests.RunTests();
+                Bricscad_AgentAI_V2.Tests.UI.LatexToUnicodeConverterTests.RunTests();
                 Console.WriteLine("WSZYSTKIE TESTY ZAKOŃCZONE SUKCESEM.");
             }
             catch (Exception ex)

@@ -1028,6 +1028,8 @@ namespace Bricscad_AgentAI_V2.UI
                 return;
             }
 
+            string formattedMessage = LatexToUnicodeConverter.Convert(message);
+
             txtHistory.SelectionStart = txtHistory.TextLength;
             txtHistory.SelectionLength = 0;
             txtHistory.SelectionColor = color;
@@ -1036,7 +1038,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             txtHistory.SelectionColor = isDarkMode ? Color.White : Color.Black;
             txtHistory.SelectionFont = new Font(txtHistory.Font, FontStyle.Regular);
-            txtHistory.AppendText($"{message}\n\n");
+            txtHistory.AppendText($"{formattedMessage}\n\n");
 
             txtHistory.SelectionStart = txtHistory.Text.Length;
             txtHistory.ScrollToCaret();
