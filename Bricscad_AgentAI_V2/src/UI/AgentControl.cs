@@ -1234,7 +1234,11 @@ namespace Bricscad_AgentAI_V2.UI
             string toolName = lbAllTools.SelectedItem.ToString();
             
             var tools = ToolOrchestrator.Instance.GetRegisteredTools();
-            var tool = tools.FirstOrDefault(t => t.GetType().Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+            var tool = tools.FirstOrDefault(t => 
+                t.GetType().Name.Equals(toolName, StringComparison.OrdinalIgnoreCase) ||
+                t.GetType().Name.Equals(toolName + "Tool", StringComparison.OrdinalIgnoreCase) ||
+                (t.GetToolSchema()?.Function?.Name != null && t.GetToolSchema().Function.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase))
+            );
             if (tool != null)
             {
                 rtbToolSchema.Text = Newtonsoft.Json.JsonConvert.SerializeObject(tool.GetToolSchema(), Newtonsoft.Json.Formatting.Indented);
