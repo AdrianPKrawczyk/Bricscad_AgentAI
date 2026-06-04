@@ -1,0 +1,198 @@
+﻿{
+  "RunMetadata": {
+    "ModelName": "Bielik-Math-Expert-Benchmark",
+    "RunDate": "2026-06-04 01:14",
+    "Comment": "Zestaw benchmarkowy zadań matematyczno-fizycznych RPN dla CadMathProfile.",
+    "GlobalScore": 20.0,
+    "CategoriesScores": {
+      "Math": 0.0,
+      "Physics": 50.0
+    },
+    "AverageExecutionTimeMs": 28321.0
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Math",
+      "Difficulty": 1,
+      "TestName": "Circle_Area_100mm",
+      "Description": "Obliczenie pola powierzchni koła o średnicy 100 mm z konwersją do mm2.",
+      "UserPrompt": "Oblicz pole powierzchni koła o średnicy 100 mm. Podaj wynik w mm2.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CalculateRpn": "WYNIK (CalculateRpn): 7853.981634_mm2"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CalculateRpn",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BŁĄD: Model nie wywołał narzędzia CalculateRpn."
+        },
+        {
+          "RuleType": "EvaluateRPN_Argument",
+          "TargetValue": null,
+          "TargetArgument": "Expression",
+          "MockData": null,
+          "ExpectedOutput": "7853.981634_mm2",
+          "ErrorMessage": "BŁĄD: Wyrażenie RPN nie oblicza poprawnego pola koła (oczekiwano 7853.981634_mm2)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CalculateRpn",
+          "Arguments": {
+            "Expression": "100 2 / #PI * 2 *",
+            "SaveAs": "PolePowierzchniKoła"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Błąd RPN. Oczekiwano '7853.981634_mm2', obliczono '314.159265358979' (wzór: 100 2 / #PI * 2 *)"
+      ],
+      "ExecutionTimeMs": 3185
+    },
+    {
+      "Id": 2,
+      "Category": "Math",
+      "Difficulty": 2,
+      "TestName": "Sphere_Volume_10cm",
+      "Description": "Obliczenie objętości kuli o średnicy 10 cm z konwersją do cm3.",
+      "UserPrompt": "Oblicz objętość kuli o średnicy 10 cm w cm3.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CalculateRpn": "WYNIK (CalculateRpn): 523.598776_cm3"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CalculateRpn",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BŁĄD: Model nie wywołał narzędzia CalculateRpn."
+        },
+        {
+          "RuleType": "EvaluateRPN_Argument",
+          "TargetValue": null,
+          "TargetArgument": "Expression",
+          "MockData": null,
+          "ExpectedOutput": "523.598776_cm3",
+          "ErrorMessage": "BŁĄD: Wyrażenie RPN nie oblicza poprawnej objętości kuli (oczekiwano 523.598776_cm3)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CalculateRpn",
+          "Arguments": {
+            "Expression": "5 3 / #PI * 5^3 * 4 / 3",
+            "SaveAs": "objetosc_kuli"
+          }
+        },
+        {
+          "ToolName": "CalculateRpn",
+          "Arguments": {
+            "Expression": "5 3 ^ #PI * 4 / 3 *",
+            "SaveAs": "obj_kuli_final"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Błąd RPN. Oczekiwano '523.598776_cm3', obliczono '294.524311274043' (wzór: 5 3 ^ #PI * 4 / 3 *)"
+      ],
+      "ExecutionTimeMs": 3707
+    },
+    {
+      "Id": 3,
+      "Category": "Physics",
+      "Difficulty": 2,
+      "TestName": "Lead_Sphere_Mass",
+      "Description": "Obliczenie masy kuli ołowianej o objętości 523.6 cm3 przy gęstości ołowiu 11.34 g/cm3.",
+      "UserPrompt": "Oblicz masę kuli ołowianej o objętości 523.6 cm3. Przyjmij gęstość ołowiu 11.34 g/cm3. Podaj wynik w kg.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CalculateRpn": "WYNIK (CalculateRpn): 5.937624_kg"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CalculateRpn",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BŁĄD: Model nie wywołał narzędzia CalculateRpn."
+        },
+        {
+          "RuleType": "EvaluateRPN_Argument",
+          "TargetValue": null,
+          "TargetArgument": "Expression",
+          "MockData": null,
+          "ExpectedOutput": "5.937624_kg",
+          "ErrorMessage": "BŁĄD: Wyrażenie RPN nie oblicza poprawnej masy (oczekiwano 5.937624_kg)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CalculateRpn",
+          "Arguments": {
+            "Expression": "523.6_cm3 11.34_g/cm3 * 1000 /",
+            "SaveAs": "MasaKuli_kg"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Błąd RPN. Oczekiwano '5.937624_kg', obliczono '0.005937624_kg' (wzór: 523.6_cm3 11.34_g/cm3 * 1000 /)"
+      ],
+      "ExecutionTimeMs": 4981
+    },
+    {
+      "Id": 5,
+      "Category": "Math",
+      "Difficulty": 3,
+      "TestName": "Cylinder_Volume_Pipe",
+      "Description": "Obliczenie objętości rury (walca) o średnicy wewnętrznej 10 cm i długości 11 m w litrach.",
+      "UserPrompt": "Oblicz objętość rury o średnicy wewnętrznej 10 cm i długości 11 m. Podaj wynik w litrach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CalculateRpn": "WYNIK (CalculateRpn): 86.393798_L"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CalculateRpn",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BŁĄD: Model nie wywołał narzędzia CalculateRpn."
+        },
+        {
+          "RuleType": "EvaluateRPN_Argument",
+          "TargetValue": null,
+          "TargetArgument": "Expression",
+          "MockData": null,
+          "ExpectedOutput": "86.393798_L",
+          "ErrorMessage": "BŁĄD: Wyrażenie RPN nie oblicza poprawnej objętości rury (oczekiwano 86.393798_L)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CalculateRpn",
+          "Arguments": {
+            "Expression": "10_cm 2 / 11_m * PI * 11_m * 1_L/cm3 * 1000_cm3/L *",
+            "SaveAs": "VolumeInLiters"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Błąd RPN. Oczekiwano '86.393798_L', obliczono '0_m3' (wzór: 10_cm 2 / 11_m * PI * 11_m * 1_L/cm3 * 1000_cm3/L *)"
+      ],
+      "ExecutionTimeMs": 127538
+    }
+  ]
+}

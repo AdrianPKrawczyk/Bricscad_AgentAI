@@ -69,7 +69,7 @@ namespace Bricscad_AgentAI_V2.Core
 
         public override string ToString()
         {
-            if (Dim.IsDimensionless() && string.IsNullOrEmpty(PrefUnit)) return Math.Round(Value, 6).ToString(CultureInfo.InvariantCulture);
+            if (Dim.IsDimensionless() && string.IsNullOrEmpty(PrefUnit)) return Math.Round(Value, 12).ToString(CultureInfo.InvariantCulture);
 
             if (!string.IsNullOrEmpty(PrefUnit))
             {
@@ -80,12 +80,12 @@ namespace Bricscad_AgentAI_V2.Core
                     {
                         // Wyświetlając, najpierw skalujemy, a potem zdejmujemy offset!
                         double displayVal = (this.Value / pUnit.Value) - pUnit.Offset;
-                        return $"{Math.Round(displayVal, 6).ToString(CultureInfo.InvariantCulture)}_{PrefUnit}";
+                        return $"{Math.Round(displayVal, 12).ToString(CultureInfo.InvariantCulture)}_{PrefUnit}";
                     }
                 }
                 catch { }
             }
-            return $"{Math.Round(Value, 6).ToString(CultureInfo.InvariantCulture)}_{Dim.ToString()}";
+            return $"{Math.Round(Value, 12).ToString(CultureInfo.InvariantCulture)}_{Dim.ToString()}";
         }
     }
 
@@ -511,6 +511,38 @@ namespace Bricscad_AgentAI_V2.Core
                 return new PhysicalValue(dist * uDef.Value, uDef.Dim, prefUnit);
 
             return new PhysicalValue(dist, new UnitDim());
+        }
+
+        public static string ProcessMathTemplates(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+
+            // 1. Zastąpienie całego wyrażenia MATH:
+            if (input.StartsWith("MATH:", StringComparison.OrdinalIgnoreCase))
+            {
+                string expr = input.Substring(5).Trim();
+                return Evaluate(ConvertInfixToRpn(expr));
+            }
+
+            // 2. Szablony {MATH: ...} wewnątrz tekstu
+            if (input.Contains("{MATH:") || input.Contains("{math:"))
+            {
+                input = System.Text.RegularExpressions.Regex.Replace(input, @"\{MATH:(.*?)\}", match =>
+                {
+                    string expr = match.Groups[1].Value.Trim();
+                    string res = Evaluate(ConvertInfixToRpn(expr));
+                    return res;
+                }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+
+            // 3. Klasyczne RPN: (wsteczna kompatybilność)
+            if (input.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+            {
+                string expr = input.Substring(4).Trim();
+                return Evaluate(expr);
+            }
+
+            return input;
         }
 
         // ==============================================================
@@ -944,6 +976,95 @@ namespace Bricscad_AgentAI_V2.Core
                 else sb.Append(c);
             }
             if (sb.Length > 0) ts.Add(sb.ToString()); return ts;
+        }
+
+        public static bool AreValuesPhysicallyEqual(string expected, string actual, double tolerance = 1e-4)
+        {
+            if (string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase)) return true;
+            try
+            {
+                var pExp = GetPhys(expected);
+                var pAct = GetPhys(actual);
+
+                if (pExp.Dim != pAct.Dim) return false;
+
+                double valExp = pExp.Value;
+                double valAct = pAct.Value;
+
+                if (valExp == 0.0) return Math.Abs(valAct) <= tolerance;
+                return Math.Abs(valExp - valAct) / Math.Abs(valExp) <= tolerance;
+            }
+            catch
+            {
+                return string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        public static string ConvertInfixToRpn(string infix)
+        {
+            // Inteligentne rozdzielanie operatorów ze wsparciem dla ujemnych, ułamków i notacji naukowej
+            infix = infix.Replace("(", " ( ").Replace(")", " ) ").Replace("*", " * ").Replace("^", " ^ ");
+            infix = System.Text.RegularExpressions.Regex.Replace(infix, @"(?<=[a-zA-Z0-9\)\]])\s*/\s*(?=[0-9\(#@\-])", " / ");
+            infix = System.Text.RegularExpressions.Regex.Replace(infix, @"(?<=[a-zA-Z0-9\)\]])(?<![eE])\s*-\s*(?=[0-9\(#@])", " - ");
+            infix = System.Text.RegularExpressions.Regex.Replace(infix, @"(?<=[a-zA-Z0-9\)\]])(?<![eE])\s*\+\s*(?=[0-9\(#@\-])", " + ");
+            
+            List<string> tokens = Tokenize(infix);
+            List<string> output = new List<string>();
+            Stack<string> ops = new Stack<string>();
+
+            int Precedence(string op)
+            {
+                if (op == "^") return 3;
+                if (op == "*" || op == "/") return 2;
+                if (op == "+" || op == "-") return 1;
+                return 0;
+            }
+
+            bool IsFunction(string token)
+            {
+                string u = token.ToUpperInvariant();
+                return u == "SQRT" || u == "ABS" || u == "ROUND";
+            }
+
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                string t = tokens[i].Trim();
+                if (string.IsNullOrEmpty(t)) continue;
+
+                string u = t.ToUpperInvariant();
+
+                if (IsFunction(t))
+                {
+                    ops.Push(u);
+                }
+                else if (t == "(")
+                {
+                    ops.Push(t);
+                }
+                else if (t == ")")
+                {
+                    while (ops.Count > 0 && ops.Peek() != "(") output.Add(ops.Pop());
+                    if (ops.Count > 0 && ops.Peek() == "(") ops.Pop();
+                    if (ops.Count > 0 && IsFunction(ops.Peek())) output.Add(ops.Pop());
+                }
+                else if (t == "+" || t == "-" || t == "*" || t == "/" || t == "^")
+                {
+                    while (ops.Count > 0 && ops.Peek() != "(")
+                    {
+                        string o2 = ops.Peek();
+                        if (Precedence(o2) > Precedence(t) || (Precedence(o2) == Precedence(t) && t != "^")) output.Add(ops.Pop());
+                        else break;
+                    }
+                    ops.Push(t);
+                }
+                else
+                {
+                    output.Add(t);
+                }
+            }
+
+            while (ops.Count > 0) output.Add(ops.Pop());
+            return string.Join(" ", output);
         }
     }
 }

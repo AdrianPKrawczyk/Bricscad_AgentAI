@@ -31,7 +31,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Modifications", new ToolParameter
                                 {
                                     Type = "array",
-                                    Description = "Lista docelowych modyfikacji. Format np.: [{\"Prop\": \"Layer\", \"Val\": \"OSIE\"}, {\"Prop\": \"Radius\", \"Val\": \"RPN: $OLD_RADIUS 5 +\"}]"
+                                    Description = "Lista docelowych modyfikacji. Format np.: [{\"Prop\": \"Layer\", \"Val\": \"OSIE\"}, {\"Prop\": \"Radius\", \"Val\": \"MATH: $OLD_RADIUS + 5\"}]"
                                 }
                             }
                         },
@@ -149,11 +149,10 @@ namespace Bricscad_AgentAI_V2.Tools
                                 newVal = AgentMemoryState.InjectVariables(newVal); // Podmiana $OLD_...
                             }
 
-                            // Przetworzenie RPN dla wartości numerycznych 
-                            if (newVal.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                            // Przetworzenie MATH / RPN dla wartości numerycznych 
+                            if (newVal.ToUpper().Contains("MATH:") || newVal.ToUpper().Contains("RPN:") || newVal.Contains("{MATH:"))
                             {
-                                string wyrRpn = newVal.Substring(4).Trim();
-                                newVal = RpnCalculator.Evaluate(wyrRpn);
+                                newVal = RpnCalculator.ProcessMathTemplates(newVal);
                             }
 
                             Type targetType = propInfo.PropertyType;

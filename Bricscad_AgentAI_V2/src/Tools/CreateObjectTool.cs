@@ -32,11 +32,11 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "EntityType", new ToolParameter { Type = "string", Description = "Typ: Line, Circle, DBText, MText, MLeader." } },
                             { "Layer", new ToolParameter { Type = "string", Description = "Warstwa docelowa." } },
                             { "SelectObject", new ToolParameter { Type = "boolean", Description = "Ustaw jako zaznaczenie (default: true)." } },
-                            { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt startowy (X,Y,Z). DOZWOLONY TYLKO dla obiektu Line. ABSOLUTNIE ZABRONIONE dla DBText, MText oraz Circle! Użyj RPN np. 'X, RPN: Y 100 +, Z'." } },
-                            { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z). Format: 'X,Y,Z'. KRYTYCZNE: Jeśli musisz wyliczyć którąś oś (np. dodając długość do StartPoint), ZABRONIONE JEST liczenie w pamięci. Użyj RPN, np. '50, RPN: 10 125.5 +, 0'." } },
-                            { "Center", new ToolParameter { Type = "string", Description = "Punkt środkowy (X,Y,Z). WYMAGANY I DOZWOLONY TYLKO dla obiektu Circle. Użyj RPN np. 'RPN: X 50 +, Y, Z'." } },
+                            { "StartPoint", new ToolParameter { Type = "string", Description = "Punkt startowy (X,Y,Z). DOZWOLONY TYLKO dla obiektu Line. ABSOLUTNIE ZABRONIONE dla DBText, MText oraz Circle! Użyj matematyki np. 'X, MATH: Y + 100, Z'." } },
+                            { "EndPoint", new ToolParameter { Type = "string", Description = "Punkt końcowy (x,y,z). Format: 'X,Y,Z'. KRYTYCZNE: Jeśli musisz wyliczyć którąś oś (np. dodając długość do StartPoint), ZABRONIONE JEST liczenie w pamięci. Użyj matematyki, np. '50, MATH: 10 + 125.5, 0'." } },
+                            { "Center", new ToolParameter { Type = "string", Description = "Punkt środkowy (X,Y,Z). WYMAGANY I DOZWOLONY TYLKO dla obiektu Circle. Użyj matematyki np. 'MATH: X + 50, Y, Z'." } },
                             { "Radius", new ToolParameter { Type = "string", Description = "Promień okręgu." } },
-                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja wstawienia. WYMAGANA I DOZWOLONA TYLKO dla tekstów. Format: 'X,Y,Z'. KRYTYCZNE: Jeśli musisz wyliczyć którąś oś (np. offset od innego punktu), ZABRONIONE JEST liczenie w pamięci. Użyj RPN, np. 'X, Y, RPN: Z 50 +'." } },
+                            { "Position", new ToolParameter { Type = "string", Description = "Pozycja wstawienia. WYMAGANA I DOZWOLONA TYLKO dla tekstów. Format: 'X,Y,Z'. KRYTYCZNE: Jeśli musisz wyliczyć którąś oś (np. offset od innego punktu), ZABRONIONE JEST liczenie w pamięci. Użyj matematyki, np. 'X, Y, MATH: Z + 50'." } },
                             { "Text", new ToolParameter { Type = "string", Description = "Treść tekstu." } },
                             { "Height", new ToolParameter { Type = "string", Description = "Wysokość elementu." } },
                             { "Rotation", new ToolParameter { Type = "string", Description = "Obrót (stopnie)." } },
@@ -183,6 +183,14 @@ namespace Bricscad_AgentAI_V2.Tools
             }
             if (trimmed.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase)) return ParseRpnDouble(trimmed.Substring(4).Trim(), def);
             if (double.TryParse(trimmed.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val)) return val;
+            
+            // Fallback for units (e.g. "500_mm") or math expressions
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"[a-zA-Z_+\-*/^]"))
+            {
+                string parsedRpn = RpnCalculator.ConvertInfixToRpn(trimmed);
+                return ParseRpnDouble(parsedRpn, def);
+            }
+            
             return def;
         }
 
@@ -195,11 +203,9 @@ namespace Bricscad_AgentAI_V2.Tools
                 var pr = ed.GetString("\n" + prompt);
                 if (pr.Status == PromptStatus.OK) res = res.Replace("AskUser", pr.StringResult);
             }
-            if (res.ToUpper().Contains("RPN:"))
+            if (res.ToUpper().Contains("MATH:") || res.ToUpper().Contains("RPN:") || res.Contains("{MATH:"))
             {
-                int idx = res.ToUpper().IndexOf("RPN:");
-                string rpnPart = res.Substring(idx + 4).Trim();
-                res = RpnCalculator.Evaluate(rpnPart);
+                res = RpnCalculator.ProcessMathTemplates(res);
             }
             return res;
         }
@@ -217,10 +223,9 @@ namespace Bricscad_AgentAI_V2.Tools
                 if (i < p.Length)
                 {
                     string component = p[i].Trim();
-                    if (component.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                    if (component.StartsWith("MATH:", StringComparison.OrdinalIgnoreCase) || component.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
                     {
-                        string rpnExpr = component.Substring(4).Trim();
-                        string rpnResult = RpnCalculator.Evaluate(rpnExpr);
+                        string rpnResult = RpnCalculator.ProcessMathTemplates(component);
 
                         // Jeśli wynik posiada jednostkę (np. "20_cm"), konwertujemy do jednostki dokumentu
                         if (System.Text.RegularExpressions.Regex.IsMatch(rpnResult, @"[a-zA-Z]"))
@@ -237,6 +242,23 @@ namespace Bricscad_AgentAI_V2.Tools
                     else if (double.TryParse(component.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                     {
                         coords[i] = val;
+                    }
+                    else if (System.Text.RegularExpressions.Regex.IsMatch(component, @"[a-zA-Z_+\-*/^]"))
+                    {
+                        string rpnExpr = RpnCalculator.ConvertInfixToRpn(component);
+                        string rpnResult = RpnCalculator.Evaluate(rpnExpr);
+
+                        // Jeśli wynik posiada jednostkę (np. "20_cm"), konwertujemy do jednostki dokumentu
+                        if (System.Text.RegularExpressions.Regex.IsMatch(rpnResult, @"[a-zA-Z]"))
+                        {
+                            string safeRpn = $"'{rpnResult}' #UNITL CONVE UVAL";
+                            rpnResult = RpnCalculator.Evaluate(safeRpn);
+                        }
+
+                        if (double.TryParse(rpnResult.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double val2))
+                        {
+                            coords[i] = val2;
+                        }
                     }
                 }
             }

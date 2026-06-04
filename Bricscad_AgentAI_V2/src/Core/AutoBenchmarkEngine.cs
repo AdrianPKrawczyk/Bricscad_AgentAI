@@ -113,6 +113,7 @@ namespace Bricscad_AgentAI_V2.Core
         // ==========================================
         public async Task<BenchmarkConfig> RunBenchmarkAsync(
             string jsonFilePath,
+            string profileName = null,
             CancellationToken ct = default,
             bool saveErrors = true)
         {
@@ -120,6 +121,10 @@ namespace Bricscad_AgentAI_V2.Core
             RunPreflightCheck();
 
             OnLogMessage?.Invoke(this, "=== START BENCHMARKU V2 ===");
+            if (!string.IsNullOrEmpty(profileName))
+            {
+                OnLogMessage?.Invoke(this, $"Aktywny profil benchmarku: {profileName}");
+            }
 
             string jsonContent = File.ReadAllText(jsonFilePath);
             BenchmarkConfig config = JsonConvert.DeserializeObject<BenchmarkConfig>(jsonContent);
@@ -160,10 +165,24 @@ namespace Bricscad_AgentAI_V2.Core
                 }
 
                 // Budowanie historii konwersacji
-                var history = new List<ChatMessage>
+                var history = new List<ChatMessage>();
+                
+                // Dodanie system promptu profilu jeśli wybrano
+                if (!string.IsNullOrEmpty(profileName))
                 {
-                    new ChatMessage { Role = "user", Content = test.UserPrompt }
-                };
+                    var profiles = ToolConfigManager.GetProfiles();
+                    if (profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
+                    {
+                        string sysPromptPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
+                        if (File.Exists(sysPromptPath))
+                        {
+                            string systemPromptContent = File.ReadAllText(sysPromptPath, System.Text.Encoding.UTF8);
+                            history.Add(new ChatMessage { Role = "system", Content = systemPromptContent });
+                        }
+                    }
+                }
+
+                history.Add(new ChatMessage { Role = "user", Content = test.UserPrompt });
                 test.RecordedToolCalls = new List<RecordedToolCall>();
                 test.FailedRulesErrors = new List<string>();
 
@@ -176,6 +195,7 @@ namespace Bricscad_AgentAI_V2.Core
                     test.SimulatedCADResponses,
                     test.RecordedToolCalls,
                     doc,
+                    profileName,
                     ct: ct);
 
                 // ⏱️ STOP STOPERA
@@ -306,45 +326,54 @@ namespace Bricscad_AgentAI_V2.Core
                             }
                             break;
 
-                        // --- Weryfikacja poprawności formuły RPN w argumencie ---
-                        case "EvaluateRPN_Argument":
-                            var callForRpn = test.RecordedToolCalls
-                                .FirstOrDefault(c => c.Arguments != null);
+                        // --- Weryfikacja poprawności formuły algebry w argumencie ---
+                        case "EvaluateMath_Argument":
+                            var callForMath = test.RecordedToolCalls
+                                .LastOrDefault(c => string.Equals(c.ToolName, "CalculateMath", StringComparison.OrdinalIgnoreCase)
+                                                 && c.Arguments != null
+                                                 && ResolveJsonPath(c.Arguments, rule.TargetArgument) != null);
 
-                            if (callForRpn == null)
+                            if (callForMath == null)
                             {
                                 rulePassed = false;
-                                ruleError = "Brak zarejestrowanych wywołań narzędzi z argumentami.";
+                                ruleError = "Brak zarejestrowanych wywołań narzędzia CalculateMath z podanym argumentem.";
                                 break;
                             }
 
-                            string rpnFormula = ResolveJsonPath(callForRpn.Arguments, rule.TargetArgument);
-                            if (string.IsNullOrEmpty(rpnFormula))
+                            string mathFormula = ResolveJsonPath(callForMath.Arguments, rule.TargetArgument);
+                            if (string.IsNullOrEmpty(mathFormula))
                             {
                                 rulePassed = false;
-                                ruleError = $"Nie znaleziono formuły RPN pod ścieżką '{rule.TargetArgument}'.";
+                                ruleError = $"Nie znaleziono formuły pod ścieżką '{rule.TargetArgument}'.";
                                 break;
                             }
+
+                            string targetUnit = ResolveJsonPath(callForMath.Arguments, "TargetUnit");
 
                             // Podstawianie MockData
                             if (rule.MockData != null)
                                 foreach (var kvp in rule.MockData)
-                                    rpnFormula = rpnFormula.Replace(kvp.Key, kvp.Value);
+                                    mathFormula = mathFormula.Replace(kvp.Key, kvp.Value);
 
                             try
                             {
-                                // V2 zarządza stosem per-Document — po prostu ewaluujemy wyrażenie
-                                string rpnResult = RpnCalculator.Evaluate(rpnFormula);
-                                if (rpnResult != rule.ExpectedOutput)
+                                string rpnFormula = RpnCalculator.ConvertInfixToRpn(mathFormula);
+                                if (!string.IsNullOrEmpty(targetUnit))
+                                {
+                                    rpnFormula += $" '{targetUnit}' CONVE";
+                                }
+
+                                string mathResult = RpnCalculator.Evaluate(rpnFormula);
+                                if (!RpnCalculator.AreValuesPhysicallyEqual(rule.ExpectedOutput, mathResult))
                                 {
                                     rulePassed = false;
-                                    ruleError = $"Błąd RPN. Oczekiwano '{rule.ExpectedOutput}', obliczono '{rpnResult}' (wzór: {rpnFormula})";
+                                    ruleError = $"Błąd obliczeń. Oczekiwano '{rule.ExpectedOutput}', obliczono '{mathResult}' (wzór: {mathFormula})";
                                 }
                             }
                             catch (Exception ex)
                             {
                                 rulePassed = false;
-                                ruleError = $"Silnik RPN odrzucił formułę: {ex.Message} (wzór: {rpnFormula})";
+                                ruleError = $"Silnik odrzucił formułę: {ex.Message} (wzór: {mathFormula})";
                             }
                             break;
 

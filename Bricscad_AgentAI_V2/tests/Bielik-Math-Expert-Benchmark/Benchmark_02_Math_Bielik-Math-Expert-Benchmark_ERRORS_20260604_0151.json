@@ -1,0 +1,59 @@
+﻿{
+  "RunMetadata": {
+    "ModelName": "Bielik-Math-Expert-Benchmark",
+    "RunDate": "2026-06-04 01:51",
+    "Comment": "Zestaw benchmarkowy zadań matematyczno-fizycznych RPN dla CadMathProfile.",
+    "GlobalScore": 80.0,
+    "CategoriesScores": {
+      "Math": 66.67,
+      "Physics": 100.0
+    },
+    "AverageExecutionTimeMs": 3414.0
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "Math",
+      "Difficulty": 1,
+      "TestName": "Circle_Area_100mm",
+      "Description": "Obliczenie pola powierzchni koła o średnicy 100 mm z konwersją do mm2.",
+      "UserPrompt": "Oblicz pole powierzchni koła o średnicy 100 mm. Podaj wynik w mm2.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CalculateMath": "WYNIK (CalculateMath): 7853.981634_mm2"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CalculateMath",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BŁĄD: Model nie wywołał narzędzia CalculateMath."
+        },
+        {
+          "RuleType": "EvaluateMath_Argument",
+          "TargetValue": null,
+          "TargetArgument": "Expression",
+          "MockData": null,
+          "ExpectedOutput": "7853.981634_mm2",
+          "ErrorMessage": "BŁĄD: Wyrażenie nie oblicza poprawnego pola koła (oczekiwano 7853.981634_mm2)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CalculateMath",
+          "Arguments": {
+            "Expression": "(100 / 2)^2 * #PI",
+            "TargetUnit": "mm2"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "Błąd obliczeń. Oczekiwano '7853.981634_mm2', obliczono '7853981633.97448_mm2' (wzór: (100 / 2)^2 * #PI)"
+      ],
+      "ExecutionTimeMs": 2956
+    }
+  ]
+}

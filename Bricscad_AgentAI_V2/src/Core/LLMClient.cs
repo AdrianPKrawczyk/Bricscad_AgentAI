@@ -396,6 +396,7 @@ namespace Bricscad_AgentAI_V2.Core
             Dictionary<string, string> simulatedResponses,
             List<RecordedToolCall> recordedCalls,
             Document doc,
+            string profileName = null,
             int maxIterations = 10,
             CancellationToken ct = default)
         {
@@ -408,12 +409,23 @@ namespace Bricscad_AgentAI_V2.Core
                 iterations++;
 
                 var config = LLMConfigManager.GetActiveProvider();
+                
+                List<ToolDefinition> toolsPayload;
+                if (!string.IsNullOrEmpty(profileName))
+                {
+                    toolsPayload = _orchestrator.GetToolsPayloadForProfile(profileName);
+                }
+                else
+                {
+                    toolsPayload = _orchestrator.GetToolsPayload(new[] { "#all" });
+                }
+
                 // 1. Buduj i wyślij payload do prawdziwego LLM
                 var requestPayload = new Dictionary<string, object>
                 {
                     { "model", config.ModelName },
                     { "messages", history },
-                    { "tools", _orchestrator.GetToolsPayload(new[] { "#all" }) },
+                    { "tools", toolsPayload },
                     { "tool_choice", "auto" },
                     { "temperature", config.Temperature },
                     { "max_tokens", config.MaxTokens }
@@ -498,10 +510,29 @@ namespace Bricscad_AgentAI_V2.Core
                     recordedCalls.Add(new RecordedToolCall { ToolName = toolName, Arguments = arguments });
                     OnStatusUpdate?.Invoke($"[Benchmark] Przechwycono wywołanie: {toolName}");
 
-                    // Szukamy mockowanej odpowiedzi – jeśli brak, zwracamy domyślny string
+                    // Szukamy mockowanej odpowiedzi lub wykonujemy realne narzędzia matematyczno-pomocnicze
                     string mockContent;
-                    if (!simulatedResponses.TryGetValue(toolName, out mockContent))
-                        mockContent = $"[MOCK] Narzędzie '{toolName}' zostało wywołane.";
+                    if (string.Equals(toolName, "CalculateRpn", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(toolName, "ReadFromBlackboard", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(toolName, "WriteToBlackboard", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            var context = new CadExecutionContext(doc);
+                            mockContent = _orchestrator.ExecuteTool(toolName, arguments, context);
+                            OnStatusUpdate?.Invoke($"[Benchmark] Wykonano realne narzędzie {toolName} -> Wynik: {mockContent}");
+                        }
+                        catch (Exception ex)
+                        {
+                            mockContent = $"BŁĄD REALNEGO WYKONANIA ({toolName}): {ex.Message}";
+                            OnStatusUpdate?.Invoke($"[Benchmark] {mockContent}");
+                        }
+                    }
+                    else
+                    {
+                        if (!simulatedResponses.TryGetValue(toolName, out mockContent))
+                            mockContent = $"[MOCK] Narzędzie '{toolName}' zostało wywołane.";
+                    }
 
                     // 4. Wstrzykujemy odpowiedź jako wiadomość roli "tool" (standard OpenAI)
                     history.Add(new ChatMessage

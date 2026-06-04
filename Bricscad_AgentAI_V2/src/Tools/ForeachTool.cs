@@ -68,7 +68,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Action", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Szablon JSON wywołania narzędzia. Domyślnie wywołuje CreateObject. Aby wywołać inne narzędzie, dodaj 'ToolName'. Możesz łączyć tagi {index}/{item} z ewaluacją RPN!\nPRZYKŁAD 1 (Teksty i RPN): '{\"EntityType\": \"DBText\", \"Position\": \"{item}\", \"Text\": \"RPN: \\'Poziom +\\' {index} 50 * CONCAT\"}'\nPRZYKŁAD 2 (Tworzenie wielu warstw): '{\"ToolName\": \"ManageLayers\", \"Action\": \"Create\", \"LayerName\": \"KONDYGNACJA_{index}\", \"ColorIndex\": \"RPN: {index} 10 *\"}'"
+                                    Description = "Szablon JSON wywołania narzędzia. Domyślnie wywołuje CreateObject. Aby wywołać inne narzędzie, dodaj 'ToolName'. Możesz łączyć tagi {index}/{item} z ewaluacją matematyki używając {MATH: wyrażenie}!\nPRZYKŁAD 1 (Teksty i Math): '{\"EntityType\": \"DBText\", \"Position\": \"{item}\", \"Text\": \"Poziom: {MATH: {index} * 50}\"}'\nPRZYKŁAD 2 (Tworzenie wielu warstw): '{\"ToolName\": \"ManageLayers\", \"Action\": \"Create\", \"LayerName\": \"KONDYGNACJA_{index}\", \"ColorIndex\": \"{MATH: {index} * 10}\"}'"
                                 }
                             }
                         }
@@ -151,19 +151,17 @@ namespace Bricscad_AgentAI_V2.Tools
                             if (property.Value.Type == JTokenType.String)
                             {
                                 string valStr = property.Value.ToString();
-                                if (valStr.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                                string evaluated = RpnCalculator.ProcessMathTemplates(valStr);
+                                
+                                if (evaluated != valStr)
                                 {
-                                    string rpnExpr = valStr.Substring(4).Trim();
-                                    string evaluated = RpnCalculator.Evaluate(rpnExpr);
-                                    
                                     if (!evaluated.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        // Podmiana surowego stringa na wyliczony wynik
                                         toolArgs[property.Name] = evaluated;
                                     }
                                     else
                                     {
-                                        errors.Add($"Błąd RPN w iteracji {loopIndex} dla '{property.Name}': {evaluated}");
+                                        errors.Add($"Błąd MATH w iteracji {loopIndex} dla '{property.Name}': {evaluated}");
                                     }
                                 }
                             }

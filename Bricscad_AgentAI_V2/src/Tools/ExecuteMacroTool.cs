@@ -35,7 +35,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         Properties = new Dictionary<string, ToolParameter>
                         {
                             { "MacroName", new ToolParameter { Type = "string", Description = "Nazwa makra do uruchomienia (np. 'CleanDrawings', 'ResetLayers', 'ZoomExtents')." } },
-                            { "CustomCommand", new ToolParameter { Type = "string", Description = "Opcjonalnie: własna komenda LISP lub CAD do wykonania, jeśli MacroName nie jest znane." } }
+                            { "CustomCommand", new ToolParameter { Type = "string", Description = "Opcjonalnie: własna komenda LISP, MATH lub CAD do wykonania, jeśli MacroName nie jest znane." } }
                         },
                         Required = new List<string> { }
                     }
@@ -67,12 +67,11 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
-                if (toExecute.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
+                if (toExecute.StartsWith("MATH:", StringComparison.OrdinalIgnoreCase) || toExecute.StartsWith("RPN:", StringComparison.OrdinalIgnoreCase))
                 {
-                    string rpnExpr = toExecute.Substring(4).Trim();
-                    string evaluated = RpnCalculator.Evaluate(rpnExpr, null, null, doc.Editor);
+                    string evaluated = RpnCalculator.ProcessMathTemplates(toExecute);
                     doc.SendStringToExecute(evaluated + "\n", true, false, false);
-                    return $"SUKCES: Wykonano RPN i wysłano wynik: {evaluated}";
+                    return $"SUKCES: Wykonano matematykę i wysłano wynik: {evaluated}";
                 }
                 else if (toExecute.StartsWith("LISP:", StringComparison.OrdinalIgnoreCase))
                 {

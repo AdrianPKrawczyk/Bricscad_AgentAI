@@ -22,6 +22,7 @@ namespace Bricscad_AgentAI_V2.UI
 
         // Kontrolki UI
         private Button btnLoadJson, btnStart, btnStop, btnSendToChat;
+        private ComboBox cbProfiles;
         private DataGridView dgvTests;
         private RichTextBox txtLogs, txtDetails, txtTaskDesc, txtErrorLog;
         private ProgressBar progressBar;
@@ -50,6 +51,31 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Pasek górny (Przyciski)
             Panel panTop = new Panel { Dock = DockStyle.Top, Height = 50, Padding = new Padding(5) };
+            
+            Label lblProfile = new Label { Text = "Profil:", ForeColor = Color.White, Dock = DockStyle.Left, Width = 50, TextAlign = ContentAlignment.MiddleLeft };
+            cbProfiles = new ComboBox
+            {
+                Dock = DockStyle.Left,
+                Width = 200,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cbProfiles.Items.Add("(Brak profilu - wszystkie narzędzia)");
+            try
+            {
+                foreach (var p in ToolConfigManager.GetProfiles().Keys)
+                {
+                    cbProfiles.Items.Add(p);
+                }
+            }
+            catch { }
+            cbProfiles.SelectedIndex = 0;
+
+            panTop.Controls.Add(cbProfiles);
+            panTop.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
+            panTop.Controls.Add(lblProfile);
             
             btnLoadJson = CreateStyledButton("📂 Wczytaj JSON", Color.FromArgb(60, 60, 60));
             btnLoadJson.Click += BtnLoadJson_Click;
@@ -270,12 +296,19 @@ namespace Bricscad_AgentAI_V2.UI
             btnStart.Enabled = false;
             btnLoadJson.Enabled = false;
             btnStop.Enabled = true;
+            cbProfiles.Enabled = false;
             
             _cts = new CancellationTokenSource();
             progressBar.Maximum = _currentConfig.Tests.Count;
             progressBar.Value = 0;
 
             string filePath = this.Tag.ToString();
+            string selectedProfile = null;
+            if (cbProfiles.SelectedIndex > 0)
+            {
+                selectedProfile = cbProfiles.SelectedItem.ToString();
+            }
+
             txtLogs.Clear();
             txtLogs.AppendText($"[{DateTime.Now:HH:mm:ss}] URUCHAMIAM BENCHMARK V2...\n");
 
@@ -284,7 +317,7 @@ namespace Bricscad_AgentAI_V2.UI
                 // Uruchomienie w wątku tła, aby UI pozostało responsywne
                 _ = await Task.Run(async () =>
                 {
-                    return await _engine.RunBenchmarkAsync(filePath, _cts.Token);
+                    return await _engine.RunBenchmarkAsync(filePath, selectedProfile, _cts.Token);
                 });
             }
             catch (Exception ex)
@@ -320,6 +353,7 @@ namespace Bricscad_AgentAI_V2.UI
             btnLoadJson.Enabled = true;
             btnStop.Enabled = false;
             btnStop.Text = "⏹ Stop";
+            cbProfiles.Enabled = true;
             
             if (_cts != null)
             {

@@ -111,7 +111,11 @@ namespace Bricscad_AgentAI_V2.Core
                     try
                     {
                         string currentText = File.ReadAllText(supervisorPromptPath);
-                        if (!currentText.Contains("CadGeometryProfile") || !currentText.Contains("LUŹNA ROZMOWA") || !currentText.Contains("CadMathProfile"))
+                        if (!currentText.Contains("CadGeometryProfile") || 
+                            !currentText.Contains("LUŹNA ROZMOWA") || 
+                            !currentText.Contains("CadMathProfile") ||
+                            !currentText.Contains("Profile NIE są narzędziami") ||
+                            !currentText.Contains("OBLICZENIA MATEMATYCZNE, FIZYCZNE"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -135,6 +139,7 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - Nie wykonuj ich samodzielnie. MUSISZ natychmiast wydelegować zadanie do odpowiedniego eksperta za pomocą narzędzia DelegateTask.\n" +
                         "   - Przed wywołaniem DelegateTask nie pisz żadnego tekstu objaśniającego ani zapowiadającego.\n" +
                         "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n\n" +
+                        "UWAGA KRYTYCZNA: Profile NIE są narzędziami! Nigdy nie wywołuj nazwy profilu (np. CadMathProfile, CadGeometryProfile) jako nazwy funkcji w tool_calls. Jedynym narzędziem do delegowania jest DelegateTask, w którym podajesz TargetProfile jako parametr. Wywołanie profilu bezpośrednio jako funkcji spowoduje błąd krytyczny i nie zostanie wykonane!\n\n" +
                         "Dostępne profile ekspertów do zadań (wybierz najbardziej optymalny):\n" +
                         "- CadGeometryProfile: ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
                         "- CadBlocksProfile: ekspert od bloków i atrybutów (tworzenie bloków, wstawianie, listowanie, edycja atrybutów bloku).\n" +
@@ -164,7 +169,11 @@ namespace Bricscad_AgentAI_V2.Core
                     try
                     {
                         string currentText = File.ReadAllText(mathPromptPath);
-                        if (!currentText.Contains("WZORY I PRZYKŁADY RPN"))
+                        if (!currentText.Contains("WZORY I PRZYKŁADY RPN") || 
+                            !currentText.Contains("Częsty błąd przy ułamkach") || 
+                            !currentText.Contains("UNIKAJ DANGLED STACK") ||
+                            !currentText.Contains("Wyrażenie RPN z konwersją do cm3") ||
+                            !currentText.Contains("Objętość rury/walca"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -176,34 +185,36 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     string defaultMathPrompt =
                         "Jesteś ekspert-analitykiem i kalkulatorem systemu Bielik V2 (CadMathProfile).\n" +
-                        "Twoim jedynym zadaniem jest wykonywanie precyzyjnych obliczeń inżynieryjnych, fizycznych i geometrycznych przy użyciu narzędzia CalculateRpn.\n\n" +
-                        "ZASADY ODWRÓCONEJ NOTACJI POLSKIEJ (RPN) W SILNIKU BIELIK:\n" +
-                        "1. RPN działa na stosie. Liczby i wartości z jednostkami są odkładane na stos, a operatory pobierają je od końca (LIFO).\n" +
-                        "2. Format zapisu wartości: `wartość_jednostka` (np. `10_m`, `5_cm`, `11.34_g/cm3`, `5.94_kg`). Znak '_' łączy wartość z jednostką.\n" +
+                        "Twoim jedynym zadaniem jest wykonywanie precyzyjnych obliczeń inżynieryjnych, fizycznych i geometrycznych przy użyciu narzędzia CalculateMath.\n\n" +
+                        "ZASADY NOTACJI ALGEBRAICZNEJ Z JEDNOSTKAMI:\n" +
+                        "1. Zapisuj wyrażenia w sposób naturalny, zawsze oddzielając operatory spacjami, np. `( 10_cm / 2 ) ^ 2`.\n" +
+                        "2. Format zapisu wartości: `wartość_jednostka` (np. `100_mm`, `10_m`, `5_cm`, `11.34_g/cm3`, `5.94_kg`). Znak '_' łączy wartość z jednostką.\n" +
+                        "   - KRYTYCZNE: ZAWSZE dodawaj jednostkę nawet do podstawowych danych wejściowych! Jeśli napiszesz `100` zamiast `100_mm`, system błędnie założy, że to metry!\n" +
                         "3. Podstawowe operatory: `+`, `-`, `*`, `/`, `^`.\n" +
-                        "   - Potęgowanie kwadratu: `wartość 2 ^` (np. `50_mm 2 ^` da `2500_mm2`).\n" +
-                        "   - Potęgowanie sześcianu: `wartość 3 ^` (np. `5_cm 3 ^` da `125_cm3`).\n" +
+                        "   - Zawsze pamiętaj o kolejności działań i nawiasach.\n" +
+                        "   - Aby podnieść do kwadratu, użyj np. `50_mm ^ 2`.\n" +
                         "4. Stałe:\n" +
                         "   - `#PI` (pi wynosi ok. 3.141592)\n" +
                         "   - `#G` (przyspieszenie ziemskie wynosi ok. 9.81_m/s2)\n" +
-                        "5. Komendy konwersji i skalowania jednostek:\n" +
-                        "   - `CONVE` przelicza jednostkę na inną zgodną wymiarowo. Składnia: `wartość 'jednostka_docelowa' CONVE` (np. `10_m 'cm' CONVE` da `1000_cm`). Zawsze podawaj jednostkę docelową w pojedynczych cudzysłowach!\n\n" +
+                        "5. Konwersja jednostek:\n" +
+                        "   - Używaj parametru `TargetUnit` w narzędziu `CalculateMath`, np. `TargetUnit='cm3'`, zamiast wpisywać konwersje ręcznie.\n\n" +
                         "STRATEGIA ROZWIĄZYWANIA ZADAŃ:\n" +
-                        "- ZABRANIA SIĘ wykonywania złożonych obliczeń we własnej pamięci LLM, aby zapobiec czeskim błędom. Zamiast tego ZAWSZE używaj narzędzia CalculateRpn.\n" +
-                        "- Dziel duże zadania na pojedyncze, logiczne kroki (osobne wywołania narzędzia CalculateRpn) zamiast tworzyć jedno ogromne, skomplikowane wyrażenie.\n" +
-                        "- Zapisuj cząstkowe wyniki przy użyciu parametru `SaveAs` (np. `SaveAs='Promien'`, `SaveAs='Masa'`), a potem odwołuj się do nich w kolejnych krokach za pomocą `@zmienna` (np. `@Promien 2 ^ #PI *`).\n\n" +
-                        "WZORY I PRZYKŁADY RPN:\n\n" +
-                        "1. Pole koła (P = pi * r^2 dla średnicy d = 100 mm):\n" +
-                        "   - Krok 1 (promień): `100_mm 2 /` (zapisz jako `Promien` -> SaveAs='Promien')\n" +
-                        "   - Krok 2 (pole): `@Promien 2 ^ #PI *` (zapisz jako `Pole` -> SaveAs='Pole')\n" +
-                        "   - Krok 3 (prezentacja wyniku): przedstaw obliczenia i wynik użytkownikowi.\n\n" +
+                        "- ZABRANIA SIĘ wykonywania złożonych obliczeń we własnej pamięci LLM, aby zapobiec czeskim błędom. Zamiast tego ZAWSZE używaj narzędzia CalculateMath.\n" +
+                        "- Dziel duże zadania na pojedyncze, logiczne kroki (osobne wywołania narzędzia CalculateMath) zamiast tworzyć jedno ogromne, skomplikowane wyrażenie.\n" +
+                        "- Zapisuj cząstkowe wyniki przy użyciu parametru `SaveAs` (np. `SaveAs='Promien'`, `SaveAs='Masa'`), a potem odwołuj się do nich w kolejnych krokach za pomocą `@zmienna` (np. `@Promien ^ 2 * #PI`).\n\n" +
+                        "WZORY I PRZYKŁADY:\n\n" +
+                        "1. Pole koła (P = pi * r^2 dla d = 100 mm):\n" +
+                        "   - Krok 1 (promień): `100_mm / 2` (zapisz jako `Promien` -> SaveAs='Promien')\n" +
+                        "   - Krok 2 (pole w mm2): `@Promien ^ 2 * #PI` (TargetUnit='mm2' -> SaveAs='Pole')\n\n" +
                         "2. Objętość kuli (V = 4/3 * pi * r^3 dla średnicy 10 cm => r = 5 cm):\n" +
-                        "   - Wyrażenie RPN: `5_cm 3 ^ #PI * 4 * 3 /` (wynik: `523.598776_cm3`)\n\n" +
+                        "   - `( 4 / 3 ) * #PI * ( 5_cm ^ 3 )` (TargetUnit='cm3')\n\n" +
                         "3. Masa kuli z ołowiu (gęstość = 11.34 g/cm3, V = 523.6 cm3):\n" +
-                        "   - Krok 1 (obliczenie masy w gramach): `523.598776_cm3 11.34_g/cm3 *` (wynik: `5937.609_g` -> SaveAs='MasaG')\n" +
-                        "   - Krok 2 (przeliczenie na kg): `@MasaG 'kg' CONVE` (wynik: `5.937609_kg` -> SaveAs='MasaKg')\n\n" +
+                        "   - `523.598776_cm3 * 11.34_g/cm3` (TargetUnit='kg' -> SaveAs='MasaKg')\n\n" +
                         "4. Energia kinetyczna/potencjalna (Ek = Ep = mgh dla m = 5.94 kg i h = 10 m):\n" +
-                        "   - Wyrażenie RPN: `5.937609_kg #G * 10_m *` (wynik: `582.4794_J` - jednostka dżuli J zostanie przypisana automatycznie!)";
+                        "   - `5.937609_kg * #G * 10_m` (jednostka J zostanie przypisana automatycznie!)\n\n" +
+                        "5. Objętość rury/walca (V = pi * r^2 * h dla wewn. 10 cm i dł. 11 m):\n" +
+                        "   - Krok 1 (promień): `10_cm / 2` (zapisz jako `Promien` -> SaveAs='Promien')\n" +
+                        "   - Krok 2 (objętość w litrach): `@Promien ^ 2 * #PI * 11_m` (TargetUnit='L' -> SaveAs='ObjetoscLitry')";
                     File.WriteAllText(mathPromptPath, defaultMathPrompt, System.Text.Encoding.UTF8);
                 }
             }
@@ -334,7 +345,7 @@ namespace Bricscad_AgentAI_V2.Core
                 mathProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = "system_prompt_math.txt", 
-                    AllowedTools = new List<string> { "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
+                    AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
                     AllowedTags = new List<string> { "#math", "#obliczenia" }
                 };
                 _config.Profiles["CadMathProfile"] = mathProf;
@@ -411,7 +422,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["CadMathProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_math.txt",
-                AllowedTools = new List<string> { "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
+                AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
                 AllowedTags = new List<string> { "#math", "#obliczenia" }
             };
 
