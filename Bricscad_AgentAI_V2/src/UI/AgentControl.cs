@@ -100,6 +100,14 @@ namespace Bricscad_AgentAI_V2.UI
             _llmClient.OnToolCallLogged += AppendToolLog;
             _llmClient.OnStatsUpdate += (stats) => UpdateStatsHUD(stats);
 
+            // Subskrypcja telemetrii od odłączonych narzędzi roboczych (np. DelegateTaskTool)
+            AgentTelemetry.OnStatusUpdated += UpdateStatusHUD;
+            AgentTelemetry.OnToolLogged += AppendToolLog;
+            AgentTelemetry.OnStatsUpdated += (stats) => UpdateStatsHUD(stats);
+            AgentTelemetry.OnDatasetRecordAdded += (s, e) => {
+                datasetStudio?.AddSessionRecord(e.Title, e.HistorySnapshot, e.ToolsSnapshot, e.Stats);
+            };
+
             _benchmarkEngine = new AutoBenchmarkEngine(_llmClient);
 
             RebuildSystemPrompt();

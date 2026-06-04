@@ -73,6 +73,7 @@
     <Compile Include="src\Core\LLMConfigManager.cs" />
     <Compile Include="src\Core\AgentStartup.cs" />
     <Compile Include="src\Core\AgentMemoryState.cs" />
+    <Compile Include="src\Core\AgentTelemetry.cs" />
     <Compile Include="src\Core\PropertyValidator.cs" />
     <Compile Include="src\Core\RpnCalculator.cs" />
     <Compile Include="src\Core\BenchmarkModels.cs" />

@@ -66,10 +66,11 @@ namespace Bricscad_AgentAI_V2.Tools
             if (blackboardState.Count > 0)
             {
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("=== PAMIĘĆ WSPÓŁDZIELONA (BLACKBOARD) ===");
+                sb.AppendLine("=== DOSTĘPNE ZMIENNE W PAMIĘCI (BLACKBOARD) ===");
+                sb.AppendLine("Użyj odpowiedniego narzędzia (np. ReadFromBlackboardTool) lub wstrzykiwania zmiennych ($KLUCZ), aby odczytać pełne wartości.");
                 foreach (var kvp in blackboardState)
                 {
-                    sb.AppendLine($"- {kvp.Key}: {kvp.Value}");
+                    sb.AppendLine($"- {kvp.Key} (Długość: {kvp.Value?.Length ?? 0} znaków)");
                 }
                 localHistory.Add(new ChatMessage { Role = "system", Content = sb.ToString() });
             }
@@ -79,35 +80,36 @@ namespace Bricscad_AgentAI_V2.Tools
             
             client.OnStatusUpdate += (msg) => {
                 System.Diagnostics.Debug.WriteLine($"[{targetProfile}] {msg}");
-                Bricscad_AgentAI_V2.UI.AgentControl.Instance?.UpdateStatusHUD($"[{targetProfile}] {msg}");
+                AgentTelemetry.ReportStatus($"[{targetProfile}] {msg}");
             };
             client.OnToolCallLogged += (log) => {
-                Bricscad_AgentAI_V2.UI.AgentControl.Instance?.AppendToolLog($"--- [{targetProfile}] ---\n{log}");
+                AgentTelemetry.ReportToolLog($"--- [{targetProfile}] ---\n{log}");
             };
             client.OnStatsUpdate += (stats) => {
-                // Opcjonalnie możemy agregować statystyki, na razie przekazujemy
-                Bricscad_AgentAI_V2.UI.AgentControl.Instance?.UpdateStatsHUD(stats);
+                AgentTelemetry.ReportStats(stats);
             };
 
             var context = new CadExecutionContext(doc);
 
             try
             {
-                // Musimy zablokować wątek i poczekać na wynik z eksperta
-                AgentExecutionResult result = client.SendMessageReActAsync(
-                    conversationHistory: localHistory, 
-                    context: context, 
-                    initialTags: null, 
-                    earlyExitEnabled: true, 
-                    maxIterations: 10, 
-                    profileName: targetProfile).GetAwaiter().GetResult();
+                // Musimy zablokować wątek i poczekać na wynik z eksperta, chroniąc główny wątek przed Deadlockiem
+                AgentExecutionResult result = Task.Run(async () => {
+                    return await client.SendMessageReActAsync(
+                        conversationHistory: localHistory, 
+                        context: context, 
+                        initialTags: null, 
+                        earlyExitEnabled: true, 
+                        maxIterations: 10, 
+                        profileName: targetProfile);
+                }).GetAwaiter().GetResult();
 
                 // --- DATASET STUDIO INTEGRATION FOR WORKER ---
                 try
                 {
                     var historySnapshot = new List<ChatMessage>(localHistory);
                     var toolsSnapshot = ToolOrchestrator.Instance.GetToolsPayloadForProfile(targetProfile);
-                    Bricscad_AgentAI_V2.UI.AgentControl.Instance?.DatasetStudio.AddSessionRecord(
+                    AgentTelemetry.ReportDatasetRecord(
                         $"[{targetProfile}] {taskDescription}", 
                         historySnapshot, 
                         toolsSnapshot, 

@@ -224,7 +224,7 @@ namespace Bricscad_AgentAI_V2.Core
                         }
 
                         // Przekazanie kontekstu do doca (tymczasowy most dla ToolOrchestrator, który wymaga Doc)
-                        toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, context);
+                        toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, context, profileName);
 
                         // Jeśli wynik zawiera błąd, nie możemy zrobić Early Exit
                         if (toolExecutionResult.ToLower().Contains("błąd") || toolExecutionResult.ToLower().Contains("error"))

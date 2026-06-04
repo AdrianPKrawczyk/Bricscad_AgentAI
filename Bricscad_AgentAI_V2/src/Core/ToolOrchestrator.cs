@@ -141,8 +141,16 @@ namespace Bricscad_AgentAI_V2.Core
             return new List<ToolDefinition>();
         }
 
-        public string ExecuteTool(string toolName, JObject arguments, IExecutionContext context)
+        public string ExecuteTool(string toolName, JObject arguments, IExecutionContext context, string callerProfile = "SupervisorProfile")
         {
+            // OCHRONA PRZED INFINITE LOOP (Agent Inception)
+            if (toolName.Equals("DelegateTask", StringComparison.OrdinalIgnoreCase) && 
+                !callerProfile.Equals("SupervisorProfile", StringComparison.OrdinalIgnoreCase))
+            {
+                BielikLogger.LogWarn($"[TOOL WARN] Próba uruchomienia DelegateTask przez profil '{callerProfile}'.");
+                return "BŁĄD KRYTYCZNY (ZABEZPIECZENIE ARCHITEKTONICZNE): Tylko główny profil 'SupervisorProfile' ma uprawnienia do delegowania zadań. Nie możesz używać tego narzędzia.";
+            }
+
             if (!_tools.TryGetValue(toolName, out var tool))
             {
                 BielikLogger.LogWarn($"[TOOL WARN] Próba wywołania uśpionego narzędzia: {toolName}");
