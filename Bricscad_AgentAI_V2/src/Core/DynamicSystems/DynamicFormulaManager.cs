@@ -14,6 +14,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
     public class ScriptGlobals
     {
         public Dictionary<string, string> Inputs { get; set; } = new Dictionary<string, string>();
+        public IDatasetProvider Data { get; set; }
     }
 
     public class DynamicFormulaManager
@@ -48,8 +49,8 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             var files = Directory.GetFiles(formulasPath, "*.csx");
             
             var options = ScriptOptions.Default
-                .WithReferences(typeof(UnitsNet.Length).Assembly)
-                .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet", "System.Globalization");
+                .WithReferences(typeof(UnitsNet.Length).Assembly, typeof(Newtonsoft.Json.Linq.JObject).Assembly)
+                .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet", "System.Globalization", "Newtonsoft.Json.Linq");
 
             foreach (var file in files)
             {
@@ -92,7 +93,11 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
                 throw new KeyNotFoundException($"Nie znaleziono skompilowanej formuły o ID: {id}");
             }
 
-            var globals = new ScriptGlobals { Inputs = inputs ?? new Dictionary<string, string>() };
+            var globals = new ScriptGlobals 
+            { 
+                Inputs = inputs ?? new Dictionary<string, string>(),
+                Data = new DatasetManager() 
+            };
             
             try
             {
@@ -141,8 +146,8 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
         public static void SaveFormula(string id, string code, string jsonMetadata)
         {
             var options = ScriptOptions.Default
-                .WithReferences(typeof(UnitsNet.Length).Assembly)
-                .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet", "System.Globalization");
+                .WithReferences(typeof(UnitsNet.Length).Assembly, typeof(Newtonsoft.Json.Linq.JObject).Assembly)
+                .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet", "System.Globalization", "Newtonsoft.Json.Linq");
 
             var script = CSharpScript.Create<string>(code, options, globalsType: typeof(ScriptGlobals));
             var diagnostics = script.Compile();

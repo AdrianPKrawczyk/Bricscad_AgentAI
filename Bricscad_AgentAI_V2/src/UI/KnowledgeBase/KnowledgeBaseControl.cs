@@ -8,6 +8,8 @@ using Bricscad_AgentAI_V2.Models;
 using Bricscad_AgentAI_V2.Core;
 using System.IO;
 using Newtonsoft.Json;
+using System.Data;
+using Newtonsoft.Json.Linq;
 
 namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 {
@@ -16,6 +18,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private TabControl mainTabControl;
         private TabPage tabPageFormulas;
         private TabPage tabPageMacros;
+        private TabPage tabPageDatasets;
 
         // --- Formulas ---
         private ListBox lstFormulas;
@@ -33,6 +36,11 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private Button btnAddMacro;
         private Button btnDeleteMacro;
         private Button btnSaveMacro;
+
+        // --- Datasets ---
+        private ListBox lstDatasets;
+        private DataGridView dgvDataset;
+        private Button btnSaveDataset;
 
         public KnowledgeBaseControl()
         {
@@ -139,8 +147,41 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageMacros.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
             tabPageMacros.Controls.Add(pnlMacrosLeft);
 
+            // =========================
+            // Zakładka: Bazy Danych (Katalogi)
+            // =========================
+            tabPageDatasets = new TabPage("🗄️ Bazy Danych (Katalogi)");
+
+            Panel pnlDatasetsLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
+            lstDatasets = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
+            lstDatasets.SelectedIndexChanged += LstDatasets_SelectedIndexChanged;
+
+            pnlDatasetsLeft.Controls.Add(lstDatasets);
+
+            Panel pnlDatasetsRight = new Panel { Dock = DockStyle.Fill };
+            dgvDataset = new DataGridView 
+            { 
+                Dock = DockStyle.Fill, 
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.Black
+            };
+            
+            Panel pnlDatasetsRightBtns = new Panel { Dock = DockStyle.Bottom, Height = 40 };
+            btnSaveDataset = new Button { Text = "💾 Zapisz Zmiany w Bazie", Dock = DockStyle.Right, Width = 200, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnSaveDataset.Click += BtnSaveDataset_Click;
+            pnlDatasetsRightBtns.Controls.Add(btnSaveDataset);
+
+            pnlDatasetsRight.Controls.Add(dgvDataset);
+            pnlDatasetsRight.Controls.Add(pnlDatasetsRightBtns);
+
+            tabPageDatasets.Controls.Add(pnlDatasetsRight);
+            tabPageDatasets.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
+            tabPageDatasets.Controls.Add(pnlDatasetsLeft);
+
             mainTabControl.TabPages.Add(tabPageFormulas);
             mainTabControl.TabPages.Add(tabPageMacros);
+            mainTabControl.TabPages.Add(tabPageDatasets);
             this.Controls.Add(mainTabControl);
         }
 
@@ -154,6 +195,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             this.BackColor = panelBg;
             tabPageFormulas.BackColor = panelBg;
             tabPageMacros.BackColor = panelBg;
+            tabPageDatasets.BackColor = panelBg;
 
             lstFormulas.BackColor = bgDark; lstFormulas.ForeColor = fgLight;
             rtbFormulaMetadata.BackColor = bgDark; rtbFormulaMetadata.ForeColor = Color.Orange;
@@ -161,6 +203,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
             lstMacros.BackColor = bgDark; lstMacros.ForeColor = fgLight;
             rtbMacroJson.BackColor = bgDark; rtbMacroJson.ForeColor = Color.Cyan;
+
+            lstDatasets.BackColor = bgDark; lstDatasets.ForeColor = fgLight;
 
             btnReloadFormulas.BackColor = btnBg; btnReloadFormulas.ForeColor = Color.White; btnReloadFormulas.FlatAppearance.BorderSize = 0;
             btnExecuteMacro.BackColor = Color.SeaGreen; btnExecuteMacro.ForeColor = Color.White; btnExecuteMacro.FlatAppearance.BorderSize = 0;
@@ -172,6 +216,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnAddMacro.BackColor = panelBg; btnAddMacro.ForeColor = Color.White;
             btnDeleteMacro.BackColor = Color.Brown; btnDeleteMacro.ForeColor = Color.White;
             btnSaveMacro.BackColor = btnBg; btnSaveMacro.ForeColor = Color.White;
+
+            btnSaveDataset.BackColor = btnBg; btnSaveDataset.ForeColor = Color.White;
         }
 
         public void LoadData()
@@ -192,6 +238,11 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             var macros = MacroManager.GetAvailableMacros();
             foreach (var m in macros) lstMacros.Items.Add(m);
             rtbMacroJson.Clear();
+
+            lstDatasets.Items.Clear();
+            var datasets = DatasetManager.GetAvailableDatasets();
+            foreach (var d in datasets) lstDatasets.Items.Add(d);
+            dgvDataset.DataSource = null;
         }
 
         private void BtnReloadFormulas_Click(object sender, EventArgs e)
@@ -233,6 +284,28 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             
             if (File.Exists(filePath)) rtbMacroJson.Text = File.ReadAllText(filePath);
             else rtbMacroJson.Text = $"// Plik {filePath} nie istnieje.";
+        }
+
+        private void LstDatasets_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lstDatasets.SelectedItem == null) { dgvDataset.DataSource = null; return; }
+            string datasetName = lstDatasets.SelectedItem.ToString();
+            string datasetsPath = AppPaths.GetDatasetsPath();
+            string filePath = Path.Combine(datasetsPath, $"{datasetName}.json");
+            
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(filePath);
+                    DataTable dt = JsonConvert.DeserializeObject<DataTable>(json);
+                    dgvDataset.DataSource = dt;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd odczytu bazy: {ex.Message}");
+                }
+            }
         }
 
         private void BtnAddFormula_Click(object sender, EventArgs e)
@@ -340,6 +413,25 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             catch (Exception ex)
             {
                 MessageBox.Show($"BŁĄD JSON:\n{ex.Message}", "Błąd Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnSaveDataset_Click(object sender, EventArgs e)
+        {
+            if (lstDatasets.SelectedItem == null) return;
+            string datasetName = lstDatasets.SelectedItem.ToString();
+            try
+            {
+                if (dgvDataset.DataSource is DataTable dt)
+                {
+                    string json = JsonConvert.SerializeObject(dt, Formatting.Indented);
+                    DatasetManager.SaveDataset(datasetName, json);
+                    MessageBox.Show("Baza została zapisana i uaktualniona.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu bazy: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

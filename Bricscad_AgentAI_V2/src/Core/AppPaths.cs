@@ -29,6 +29,11 @@ namespace Bricscad_AgentAI_V2.Core
         {
             return Path.Combine(GetCustomKnowledgePath(), "Macros");
         }
+
+        public static string GetDatasetsPath()
+        {
+            return Path.Combine(GetCustomKnowledgePath(), "Datasets");
+        }
         
         public static void EnsureDirectoriesExist()
         {
@@ -41,6 +46,11 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(macros))
             {
                 Directory.CreateDirectory(macros);
+            }
+            string datasets = GetDatasetsPath();
+            if (!Directory.Exists(datasets))
+            {
+                Directory.CreateDirectory(datasets);
             }
         }
     }

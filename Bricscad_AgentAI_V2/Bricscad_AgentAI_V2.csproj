@@ -10,6 +10,7 @@
     <RootNamespace>Bricscad_AgentAI_V2</RootNamespace>
     <AssemblyName>Bricscad_AgentAI_V2</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
@@ -74,6 +75,8 @@
   <ItemGroup>
     <Compile Include="src\Core\DynamicSystems\DynamicFormulaManager.cs" />
     <Compile Include="src\Core\DynamicSystems\MacroManager.cs" />
+    <Compile Include="src\Core\DynamicSystems\IDatasetProvider.cs" />
+    <Compile Include="src\Core\DynamicSystems\DatasetManager.cs" />
     <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
@@ -113,6 +116,9 @@
     <Compile Include="src\Tools\Knowledge\ExecuteMacroTool.cs" />
     <Compile Include="src\Tools\Knowledge\ReadKnowledgeTool.cs" />
     <Compile Include="src\Tools\Knowledge\SearchUnitsNetTool.cs" />
+    <Compile Include="src\Tools\Knowledge\QueryDatasetTool.cs" />
+    <Compile Include="src\Tools\Knowledge\ImportCsvDatasetTool.cs" />
+    <Compile Include="src\Tools\Knowledge\ManageDatasetTool.cs" />
     <Compile Include="src\Tools\ReadPropertyTool.cs" />
     <Compile Include="src\Tools\InspectEntityTool.cs" />
     <Compile Include="src\Tools\GetPropertiesTool.cs" />
