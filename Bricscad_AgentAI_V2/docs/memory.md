@@ -1,0 +1,2 @@
+
+- [2026-06-06] Zakończono FAZĘ 13: Dodano menedżera sesji, izolację pamięci kontekstu oraz pasek kompresji w interfejsie AgentControl.cs. Błędy kompilacji związane z błędami w narzędziach string replace (PowerShell) zostały zidentyfikowane, naprawione, a projekt został pomyślnie skompilowany. Wymagane było wykonanie polecenia git checkout, a następnie spatchowanie kodu przy pomocy bezpiecznych skryptów Pythona.
