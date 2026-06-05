@@ -148,12 +148,31 @@ namespace Bricscad_AgentAI_V2.Core
 
                 var jsonResponse = JObject.Parse(responseBody);
                 var messageNode = jsonResponse["choices"]?[0]?["message"];
+                var usageNode = jsonResponse["usage"];
+                
+                int currentPromptTokens = totalSentChars / 4;
+                int currentCompletionTokens = totalRecvChars / 4;
+
+                if (usageNode != null)
+                {
+                    currentPromptTokens = usageNode["prompt_tokens"]?.Value<int>() ?? currentPromptTokens;
+                    currentCompletionTokens = usageNode["completion_tokens"]?.Value<int>() ?? currentCompletionTokens;
+                }
+
                 if (messageNode == null)
                 {
                     sw.Stop();
                     BielikLogger.LogWarn("[LLM WARN] Otrzymano nieprawidłową odpowiedź (brak węzła 'choices[0].message').");
                     return AgentExecutionResult.Failure("Błąd parsowania odpowiedzi z modelu (brak 'message').");
                 }
+
+                // Zgłoś statystyki bieżącego kroku
+                RaiseStatsUpdate(new LLMStats 
+                { 
+                    TotalTimeMs = sw.ElapsedMilliseconds, 
+                    PromptTokens = currentPromptTokens, 
+                    CompletionTokens = currentCompletionTokens 
+                });
 
                 // Deserializacja asystenta
                 var assistantMessage = messageNode.ToObject<ChatMessage>();

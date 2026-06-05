@@ -37,5 +37,7 @@ namespace Bricscad_AgentAI_V2.Models
     {
         public List<LLMProviderConfig> Providers { get; set; } = new List<LLMProviderConfig>();
         public Guid ActiveProviderId { get; set; }
+        public int MaxContextTokens { get; set; } = 8192;
+        public int ContextCompressionThreshold { get; set; } = 90;
     }
 }

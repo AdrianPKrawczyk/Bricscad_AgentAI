@@ -31,6 +31,18 @@ namespace Bricscad_AgentAI_V2.Core
             _blackboard.Clear();
         }
 
+        public static void LoadFromDictionary(Dictionary<string, string> source)
+        {
+            _blackboard.Clear();
+            if (source != null)
+            {
+                foreach (var kvp in source)
+                {
+                    _blackboard[kvp.Key] = kvp.Value;
+                }
+            }
+        }
+
         public static Dictionary<string, string> GetAll()
         {
             return new Dictionary<string, string>(_blackboard);
