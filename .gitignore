@@ -380,3 +380,6 @@ FodyWeavers.xsd
 # Ignoruj rysunki testowe, jeśli nie chcesz ich w historii zmian
 # Rysunek_testowy.dwg
 # Rysunek_testowy.dxf
+
+# Pliki benchmarków matematycznych (np. Benchmark_02_Math...)
+**/[Bb]enchmark_02_Math*

@@ -644,3 +644,13 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Kompilacja i weryfikacja działania w programie BricsCAD.
 
+
+## 2026-06-05T16:05:00+02:00
+### [ZREALIZOWANO]
+- **Aktualizacja .gitignore**: Dodano regułę \**/[Bb]enchmark_02_Math*\ ignorującą pliki wyników benchmarków matematycznych (pliki rozpoczynające się od Benchmark_02_Math), co pozwala na zachowanie innych plików JSON w projekcie.
+### [STAN_SYSTEMU]
+- Zaktualizowano reguły ignorowania plików git.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Kompilacja i weryfikacja działania w programie BricsCAD.
