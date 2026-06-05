@@ -62,7 +62,7 @@ namespace Bricscad_AgentAI_V2.UI
         private ToolOrchestrator _orchestrator;
         private SupervisorOrchestrator _supervisor;
         private bool isDarkMode = true;
-        private string _activeModel = "LM Studio / local-model"; // DomyÄąâ€şlny model
+        private string _activeModel = "LM Studio / local-model"; // DomyĘąâ€şlny model
         private AutoBenchmarkEngine _benchmarkEngine;
         private TabPage tabBenchmark;
         private TabPage tabDebug;
@@ -134,7 +134,7 @@ namespace Bricscad_AgentAI_V2.UI
             _llmClient.OnStatsUpdate += (stats) => UpdateStatsHUD(stats);
             _llmClient.OnStatsUpdate += (stats) => UpdateTokenBar(stats.TotalTokens);
 
-            // Subskrypcja telemetrii od odÄąâ€šĂ„â€¦czonych narzĂ„â„˘dzi roboczych (np. DelegateTaskTool)
+            // Subskrypcja telemetrii od odĘąâ€šĂ„â€¦czonych narzĂ„â„˘dzi roboczych (np. DelegateTaskTool)
             AgentTelemetry.OnStatusUpdated += UpdateStatusHUD;
             AgentTelemetry.OnToolLogged += AppendToolLog;
             AgentTelemetry.OnStatsUpdated += (stats) => UpdateStatsHUD(stats);
@@ -176,7 +176,7 @@ namespace Bricscad_AgentAI_V2.UI
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"BÄąâ€šĂ„â€¦d odczytu system_prompt.txt: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Błąd odczytu system_prompt.txt: {ex.Message}");
                     LoadEmbeddedSystemPrompt();
                 }
             }
@@ -207,29 +207,29 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void LoadEmbeddedSystemPrompt()
         {
-            CurrentSystemPrompt = "JesteÄąâ€ş asystentem BricsCAD (Bielik V2 GOLD). DziaÄąâ€šaj precyzyjnie uÄąÄ˝ywajĂ„â€¦c narzĂ„â„˘dzi. Komunikuj siĂ„â„˘ WYÄąÂĂ„â€žCZNIE poprzez natywne wywoÄąâ€šania funkcji (tool_calls). ZABRONIONE jest wypisywanie wywoÄąâ€šaÄąâ€ž w zwykÄąâ€šym tekÄąâ€şcie.\n\n" +
-                "--- 1. DELEGOWANIE OBLICZEÄąÂ I LOGIKI (SUPERMOC RPN) ---\n" +
-                "JesteÄąâ€ş modelem jĂ„â„˘zykowym, nie kalkulatorem. ZABRANIA SIĂ„Â wykonywania obliczeÄąâ€ž matematycznych w pamiĂ„â„˘ci. Do wszystkich obliczeÄąâ€ž wektorowych, matematycznych i tekstowych MUSISZ uÄąÄ˝ywaĂ„â€ˇ wbudowanego silnika RPN (Odwrotna Notacja Polska). SkÄąâ€šadnia: wartoÄąâ€şĂ„â€ˇ zawsze zaczyna siĂ„â„˘ od 'RPN: '.\n" +
+            CurrentSystemPrompt = "JesteĘąâ€ş asystentem BricsCAD (Bielik V2 GOLD). DziaĘąâ€šaj precyzyjnie uĘąĘ˝ywajĂ„â€¦c narzĂ„â„˘dzi. Komunikuj siĂ„â„˘ WYĘąÂĂ„â€žCZNIE poprzez natywne wywoĘąâ€šania funkcji (tool_calls). ZABRONIONE jest wypisywanie wywoĘąâ€šaĘąâ€ž w zwykĘąâ€šym tekĘąâ€şcie.\n\n" +
+                "--- 1. DELEGOWANIE OBLICZEĘąÂ I LOGIKI (SUPERMOC RPN) ---\n" +
+                "JesteĘąâ€ş modelem jĂ„â„˘zykowym, nie kalkulatorem. ZABRANIA SIĂ„Â wykonywania obliczeĘąâ€ž matematycznych w pamiĂ„â„˘ci. Do wszystkich obliczeĘąâ€ž wektorowych, matematycznych i tekstowych MUSISZ uĘąĘ˝ywaĂ„â€ˇ wbudowanego silnika RPN (Odwrotna Notacja Polska). SkĘąâ€šadnia: wartoĘąâ€şĂ„â€ˇ zawsze zaczyna siĂ„â„˘ od 'RPN: '.\n" +
                 "- Matematyka (Postfix): Zamiast '2+2' piszesz 'RPN: 2 2 +'. Zamiast '(100/3)+5' piszesz 'RPN: 100 3 / 5 +'.\n" +
-                "- Inteligentne Jednostki: Silnik natywnie rozumie fizykĂ„â„˘! Zawsze podawaj wartoÄąâ€şci z jednostkami: 'WARTOÄąĹˇĂ„â€ _JEDNOSTKA' (np. '100_mm', '5_m', '2_in'). Silnik sam je przeliczy do jednostek rysunku (np. 'RPN: 100_mm 20_cm +').\n" +
-                "- Operacje na Stringach (CONCAT): UÄąÄ˝ywaj pojedynczych cudzysÄąâ€šowÄ‚Ĺ‚w do tekstÄ‚Ĺ‚w. ÄąÂĂ„â€¦cz teksty operatorem CONCAT. Np. 'RPN: \\'Poziom \\' 5 2 * CONCAT' da wynik 'Poziom 10'.\n" +
-                "- Logika Warunkowa (IFTE): Silnik obsÄąâ€šuguje warunki If-Then-Else w formacie: [warunek] [prawda] [faÄąâ€šsz] IFTE. Np. 'RPN: {index} 2 > \\'OpcjaA\\' \\'OpcjaB\\' IFTE'.\n" +
-                "- Znaki specjalne: Do Äąâ€šamania linii w tekstach CAD (MText/MLeader) uÄąÄ˝ywaj podwÄ‚Ĺ‚jnie uciecznionego znaku nowej linii: \\\\P.\n\n" +
-                "--- 2. GLOBALNY SÄąÂOWNIK WÄąÂAÄąĹˇCIWOÄąĹˇCI CAD (ENTITY PROPERTIES) ---\n" +
+                "- Inteligentne Jednostki: Silnik natywnie rozumie fizykĂ„â„˘! Zawsze podawaj wartoĘąâ€şci z jednostkami: 'WARTOĘąŁˇĂ„â€ _JEDNOSTKA' (np. '100_mm', '5_m', '2_in'). Silnik sam je przeliczy do jednostek rysunku (np. 'RPN: 100_mm 20_cm +').\n" +
+                "- Operacje na Stringach (CONCAT): UĘąĘ˝ywaj pojedynczych cudzysĘąâ€šowĘ‚Ł‚w do tekstĘ‚Ł‚w. ĘąÂĂ„â€¦cz teksty operatorem CONCAT. Np. 'RPN: \\'Poziom \\' 5 2 * CONCAT' da wynik 'Poziom 10'.\n" +
+                "- Logika Warunkowa (IFTE): Silnik obsĘąâ€šuguje warunki If-Then-Else w formacie: [warunek] [prawda] [faĘąâ€šsz] IFTE. Np. 'RPN: {index} 2 > \\'OpcjaA\\' \\'OpcjaB\\' IFTE'.\n" +
+                "- Znaki specjalne: Do Ęąâ€šamania linii w tekstach CAD (MText/MLeader) uĘąĘ˝ywaj podwĘ‚Ł‚jnie uciecznionego znaku nowej linii: \\\\P.\n\n" +
+                "--- 2. GLOBALNY SĘąÂOWNIK WĘąÂAĘąŁˇCIWOĘąŁˇCI CAD (ENTITY PROPERTIES) ---\n" +
                 "Zawsze stosuj te rygorystyczne zasady formatowania, gdy wyszukujesz (SelectEntities) lub modyfikujesz (ModifyProperties) obiekty graficzne:\n" +
-                "- Color (Kolor): Przyjmuje 3 formaty. 1) ZaleÄąÄ˝ne od struktury: 256 (ByLayer), 0 (ByBlock). 2) Standardowe kolory ACI (tylko liczby caÄąâ€škowite): 1=Czerwony, 2=ÄąÂ»Ä‚Ĺ‚Äąâ€šty, 3=Zielony, 4=Cyjan, 5=Niebieski, 6=Magenta, 7=BiaÄąâ€šy/Czarny, 8=Szary. 3) Paleta RGB (TrueColor): Format stringa 'R,G,B' (np. '255,128,0'). Aby znaleÄąĹźĂ„â€ˇ *dowolny* obiekt o zdefiniowanym wÄąâ€šasnym kolorze RGB, uÄąÄ˝yj filtru zawiera przecinek: {\"Prop\": \"Color\", \"Op\": \"contains\", \"Val\": \",\"}.\n" +
-                "- LineWeight (GruboÄąâ€şĂ„â€ˇ Linii): NIE uÄąÄ˝ywaj standardowych uÄąâ€šamkÄ‚Ĺ‚w! WartoÄąâ€şci specjalne: -1 (ByLayer), -2 (ByBlock), -3 (Default). Konkretne gruboÄąâ€şci podaje siĂ„â„˘ w setnych czĂ„â„˘Äąâ€şciach milimetra jako liczby caÄąâ€škowite (np. wartoÄąâ€şĂ„â€ˇ 25 oznacza 0.25 mm, a 50 to 0.50 mm).\n" +
-                "- Transparency (PrzezroczystoÄąâ€şĂ„â€ˇ): Przyjmuje wartoÄąâ€şci tekstowe 'ByLayer', 'ByBlock' lub wartoÄąâ€şci numeryczne od 0 (caÄąâ€škowity brak przezroczystoÄąâ€şci, lita bryÄąâ€ša) do 90 (maksymalna dopuszczalna przezroczystoÄąâ€şĂ„â€ˇ).\n" +
-                "- Linetype (Rodzaj Linii), Material, PlotStyleName: Zawsze wartoÄąâ€şci tekstowe, np. 'ByLayer', 'ByBlock', 'Continuous'.\n" +
-                "- Percepcja Wizualna: JeÄąâ€şli uÄąÄ˝ytkownik prosi o obiekty, ktÄ‚Ĺ‚re 'wyglĂ„â€¦dajĂ„â€¦ na', 'wyÄąâ€şwietlajĂ„â€¦ siĂ„â„˘' lub 'sĂ„â€¦ widoczne' w danym kolorze/gruboÄąâ€şci, MUSISZ uÄąÄ˝yĂ„â€ˇ wirtualnych wÄąâ€šaÄąâ€şciwoÄąâ€şci silnika: 'VisualColor', 'VisualLinetype', 'VisualLineWeight'. SprawdzajĂ„â€¦ one, jak obiekt faktycznie renderuje siĂ„â„˘ na ekranie (rozwiĂ„â€¦zujĂ„â€¦c dziedziczenie z warstwy ByLayer).\n\n" +
+                "- Color (Kolor): Przyjmuje 3 formaty. 1) ZaleĘąĘ˝ne od struktury: 256 (ByLayer), 0 (ByBlock). 2) Standardowe kolory ACI (tylko liczby caĘąâ€škowite): 1=Czerwony, 2=ĘąÂ»Ę‚Ł‚Ęąâ€šty, 3=Zielony, 4=Cyjan, 5=Niebieski, 6=Magenta, 7=BiaĘąâ€šy/Czarny, 8=Szary. 3) Paleta RGB (TrueColor): Format stringa 'R,G,B' (np. '255,128,0'). Aby znaleĘąŁźĂ„â€ˇ *dowolny* obiekt o zdefiniowanym wĘąâ€šasnym kolorze RGB, uĘąĘ˝yj filtru zawiera przecinek: {\"Prop\": \"Color\", \"Op\": \"contains\", \"Val\": \",\"}.\n" +
+                "- LineWeight (GruboĘąâ€şĂ„â€ˇ Linii): NIE uĘąĘ˝ywaj standardowych uĘąâ€šamkĘ‚Ł‚w! WartoĘąâ€şci specjalne: -1 (ByLayer), -2 (ByBlock), -3 (Default). Konkretne gruboĘąâ€şci podaje siĂ„â„˘ w setnych czĂ„â„˘Ęąâ€şciach milimetra jako liczby caĘąâ€škowite (np. wartoĘąâ€şĂ„â€ˇ 25 oznacza 0.25 mm, a 50 to 0.50 mm).\n" +
+                "- Transparency (PrzezroczystoĘąâ€şĂ„â€ˇ): Przyjmuje wartoĘąâ€şci tekstowe 'ByLayer', 'ByBlock' lub wartoĘąâ€şci numeryczne od 0 (caĘąâ€škowity brak przezroczystoĘąâ€şci, lita bryĘąâ€ša) do 90 (maksymalna dopuszczalna przezroczystoĘąâ€şĂ„â€ˇ).\n" +
+                "- Linetype (Rodzaj Linii), Material, PlotStyleName: Zawsze wartoĘąâ€şci tekstowe, np. 'ByLayer', 'ByBlock', 'Continuous'.\n" +
+                "- Percepcja Wizualna: JeĘąâ€şli uĘąĘ˝ytkownik prosi o obiekty, ktĘ‚Ł‚re 'wyglĂ„â€¦dajĂ„â€¦ na', 'wyĘąâ€şwietlajĂ„â€¦ siĂ„â„˘' lub 'sĂ„â€¦ widoczne' w danym kolorze/gruboĘąâ€şci, MUSISZ uĘąĘ˝yĂ„â€ˇ wirtualnych wĘąâ€šaĘąâ€şciwoĘąâ€şci silnika: 'VisualColor', 'VisualLinetype', 'VisualLineWeight'. SprawdzajĂ„â€¦ one, jak obiekt faktycznie renderuje siĂ„â„˘ na ekranie (rozwiĂ„â€¦zujĂ„â€¦c dziedziczenie z warstwy ByLayer).\n\n" +
                 "--- 3. GEOMETRIA VS METADANE RYSUNKU (ZASADA KRYTYCZNA) ---\n" +
-                "Musisz bezwzglĂ„â„˘dnie rozrÄ‚Ĺ‚ÄąÄ˝niaĂ„â€ˇ Obiekty Graficzne (GeometriĂ„â„˘ leÄąÄ˝Ă„â€¦cĂ„â€¦ fizycznie na pÄąâ€šÄ‚Ĺ‚tnie modelu, np. Line, Circle, MText, BlockReference) od Struktury Organizacyjnej Rysunku (Metadanych zarzĂ„â€¦dzajĂ„â€¦cych rysunkiem w tle, np. Warstwy/Layers, Style Wymiarowania, Definicje BlokÄ‚Ĺ‚w, Skale).\n" +
-                "NarzĂ„â„˘dzia bazowe takie jak 'SelectEntities', 'CreateObject' i 'ModifyProperties' sÄąâ€šuÄąÄ˝Ă„â€¦ WYÄąÂĂ„â€žCZNIE do manipulacji fizycznĂ„â€¦ geometriĂ„â€¦ modelu.\n" +
-                "ABSOLUTNIE ZABRONIONE JEST uÄąÄ˝ywanie narzĂ„â„˘dzi bazowych do tworzenia lub edycji metadanych (np. uÄąÄ˝ywanie CreateObject do zrobienia nowej warstwy).\n\n" +
+                "Musisz bezwzglĂ„â„˘dnie rozrĘ‚Ł‚ĘąĘ˝niaĂ„â€ˇ Obiekty Graficzne (GeometriĂ„â„˘ leĘąĘ˝Ă„â€¦cĂ„â€¦ fizycznie na pĘąâ€šĘ‚Ł‚tnie modelu, np. Line, Circle, MText, BlockReference) od Struktury Organizacyjnej Rysunku (Metadanych zarzĂ„â€¦dzajĂ„â€¦cych rysunkiem w tle, np. Warstwy/Layers, Style Wymiarowania, Definicje BlokĘ‚Ł‚w, Skale).\n" +
+                "NarzĂ„â„˘dzia bazowe takie jak 'SelectEntities', 'CreateObject' i 'ModifyProperties' sĘąâ€šuĘąĘ˝Ă„â€¦ WYĘąÂĂ„â€žCZNIE do manipulacji fizycznĂ„â€¦ geometriĂ„â€¦ modelu.\n" +
+                "ABSOLUTNIE ZABRONIONE JEST uĘąĘ˝ywanie narzĂ„â„˘dzi bazowych do tworzenia lub edycji metadanych (np. uĘąĘ˝ywanie CreateObject do zrobienia nowej warstwy).\n\n" +
                 "--- 4. DYNAMICZNE ODKRYWANIE NARZĂ„ÂDZI (DISCOVERABILITY) ---\n" +
-                "TwÄ‚Ĺ‚j domyÄąâ€şlny, poczĂ„â€¦tkowy arsenaÄąâ€š (tools) zawiera tylko potĂ„â„˘ÄąÄ˝ne narzĂ„â„˘dzia bazowe (Core). BricsCAD posiada jednak dziesiĂ„â€¦tki zaawansowanych, uÄąâ€şpionych pakietÄ‚Ĺ‚w narzĂ„â„˘dzi (np. do zarzĂ„â€¦dzania strukturĂ„â€¦ warstw, edycji atrybutÄ‚Ĺ‚w, manipulacji skalami opisowymi).\n" +
-                "If uÄąÄ˝ytkownik prosi CiĂ„â„˘ o operacjĂ„â„˘, do ktÄ‚Ĺ‚rej NIE WIDZISZ gotowego narzĂ„â„˘dzia w swojej liÄąâ€şcie 'tools' (np. prosi o zablokowanie warstwy), ZABRONIONE JEST ZGADYWANIE jego nazwy i parametrÄ‚Ĺ‚w.\n" +
-                "Zamiast tego MUSISZ w pierwszym kroku wywoÄąâ€šaĂ„â€ˇ 'RequestAdditionalTools'. JeÄąâ€şli wiesz jakiego narzĂ„â„˘dzia brakuje (np. pamiĂ„â„˘tasz 'ManageLayers'), uÄąÄ˝yj od razu akcji 'LoadCategory'. JeÄąâ€şli nie wiesz, uÄąÄ˝yj 'ListCategories', aby pobraĂ„â€ˇ katalog uÄąâ€şpionych narzĂ„â„˘dzi.";
+                "TwĘ‚Ł‚j domyĘąâ€şlny, poczĂ„â€¦tkowy arsenaĘąâ€š (tools) zawiera tylko potĂ„â„˘ĘąĘ˝ne narzĂ„â„˘dzia bazowe (Core). BricsCAD posiada jednak dziesiĂ„â€¦tki zaawansowanych, uĘąâ€şpionych pakietĘ‚Ł‚w narzĂ„â„˘dzi (np. do zarzĂ„â€¦dzania strukturĂ„â€¦ warstw, edycji atrybutĘ‚Ł‚w, manipulacji skalami opisowymi).\n" +
+                "If uĘąĘ˝ytkownik prosi CiĂ„â„˘ o operacjĂ„â„˘, do ktĘ‚Ł‚rej NIE WIDZISZ gotowego narzĂ„â„˘dzia w swojej liĘąâ€şcie 'tools' (np. prosi o zablokowanie warstwy), ZABRONIONE JEST ZGADYWANIE jego nazwy i parametrĘ‚Ł‚w.\n" +
+                "Zamiast tego MUSISZ w pierwszym kroku wywoĘąâ€šaĂ„â€ˇ 'RequestAdditionalTools'. JeĘąâ€şli wiesz jakiego narzĂ„â„˘dzia brakuje (np. pamiĂ„â„˘tasz 'ManageLayers'), uĘąĘ˝yj od razu akcji 'LoadCategory'. JeĘąâ€şli nie wiesz, uĘąĘ˝yj 'ListCategories', aby pobraĂ„â€ˇ katalog uĘąâ€şpionych narzĂ„â„˘dzi.";
         }
 
         private void InitializeStandardUI()
@@ -240,13 +240,13 @@ namespace Bricscad_AgentAI_V2.UI
             tabControl = new TabControl { Dock = DockStyle.Fill, ItemSize = new Size(120, 25) };
 
             // ==========================================
-            // ZAKÄą ADKA 1: CZAT Z AI 
+            // ZAKĘą ADKA 1: CZAT Z AI 
             // ==========================================
             tabChat = new TabPage("Czat (V2 GOLD)");
 
             // --- Pasek Kontekstu (Context Bar) ---
             panContextBar = new Panel { Dock = DockStyle.Top, Height = 30, Padding = new Padding(5) };
-            lblContextTokens = new Label { Dock = DockStyle.Left, Width = 150, Text = "Kontekst: 0/8192 (0%)", TextAlign = ContentAlignment.MiddleLeft };
+            lblContextTokens = new Label { Dock = DockStyle.Left, Width = 150, Text = "Kontekst: 0/8192 (0%)", TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.LightGray };
             pbContext = new ProgressBar { Dock = DockStyle.Fill };
             btnCompressContext = new Button { Dock = DockStyle.Right, Width = 40, Text = "🗜️", FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnCompressContext.Click += BtnCompressContext_Click;
@@ -276,7 +276,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnSend = new Button
             {
-                Text = "WyÄąâ€şlij\n(Ctrl+Enter)",
+                Text = "WyĘąâ€şlij\n(Ctrl+Enter)",
                 Dock = DockStyle.Right,
                 Width = 100,
                 BackColor = Color.FromArgb(0, 122, 204),
@@ -337,7 +337,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             Button btnSettings = new Button
             {
-                Text = "Ă˘Ĺˇâ„˘ÄŹÂ¸Ĺą",
+                Text = "Ă˘Łˇâ„˘ĘŹÂ¸Łą",
                 Dock = DockStyle.Right,
                 Width = 40,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -417,9 +417,9 @@ namespace Bricscad_AgentAI_V2.UI
             tabChat.Controls.Add(panInput);
 
             // ==========================================
-            // ZAKÄą ADKA 2: LOGI NARZĂ„ËśDZI (JSON)
+            // ZAKĘą ADKA 2: LOGI NARZĂ„ËśDZI (JSON)
             // ==========================================
-            TabPage tabDev = new TabPage("Logi NarzÄ™dzi");
+            TabPage tabDev = new TabPage("Logi Narzędzi");
 
             txtToolLogs = new RichTextBox
             {
@@ -447,25 +447,25 @@ namespace Bricscad_AgentAI_V2.UI
             tabDev.Controls.Add(btnCopyLogs);
 
             // ==========================================
-            // ZAKÄą ADKA 3: BENCHMARK (OCENA LLM)
+            // ZAKĘą ADKA 3: BENCHMARK (OCENA LLM)
             // ==========================================
             tabBenchmark = new TabPage("Benchmark");
             tabBenchmark.Controls.Add(new AutoBenchmarkControl(_benchmarkEngine));
 
             // ==========================================
-            // ZAKÄą ADKA 4: TESTER (WORKBENCH V2)
+            // ZAKĘą ADKA 4: TESTER (WORKBENCH V2)
             // ==========================================
             TabPage tabTester = new TabPage("Tester V2");
             tabTester.Controls.Add(new AgentTesterControl(_llmClient));
 
             // ==========================================
-            // ZAKÄą ADKA 5: AGENCI (PrzeglĂ„â€¦d, Prompt, Skille)
+            // ZAKĘą ADKA 5: AGENCI (PrzeglĂ„â€¦d, Prompt, Skille)
             // ==========================================
             tabAgents = new TabPage("Agenci");
             tabAgentsSub = new TabControl { Dock = DockStyle.Fill };
             
-            // PODZAKÄą ADKA 1: PrzeglĂ„â€¦d
-            tabAgentsOverview = new TabPage("PrzeglÄ…d");
+            // PODZAKĘą ADKA 1: PrzeglĂ„â€¦d
+            tabAgentsOverview = new TabPage("Przegląd");
             lbAgents = new ListBox
             {
                 Dock = DockStyle.Left,
@@ -478,7 +478,7 @@ namespace Bricscad_AgentAI_V2.UI
             
             Panel panAgentOverviewRight = new Panel { Dock = DockStyle.Fill };
             
-            // GÄ‚Ĺ‚rny panel opisu i wyboru promptu
+            // GĘ‚Ł‚rny panel opisu i wyboru promptu
             Panel panAgentOverviewTop = new Panel { Dock = DockStyle.Top, Height = 130, Padding = new Padding(10) };
             txtAgentDescription = new TextBox
             {
@@ -498,7 +498,7 @@ namespace Bricscad_AgentAI_V2.UI
             cbAgentPromptFile = new ComboBox { Dock = DockStyle.Left, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             cbAgentPromptFile.Items.AddRange(new object[] { "system_prompt.txt", "system_prompt_supervisor.txt", "system_prompt_math.txt" });
             
-            btnOpenAgentPromptInOverview = new Button { Text = "OtwÄ‚Ĺ‚rz w Notatniku", Dock = DockStyle.Left, Width = 150, Margin = new Padding(10, 0, 0, 0), BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnOpenAgentPromptInOverview = new Button { Text = "Otwórz w Notatniku", Dock = DockStyle.Left, Width = 150, Margin = new Padding(10, 0, 0, 0), BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnOpenAgentPromptInOverview.Click += BtnOpenAgentPromptInOverview_Click;
 
             panAgentPromptSelection.Controls.Add(btnOpenAgentPromptInOverview);
@@ -520,7 +520,7 @@ namespace Bricscad_AgentAI_V2.UI
                 BorderStyle = BorderStyle.None,
                 CheckOnClick = true
             };
-            // WypeÄąâ€šniamy listĂ„â„˘ wszystkich skilli raz
+            // WypeĘąâ€šniamy listĂ„â„˘ wszystkich skilli raz
             foreach (var key in ToolConfigManager.GetAllSettings().Keys) chlbAgentTools.Items.Add(key);
 
             btnSaveAgentProfile = new Button
@@ -556,7 +556,7 @@ namespace Bricscad_AgentAI_V2.UI
             }
             if (lbAgents.Items.Count > 0) lbAgents.SelectedIndex = 0;
 
-            // PODZAKÄą ADKA 2: Prompt
+            // PODZAKĘą ADKA 2: Prompt
             tabAgentPrompt = new TabPage("Prompt");
             Panel panAgentsPromptTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
             Label lblPromptTitle = new Label 
@@ -615,7 +615,7 @@ namespace Bricscad_AgentAI_V2.UI
             
             if (cbPromptFile.Items.Count > 0) cbPromptFile.SelectedIndex = 0;
 
-            // PODZAKÄą ADKA 3: Skille / NarzĂ„â„˘dzia (Leksykon)
+            // PODZAKĘą ADKA 3: Skille / NarzĂ„â„˘dzia (Leksykon)
             tabAgentSkills = new TabPage("Leksykon Skilli");
             lbAllTools = new ListBox
             {
@@ -637,7 +637,7 @@ namespace Bricscad_AgentAI_V2.UI
                 ScrollBars = RichTextBoxScrollBars.Both
             };
             
-            // WypeÄąâ€šnienie listy narzĂ„â„˘dzi
+            // WypeĘąâ€šnienie listy narzĂ„â„˘dzi
             var allToolsSettings = ToolConfigManager.GetAllSettings();
             foreach (var key in allToolsSettings.Keys)
             {
@@ -650,7 +650,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabAgentSkills.Controls.Add(new Splitter() { Dock = DockStyle.Left, Width = 5, BackColor = Color.FromArgb(45, 45, 45) });
             tabAgentSkills.Controls.Add(lbAllTools);
 
-            // Dodajemy podzakÄąâ€šadki do Agenci
+            // Dodajemy podzakĘąâ€šadki do Agenci
             tabAgentsSub.TabPages.Add(tabAgentsOverview);
             tabAgentsSub.TabPages.Add(tabAgentPrompt);
             tabAgentsSub.TabPages.Add(tabAgentSkills);
@@ -675,14 +675,14 @@ namespace Bricscad_AgentAI_V2.UI
             tabControl.TabPages.Add(tabKnowledgeBase);
 
             // ==========================================
-            // ZAKÄą ADKA 7: DEBUG (ENGINE TRACER)
+            // ZAKĘą ADKA 7: DEBUG (ENGINE TRACER)
             // ==========================================
             tabDebug = new TabPage("Debug (Engine)");
             Panel panDebugTop = new Panel { Dock = DockStyle.Top, Height = 35, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
             
             chkEnableTracer = new CheckBox 
             { 
-                Text = "ÄąĹˇledÄąĹź zdarzenia bazy Teigha", 
+                Text = "ĘąŁˇledĘąŁź zdarzenia bazy Teigha", 
                 AutoSize = true, 
                 ForeColor = Color.White, 
                 Dock = DockStyle.Left 
@@ -691,7 +691,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnClearDebug = new Button 
             { 
-                Text = "WyczyÄąâ€şĂ„â€ˇ logi", 
+                Text = "WyczyĘąâ€şĂ„â€ˇ logi", 
                 Width = 100, 
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -718,22 +718,22 @@ namespace Bricscad_AgentAI_V2.UI
             tabControl.TabPages.Add(tabDebug);
 
             // ==========================================
-            // ZAKÄą ADKA 8: USTAWIENIA (PANEL BAZOWY)
+            // ZAKĘą ADKA 8: USTAWIENIA (PANEL BAZOWY)
             // ==========================================
             tabSettings = new TabPage("Ustawienia");
             tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
 
-            // PodzakÄąâ€šadka Prompt zostaÄąâ€ša przeniesiona do tabAgents
+            // PodzakĘąâ€šadka Prompt zostaĘąâ€ša przeniesiona do tabAgents
 
             // ==========================================
-            // PODZAKÄąÂADKA: Diagnostyka (BielikLogger log)
+            // PODZAKĘąÂADKA: Diagnostyka (BielikLogger log)
             // ==========================================
             tabDiagnosticsSub = new TabPage("Diagnostyka");
             Panel panDiagnosticsTop = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 45) };
 
             chkEnableAppLogging = new CheckBox
             {
-                Text = "WÄąâ€šĂ„â€¦cz logowanie debugowania",
+                Text = "WĘąâ€šĂ„â€¦cz logowanie debugowania",
                 AutoSize = true,
                 ForeColor = Color.White,
                 Dock = DockStyle.Left,
@@ -743,7 +743,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnRefreshAppLog = new Button
             {
-                Text = "Ä‘Ĺşâ€ťâ€ž OdÄąâ€şwieÄąÄ˝ log",
+                Text = "Ę‘Łşâ€ťâ€ž OdĘąâ€şwieĘąĘ˝ log",
                 Width = 100,
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -755,7 +755,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnClearAppLog = new Button
             {
-                Text = "Ä‘Ĺşâ€”â€ÄŹÂ¸Ĺą WyczyÄąâ€şĂ„â€ˇ",
+                Text = "Ę‘Łşâ€”â€ĘŹÂ¸Łą WyczyĘąâ€şĂ„â€ˇ",
                 Width = 90,
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -764,7 +764,7 @@ namespace Bricscad_AgentAI_V2.UI
                 Cursor = Cursors.Hand
             };
             btnClearAppLog.Click += (s, e) => {
-                if (MessageBox.Show("Czy na pewno chcesz wyczyÄąâ€şciĂ„â€ˇ plik logu debugowania?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                if (MessageBox.Show("Czy na pewno chcesz wyczyĘąâ€şciĂ„â€ˇ plik logu debugowania?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     BielikLogger.ClearLog();
                     RefreshAppLogView();
@@ -773,7 +773,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnOpenAppLogFile = new Button
             {
-                Text = "Ä‘Ĺşâ€śâ€š OtwÄ‚Ĺ‚rz plik logu",
+                Text = "Ę‘Łşâ€śâ€š OtwĘ‚Ł‚rz plik logu",
                 Width = 130,
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -791,12 +791,12 @@ namespace Bricscad_AgentAI_V2.UI
                     }
                     else
                     {
-                        MessageBox.Show("Plik logu jeszcze nie istnieje. Zostanie utworzony po zapisaniu pierwszych logÄ‚Ĺ‚w.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Plik logu jeszcze nie istnieje. Zostanie utworzony po zapisaniu pierwszych logĘ‚Ł‚w.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"BÄąâ€šĂ„â€¦d otwierania logu: {ex.Message}", "BÄąâ€šĂ„â€¦d", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd otwierania logu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
@@ -831,9 +831,9 @@ namespace Bricscad_AgentAI_V2.UI
             };
 
             // ==========================================
-            // PODZAKÄąÂADKA: ÄąĹˇcieÄąÄ˝ki i Dane
+            // PODZAKĘąÂADKA: ĘąŁˇcieĘąĘ˝ki i Dane
             // ==========================================
-            TabPage tabPathsSub = new TabPage("ÄąĹˇcieÄąÄ˝ki i Dane");
+            TabPage tabPathsSub = new TabPage("ĘąŁˇcieĘąĘ˝ki i Dane");
             tabPathsSub.BackColor = Color.FromArgb(45, 45, 45);
             tabPathsSub.ForeColor = Color.White;
             
@@ -844,13 +844,13 @@ namespace Bricscad_AgentAI_V2.UI
             TextBox txtCurrentPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
             txtCurrentPath.Text = AppPaths.GetCustomKnowledgePath();
             
-            Button btnChangePath = new Button { Text = "Ä‘Ĺşâ€śâ€š Wybierz inny folder...", Left = 610, Top = 7, Width = 150, BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            Button btnChangePath = new Button { Text = "Ę‘Łşâ€śâ€š Wybierz inny folder...", Left = 610, Top = 7, Width = 150, BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             
             panPathSetup.Controls.Add(lblPathCurrent);
             panPathSetup.Controls.Add(txtCurrentPath);
             panPathSetup.Controls.Add(btnChangePath);
 
-            Label lblPathInfo = new Label { Text = "DomyÄąâ€şlnie agent zapisuje wyuczone formuÄąâ€šy i makra w folderze systemowym AppData. MoÄąÄ˝esz zmieniĂ„â€ˇ ten folder na np. swÄ‚Ĺ‚j dysk w chmurze (OneDrive/Dropbox), aby synchronizowaĂ„â€ˇ bazĂ„â„˘ wiedzy miĂ„â„˘dzy komputerami.", Dock = DockStyle.Top, Height = 60, Padding = new Padding(10), ForeColor = Color.DarkGray };
+            Label lblPathInfo = new Label { Text = "DomyĘąâ€şlnie agent zapisuje wyuczone formuĘąâ€šy i makra w folderze systemowym AppData. MoĘąĘ˝esz zmieniĂ„â€ˇ ten folder na np. swĘ‚Ł‚j dysk w chmurze (OneDrive/Dropbox), aby synchronizowaĂ„â€ˇ bazĂ„â„˘ wiedzy miĂ„â„˘dzy komputerami.", Dock = DockStyle.Top, Height = 60, Padding = new Padding(10), ForeColor = Color.DarkGray };
 
             tabPathsSub.Controls.Add(panPathSetup);
             tabPathsSub.Controls.Add(lblPathInfo);
@@ -868,7 +868,7 @@ namespace Bricscad_AgentAI_V2.UI
                         if (oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase)) return;
 
                         bool shouldCopy = false;
-                        if (MessageBox.Show("Zmieniono folder Bazy Wiedzy.\n\nCzy chcesz przenieÄąâ€şĂ„â€ˇ (skopiowaĂ„â€ˇ) istniejĂ„â€¦ce formuÄąâ€šy i makra ze starego folderu do nowego?", "Kopiowanie danych", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        if (MessageBox.Show("Zmieniono folder Bazy Wiedzy.\n\nCzy chcesz przenieĘąâ€şĂ„â€ˇ (skopiowaĂ„â€ˇ) istniejĂ„â€¦ce formuĘąâ€šy i makra ze starego folderu do nowego?", "Kopiowanie danych", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                         {
                             shouldCopy = true;
                         }
@@ -883,7 +883,7 @@ namespace Bricscad_AgentAI_V2.UI
                             {
                                 if (System.IO.Directory.Exists(oldPath))
                                 {
-                                    // Kopiowanie podkatalogÄ‚Ĺ‚w (Formulas, Macros)
+                                    // Kopiowanie podkatalogĘ‚Ł‚w (Formulas, Macros)
                                     foreach (string dirPath in System.IO.Directory.GetDirectories(oldPath, "*", System.IO.SearchOption.AllDirectories))
                                     {
                                         System.IO.Directory.CreateDirectory(dirPath.Replace(oldPath, newPath));
@@ -892,23 +892,23 @@ namespace Bricscad_AgentAI_V2.UI
                                     {
                                         System.IO.File.Copy(newFilePath, newFilePath.Replace(oldPath, newPath), true);
                                     }
-                                    MessageBox.Show("Dane zostaÄąâ€šy poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    MessageBox.Show("Dane zostaĘąâ€šy poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 }
                             }
                             catch(Exception ex)
                             {
-                                MessageBox.Show($"WystĂ„â€¦piÄąâ€š bÄąâ€šĂ„â€¦d podczas kopiowania plikÄ‚Ĺ‚w: {ex.Message}", "BÄąâ€šĂ„â€¦d", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show($"WystĂ„â€¦piĘąâ€š bĘąâ€šĂ„â€¦d podczas kopiowania plikĘ‚Ł‚w: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
                         
-                        // OdÄąâ€şwieÄąÄ˝enie systemu
+                        // OdĘąâ€şwieĘąĘ˝enie systemu
                         Bricscad_AgentAI_V2.Core.DynamicSystems.DynamicFormulaManager.LoadAndCompileAll();
                         Bricscad_AgentAI_V2.Core.DynamicSystems.MacroManager.LoadAllMacros();
                         if (tabKnowledgeBase != null && tabControl.TabPages.Contains(tabKnowledgeBase))
                         {
                             knowledgeBaseControl.LoadData();
                         }
-                        MessageBox.Show("ÄąĹˇcieÄąÄ˝ka do bazy wiedzy zostaÄąâ€ša zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("ĘąŁˇcieĘąĘ˝ka do bazy wiedzy zostaĘąâ€ša zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
             };
@@ -924,7 +924,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             this.Controls.Add(tabControl);
             
-            // ZaÄąâ€šadowanie poczĂ„â€¦tkowych danych do bazy wiedzy
+            // ZaĘąâ€šadowanie poczĂ„â€¦tkowych danych do bazy wiedzy
             knowledgeBaseControl.LoadData();
         }
 
@@ -997,7 +997,7 @@ namespace Bricscad_AgentAI_V2.UI
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            // 1. ObsÄąâ€šuga nawigacji Autocomplete (tylko gdy lista jest widoczna i pole tekstowe aktywne)
+            // 1. ObsĘąâ€šuga nawigacji Autocomplete (tylko gdy lista jest widoczna i pole tekstowe aktywne)
             if (lstAutocomplete != null && lstAutocomplete.Visible && txtInput.Focused)
             {
                 if (keyData == Keys.Down)
@@ -1024,7 +1024,7 @@ namespace Bricscad_AgentAI_V2.UI
                 }
             }
 
-            // 2. ObsÄąâ€šuga Ctrl+Enter dla wysyÄąâ€šania wiadomoÄąâ€şci
+            // 2. ObsĘąâ€šuga Ctrl+Enter dla wysyĘąâ€šania wiadomoĘąâ€şci
             if (keyData == (Keys.Control | Keys.Enter))
             {
                 btnSend_Click(btnSend, EventArgs.Empty);
@@ -1042,13 +1042,13 @@ namespace Bricscad_AgentAI_V2.UI
                 {
                     // Pobranie obrazu ze schowka
                     _attachedClipboardImage = Clipboard.GetImage();
-                    _attachedFilePath = null; // Czyszczenie Ĺ›cieĹĽki pliku, bo priorytet ma schowek
+                    _attachedFilePath = null; // Czyszczenie Ł›cieŁĽki pliku, bo priorytet ma schowek
                     
                     // Aktualizacja UI
                     lblAttachedFile.Text = "đź“Ž [Obraz ze schowka]";
                     lblAttachedFile.Visible = true;
                     
-                    // Zablokowanie domyĹ›lnego wklejenia (aby nie dodawaĹ‚o siÄ™ do tekstu jeĹ›li to RichTextBox)
+                    // Zablokowanie domyŁ›lnego wklejenia (aby nie dodawaŁ‚o siĘ™ do tekstu jeŁ›li to RichTextBox)
                     e.Handled = true;
                     e.SuppressKeyPress = true;
                 }
@@ -1181,7 +1181,7 @@ namespace Bricscad_AgentAI_V2.UI
                 this.BeginInvoke(new Action<string>(AppendToolLog), rawJsonCall);
                 return;
             }
-            txtToolLogs.AppendText($"\n--- WYWOÄą ANIE [{DateTime.Now:HH:mm:ss}] ---\n");
+            txtToolLogs.AppendText($"\n--- WYWOĘą ANIE [{DateTime.Now:HH:mm:ss}] ---\n");
             txtToolLogs.AppendText(rawJsonCall + "\n");
             txtToolLogs.SelectionStart = txtToolLogs.Text.Length;
             txtToolLogs.ScrollToCaret();
@@ -1204,7 +1204,7 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             // 1. Semantic Tag Pre-processing (Regex)
-            // WyÄąâ€šuskujemy wszystkie tagi zaczynajĂ„â€¦ce siĂ„â„˘ od #
+            // WyĘąâ€šuskujemy wszystkie tagi zaczynajĂ„â€¦ce siĂ„â„˘ od #
             var tagMatches = System.Text.RegularExpressions.Regex.Matches(rawInput, @"#\w+");
             List<string> extractedTags = new List<string>();
             string cleanMsg = rawInput;
@@ -1212,7 +1212,7 @@ namespace Bricscad_AgentAI_V2.UI
             foreach (System.Text.RegularExpressions.Match match in tagMatches)
             {
                 extractedTags.Add(match.Value.ToLower());
-                // Usuwamy tag z czystej wiadomoÄąâ€şci dla LLM
+                // Usuwamy tag z czystej wiadomoĘąâ€şci dla LLM
                 cleanMsg = cleanMsg.Replace(match.Value, "").Trim();
             }
 
@@ -1240,15 +1240,15 @@ namespace Bricscad_AgentAI_V2.UI
                     else
                     {
                         string text = FileExtractor.ExtractText(attachedFilePath);
-                        cleanMsg += $"\n\n[ZAĹÄ„CZNIK: {System.IO.Path.GetFileName(attachedFilePath)}]\n{text}";
+                        cleanMsg += $"\n\n[ZAŁĄCZNIK: {System.IO.Path.GetFileName(attachedFilePath)}]\n{text}";
                         payload = cleanMsg;
                     }
                 }
                 catch (Exception ex)
                 {
-                    AppendToHistory("BÄąÂĂ„â€žD ZAÄąÂĂ„â€žCZNIKA", ex.Message, Color.LightCoral);
+                    AppendToHistory("BĘąÂĂ„â€žD ZAĘąÂĂ„â€žCZNIKA", ex.Message, Color.LightCoral);
                     btnSend.Enabled = true;
-                    return; // Przerywamy przetwarzanie w przypadku bÄąâ€šĂ„â„˘du parsowania
+                    return; // Przerywamy przetwarzanie w przypadku bĘąâ€šĂ„â„˘du parsowania
                 }
             }
 
@@ -1261,7 +1261,7 @@ namespace Bricscad_AgentAI_V2.UI
                 if (recipe != null)
                 {
                     AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
-                    AppendToHistory("SYSTEM", $"WywoÄąâ€šywanie recepty: {trigger}...", Color.Orange);
+                    AppendToHistory("SYSTEM", $"WywoĘąâ€šywanie recepty: {trigger}...", Color.Orange);
                     
                     await Task.Run(() => ExecuteRecipeDirectly(recipe));
                     return;
@@ -1283,12 +1283,12 @@ namespace Bricscad_AgentAI_V2.UI
                     };
                     payload = visionContent;
                     
-                    AppendToHistory("SYSTEM", "DoĹ‚Ä…czono obraz ze schowka", Color.Orange);
+                    AppendToHistory("SYSTEM", "DoŁ‚Ę…czono obraz ze schowka", Color.Orange);
                 }
                 catch (Exception ex)
                 {
-                    BielikLogger.LogError("BĹ‚Ä…d przetwarzania obrazu ze schowka", ex);
-                    AppendToHistory("BĹÄ„D", $"Nie udaĹ‚o siÄ™ przetworzyÄ‡ obrazu ze schowka: {ex.Message}", Color.Red);
+                    BielikLogger.LogError("BŁ‚Ę…d przetwarzania obrazu ze schowka", ex);
+                    AppendToHistory("BŁĄD", $"Nie udaŁ‚o siĘ™ przetworzyĘ‡ obrazu ze schowka: {ex.Message}", Color.Red);
                 }
                 finally
                 {
@@ -1299,7 +1299,7 @@ namespace Bricscad_AgentAI_V2.UI
             AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
             if (!string.IsNullOrEmpty(attachedFilePath))
             {
-                AppendToHistory("SYSTEM", $"DoĹ‚Ä…czono plik: {System.IO.Path.GetFileName(attachedFilePath)}", Color.Orange);
+                AppendToHistory("SYSTEM", $"DoŁ‚Ę…czono plik: {System.IO.Path.GetFileName(attachedFilePath)}", Color.Orange);
             }
 
             btnSend.Enabled = false;
@@ -1322,7 +1322,7 @@ namespace Bricscad_AgentAI_V2.UI
                 // --- DATASET STUDIO INTEGRATION ---
                 try
                 {
-                    // KRYTYCZNE: Izolacja snapshotu przez gÄąâ€šĂ„â„˘bokĂ„â€¦ kopiĂ„â„˘ listy
+                    // KRYTYCZNE: Izolacja snapshotu przez gĘąâ€šĂ„â„˘bokĂ„â€¦ kopiĂ„â„˘ listy
                     var historySnapshot = new List<ChatMessage>(_supervisor.GetHistory());
                     var toolsSnapshot = _orchestrator.GetToolsPayloadForProfile("SupervisorProfile");
                     datasetStudio.AddSessionRecord($"[{DateTime.Now:HH:mm:ss}] {rawInput}", historySnapshot, toolsSnapshot, _lastStats);
@@ -1333,8 +1333,8 @@ namespace Bricscad_AgentAI_V2.UI
             }
             catch (Exception ex)
             {
-                AppendToHistory("BÄąÂĂ„â€žD", ex.Message, Color.LightCoral);
-                UpdateStatusHUD("BÄąâ€šĂ„â€¦d krytyczny.");
+                AppendToHistory("BĘąÂĂ„â€žD", ex.Message, Color.LightCoral);
+                UpdateStatusHUD("Błąd krytyczny.");
             }
             finally
             {
@@ -1354,11 +1354,11 @@ namespace Bricscad_AgentAI_V2.UI
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Filter = "Wszystkie obsĹ‚ugiwane|*.py;*.csv;*.txt;*.xlsx;*.xls;*.pdf;*.png;*.jpg;*.jpeg;*.json;*.xml|Wszystkie pliki|*.*";
+                ofd.Filter = "Wszystkie obsŁ‚ugiwane|*.py;*.csv;*.txt;*.xlsx;*.xls;*.pdf;*.png;*.jpg;*.jpeg;*.json;*.xml|Wszystkie pliki|*.*";
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
                     _attachedFilePath = ofd.FileName;
-                    lblAttachedFile.Text = $"ZaĹ‚Ä…cznik: {System.IO.Path.GetFileName(_attachedFilePath)}";
+                    lblAttachedFile.Text = $"ZaŁ‚Ę…cznik: {System.IO.Path.GetFileName(_attachedFilePath)}";
                     lblAttachedFile.Visible = true;
                 }
             }
@@ -1422,9 +1422,9 @@ namespace Bricscad_AgentAI_V2.UI
                     if (string.IsNullOrEmpty(name) || args == null) continue;
 
                     string result = _orchestrator.ExecuteTool(name, args, new CadExecutionContext(doc));
-                    if (result.Contains("BÄąÂĂ„â€žD"))
+                    if (result.Contains("BĘąÂĂ„â€žD"))
                     {
-                        AppendToHistory("BÄąÂĂ„â€žD RECEPTY", $"Krok {successCount + 1} ({name}): {result}", Color.LightCoral);
+                        AppendToHistory("BĘąÂĂ„â€žD RECEPTY", $"Krok {successCount + 1} ({name}): {result}", Color.LightCoral);
                         return;
                     }
                     successCount++;
@@ -1432,8 +1432,8 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             AppendToHistory("BIELIK", successCount == total 
-                ? $"Ă˘Ĺ›â€¦ Recepta `${recipe.Trigger}$` wykonana pomyÄąâ€şlnie ({successCount} krokÄ‚Ĺ‚w)." 
-                : $"Ă˘ĹˇÂ ÄŹÂ¸Ĺą Recepta przerwana. Wykonano {successCount}/{total} krokÄ‚Ĺ‚w.", 
+                ? $"Ă˘Ł›â€¦ Recepta `${recipe.Trigger}$` wykonana pomyĘąâ€şlnie ({successCount} krokĘ‚Ł‚w)." 
+                : $"Ă˘ŁˇÂ ĘŹÂ¸Łą Recepta przerwana. Wykonano {successCount}/{total} krokĘ‚Ł‚w.", 
                 isDarkMode ? Color.LightGreen : Color.DarkGreen);
         }
         public async void ExternalProcessPrompt(string prompt)
@@ -1455,7 +1455,7 @@ namespace Bricscad_AgentAI_V2.UI
                 if (promptIndex >= 0) cbAgentPromptFile.SelectedIndex = promptIndex;
                 else if (cbAgentPromptFile.Items.Count > 0) cbAgentPromptFile.SelectedIndex = 0;
 
-                // OdÄąâ€şwieÄąÄ˝ zaznaczenia skilli
+                // OdĘąâ€şwieĘąĘ˝ zaznaczenia skilli
                 for (int i = 0; i < chlbAgentTools.Items.Count; i++)
                 {
                     string toolName = chlbAgentTools.Items[i].ToString();
@@ -1483,7 +1483,7 @@ namespace Bricscad_AgentAI_V2.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"BÄąâ€šĂ„â€¦d otwierania pliku w Notatniku: {ex.Message}", "BÄąâ€šĂ„â€¦d", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd otwierania pliku w Notatniku: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1520,7 +1520,7 @@ namespace Bricscad_AgentAI_V2.UI
             }
             else
             {
-                rtbToolSchema.Text = "Nie moÄąÄ˝na zaÄąâ€šadowaĂ„â€ˇ schematu dla tego narzĂ„â„˘dzia.";
+                rtbToolSchema.Text = "Nie moĘąĘ˝na zaĘąâ€šadowaĂ„â€ˇ schematu dla tego narzĂ„â„˘dzia.";
             }
         }
 
@@ -1544,7 +1544,7 @@ namespace Bricscad_AgentAI_V2.UI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"BÄąâ€šĂ„â€¦d odczytu pliku promptu: {ex.Message}", "BÄąâ€šĂ„â€¦d", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd odczytu pliku promptu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             else
@@ -1570,11 +1570,11 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 System.IO.File.WriteAllText(filePath, newPrompt, System.Text.Encoding.UTF8);
                 _supervisor?.ClearHistory();
-                MessageBox.Show($"Prompt ({filename}) zostaÄąâ€š pomyÄąâ€şlnie zapisany dla profilu {profileName}!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"Prompt ({filename}) został pomyślnie zapisany dla profilu {profileName}!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"BÄąâ€šĂ„â€¦d zapisu promptu: {ex.Message}", "BÄąâ€šĂ„â€¦d", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd zapisu promptu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
