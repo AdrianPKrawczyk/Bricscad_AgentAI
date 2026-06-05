@@ -81,6 +81,7 @@
     <Compile Include="src\Core\DynamicSystems\MacroManager.cs" />
     <Compile Include="src\Core\DynamicSystems\IDatasetProvider.cs" />
     <Compile Include="src\Core\DynamicSystems\DatasetManager.cs" />
+    <Compile Include="src\Models\DatasetMetadata.cs" />
     <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />

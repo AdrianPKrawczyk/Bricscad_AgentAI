@@ -1,0 +1,20 @@
+using System.Collections.Generic;
+using Newtonsoft.Json;
+
+namespace Bricscad_AgentAI_V2.Models
+{
+    public class DatasetMetadata
+    {
+        [JsonProperty("datasetId")]
+        public string DatasetId { get; set; }
+
+        [JsonProperty("description")]
+        public string Description { get; set; }
+
+        [JsonProperty("category")]
+        public string Category { get; set; } = "Uncategorized";
+
+        [JsonProperty("tags")]
+        public List<string> Tags { get; set; } = new List<string>();
+    }
+}

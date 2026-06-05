@@ -58,7 +58,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             this.Dock = DockStyle.Fill;
             this.VisibleChanged += KnowledgeBaseControl_VisibleChanged;
 
-            pnlTopFilters = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5) };
+            pnlTopFilters = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(5) };
             Label lblTagFilter = new Label { Text = "Filtruj wg tagów (po przecinku):", AutoSize = true, Location = new Point(10, 12), ForeColor = Color.LightGray };
             txtTagFilter = new TextBox { Location = new Point(190, 9), Width = 300, Font = new Font("Segoe UI", 9.5f) };
             txtTagFilter.TextChanged += TxtTagFilter_TextChanged;
@@ -70,14 +70,13 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             mainTabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
-                ItemSize = new Size(150, 30),
                 Font = new Font("Segoe UI", 9.5f)
             };
 
             // =========================
             // Zakładka: Formuły (Roslyn)
             // =========================
-            tabPageFormulas = new TabPage("🧠 Formuły Inżynierskie (Roslyn)");
+            tabPageFormulas = new TabPage("Formuły Inżynierskie (Roslyn)");
 
             Panel pnlFormulasLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
             tvFormulas = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
@@ -104,21 +103,21 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             
             rtbFormulaMetadata = new RichTextBox { Dock = DockStyle.Fill, ReadOnly = false, Font = new Font("Consolas", 10f), BorderStyle = BorderStyle.None, WordWrap = false, ScrollBars = RichTextBoxScrollBars.Both };
             Label lblMeta = new Label { Text = "Metadane (JSON):", Dock = DockStyle.Top, Height = 20, ForeColor = Color.LightGray };
-            splitFormulasRight.Panel1.Controls.Add(rtbFormulaMetadata);
             splitFormulasRight.Panel1.Controls.Add(lblMeta);
+            splitFormulasRight.Panel1.Controls.Add(rtbFormulaMetadata);
 
             rtbFormulaCode = new RichTextBox { Dock = DockStyle.Fill, ReadOnly = false, Font = new Font("Consolas", 10f), BorderStyle = BorderStyle.None, WordWrap = false, ScrollBars = RichTextBoxScrollBars.Both };
             Label lblCode = new Label { Text = "Kod wykonywalny (CSX):", Dock = DockStyle.Top, Height = 20, ForeColor = Color.LightGray };
-            splitFormulasRight.Panel2.Controls.Add(rtbFormulaCode);
             splitFormulasRight.Panel2.Controls.Add(lblCode);
+            splitFormulasRight.Panel2.Controls.Add(rtbFormulaCode);
 
             Panel pnlFormulasRightBtns = new Panel { Dock = DockStyle.Bottom, Height = 40 };
             btnSaveFormula = new Button { Text = "💾 Zapisz Formułę", Dock = DockStyle.Right, Width = 150, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnSaveFormula.Click += BtnSaveFormula_Click;
             pnlFormulasRightBtns.Controls.Add(btnSaveFormula);
 
-            pnlFormulasRight.Controls.Add(splitFormulasRight);
             pnlFormulasRight.Controls.Add(pnlFormulasRightBtns);
+            pnlFormulasRight.Controls.Add(splitFormulasRight);
 
             tabPageFormulas.Controls.Add(pnlFormulasRight);
             tabPageFormulas.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
@@ -127,7 +126,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             // =========================
             // Zakładka: Makra (JSON)
             // =========================
-            tabPageMacros = new TabPage("📜 Makra (JSON)");
+            tabPageMacros = new TabPage("Makra (JSON)");
 
             Panel pnlMacrosLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
             tvMacros = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
@@ -155,8 +154,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnSaveMacro.Click += BtnSaveMacro_Click;
             pnlMacrosRightBtns.Controls.Add(btnSaveMacro);
 
-            pnlMacrosRight.Controls.Add(rtbMacroJson);
             pnlMacrosRight.Controls.Add(pnlMacrosRightBtns);
+            pnlMacrosRight.Controls.Add(rtbMacroJson);
 
             tabPageMacros.Controls.Add(pnlMacrosRight);
             tabPageMacros.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
@@ -165,7 +164,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             // =========================
             // Zakładka: Bazy Danych (Katalogi)
             // =========================
-            tabPageDatasets = new TabPage("🗄️ Bazy Danych (Katalogi)");
+            tabPageDatasets = new TabPage("Bazy Danych (Katalogi)");
 
             Panel pnlDatasetsLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
             tvDatasets = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
@@ -183,12 +182,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             };
             
             Panel pnlDatasetsRightBtns = new Panel { Dock = DockStyle.Bottom, Height = 40 };
-            btnSaveDataset = new Button { Text = "💾 Zapisz Zmiany w Bazie", Dock = DockStyle.Right, Width = 200, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnSaveDataset = new Button { Text = "💾 Zapisz zmiany w tabeli", Dock = DockStyle.Right, Width = 200, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnSaveDataset.Click += BtnSaveDataset_Click;
             pnlDatasetsRightBtns.Controls.Add(btnSaveDataset);
 
-            pnlDatasetsRight.Controls.Add(dgvDataset);
             pnlDatasetsRight.Controls.Add(pnlDatasetsRightBtns);
+            pnlDatasetsRight.Controls.Add(dgvDataset);
 
             tabPageDatasets.Controls.Add(pnlDatasetsRight);
             tabPageDatasets.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
@@ -198,6 +197,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             mainTabControl.TabPages.Add(tabPageMacros);
             mainTabControl.TabPages.Add(tabPageDatasets);
             this.Controls.Add(mainTabControl);
+            pnlTopFilters.BringToFront();
         }
 
         private void ApplyTheme()
@@ -315,8 +315,15 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             rtbMacroJson.Clear();
 
             var datasets = DatasetManager.GetAvailableDatasets();
-            // Bazy danych na razie nie mają metadanych, wrzucamy je do Uncategorized. Tagi ignorujemy.
-            PopulateTreeView(tvDatasets, datasets, d => "Uncategorized");
+            if (tags.Any())
+            {
+                datasets = datasets.Where(d => 
+                {
+                    if (d.Tags == null) return false;
+                    return tags.All(tag => d.Tags.Any(dt => dt.ToLower().Contains(tag)));
+                });
+            }
+            PopulateTreeView(tvDatasets, datasets.Select(d => d.DatasetId), id => datasets.FirstOrDefault(d => d.DatasetId == id)?.Category);
             dgvDataset.DataSource = null;
         }
 
@@ -398,7 +405,13 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             if (e.Node == null || e.Node.Tag?.ToString() == "FOLDER") { dgvDataset.DataSource = null; return; }
             string datasetName = e.Node.Tag.ToString();
             string datasetsPath = AppPaths.GetDatasetsPath();
-            var files = Directory.GetFiles(datasetsPath, $"{datasetName}.json", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(datasetsPath, $"{datasetName}.data.json", SearchOption.AllDirectories);
+            
+            if (files.Length == 0)
+            {
+                // Fallback to legacy
+                files = Directory.GetFiles(datasetsPath, $"{datasetName}.json", SearchOption.AllDirectories);
+            }
             
             if (files.Length > 0)
             {
@@ -537,7 +550,9 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 if (dgvDataset.DataSource is DataTable dt)
                 {
                     string json = JsonConvert.SerializeObject(dt, Formatting.Indented);
-                    DatasetManager.SaveDataset(datasetName, json);
+                    var metadata = DatasetManager.GetAvailableDatasets().FirstOrDefault(d => d.DatasetId == datasetName);
+                    if (metadata == null) metadata = new DatasetMetadata { DatasetId = datasetName, Description = "Zaktualizowano w UI", Category = "Uncategorized" };
+                    DatasetManager.SaveDataset(metadata, json);
                     MessageBox.Show("Baza została zapisana i uaktualniona.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }

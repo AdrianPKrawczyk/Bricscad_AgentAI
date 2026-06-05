@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Bricscad_AgentAI_V2.Core;
+using Bricscad_AgentAI_V2.Models;
 
 namespace Bricscad_AgentAI_V2.Core.DynamicSystems
 {
@@ -17,15 +18,20 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
 
         private JArray LoadDataset(string datasetName)
         {
-            string path = Path.Combine(AppPaths.GetDatasetsPath(), $"{datasetName}.json");
-            if (!File.Exists(path))
+            string basePath = AppPaths.GetDatasetsPath();
+            var files = Directory.GetFiles(basePath, $"{datasetName}.data.json", SearchOption.AllDirectories);
+            
+            if (files.Length == 0)
             {
-                throw new FileNotFoundException($"Baza danych '{datasetName}' nie została znaleziona w {path}.");
+                // Fallback to legacy
+                files = Directory.GetFiles(basePath, $"{datasetName}.json", SearchOption.AllDirectories);
+                if (files.Length == 0)
+                    throw new FileNotFoundException($"Baza danych '{datasetName}' nie została znaleziona.");
             }
 
+            string path = files[0];
             string json = File.ReadAllText(path);
-            var array = JArray.Parse(json);
-            return array;
+            return JArray.Parse(json);
         }
 
         private IEnumerable<JObject> FilterData(JArray data, Dictionary<string, string> filters)
@@ -124,25 +130,71 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             return bestMatch;
         }
 
-        public static void SaveDataset(string datasetName, string jsonArrayData)
+        public static void SaveDataset(DatasetMetadata metadata, string jsonArrayData)
         {
             AppPaths.EnsureDirectoriesExist();
-            string path = Path.Combine(AppPaths.GetDatasetsPath(), $"{datasetName}.json");
             
-            // Walidacja struktury przed zapisem
+            // Normalize category string for filesystem
+            string safeCategory = string.IsNullOrWhiteSpace(metadata.Category) ? "Uncategorized" : metadata.Category;
+            foreach (char c in Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()))
+            {
+                if (c != '/' && c != '\\') // Allow subdirectories
+                {
+                    safeCategory = safeCategory.Replace(c.ToString(), "");
+                }
+            }
+
+            string categoryPath = Path.Combine(AppPaths.GetDatasetsPath(), safeCategory);
+            Directory.CreateDirectory(categoryPath);
+
+            string metadataPath = Path.Combine(categoryPath, $"{metadata.DatasetId}.json");
+            string dataPath = Path.Combine(categoryPath, $"{metadata.DatasetId}.data.json");
+            
+            // Validate JSON array
             var array = JArray.Parse(jsonArrayData);
             
-            File.WriteAllText(path, array.ToString(Formatting.Indented));
-            BielikLogger.LogInfo($"[DatasetManager] Zapisano bazę danych: {datasetName}");
+            // Save metadata
+            string metadataJson = JsonConvert.SerializeObject(metadata, Formatting.Indented);
+            File.WriteAllText(metadataPath, metadataJson);
+
+            // Save data
+            File.WriteAllText(dataPath, array.ToString(Formatting.Indented));
+            
+            BielikLogger.LogInfo($"[DatasetManager] Zapisano bazę danych: {metadata.DatasetId} w {safeCategory}");
         }
 
-        public static IEnumerable<string> GetAvailableDatasets()
+        public static IEnumerable<DatasetMetadata> GetAvailableDatasets()
         {
             string path = AppPaths.GetDatasetsPath();
-            if (!Directory.Exists(path)) return new List<string>();
+            if (!Directory.Exists(path)) return new List<DatasetMetadata>();
 
-            return Directory.GetFiles(path, "*.json", SearchOption.AllDirectories)
-                .Select(Path.GetFileNameWithoutExtension);
+            var datasets = new List<DatasetMetadata>();
+            var files = Directory.GetFiles(path, "*.json", SearchOption.AllDirectories)
+                                 .Where(f => !f.EndsWith(".data.json", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    string json = File.ReadAllText(file);
+                    var metadata = JsonConvert.DeserializeObject<DatasetMetadata>(json);
+                    
+                    // Fallback dla starych plików (które były czystymi tablicami)
+                    if (metadata == null || string.IsNullOrEmpty(metadata.DatasetId))
+                    {
+                        BielikLogger.LogWarn($"[DatasetManager] Zignorowano stary plik bez metadanych: {file}");
+                        continue;
+                    }
+                    
+                    datasets.Add(metadata);
+                }
+                catch (Exception ex)
+                {
+                    BielikLogger.LogWarn($"[DatasetManager] Błąd deserializacji pliku metadanych {file}: {ex.Message}");
+                }
+            }
+
+            return datasets;
         }
     }
 }

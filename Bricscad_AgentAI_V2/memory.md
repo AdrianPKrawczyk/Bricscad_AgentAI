@@ -759,3 +759,11 @@ Ten dokument sÅ‚uÅ¼y jako zewnÄ™trzna pamiÄ™Ä‡ dÅ‚ugotrwaÅ‚a dla modelu AI. Zawi
 2. Wprowadzono kompresjê i skalowanie obrazów (PNG, JPG) u¿ywaj¹c System.Drawing.Common do 1024x1024px z konwersj¹ do Base64 dla wsparcia Vision API.
 3. Zaktualizowano AgentControl.cs - dodano przycisk za³¹cznika (btnAttachFile), obs³ugê OpenFileDialog, logikê procesowania za³¹cznika w ProcessInputAsync i wyœwietlanie w UI (lblAttachedFile).
 4. Skompilowano kod z wynikiem pozytywnym bez b³êdów (MSBuild).
+### Faza 11: Standaryzacja Datasetow (Wzorzec Plikow Towarzyszacych i Normalizacja) (Zakonczono)
+1. Dodano plik Models/DatasetMetadata.cs aby zapewnic ustandaryzowana strukture bazy wiedzy.
+2. Rozdzielono zapis/odczyt plikow baz danych w DatasetManager.cs na [id].json (metadane) i [id].data.json (tablice z danymi).
+3. Dodano odpornosc na stare/niezmigrowane pliki (logowanie zamiast crashowania GUI).
+4. Zaktualizowano KnowledgeBaseControl.cs - UI dla Bazy Danych pobiera kategorie, grupuje dane w TreeView, oraz obsluguje zapis wylacznie *.data.json z pominieciem nadpisywania metadanych.
+5. Zmodyfikowano ManageDatasetTool i ImportCsvDatasetTool aby przyjmowaly opis, tagi, kategorie z nowa rygorystyczna wytyczna dotyczaca plaskich tabel.
+### Hotfix: Polskie znaki w UI
+Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np. "DoÅ‚aczono plik" oraz upewniono sie, ze plik zapisany jest z kodowaniem UTF-8.

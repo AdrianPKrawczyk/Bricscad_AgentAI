@@ -31,6 +31,7 @@ namespace Bricscad_AgentAI_V2.Core
                 case ".py":
                 case ".csv":
                 case ".json":
+                case ".xml":
                 case ".md":
                 case ".lsp":
                     return File.ReadAllText(path);
