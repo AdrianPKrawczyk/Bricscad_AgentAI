@@ -173,7 +173,7 @@ namespace Bricscad_AgentAI_V2.Core
                             !currentText.Contains("Częsty błąd przy ułamkach") || 
                             !currentText.Contains("UNIKAJ DANGLED STACK") ||
                             !currentText.Contains("Wyrażenie RPN z konwersją do cm3") ||
-                            !currentText.Contains("Objętość rury/walca"))
+                            !currentText.Contains("ExecuteFormula"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -185,8 +185,14 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     string defaultMathPrompt =
                         "Jesteś ekspert-analitykiem i kalkulatorem systemu Bielik V2 (CadMathProfile).\n" +
-                        "Twoim jedynym zadaniem jest wykonywanie precyzyjnych obliczeń inżynieryjnych, fizycznych i geometrycznych przy użyciu narzędzia CalculateMath.\n\n" +
-                        "ZASADY NOTACJI ALGEBRAICZNEJ Z JEDNOSTKAMI:\n" +
+                        "Twoim zadaniem jest wykonywanie precyzyjnych obliczeń inżynieryjnych, fizycznych i geometrycznych.\n\n" +
+                        "Masz do dyspozycji DWA GŁÓWNE PODEJŚCIA do obliczeń:\n" +
+                        "PODEJŚCIE A: Baza Wiedzy (ExecuteFormula)\n" +
+                        "- Jeśli użytkownik prosi o użycie lub uruchomienie konkretnej 'formuły' (np. 'Cisnienie_Hydrostatyczne'), ZAWSZE używaj narzędzia `ExecuteFormula`.\n" +
+                        "- Nie przeliczaj tego ręcznie ani nie używaj narzędzia RPN w tym przypadku.\n\n" +
+                        "PODEJŚCIE B: Kalkulator RPN (CalculateRpn / CalculateMath)\n" +
+                        "- Używaj, gdy nie ma gotowej formuły.\n" +
+                        "ZASADY NOTACJI ALGEBRAICZNEJ Z JEDNOSTKAMI DLA RPN:\n" +
                         "1. Zapisuj wyrażenia w sposób naturalny, zawsze oddzielając operatory spacjami, np. `( 10_cm / 2 ) ^ 2`.\n" +
                         "2. Format zapisu wartości: `wartość_jednostka` (np. `100_mm`, `10_m`, `5_cm`, `11.34_g/cm3`, `5.94_kg`). Znak '_' łączy wartość z jednostką.\n" +
                         "   - KRYTYCZNE: ZAWSZE dodawaj jednostkę nawet do podstawowych danych wejściowych! Jeśli napiszesz `100` zamiast `100_mm`, system błędnie założy, że to metry!\n" +
@@ -342,14 +348,28 @@ namespace Bricscad_AgentAI_V2.Core
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
             {
-                mathProf = new AgentProfileConfig 
-                { 
-                    SystemPromptFile = "system_prompt_math.txt", 
-                    AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula" },
-                    AllowedTags = new List<string> { "#math", "#obliczenia" }
-                };
+                mathProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_math.txt", AllowedTags = new List<string> { "#math", "#obliczenia" } };
                 _config.Profiles["CadMathProfile"] = mathProf;
                 changed = true;
+            }
+            if (mathProf.SystemPromptFile != "system_prompt_math.txt")
+            {
+                mathProf.SystemPromptFile = "system_prompt_math.txt";
+                changed = true;
+            }
+            var mathDefaults = new List<string> { "CalculateMath", "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula" };
+            if (mathProf.AllowedTools == null)
+            {
+                mathProf.AllowedTools = new List<string>();
+                changed = true;
+            }
+            foreach (var tool in mathDefaults)
+            {
+                if (!mathProf.AllowedTools.Contains(tool))
+                {
+                    mathProf.AllowedTools.Add(tool);
+                    changed = true;
+                }
             }
 
             if (changed) SaveConfig();
