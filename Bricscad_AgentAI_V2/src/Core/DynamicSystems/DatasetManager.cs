@@ -28,10 +28,32 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             return array;
         }
 
-        public JToken GetExactMatch(string datasetName, string searchColumn, string searchValue)
+        private IEnumerable<JObject> FilterData(JArray data, Dictionary<string, string> filters)
+        {
+            var rows = data.OfType<JObject>();
+            if (filters != null && filters.Count > 0)
+            {
+                rows = rows.Where(row =>
+                {
+                    foreach (var kvp in filters)
+                    {
+                        if (!row.TryGetValue(kvp.Key, StringComparison.OrdinalIgnoreCase, out JToken val) ||
+                            !val.ToString().Equals(kvp.Value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+            }
+            return rows;
+        }
+
+        public JToken GetExactMatch(string datasetName, string searchColumn, string searchValue, Dictionary<string, string> filters = null)
         {
             var data = LoadDataset(datasetName);
-            foreach (JObject row in data)
+            var filteredData = FilterData(data, filters);
+            foreach (JObject row in filteredData)
             {
                 if (row.TryGetValue(searchColumn, StringComparison.OrdinalIgnoreCase, out JToken val))
                 {
@@ -44,13 +66,14 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             return null;
         }
 
-        public JToken GetNearestGreater(string datasetName, string searchColumn, double targetValue)
+        public JToken GetNearestGreater(string datasetName, string searchColumn, double targetValue, Dictionary<string, string> filters = null)
         {
             var data = LoadDataset(datasetName);
+            var filteredData = FilterData(data, filters);
             JObject bestMatch = null;
             double minDiff = double.MaxValue;
 
-            foreach (JObject row in data)
+            foreach (JObject row in filteredData)
             {
                 if (row.TryGetValue(searchColumn, StringComparison.OrdinalIgnoreCase, out JToken val))
                 {
@@ -72,13 +95,14 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             return bestMatch;
         }
 
-        public JToken GetNearestLower(string datasetName, string searchColumn, double targetValue)
+        public JToken GetNearestLower(string datasetName, string searchColumn, double targetValue, Dictionary<string, string> filters = null)
         {
             var data = LoadDataset(datasetName);
+            var filteredData = FilterData(data, filters);
             JObject bestMatch = null;
             double minDiff = double.MaxValue;
 
-            foreach (JObject row in data)
+            foreach (JObject row in filteredData)
             {
                 if (row.TryGetValue(searchColumn, StringComparison.OrdinalIgnoreCase, out JToken val))
                 {

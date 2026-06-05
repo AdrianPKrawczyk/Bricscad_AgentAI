@@ -27,7 +27,8 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                             { "datasetName", new ToolParameter { Type = "string", Description = "Nazwa zestawu danych (bez rozszerzenia .json)." } },
                             { "searchColumn", new ToolParameter { Type = "string", Description = "Nazwa kolumny, w której szukamy wartości." } },
                             { "searchValue", new ToolParameter { Type = "string", Description = "Wartość docelowa (tekst lub liczba)." } },
-                            { "queryType", new ToolParameter { Type = "string", Description = "Typ zapytania: 'Exact', 'NearestGreater', lub 'NearestLower'." } }
+                            { "queryType", new ToolParameter { Type = "string", Description = "Typ zapytania: 'Exact', 'NearestGreater', lub 'NearestLower'." } },
+                            { "filters", new ToolParameter { Type = "object", Description = "Opcjonalny słownik klucz-wartość (dodatkowe filtry zawężające, np. { \"Material\": \"PEX\" })." } }
                         },
                         Required = new List<string> { "datasetName", "searchColumn", "searchValue", "queryType" }
                     }
@@ -43,25 +44,31 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                 string searchColumn = parameters["searchColumn"]?.ToString();
                 string searchValueStr = parameters["searchValue"]?.ToString();
                 string queryType = parameters["queryType"]?.ToString();
+                
+                Dictionary<string, string> filters = null;
+                if (parameters.ContainsKey("filters") && parameters["filters"] != null && parameters["filters"].Type == JTokenType.Object)
+                {
+                    filters = parameters["filters"].ToObject<Dictionary<string, string>>();
+                }
 
                 var db = new DatasetManager();
                 JToken result = null;
 
                 if (queryType.Equals("Exact", StringComparison.OrdinalIgnoreCase))
                 {
-                    result = db.GetExactMatch(datasetName, searchColumn, searchValueStr);
+                    result = db.GetExactMatch(datasetName, searchColumn, searchValueStr, filters);
                 }
                 else if (queryType.Equals("NearestGreater", StringComparison.OrdinalIgnoreCase))
                 {
                     if (double.TryParse(searchValueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val))
-                        result = db.GetNearestGreater(datasetName, searchColumn, val);
+                        result = db.GetNearestGreater(datasetName, searchColumn, val, filters);
                     else
                         return "BŁĄD: searchValue musi być liczbą dla NearestGreater.";
                 }
                 else if (queryType.Equals("NearestLower", StringComparison.OrdinalIgnoreCase))
                 {
                     if (double.TryParse(searchValueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val))
-                        result = db.GetNearestLower(datasetName, searchColumn, val);
+                        result = db.GetNearestLower(datasetName, searchColumn, val, filters);
                     else
                         return "BŁĄD: searchValue musi być liczbą dla NearestLower.";
                 }
