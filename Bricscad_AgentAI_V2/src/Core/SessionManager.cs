@@ -51,6 +51,9 @@ namespace Bricscad_AgentAI_V2.Core
             if (session == null) session = CurrentSession;
             if (session == null) return;
             
+            // Blokujemy zapisywanie całkowicie pustej domyślnej sesji na starcie programu
+            if (session.Messages.Count == 0 && session.Description == "Nowa sesja") return;
+            
             session.UpdatedAt = DateTime.Now;
             // Odśwież blackboard przed zapisem
             session.Blackboard = SharedMemoryState.GetAll();

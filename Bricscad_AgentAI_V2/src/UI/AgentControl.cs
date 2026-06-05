@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Threading.Tasks;
@@ -1703,7 +1703,8 @@ namespace Bricscad_AgentAI_V2.UI
                 return;
             }
 
-            int maxTokens = LLMConfigManager.Current?.MaxContextTokens > 0 ? LLMConfigManager.Current.MaxContextTokens : (LLMConfigManager.GetActiveProvider()?.MaxTokens ?? 8192);
+            var provider = LLMConfigManager.GetActiveProvider();
+            int maxTokens = provider?.LoadContextLength > 0 ? provider.LoadContextLength : (LLMConfigManager.Current?.MaxContextTokens > 0 ? LLMConfigManager.Current.MaxContextTokens : 8192);
             int percent = (int)((double)totalTokens / maxTokens * 100);
             if (percent > 100) percent = 100;
 
