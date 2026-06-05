@@ -211,7 +211,12 @@ namespace Bricscad_AgentAI_V2.UI
         // --- LOGIKA TAB 1 ---
         public void AddSessionRecord(string displayName, List<ChatMessage> historySnapshot, List<ToolDefinition> toolsSnapshot, LLMStats stats)
         {
-            if (this.InvokeRequired) { this.Invoke(new Action(() => AddSessionRecord(displayName, historySnapshot, toolsSnapshot, stats))); return; }
+            if (AgentControl.Instance != null && AgentControl.Instance.InvokeRequired)
+            {
+                AgentControl.Instance.BeginInvoke(new Action(() => AddSessionRecord(displayName, historySnapshot, toolsSnapshot, stats)));
+                return;
+            }
+            if (this.InvokeRequired) { this.BeginInvoke(new Action(() => AddSessionRecord(displayName, historySnapshot, toolsSnapshot, stats))); return; }
             var record = new SessionRecord { DisplayName = $"{DateTime.Now:HH:mm:ss} - {displayName}", Messages = historySnapshot, Tools = toolsSnapshot, Stats = stats };
             _records.Insert(0, record);
             lstSessions.Items.Insert(0, record.DisplayName);

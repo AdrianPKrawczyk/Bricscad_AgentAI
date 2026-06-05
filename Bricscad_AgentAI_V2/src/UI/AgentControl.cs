@@ -130,9 +130,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void UpdateModelLabel()
         {
+            if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(UpdateModelLabel));
+                this.BeginInvoke(new Action(UpdateModelLabel));
                 return;
             }
             var config = LLMConfigManager.GetActiveProvider();
@@ -977,9 +978,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         public void UpdateStatusHUD(string status)
         {
+            if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<string>(UpdateStatusHUD), status);
+                this.BeginInvoke(new Action<string>(UpdateStatusHUD), status);
                 return;
             }
             lblStatus.Text = $"[Model: {_activeModel}] {status}";
@@ -987,9 +989,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         public void UpdateStatsHUD(LLMStats stats)
         {
+            if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<LLMStats>(UpdateStatsHUD), stats);
+                this.BeginInvoke(new Action<LLMStats>(UpdateStatsHUD), stats);
                 return;
             }
             _lastStats = stats;
@@ -998,9 +1001,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         public void AppendToolLog(string rawJsonCall)
         {
+            if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<string>(AppendToolLog), rawJsonCall);
+                this.BeginInvoke(new Action<string>(AppendToolLog), rawJsonCall);
                 return;
             }
             txtToolLogs.AppendText($"\n--- WYWOŁANIE [{DateTime.Now:HH:mm:ss}] ---\n");
@@ -1093,9 +1097,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         public void AppendToHistory(string sender, string message, Color color)
         {
+            if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<string, string, Color>(AppendToHistory), sender, message, color);
+                this.BeginInvoke(new Action<string, string, Color>(AppendToHistory), sender, message, color);
                 return;
             }
 
@@ -1117,9 +1122,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         public void AppendEngineLog(string message)
         {
+            if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<string>(AppendEngineLog), message);
+                this.BeginInvoke(new Action<string>(AppendEngineLog), message);
                 return;
             }
             if (rtbEngineLogs != null)
