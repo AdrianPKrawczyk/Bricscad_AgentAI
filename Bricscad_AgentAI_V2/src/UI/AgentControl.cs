@@ -246,7 +246,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             // --- Pasek Kontekstu (Context Bar) ---
             panContextBar = new Panel { Dock = DockStyle.Top, Height = 30, Padding = new Padding(5) };
-            lblContextTokens = new Label { Dock = DockStyle.Left, Width = 150, Text = "Kontekst: 0/8192 (0%)", TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.LightGray };
+            lblContextTokens = new Label { Dock = DockStyle.Left, AutoSize = true, Padding = new Padding(0, 0, 10, 0), Text = "Kontekst: 0/8192 (0%)", TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.LightGray };
             pbContext = new ProgressBar { Dock = DockStyle.Fill };
             btnCompressContext = new Button { Dock = DockStyle.Right, Width = 40, Text = "🗜️", FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnCompressContext.Click += BtnCompressContext_Click;
@@ -305,7 +305,7 @@ namespace Bricscad_AgentAI_V2.UI
             lstAutocomplete = new ListBox
             {
                 Visible = false,
-                Width = 150,
+                AutoSize = true, Padding = new Padding(0, 0, 10, 0),
                 Height = 120,
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(45, 45, 48),
@@ -498,7 +498,7 @@ namespace Bricscad_AgentAI_V2.UI
             cbAgentPromptFile = new ComboBox { Dock = DockStyle.Left, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             cbAgentPromptFile.Items.AddRange(new object[] { "system_prompt.txt", "system_prompt_supervisor.txt", "system_prompt_math.txt" });
             
-            btnOpenAgentPromptInOverview = new Button { Text = "Otwórz w Notatniku", Dock = DockStyle.Left, Width = 150, Margin = new Padding(10, 0, 0, 0), BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnOpenAgentPromptInOverview = new Button { Text = "Otwórz w Notatniku", Dock = DockStyle.Left, AutoSize = true, Padding = new Padding(0, 0, 10, 0), Margin = new Padding(10, 0, 0, 0), BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnOpenAgentPromptInOverview.Click += BtnOpenAgentPromptInOverview_Click;
 
             panAgentPromptSelection.Controls.Add(btnOpenAgentPromptInOverview);
@@ -844,7 +844,7 @@ namespace Bricscad_AgentAI_V2.UI
             TextBox txtCurrentPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
             txtCurrentPath.Text = AppPaths.GetCustomKnowledgePath();
             
-            Button btnChangePath = new Button { Text = "Ę‘Łşâ€śâ€š Wybierz inny folder...", Left = 610, Top = 7, Width = 150, BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            Button btnChangePath = new Button { Text = "Ę‘Łşâ€śâ€š Wybierz inny folder...", Left = 610, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             
             panPathSetup.Controls.Add(lblPathCurrent);
             panPathSetup.Controls.Add(txtCurrentPath);
@@ -1703,7 +1703,7 @@ namespace Bricscad_AgentAI_V2.UI
                 return;
             }
 
-            int maxTokens = 8192; // Docelowo pobierane z ustawień
+            int maxTokens = LLMConfigManager.Current?.MaxContextTokens > 0 ? LLMConfigManager.Current.MaxContextTokens : (LLMConfigManager.GetActiveProvider()?.MaxTokens ?? 8192);
             int percent = (int)((double)totalTokens / maxTokens * 100);
             if (percent > 100) percent = 100;
 
