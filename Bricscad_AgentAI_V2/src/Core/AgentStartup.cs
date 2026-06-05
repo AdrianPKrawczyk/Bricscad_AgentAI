@@ -21,6 +21,7 @@ namespace Bricscad_AgentAI_V2.Core
 
         public void Initialize()
         {
+            EnsureKnowledgeBaseFolders();
             CleanupVisionCache();
             try
             {
@@ -29,6 +30,7 @@ namespace Bricscad_AgentAI_V2.Core
 
                 AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
                 System.Windows.Forms.Application.ThreadException += Application_ThreadException;
+                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
             }
             catch (System.Exception ex)
             {
@@ -40,9 +42,30 @@ namespace Bricscad_AgentAI_V2.Core
         {
             try
             {
+                AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
                 BielikLogger.LogInfo("Zamykanie wtyczki Bielik AI V2 GOLD.");
             }
             catch { }
+        }
+
+        private System.Reflection.Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                string dllName = new System.Reflection.AssemblyName(args.Name).Name + ".dll";
+                string pluginDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string dllPath = System.IO.Path.Combine(pluginDir, dllName);
+
+                if (System.IO.File.Exists(dllPath))
+                {
+                    return System.Reflection.Assembly.LoadFrom(dllPath);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                BielikLogger.LogError($"[AssemblyResolve] Błąd ładowania: {args.Name}", ex);
+            }
+            return null;
         }
 
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -76,6 +99,30 @@ namespace Bricscad_AgentAI_V2.Core
                 }
             }
             catch { }
+        }
+
+        private void EnsureKnowledgeBaseFolders()
+        {
+            try
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string basePath = System.IO.Path.Combine(appData, "Bricscad_AgentAI", "CustomKnowledge");
+                string formulasPath = System.IO.Path.Combine(basePath, "Formulas");
+                string macrosPath = System.IO.Path.Combine(basePath, "Macros");
+
+                if (!System.IO.Directory.Exists(formulasPath))
+                {
+                    System.IO.Directory.CreateDirectory(formulasPath);
+                }
+                if (!System.IO.Directory.Exists(macrosPath))
+                {
+                    System.IO.Directory.CreateDirectory(macrosPath);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                try { BielikLogger.LogError("Błąd podczas tworzenia folderów CustomKnowledge", ex); } catch { }
+            }
         }
 
         [CommandMethod("AGENT_V2")]

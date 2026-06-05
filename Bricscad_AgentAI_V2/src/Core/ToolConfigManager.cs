@@ -250,7 +250,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["SupervisorProfile"] = supervisorProf;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -284,7 +284,7 @@ namespace Bricscad_AgentAI_V2.Core
                 "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                 "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                 "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                "FindXData", "CaptureVisionArea"
+                "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula"
             };
             if (cadProf.AllowedTools == null)
             {
@@ -345,7 +345,7 @@ namespace Bricscad_AgentAI_V2.Core
                 mathProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = "system_prompt_math.txt", 
-                    AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
+                    AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula" },
                     AllowedTags = new List<string> { "#math", "#obliczenia" }
                 };
                 _config.Profiles["CadMathProfile"] = mathProf;
@@ -379,7 +379,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_supervisor.txt",
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro" },
                 AllowedTags = new List<string>()
             };
             
@@ -393,7 +393,7 @@ namespace Bricscad_AgentAI_V2.Core
                     "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                     "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                     "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                    "FindXData", "CaptureVisionArea"
+                    "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula"
                 },
                 AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
             };
@@ -422,7 +422,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["CadMathProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_math.txt",
-                AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice" },
+                AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula" },
                 AllowedTags = new List<string> { "#math", "#obliczenia" }
             };
 

@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using System.Linq;
 using Application = Bricscad.ApplicationServices.Application;
 using Bricscad_AgentAI_V2.UI.Forms;
+using Bricscad_AgentAI_V2.UI.KnowledgeBase;
 
 namespace Bricscad_AgentAI_V2.UI
 {
@@ -22,6 +23,7 @@ namespace Bricscad_AgentAI_V2.UI
         private CheckBox chkEarlyExit;
         private DatasetStudioControl datasetStudio;
         public DatasetStudioControl DatasetStudio => datasetStudio;
+        private KnowledgeBaseControl knowledgeBaseControl;
 
         // --- UI Czat ---
         private RichTextBox txtHistory;
@@ -609,6 +611,11 @@ namespace Bricscad_AgentAI_V2.UI
             tabDataset.Controls.Add(datasetStudio);
             tabControl.TabPages.Add(tabDataset);
 
+            var tabKnowledgeBase = new TabPage("📚 Baza Wiedzy AI");
+            knowledgeBaseControl = new KnowledgeBaseControl();
+            tabKnowledgeBase.Controls.Add(knowledgeBaseControl);
+            tabControl.TabPages.Add(tabKnowledgeBase);
+
             // ==========================================
             // ZAKŁADKA 7: DEBUG (ENGINE TRACER)
             // ==========================================
@@ -773,6 +780,9 @@ namespace Bricscad_AgentAI_V2.UI
             EngineTracer.SetLogCallback(AppendEngineLog);
 
             this.Controls.Add(tabControl);
+            
+            // Załadowanie początkowych danych do bazy wiedzy
+            knowledgeBaseControl.LoadData();
         }
 
 

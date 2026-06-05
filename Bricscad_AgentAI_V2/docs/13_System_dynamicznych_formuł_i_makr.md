@@ -13,6 +13,12 @@ Celem wdrożenia jest rozszerzenie architektury `Supervisor-Worker` o system trw
 
 ---
 
+## 1.5. Podział Ról (Supervisor vs Eksperci) i Blackboard
+Aby system dynamiczny funkcjonował w rozbudowanej architekturze Multi-Agent, podział ról kształtuje się następująco:
+* **Supervisor:** Główny mózg operacyjny decydujący, jakiego narzędzia z bazy należy użyć. Jeśli zauważy powtarzalny schemat, użyje nowo zbudowanych narzędzi, by napisać makro lub formułę do `CustomKnowledge`. 
+* **Eksperci (np. HvacExpert):** Agenci dziedzinowi wywoływani przez Supervisora do konkretnych problemów inżynieryjnych. Otrzymują gotowe instrukcje, jak pobierać wzory wygenerowane w bazie.
+* **SharedMemoryState (Blackboard):** Jest to globalny rejestr w pamięci RAM `Dictionary<string, string>`. Służy do asynchronicznej wymiany danych między agentami, formułami Roslyn i Makrami JSON, unikając utraty kontekstu (np. Supervisor oblicza z formuły pole powierzchni, odkłada wynik na Blackboard pod kluczem "ObliczonePole", a inny agent budowlany odczytuje tę wartość).
+
 ## 2. Architektura Komponentów (Nowe Moduły)
 
 ### A. System Plików (File System)
@@ -105,28 +111,30 @@ Kopiując poniższe instrukcje do Agenta VSC, podawaj je etapami (Faza 1, po jej
 
 ---
 
-## 4. Oczekiwany Schemat (JSON) Definicji Skryptu Formuły
+## 4. Oczekiwany Schemat (JSON) Definicji Skryptu Formuły (Rygor Wymiarowy)
 
-Agent LLM musi generować skrypty w jednolitym formacie. Narzędzie zapisu będzie oczekiwało ustrukturyzowanego obiektu przed zrzutem do `.csx`. Standard, którym należy uczyć model, wygląda tak:
+Agent LLM musi generować skrypty w jednolitym formacie ze szczególnym uwzględnieniem rygoru wymiarowego opartym na bibliotece **UnitsNet**. Narzędzie zapisu będzie oczekiwało operacji na stringach parsujących liczby z jednostkami.
 
 **Kod wewnętrzny pliku (przykład: `Hvac_FlowRate.csx`):**
 
 ```csharp
-// Wymagane wejścia: ["power_kW", "deltaT_C", "specific_heat_kJ_kgK"]
-// Zwraca: Przepływ w m3/h
+// Wymagane wejścia: ["power", "deltaT", "specific_heat"]
+// Argumenty przychodzą jako np. "150 kW", "20 °C", "4.18 kJ/kgK"
+// Zwraca: Przepływ jako ciąg znaków z jednostką.
 
-double power = Inputs["power_kW"];
-double deltaT = Inputs["deltaT_C"];
-double cp = Inputs["specific_heat_kJ_kgK"]; // dla wody zazwyczaj 4.18
+Power power = Power.Parse(Inputs["power"]);
+TemperatureDelta deltaT = TemperatureDelta.Parse(Inputs["deltaT"]);
+// SpecificHeatCapacity nie istnieje zawsze wprost w prostym UnitsNet, więc użyjmy jednostek standardowych lub jawnego rozbicia:
+double cp = double.Parse(Inputs["specific_heat"].Split(' ')[0]); // w kJ/kgK
 
 // Obliczenie masy (kg/s) = kW / (cp * deltaT)
-double massFlow = power / (cp * deltaT);
+double massFlow = power.Kilowatts / (cp * deltaT.Kelvins);
 
 // Zamiana na m3/h (zakładając gęstość wody ~1000 kg/m3)
 double volFlow = (massFlow * 3600) / 1000.0;
 
-return volFlow;
-
+VolumeFlow result = VolumeFlow.FromCubicMetersPerHour(volFlow);
+return result.ToString(); // zwraca np. "27 m³/h"
 ```
 
-*(Zmienna `Inputs` jest automatycznie dostępna w przestrzeni skryptu dzięki klasie `ScriptGlobals` przekazywanej przez silnik Roslyn).*
+*(Zmienna `Inputs` typu `Dictionary<string, string>` jest automatycznie dostępna w przestrzeni skryptu dzięki klasie `ScriptGlobals` przekazywanej przez silnik Roslyn).*
