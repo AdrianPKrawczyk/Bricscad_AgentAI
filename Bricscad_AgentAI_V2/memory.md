@@ -753,3 +753,9 @@ Ten dokument sÅ‚uÅ¼y jako zewnÄ™trzna pamiÄ™Ä‡ dÅ‚ugotrwaÅ‚a dla modelu AI. Zawi
 - Brak.
 ### [KOLEJNY_KROK]
 - Testowanie nowej struktury z uÅ¼yciem narzÄ™dzi lub dalszy rozwÃ³j bazy wiedzy.
+
+### Faza 10: Multi-Modalne Za³¹czniki (Tekst i Wizja) (Zakoñczono)
+1. Zaimplementowano klasê FileExtractor.cs do obs³ugi za³¹czników tekstowych (TXT, PY, MD, LSP) oraz binarnych (PDF, XLS/XLSX).
+2. Wprowadzono kompresjê i skalowanie obrazów (PNG, JPG) u¿ywaj¹c System.Drawing.Common do 1024x1024px z konwersj¹ do Base64 dla wsparcia Vision API.
+3. Zaktualizowano AgentControl.cs - dodano przycisk za³¹cznika (btnAttachFile), obs³ugê OpenFileDialog, logikê procesowania za³¹cznika w ProcessInputAsync i wyœwietlanie w UI (lblAttachedFile).
+4. Skompilowano kod z wynikiem pozytywnym bez b³êdów (MSBuild).

@@ -71,6 +71,10 @@
     </PackageReference>
     <PackageReference Include="UnitsNet" Version="5.62.0">
     </PackageReference>
+    <PackageReference Include="ExcelDataReader" Version="3.7.0" />
+    <PackageReference Include="ExcelDataReader.DataSet" Version="3.7.0" />
+    <PackageReference Include="PdfPig" Version="0.1.9" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.4" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Core\DynamicSystems\DynamicFormulaManager.cs" />
@@ -101,6 +105,7 @@
     <Compile Include="src\Core\EngineTracer.cs" />
     <Compile Include="src\Core\BielikLogger.cs" />
     <Compile Include="src\Core\UISettingsManager.cs" />
+    <Compile Include="src\Core\FileExtractor.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />

@@ -27,7 +27,7 @@ namespace Bricscad_AgentAI_V2.Core
 
         public List<ChatMessage> GetHistory() => _globalHistory;
 
-        public async Task<AgentExecutionResult> ProcessInputAsync(string userInput, IExecutionContext context)
+        public async Task<AgentExecutionResult> ProcessInputAsync(object userContent, IExecutionContext context)
         {
             if (_globalHistory.Count == 0)
             {
@@ -46,7 +46,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _globalHistory.Add(new ChatMessage { Role = "system", Content = sysPrompt });
             }
 
-            _globalHistory.Add(new ChatMessage { Role = "user", Content = userInput });
+            _globalHistory.Add(new ChatMessage { Role = "user", Content = userContent });
 
             // Supervisor always runs with SupervisorProfile
             AgentExecutionResult result = await _client.SendMessageReActAsync(_globalHistory, context, null, true, 10, "SupervisorProfile");

@@ -30,6 +30,9 @@ namespace Bricscad_AgentAI_V2.UI
         private RichTextBox txtInput;
         private Button btnSend;
         private Button btnReset;
+        private Button btnAttachFile;
+        private Label lblAttachedFile;
+        private string _attachedFilePath;
         private Label lblStats;
         private Label lblStatus;
         private ListBox lstAutocomplete;
@@ -322,6 +325,32 @@ namespace Bricscad_AgentAI_V2.UI
                 dialog.ShowDialog();
             };
 
+            btnAttachFile = new Button
+            {
+                Text = "📎",
+                Dock = DockStyle.Left,
+                Width = 40,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnAttachFile.FlatAppearance.BorderSize = 0;
+            btnAttachFile.Click += BtnAttachFile_Click;
+
+            lblAttachedFile = new Label
+            {
+                Text = "",
+                Dock = DockStyle.Left,
+                AutoSize = true,
+                ForeColor = Color.Orange,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(10, 5, 0, 0),
+                Visible = false
+            };
+
+            panInput.Controls.Add(lblAttachedFile);
+            panInput.Controls.Add(btnAttachFile);
             panInput.Controls.Add(chkEarlyExit);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnSettings);
@@ -1110,7 +1139,15 @@ namespace Bricscad_AgentAI_V2.UI
 
         public async Task ProcessInputAsync(string rawInput)
         {
-            if (string.IsNullOrEmpty(rawInput)) return;
+            if (string.IsNullOrEmpty(rawInput) && string.IsNullOrEmpty(_attachedFilePath)) return;
+
+            string attachedFilePath = _attachedFilePath;
+            _attachedFilePath = null;
+            if (lblAttachedFile != null)
+            {
+                lblAttachedFile.Visible = false;
+                lblAttachedFile.Text = "";
+            }
 
             // 1. Semantic Tag Pre-processing (Regex)
             // Wyłuskujemy wszystkie tagi zaczynające się od #
@@ -1123,6 +1160,42 @@ namespace Bricscad_AgentAI_V2.UI
                 extractedTags.Add(match.Value.ToLower());
                 // Usuwamy tag z czystej wiadomości dla LLM
                 cleanMsg = cleanMsg.Replace(match.Value, "").Trim();
+            }
+
+            object payload = cleanMsg;
+
+            if (!string.IsNullOrEmpty(attachedFilePath))
+            {
+                try
+                {
+                    string ext = System.IO.Path.GetExtension(attachedFilePath).ToLowerInvariant();
+                    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg")
+                    {
+                        string base64 = FileExtractor.GetImageBase64(attachedFilePath);
+                        var visionContent = new List<VisionContentPart>
+                        {
+                            new VisionContentPart { Type = "text", Text = cleanMsg },
+                            new VisionContentPart
+                            {
+                                Type = "image_url",
+                                ImageUrl = new VisionImageUrl { Url = base64 }
+                            }
+                        };
+                        payload = visionContent;
+                    }
+                    else
+                    {
+                        string text = FileExtractor.ExtractText(attachedFilePath);
+                        cleanMsg += $"\n\n[ZAŁĄCZNIK: {System.IO.Path.GetFileName(attachedFilePath)}]\n{text}";
+                        payload = cleanMsg;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppendToHistory("BŁĄD ZAŁĄCZNIKA", ex.Message, Color.LightCoral);
+                    btnSend.Enabled = true;
+                    return; // Przerywamy przetwarzanie w przypadku błędu parsowania
+                }
             }
 
             // 2. Instant Recipe Execution ($trigger$)
@@ -1142,6 +1215,11 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
+            if (!string.IsNullOrEmpty(attachedFilePath))
+            {
+                AppendToHistory("SYSTEM", $"Dołączono plik: {System.IO.Path.GetFileName(attachedFilePath)}", Color.Orange);
+            }
+
             btnSend.Enabled = false;
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
@@ -1153,7 +1231,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 string aiResponse = await Task.Run(async () => 
                 {
-                    var result = await _supervisor.ProcessInputAsync(cleanMsg, new CadExecutionContext(doc));
+                    var result = await _supervisor.ProcessInputAsync(payload, new CadExecutionContext(doc));
                     return result.DisplayMessage;
                 });
 
@@ -1188,6 +1266,20 @@ namespace Bricscad_AgentAI_V2.UI
             string userMsg = txtInput.Text.Trim();
             txtInput.Clear();
             await ProcessInputAsync(userMsg);
+        }
+
+        private void BtnAttachFile_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Filter = "Wszystkie obsługiwane|*.py;*.csv;*.txt;*.xlsx;*.xls;*.pdf;*.png;*.jpg;*.jpeg|Wszystkie pliki|*.*";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    _attachedFilePath = ofd.FileName;
+                    lblAttachedFile.Text = $"Załącznik: {System.IO.Path.GetFileName(_attachedFilePath)}";
+                    lblAttachedFile.Visible = true;
+                }
+            }
         }
 
         public void AppendToHistory(string sender, string message, Color color)
