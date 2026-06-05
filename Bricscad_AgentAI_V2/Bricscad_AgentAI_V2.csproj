@@ -74,6 +74,7 @@
   <ItemGroup>
     <Compile Include="src\Core\DynamicSystems\DynamicFormulaManager.cs" />
     <Compile Include="src\Core\DynamicSystems\MacroManager.cs" />
+    <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
     <Compile Include="src\Models\LLMConfigModels.cs" />
@@ -90,6 +91,7 @@
     <Compile Include="src\Core\AgentTelemetry.cs" />
     <Compile Include="src\Core\PropertyValidator.cs" />
     <Compile Include="src\Core\RpnCalculator.cs" />
+    <Compile Include="src\Core\AppPaths.cs" />
     <Compile Include="src\Core\BenchmarkModels.cs" />
     <Compile Include="src\Core\AutoBenchmarkEngine.cs" />
     <Compile Include="src\Core\ToolConfigManager.cs" />
@@ -109,6 +111,8 @@
     <Compile Include="src\Tools\Knowledge\SaveMacroTool.cs" />
     <Compile Include="src\Tools\Knowledge\ExecuteFormulaTool.cs" />
     <Compile Include="src\Tools\Knowledge\ExecuteMacroTool.cs" />
+    <Compile Include="src\Tools\Knowledge\ReadKnowledgeTool.cs" />
+    <Compile Include="src\Tools\Knowledge\SearchUnitsNetTool.cs" />
     <Compile Include="src\Tools\ReadPropertyTool.cs" />
     <Compile Include="src\Tools\InspectEntityTool.cs" />
     <Compile Include="src\Tools\GetPropertiesTool.cs" />

@@ -12,6 +12,7 @@ namespace Bricscad_AgentAI_V2.Core
         public int AgentRecipeSplitterDistance { get; set; } = 250;
         public string LastDatasetFilePath { get; set; }
         public System.Collections.Generic.List<string> RecentDatasetFiles { get; set; } = new System.Collections.Generic.List<string>();
+        public string CustomKnowledgePath { get; set; } = string.Empty;
     }
 
     /// <summary>

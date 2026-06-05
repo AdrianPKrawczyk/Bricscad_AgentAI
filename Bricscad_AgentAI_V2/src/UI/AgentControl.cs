@@ -772,6 +772,91 @@ namespace Bricscad_AgentAI_V2.UI
                 }
             };
 
+            // ==========================================
+            // PODZAKŁADKA: Ścieżki i Dane
+            // ==========================================
+            TabPage tabPathsSub = new TabPage("Ścieżki i Dane");
+            tabPathsSub.BackColor = Color.FromArgb(45, 45, 45);
+            tabPathsSub.ForeColor = Color.White;
+            
+            Label lblPathsTitle = new Label { Text = "Konfiguracja Bazy Wiedzy (CustomKnowledge)", Dock = DockStyle.Top, Height = 30, Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(10,10,0,0) };
+            
+            Panel panPathSetup = new Panel { Dock = DockStyle.Top, Height = 60, Padding = new Padding(10) };
+            Label lblPathCurrent = new Label { Text = "Aktualny folder Bazy Wiedzy:", Left = 10, Top = 10, Width = 180 };
+            TextBox txtCurrentPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
+            txtCurrentPath.Text = AppPaths.GetCustomKnowledgePath();
+            
+            Button btnChangePath = new Button { Text = "📂 Wybierz inny folder...", Left = 610, Top = 7, Width = 150, BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            
+            panPathSetup.Controls.Add(lblPathCurrent);
+            panPathSetup.Controls.Add(txtCurrentPath);
+            panPathSetup.Controls.Add(btnChangePath);
+
+            Label lblPathInfo = new Label { Text = "Domyślnie agent zapisuje wyuczone formuły i makra w folderze systemowym AppData. Możesz zmienić ten folder na np. swój dysk w chmurze (OneDrive/Dropbox), aby synchronizować bazę wiedzy między komputerami.", Dock = DockStyle.Top, Height = 60, Padding = new Padding(10), ForeColor = Color.DarkGray };
+
+            tabPathsSub.Controls.Add(panPathSetup);
+            tabPathsSub.Controls.Add(lblPathInfo);
+            tabPathsSub.Controls.Add(lblPathsTitle);
+            
+            btnChangePath.Click += (s, e) => {
+                using (var fbd = new FolderBrowserDialog())
+                {
+                    fbd.Description = "Wybierz folder docelowy dla Bazy Wiedzy (CustomKnowledge):";
+                    if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        string oldPath = AppPaths.GetCustomKnowledgePath();
+                        string newPath = fbd.SelectedPath;
+                        
+                        if (oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase)) return;
+
+                        bool shouldCopy = false;
+                        if (MessageBox.Show("Zmieniono folder Bazy Wiedzy.\n\nCzy chcesz przenieść (skopiować) istniejące formuły i makra ze starego folderu do nowego?", "Kopiowanie danych", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        {
+                            shouldCopy = true;
+                        }
+
+                        UISettingsManager.Settings.CustomKnowledgePath = newPath;
+                        UISettingsManager.Save();
+                        txtCurrentPath.Text = newPath;
+
+                        if (shouldCopy)
+                        {
+                            try
+                            {
+                                if (System.IO.Directory.Exists(oldPath))
+                                {
+                                    // Kopiowanie podkatalogów (Formulas, Macros)
+                                    foreach (string dirPath in System.IO.Directory.GetDirectories(oldPath, "*", System.IO.SearchOption.AllDirectories))
+                                    {
+                                        System.IO.Directory.CreateDirectory(dirPath.Replace(oldPath, newPath));
+                                    }
+                                    foreach (string newFilePath in System.IO.Directory.GetFiles(oldPath, "*.*", System.IO.SearchOption.AllDirectories))
+                                    {
+                                        System.IO.File.Copy(newFilePath, newFilePath.Replace(oldPath, newPath), true);
+                                    }
+                                    MessageBox.Show("Dane zostały poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                            }
+                            catch(Exception ex)
+                            {
+                                MessageBox.Show($"Wystąpił błąd podczas kopiowania plików: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                        
+                        // Odświeżenie systemu
+                        Bricscad_AgentAI_V2.Core.DynamicSystems.DynamicFormulaManager.LoadAndCompileAll();
+                        Bricscad_AgentAI_V2.Core.DynamicSystems.MacroManager.LoadAllMacros();
+                        if (tabKnowledgeBase != null && tabControl.TabPages.Contains(tabKnowledgeBase))
+                        {
+                            knowledgeBaseControl.LoadData();
+                        }
+                        MessageBox.Show("Ścieżka do bazy wiedzy została zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            };
+
+            tabSettingsSub.TabPages.Add(tabPathsSub);
+
             tabSettings.Controls.Add(tabSettingsSub);
             tabControl.TabPages.Add(tabSettings);
 

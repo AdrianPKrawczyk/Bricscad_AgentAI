@@ -95,15 +95,8 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                     Steps = steps
                 };
 
-                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string macrosPath = Path.Combine(appData, "Bricscad_AgentAI", "CustomKnowledge", "Macros");
-                if (!Directory.Exists(macrosPath)) Directory.CreateDirectory(macrosPath);
-
-                string filePath = Path.Combine(macrosPath, $"{id}.json");
                 string jsonOutput = JsonConvert.SerializeObject(macro, Formatting.Indented);
-                
-                File.WriteAllText(filePath, jsonOutput);
-                
+                MacroManager.SaveMacro(id, jsonOutput);
                 MacroManager.LoadAllMacros();
                 
                 return $"SUKCES: Zapisano makro '{id}' zawierające {steps.Count} krok(ów).";
