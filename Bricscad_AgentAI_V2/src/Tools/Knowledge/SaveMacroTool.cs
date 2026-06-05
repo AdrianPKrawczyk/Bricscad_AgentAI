@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Core.DynamicSystems;
@@ -41,6 +42,20 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                                 }
                             },
                             {
+                                "Category", new ToolParameter
+                                {
+                                    Type = "string",
+                                    Description = "Kategoria makra, używająca znaku ukośnika jako separatora (np. 'Warstwy/Standard'). Opcjonalna."
+                                }
+                            },
+                            {
+                                "Tags", new ToolParameter
+                                {
+                                    Type = "array",
+                                    Description = "Lista tagów pomocniczych (np. ['warstwy', 'przygotowanie']). Opcjonalna."
+                                }
+                            },
+                            {
                                 "JsonSteps", new ToolParameter
                                 {
                                     Type = "array",
@@ -67,6 +82,7 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
         {
             string id = args["MacroId"]?.ToString();
             string description = args["Description"]?.ToString();
+            string category = args["Category"]?.ToString();
             
             if (string.IsNullOrWhiteSpace(id)) return "BŁĄD: Parametr MacroId jest wymagany.";
             
@@ -74,6 +90,14 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             if (stepsToken == null || !(stepsToken is JArray stepsArray))
             {
                 return "BŁĄD: JsonSteps musi być prawidłową tablicą JSON obiektów.";
+            }
+
+            // Sanitizacja kategorii
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                category = category.Replace("\\", "/");
+                var invalidChars = Path.GetInvalidPathChars();
+                category = new string(category.Where(c => !invalidChars.Contains(c)).ToArray());
             }
 
             try
@@ -92,8 +116,18 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                 {
                     Id = id,
                     Description = description,
-                    Steps = steps
+                    Steps = steps,
+                    Category = string.IsNullOrWhiteSpace(category) ? "Uncategorized" : category,
+                    Tags = new List<string>()
                 };
+
+                if (args["Tags"] is JArray tagsArr)
+                {
+                    foreach (var t in tagsArr)
+                    {
+                        macro.Tags.Add(t.ToString());
+                    }
+                }
 
                 string jsonOutput = JsonConvert.SerializeObject(macro, Formatting.Indented);
                 MacroManager.SaveMacro(id, jsonOutput);

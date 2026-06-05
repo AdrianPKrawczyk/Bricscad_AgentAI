@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Core.DynamicSystems;
@@ -57,6 +58,20 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                                 }
                             },
                             {
+                                "Category", new ToolParameter
+                                {
+                                    Type = "string",
+                                    Description = "Kategoria formuły, używająca znaku ukośnika jako separatora (np. 'HVAC/Wentylacja'). Opcjonalna."
+                                }
+                            },
+                            {
+                                "Tags", new ToolParameter
+                                {
+                                    Type = "array",
+                                    Description = "Lista tagów pomocniczych (np. ['przepływ', 'woda']). Opcjonalna."
+                                }
+                            },
+                            {
                                 "CSharpCode", new ToolParameter
                                 {
                                     Type = "string",
@@ -76,10 +91,19 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             string description = args["Description"]?.ToString();
             string outputDescription = args["OutputDescription"]?.ToString();
             string code = args["CSharpCode"]?.ToString();
+            string category = args["Category"]?.ToString();
 
             if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(code))
             {
                 return "BŁĄD: Parametry FormulaId oraz CSharpCode są wymagane.";
+            }
+
+            // Sanitizacja kategorii
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                category = category.Replace("\\", "/");
+                var invalidChars = Path.GetInvalidPathChars();
+                category = new string(category.Where(c => !invalidChars.Contains(c)).ToArray());
             }
 
             var meta = new FormulaMetadata
@@ -87,8 +111,18 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                 FormulaId = id,
                 Description = description,
                 OutputDescription = outputDescription,
-                RequiredInputs = new List<FormulaInputDef>()
+                RequiredInputs = new List<FormulaInputDef>(),
+                Category = string.IsNullOrWhiteSpace(category) ? "Uncategorized" : category,
+                Tags = new List<string>()
             };
+
+            if (args["Tags"] is JArray tagsArr)
+            {
+                foreach (var t in tagsArr)
+                {
+                    meta.Tags.Add(t.ToString());
+                }
+            }
 
             if (args["RequiredInputs"] is JArray arr)
             {

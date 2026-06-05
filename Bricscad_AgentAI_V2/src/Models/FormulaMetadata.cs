@@ -23,6 +23,12 @@ namespace Bricscad_AgentAI_V2.Models
         [JsonProperty("description")]
         public string Description { get; set; }
 
+        [JsonProperty("category")]
+        public string Category { get; set; } = "Uncategorized";
+
+        [JsonProperty("tags")]
+        public List<string> Tags { get; set; } = new List<string>();
+
         [JsonProperty("requiredInputs")]
         public List<FormulaInputDef> RequiredInputs { get; set; } = new List<FormulaInputDef>();
 

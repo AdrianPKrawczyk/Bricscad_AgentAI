@@ -28,6 +28,12 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
         [JsonProperty("description")]
         public string Description { get; set; }
 
+        [JsonProperty("category")]
+        public string Category { get; set; } = "Uncategorized";
+
+        [JsonProperty("tags")]
+        public List<string> Tags { get; set; } = new List<string>();
+
         [JsonProperty("steps")]
         public List<MacroStep> Steps { get; set; } = new List<MacroStep>();
     }
@@ -44,7 +50,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
                 string macrosPath = AppPaths.GetMacrosPath();
                 AppPaths.EnsureDirectoriesExist();
 
-                var files = Directory.GetFiles(macrosPath, "*.json");
+                var files = Directory.GetFiles(macrosPath, "*.json", SearchOption.AllDirectories);
 
                 foreach (var file in files)
                 {
@@ -117,11 +123,11 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
         public static bool DeleteMacro(string id)
         {
             string macrosPath = AppPaths.GetMacrosPath();
-            string filePath = Path.Combine(macrosPath, $"{id}.json");
+            var files = Directory.GetFiles(macrosPath, $"{id}.json", SearchOption.AllDirectories);
 
-            if (File.Exists(filePath))
+            if (files.Length > 0)
             {
-                File.Delete(filePath);
+                File.Delete(files[0]);
                 _macros.Remove(id);
                 BielikLogger.LogInfo($"[Makra] Usunięto makro: {id}");
                 return true;
@@ -148,9 +154,26 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             }
 
             string macrosPath = AppPaths.GetMacrosPath();
-            AppPaths.EnsureDirectoriesExist();
+            string targetDir = macrosPath;
 
-            string filePath = Path.Combine(macrosPath, $"{id}.json");
+            if (!string.IsNullOrWhiteSpace(macro.Category) && macro.Category != "Uncategorized")
+            {
+                targetDir = Path.Combine(macrosPath, macro.Category);
+            }
+            if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
+
+            // Jeśli plik już istniał w innym miejscu, to go przenieś/usuń
+            var existingFiles = Directory.GetFiles(macrosPath, $"{id}.json", SearchOption.AllDirectories);
+            if (existingFiles.Length > 0)
+            {
+                string oldDir = Path.GetDirectoryName(existingFiles[0]);
+                if (oldDir != targetDir)
+                {
+                    File.Delete(existingFiles[0]);
+                }
+            }
+
+            string filePath = Path.Combine(targetDir, $"{id}.json");
             File.WriteAllText(filePath, JsonConvert.SerializeObject(macro, Formatting.Indented));
 
             // Dodaj/Zaktualizuj w pamięci

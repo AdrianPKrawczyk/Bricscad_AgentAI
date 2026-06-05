@@ -141,7 +141,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             string path = AppPaths.GetDatasetsPath();
             if (!Directory.Exists(path)) return new List<string>();
 
-            return Directory.GetFiles(path, "*.json")
+            return Directory.GetFiles(path, "*.json", SearchOption.AllDirectories)
                 .Select(Path.GetFileNameWithoutExtension);
         }
     }

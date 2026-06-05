@@ -46,7 +46,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
                 return;
             }
 
-            var files = Directory.GetFiles(formulasPath, "*.csx");
+            var files = Directory.GetFiles(formulasPath, "*.csx", SearchOption.AllDirectories);
             
             var options = ScriptOptions.Default
                 .WithReferences(typeof(UnitsNet.Length).Assembly, typeof(Newtonsoft.Json.Linq.JObject).Assembly)
@@ -63,7 +63,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
                     var runner = script.CreateDelegate();
                     _compiledScripts[id] = runner;
 
-                    string jsonFile = Path.Combine(formulasPath, $"{id}.json");
+                    string jsonFile = Path.ChangeExtension(file, ".json");
                     if (File.Exists(jsonFile))
                     {
                         string json = File.ReadAllText(jsonFile);
@@ -125,11 +125,13 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
         public static bool DeleteFormula(string id)
         {
             string formulasPath = AppPaths.GetFormulasPath();
-            string csxPath = Path.Combine(formulasPath, $"{id}.csx");
-            string jsonPath = Path.Combine(formulasPath, $"{id}.json");
-
-            if (File.Exists(csxPath))
+            var csxFiles = Directory.GetFiles(formulasPath, $"{id}.csx", SearchOption.AllDirectories);
+            
+            if (csxFiles.Length > 0)
             {
+                string csxPath = csxFiles[0];
+                string jsonPath = Path.ChangeExtension(csxPath, ".json");
+
                 File.Delete(csxPath);
                 _compiledScripts.Remove(id);
                 if (File.Exists(jsonPath)) File.Delete(jsonPath);
@@ -182,10 +184,28 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             }
 
             string formulasPath = AppPaths.GetFormulasPath();
-            AppPaths.EnsureDirectoriesExist();
+            string targetDir = formulasPath;
+            if (meta != null && !string.IsNullOrWhiteSpace(meta.Category) && meta.Category != "Uncategorized")
+            {
+                targetDir = Path.Combine(formulasPath, meta.Category);
+            }
+            if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
 
-            string csxPath = Path.Combine(formulasPath, $"{id}.csx");
-            string jsonPath = Path.Combine(formulasPath, $"{id}.json");
+            // Jeśli plik już istniał w innym miejscu, to go przenieś/usuń
+            var existingFiles = Directory.GetFiles(formulasPath, $"{id}.csx", SearchOption.AllDirectories);
+            if (existingFiles.Length > 0)
+            {
+                string oldDir = Path.GetDirectoryName(existingFiles[0]);
+                if (oldDir != targetDir)
+                {
+                    File.Delete(existingFiles[0]);
+                    string oldJson = Path.ChangeExtension(existingFiles[0], ".json");
+                    if (File.Exists(oldJson)) File.Delete(oldJson);
+                }
+            }
+
+            string csxPath = Path.Combine(targetDir, $"{id}.csx");
+            string jsonPath = Path.Combine(targetDir, $"{id}.json");
 
             File.WriteAllText(csxPath, code);
             if (meta != null)

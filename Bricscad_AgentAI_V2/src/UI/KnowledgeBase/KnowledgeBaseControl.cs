@@ -10,6 +10,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Data;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 
 namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 {
@@ -20,8 +21,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private TabPage tabPageMacros;
         private TabPage tabPageDatasets;
 
+        private Panel pnlTopFilters;
+        private TextBox txtTagFilter;
+        private string currentTagFilter = "";
+
         // --- Formulas ---
-        private ListBox lstFormulas;
+        private TreeView tvFormulas;
         private RichTextBox rtbFormulaMetadata;
         private RichTextBox rtbFormulaCode;
         private Button btnReloadFormulas;
@@ -30,7 +35,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private Button btnSaveFormula;
 
         // --- Macros ---
-        private ListBox lstMacros;
+        private TreeView tvMacros;
         private RichTextBox rtbMacroJson;
         private Button btnExecuteMacro;
         private Button btnAddMacro;
@@ -38,7 +43,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private Button btnSaveMacro;
 
         // --- Datasets ---
-        private ListBox lstDatasets;
+        private TreeView tvDatasets;
         private DataGridView dgvDataset;
         private Button btnSaveDataset;
 
@@ -51,6 +56,16 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private void InitializeComponent()
         {
             this.Dock = DockStyle.Fill;
+            this.VisibleChanged += KnowledgeBaseControl_VisibleChanged;
+
+            pnlTopFilters = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5) };
+            Label lblTagFilter = new Label { Text = "Filtruj wg tagów (po przecinku):", AutoSize = true, Location = new Point(10, 12), ForeColor = Color.LightGray };
+            txtTagFilter = new TextBox { Location = new Point(190, 9), Width = 300, Font = new Font("Segoe UI", 9.5f) };
+            txtTagFilter.TextChanged += TxtTagFilter_TextChanged;
+            
+            pnlTopFilters.Controls.Add(lblTagFilter);
+            pnlTopFilters.Controls.Add(txtTagFilter);
+            this.Controls.Add(pnlTopFilters);
 
             mainTabControl = new TabControl
             {
@@ -65,8 +80,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageFormulas = new TabPage("🧠 Formuły Inżynierskie (Roslyn)");
 
             Panel pnlFormulasLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
-            lstFormulas = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
-            lstFormulas.SelectedIndexChanged += LstFormulas_SelectedIndexChanged;
+            tvFormulas = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
+            tvFormulas.AfterSelect += TvFormulas_AfterSelect;
             
             Panel pnlFormulasLeftBtns = new Panel { Dock = DockStyle.Bottom, Height = 60 };
             btnAddFormula = new Button { Text = "➕ Dodaj", Left = 5, Top = 5, Width = 115, Height = 30, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
@@ -79,7 +94,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnReloadFormulas = new Button { Text = "🔄 Przeładuj Bazy (Hot Reload)", Dock = DockStyle.Bottom, Height = 40, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnReloadFormulas.Click += BtnReloadFormulas_Click;
             
-            pnlFormulasLeft.Controls.Add(lstFormulas);
+            pnlFormulasLeft.Controls.Add(tvFormulas);
             pnlFormulasLeft.Controls.Add(pnlFormulasLeftBtns);
             pnlFormulasLeft.Controls.Add(btnReloadFormulas);
 
@@ -115,8 +130,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageMacros = new TabPage("📜 Makra (JSON)");
 
             Panel pnlMacrosLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
-            lstMacros = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
-            lstMacros.SelectedIndexChanged += LstMacros_SelectedIndexChanged;
+            tvMacros = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
+            tvMacros.AfterSelect += TvMacros_AfterSelect;
 
             Panel pnlMacrosLeftBtns = new Panel { Dock = DockStyle.Bottom, Height = 60 };
             btnAddMacro = new Button { Text = "➕ Dodaj", Left = 5, Top = 5, Width = 115, Height = 30, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
@@ -129,7 +144,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnExecuteMacro = new Button { Text = "▶️ Wykonaj Wybrane Makro", Dock = DockStyle.Bottom, Height = 40, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnExecuteMacro.Click += BtnExecuteMacro_Click;
 
-            pnlMacrosLeft.Controls.Add(lstMacros);
+            pnlMacrosLeft.Controls.Add(tvMacros);
             pnlMacrosLeft.Controls.Add(pnlMacrosLeftBtns);
             pnlMacrosLeft.Controls.Add(btnExecuteMacro);
 
@@ -153,10 +168,10 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageDatasets = new TabPage("🗄️ Bazy Danych (Katalogi)");
 
             Panel pnlDatasetsLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
-            lstDatasets = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
-            lstDatasets.SelectedIndexChanged += LstDatasets_SelectedIndexChanged;
+            tvDatasets = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
+            tvDatasets.AfterSelect += TvDatasets_AfterSelect;
 
-            pnlDatasetsLeft.Controls.Add(lstDatasets);
+            pnlDatasetsLeft.Controls.Add(tvDatasets);
 
             Panel pnlDatasetsRight = new Panel { Dock = DockStyle.Fill };
             dgvDataset = new DataGridView 
@@ -193,18 +208,22 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             Color btnBg = Color.FromArgb(0, 122, 204);
 
             this.BackColor = panelBg;
+            pnlTopFilters.BackColor = bgDark;
+            txtTagFilter.BackColor = panelBg; txtTagFilter.ForeColor = Color.White;
+            txtTagFilter.BorderStyle = BorderStyle.FixedSingle;
+
             tabPageFormulas.BackColor = panelBg;
             tabPageMacros.BackColor = panelBg;
             tabPageDatasets.BackColor = panelBg;
 
-            lstFormulas.BackColor = bgDark; lstFormulas.ForeColor = fgLight;
+            tvFormulas.BackColor = bgDark; tvFormulas.ForeColor = fgLight;
             rtbFormulaMetadata.BackColor = bgDark; rtbFormulaMetadata.ForeColor = Color.Orange;
             rtbFormulaCode.BackColor = bgDark; rtbFormulaCode.ForeColor = Color.LightGreen;
 
-            lstMacros.BackColor = bgDark; lstMacros.ForeColor = fgLight;
+            tvMacros.BackColor = bgDark; tvMacros.ForeColor = fgLight;
             rtbMacroJson.BackColor = bgDark; rtbMacroJson.ForeColor = Color.Cyan;
 
-            lstDatasets.BackColor = bgDark; lstDatasets.ForeColor = fgLight;
+            tvDatasets.BackColor = bgDark; tvDatasets.ForeColor = fgLight;
 
             btnReloadFormulas.BackColor = btnBg; btnReloadFormulas.ForeColor = Color.White; btnReloadFormulas.FlatAppearance.BorderSize = 0;
             btnExecuteMacro.BackColor = Color.SeaGreen; btnExecuteMacro.ForeColor = Color.White; btnExecuteMacro.FlatAppearance.BorderSize = 0;
@@ -220,6 +239,42 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnSaveDataset.BackColor = btnBg; btnSaveDataset.ForeColor = Color.White;
         }
 
+        private void PopulateTreeView(TreeView tv, IEnumerable<string> items, Func<string, string> getCategory)
+        {
+            tv.Nodes.Clear();
+
+            foreach (var item in items)
+            {
+                string category = getCategory(item);
+                if (string.IsNullOrWhiteSpace(category)) category = "Uncategorized";
+
+                var parts = category.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+                TreeNodeCollection currentCollection = tv.Nodes;
+
+                string currentPath = "";
+                foreach (var part in parts)
+                {
+                    currentPath = string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}";
+                    
+                    var existingNodes = currentCollection.Find(currentPath, false);
+                    if (existingNodes.Length == 0)
+                    {
+                        var newNode = new TreeNode(part) { Name = currentPath, Tag = "FOLDER" };
+                        currentCollection.Add(newNode);
+                        currentCollection = newNode.Nodes;
+                    }
+                    else
+                    {
+                        currentCollection = existingNodes[0].Nodes;
+                    }
+                }
+
+                var leafNode = new TreeNode(item) { Name = item, Tag = item };
+                currentCollection.Add(leafNode);
+            }
+            tv.ExpandAll();
+        }
+
         public void LoadData()
         {
             if (this.InvokeRequired)
@@ -228,21 +283,64 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 return;
             }
 
-            lstFormulas.Items.Clear();
+            var tags = currentTagFilter.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                       .Select(t => t.Trim().ToLower())
+                                       .ToList();
+
             var formulas = DynamicFormulaManager.GetAvailableFormulas();
-            foreach (var f in formulas) lstFormulas.Items.Add(f);
+            if (tags.Any())
+            {
+                formulas = formulas.Where(f => 
+                {
+                    var meta = DynamicFormulaManager.GetMetadata(f);
+                    if (meta == null || meta.Tags == null) return false;
+                    return tags.All(tag => meta.Tags.Any(mt => mt.ToLower().Contains(tag)));
+                });
+            }
+            PopulateTreeView(tvFormulas, formulas, f => DynamicFormulaManager.GetMetadata(f)?.Category);
             rtbFormulaMetadata.Clear();
             rtbFormulaCode.Clear();
 
-            lstMacros.Items.Clear();
             var macros = MacroManager.GetAvailableMacros();
-            foreach (var m in macros) lstMacros.Items.Add(m);
+            if (tags.Any())
+            {
+                macros = macros.Where(m => 
+                {
+                    var macro = MacroManager.GetMacro(m);
+                    if (macro == null || macro.Tags == null) return false;
+                    return tags.All(tag => macro.Tags.Any(mt => mt.ToLower().Contains(tag)));
+                });
+            }
+            PopulateTreeView(tvMacros, macros, m => MacroManager.GetMacro(m)?.Category);
             rtbMacroJson.Clear();
 
-            lstDatasets.Items.Clear();
             var datasets = DatasetManager.GetAvailableDatasets();
-            foreach (var d in datasets) lstDatasets.Items.Add(d);
+            // Bazy danych na razie nie mają metadanych, wrzucamy je do Uncategorized. Tagi ignorujemy.
+            PopulateTreeView(tvDatasets, datasets, d => "Uncategorized");
             dgvDataset.DataSource = null;
+        }
+
+        private void TxtTagFilter_TextChanged(object sender, EventArgs e)
+        {
+            currentTagFilter = txtTagFilter.Text;
+            LoadData();
+        }
+
+        private void KnowledgeBaseControl_VisibleChanged(object sender, EventArgs e)
+        {
+            if (this.Visible)
+            {
+                try
+                {
+                    DynamicFormulaManager.LoadAndCompileAll();
+                    MacroManager.LoadAllMacros();
+                    LoadData();
+                }
+                catch (Exception ex)
+                {
+                    BielikLogger.LogError($"Błąd podczas automatycznego przeładowywania bazy wiedzy: {ex.Message}");
+                }
+            }
         }
 
         private void BtnReloadFormulas_Click(object sender, EventArgs e)
@@ -260,44 +358,53 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
         }
 
-        private void LstFormulas_SelectedIndexChanged(object sender, EventArgs e)
+        private void TvFormulas_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (lstFormulas.SelectedItem == null) { rtbFormulaCode.Clear(); rtbFormulaMetadata.Clear(); return; }
-            string formulaId = lstFormulas.SelectedItem.ToString();
-            string formulasPath = AppPaths.GetFormulasPath();
-            string csxPath = Path.Combine(formulasPath, $"{formulaId}.csx");
-            string jsonPath = Path.Combine(formulasPath, $"{formulaId}.json");
+            if (e.Node == null || e.Node.Tag?.ToString() == "FOLDER") { rtbFormulaCode.Clear(); rtbFormulaMetadata.Clear(); return; }
+            string formulaId = e.Node.Tag.ToString();
             
-            if (File.Exists(csxPath)) rtbFormulaCode.Text = File.ReadAllText(csxPath);
-            else rtbFormulaCode.Text = $"// Plik {csxPath} nie istnieje.";
-
-            if (File.Exists(jsonPath)) rtbFormulaMetadata.Text = File.ReadAllText(jsonPath);
-            else rtbFormulaMetadata.Text = "{\n  \"formulaId\": \"" + formulaId + "\",\n  \"description\": \"Brak opisu.\",\n  \"requiredInputs\": [],\n  \"outputDescription\": \"\"\n}";
+            var formulasPath = AppPaths.GetFormulasPath();
+            var csxFiles = Directory.GetFiles(formulasPath, $"{formulaId}.csx", SearchOption.AllDirectories);
+            
+            if (csxFiles.Length > 0)
+            {
+                string csxPath = csxFiles[0];
+                string jsonPath = Path.ChangeExtension(csxPath, ".json");
+                
+                rtbFormulaCode.Text = File.ReadAllText(csxPath);
+                if (File.Exists(jsonPath)) rtbFormulaMetadata.Text = File.ReadAllText(jsonPath);
+                else rtbFormulaMetadata.Text = "{\n  \"formulaId\": \"" + formulaId + "\",\n  \"description\": \"Brak opisu.\",\n  \"requiredInputs\": [],\n  \"outputDescription\": \"\"\n}";
+            }
+            else
+            {
+                rtbFormulaCode.Text = $"// Plik skryptu dla {formulaId} nie istnieje.";
+            }
         }
 
-        private void LstMacros_SelectedIndexChanged(object sender, EventArgs e)
+        private void TvMacros_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (lstMacros.SelectedItem == null) { rtbMacroJson.Clear(); return; }
-            string macroId = lstMacros.SelectedItem.ToString();
+            if (e.Node == null || e.Node.Tag?.ToString() == "FOLDER") { rtbMacroJson.Clear(); return; }
+            string macroId = e.Node.Tag.ToString();
+            
             string macrosPath = AppPaths.GetMacrosPath();
-            string filePath = Path.Combine(macrosPath, $"{macroId}.json");
+            var files = Directory.GetFiles(macrosPath, $"{macroId}.json", SearchOption.AllDirectories);
             
-            if (File.Exists(filePath)) rtbMacroJson.Text = File.ReadAllText(filePath);
-            else rtbMacroJson.Text = $"// Plik {filePath} nie istnieje.";
+            if (files.Length > 0) rtbMacroJson.Text = File.ReadAllText(files[0]);
+            else rtbMacroJson.Text = $"// Plik dla {macroId} nie istnieje.";
         }
 
-        private void LstDatasets_SelectedIndexChanged(object sender, EventArgs e)
+        private void TvDatasets_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (lstDatasets.SelectedItem == null) { dgvDataset.DataSource = null; return; }
-            string datasetName = lstDatasets.SelectedItem.ToString();
+            if (e.Node == null || e.Node.Tag?.ToString() == "FOLDER") { dgvDataset.DataSource = null; return; }
+            string datasetName = e.Node.Tag.ToString();
             string datasetsPath = AppPaths.GetDatasetsPath();
-            string filePath = Path.Combine(datasetsPath, $"{datasetName}.json");
+            var files = Directory.GetFiles(datasetsPath, $"{datasetName}.json", SearchOption.AllDirectories);
             
-            if (File.Exists(filePath))
+            if (files.Length > 0)
             {
                 try
                 {
-                    string json = File.ReadAllText(filePath);
+                    string json = File.ReadAllText(files[0]);
                     DataTable dt = JsonConvert.DeserializeObject<DataTable>(json);
                     dgvDataset.DataSource = dt;
                 }
@@ -305,6 +412,10 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 {
                     MessageBox.Show($"Błąd odczytu bazy: {ex.Message}");
                 }
+            }
+            else
+            {
+                dgvDataset.DataSource = null;
             }
         }
 
@@ -314,14 +425,14 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             if (string.IsNullOrWhiteSpace(id)) return;
             
             string templateCode = "return \"0 mm\";";
-            var templateMeta = new FormulaMetadata { FormulaId = id, Description = "Nowa formuła inżynierska", OutputDescription = "Wartość z jednostką" };
+            var templateMeta = new FormulaMetadata { FormulaId = id, Description = "Nowa formuła inżynierska", OutputDescription = "Wartość z jednostką", Category = "Uncategorized" };
             string templateJson = JsonConvert.SerializeObject(templateMeta, Formatting.Indented);
 
             try
             {
                 DynamicFormulaManager.SaveFormula(id, templateCode, templateJson);
                 LoadData();
-                lstFormulas.SelectedItem = id;
+                // Opcjonalnie można rozwinąć drzewo i zaznaczyć nowo dodany element.
             }
             catch (Exception ex)
             {
@@ -331,8 +442,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
         private void BtnDeleteFormula_Click(object sender, EventArgs e)
         {
-            if (lstFormulas.SelectedItem == null) return;
-            string id = lstFormulas.SelectedItem.ToString();
+            if (tvFormulas.SelectedNode == null || tvFormulas.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvFormulas.SelectedNode.Tag.ToString();
             if (MessageBox.Show($"Czy na pewno chcesz usunąć formułę '{id}' (obie części)?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
@@ -349,14 +460,15 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
         private void BtnSaveFormula_Click(object sender, EventArgs e)
         {
-            if (lstFormulas.SelectedItem == null) return;
-            string id = lstFormulas.SelectedItem.ToString();
+            if (tvFormulas.SelectedNode == null || tvFormulas.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvFormulas.SelectedNode.Tag.ToString();
             string code = rtbFormulaCode.Text;
             string json = rtbFormulaMetadata.Text;
             try
             {
                 DynamicFormulaManager.SaveFormula(id, code, json);
                 MessageBox.Show("Zapisano pomyślnie. Kompilacja i walidacja JSON OK.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadData();
             }
             catch (Exception ex)
             {
@@ -369,12 +481,11 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             string id = ShowInputDialog("Podaj ID nowego makra (bez spacji):", "Nowe Makro");
             if (string.IsNullOrWhiteSpace(id)) return;
 
-            string template = "{\n  \"id\": \"" + id + "\",\n  \"description\": \"Nowe makro CAD\",\n  \"steps\": [\n    {\n      \"actionType\": \"CreateObject\",\n      \"parameters\": {\n        \"ObjectType\": \"Circle\",\n        \"Radius\": 100.0\n      }\n    }\n  ]\n}";
+            string template = "{\n  \"id\": \"" + id + "\",\n  \"description\": \"Nowe makro CAD\",\n  \"category\": \"Uncategorized\",\n  \"steps\": [\n    {\n      \"actionType\": \"CreateObject\",\n      \"parameters\": {\n        \"ObjectType\": \"Circle\",\n        \"Radius\": 100.0\n      }\n    }\n  ]\n}";
             try
             {
                 MacroManager.SaveMacro(id, template);
                 LoadData();
-                lstMacros.SelectedItem = id;
             }
             catch (Exception ex)
             {
@@ -384,8 +495,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
         private void BtnDeleteMacro_Click(object sender, EventArgs e)
         {
-            if (lstMacros.SelectedItem == null) return;
-            string id = lstMacros.SelectedItem.ToString();
+            if (tvMacros.SelectedNode == null || tvMacros.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvMacros.SelectedNode.Tag.ToString();
             if (MessageBox.Show($"Czy na pewno chcesz usunąć makro '{id}'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
@@ -402,13 +513,14 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
         private void BtnSaveMacro_Click(object sender, EventArgs e)
         {
-            if (lstMacros.SelectedItem == null) return;
-            string id = lstMacros.SelectedItem.ToString();
+            if (tvMacros.SelectedNode == null || tvMacros.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvMacros.SelectedNode.Tag.ToString();
             string json = rtbMacroJson.Text;
             try
             {
                 MacroManager.SaveMacro(id, json);
                 MessageBox.Show("Zapisano pomyślnie. JSON zwalidowany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadData();
             }
             catch (Exception ex)
             {
@@ -418,8 +530,8 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
         private void BtnSaveDataset_Click(object sender, EventArgs e)
         {
-            if (lstDatasets.SelectedItem == null) return;
-            string datasetName = lstDatasets.SelectedItem.ToString();
+            if (tvDatasets.SelectedNode == null || tvDatasets.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string datasetName = tvDatasets.SelectedNode.Tag.ToString();
             try
             {
                 if (dgvDataset.DataSource is DataTable dt)
@@ -431,14 +543,14 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu bazy: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd zapisu baza: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private async void BtnExecuteMacro_Click(object sender, EventArgs e)
         {
-            if (lstMacros.SelectedItem == null) return;
-            string macroId = lstMacros.SelectedItem.ToString();
+            if (tvMacros.SelectedNode == null || tvMacros.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string macroId = tvMacros.SelectedNode.Tag.ToString();
             btnExecuteMacro.Enabled = false;
             btnExecuteMacro.Text = "⏳ Wykonywanie...";
 
