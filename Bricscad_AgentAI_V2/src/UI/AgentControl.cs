@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Threading.Tasks;
@@ -33,6 +33,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnAttachFile;
         private Label lblAttachedFile;
         private string _attachedFilePath;
+        private System.Drawing.Image _attachedClipboardImage = null;
         private Label lblStats;
         private Label lblStatus;
         private ListBox lstAutocomplete;
@@ -296,6 +297,7 @@ namespace Bricscad_AgentAI_V2.UI
             Panel inputBorder = new Panel { Dock = DockStyle.Fill, Padding = new Padding(1), BackColor = Color.Gray };
             inputBorder.Controls.Add(txtInput);
             txtInput.TextChanged += TxtInput_TextChanged;
+            txtInput.KeyDown += TxtInput_KeyDown;
 
             panInput.Controls.Add(inputBorder);
             
@@ -1005,6 +1007,27 @@ namespace Bricscad_AgentAI_V2.UI
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
+        private void TxtInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.V)
+            {
+                if (Clipboard.ContainsImage())
+                {
+                    // Pobranie obrazu ze schowka
+                    _attachedClipboardImage = Clipboard.GetImage();
+                    _attachedFilePath = null; // Czyszczenie ścieżki pliku, bo priorytet ma schowek
+                    
+                    // Aktualizacja UI
+                    lblAttachedFile.Text = "📎 [Obraz ze schowka]";
+                    lblAttachedFile.Visible = true;
+                    
+                    // Zablokowanie domyślnego wklejenia (aby nie dodawało się do tekstu jeśli to RichTextBox)
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+            }
+        }
+
         private void TxtInput_TextChanged(object sender, EventArgs e)
         {
             int index = txtInput.SelectionStart;
@@ -1131,7 +1154,7 @@ namespace Bricscad_AgentAI_V2.UI
                 this.BeginInvoke(new Action<string>(AppendToolLog), rawJsonCall);
                 return;
             }
-            txtToolLogs.AppendText($"\n--- WYWOĹANIE [{DateTime.Now:HH:mm:ss}] ---\n");
+            txtToolLogs.AppendText($"\n--- WYWOĹ ANIE [{DateTime.Now:HH:mm:ss}] ---\n");
             txtToolLogs.AppendText(rawJsonCall + "\n");
             txtToolLogs.SelectionStart = txtToolLogs.Text.Length;
             txtToolLogs.ScrollToCaret();
@@ -1139,10 +1162,14 @@ namespace Bricscad_AgentAI_V2.UI
 
         public async Task ProcessInputAsync(string rawInput)
         {
-            if (string.IsNullOrEmpty(rawInput) && string.IsNullOrEmpty(_attachedFilePath)) return;
+            if (string.IsNullOrEmpty(rawInput) && string.IsNullOrEmpty(_attachedFilePath) && _attachedClipboardImage == null) return;
 
             string attachedFilePath = _attachedFilePath;
             _attachedFilePath = null;
+            
+            System.Drawing.Image attachedClipboardImage = _attachedClipboardImage;
+            _attachedClipboardImage = null;
+
             if (lblAttachedFile != null)
             {
                 lblAttachedFile.Visible = false;
@@ -1211,6 +1238,34 @@ namespace Bricscad_AgentAI_V2.UI
                     
                     await Task.Run(() => ExecuteRecipeDirectly(recipe));
                     return;
+                }
+            }
+            else if (attachedClipboardImage != null)
+            {
+                try
+                {
+                    string base64 = FileExtractor.GetImageBase64(attachedClipboardImage);
+                    var visionContent = new List<VisionContentPart>
+                    {
+                        new VisionContentPart { Type = "text", Text = cleanMsg },
+                        new VisionContentPart
+                        {
+                            Type = "image_url",
+                            ImageUrl = new VisionImageUrl { Url = base64 }
+                        }
+                    };
+                    payload = visionContent;
+                    
+                    AppendToHistory("SYSTEM", "Dołączono obraz ze schowka", Color.Orange);
+                }
+                catch (Exception ex)
+                {
+                    BielikLogger.LogError("Błąd przetwarzania obrazu ze schowka", ex);
+                    AppendToHistory("BŁĄD", $"Nie udało się przetworzyć obrazu ze schowka: {ex.Message}", Color.Red);
+                }
+                finally
+                {
+                    attachedClipboardImage.Dispose();
                 }
             }
 

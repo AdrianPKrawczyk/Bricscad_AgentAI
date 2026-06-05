@@ -86,6 +86,56 @@ namespace Bricscad_AgentAI_V2.Core
             return sb.ToString();
         }
 
+        public static string GetImageBase64(Image originalImage, string ext = ".png")
+        {
+            string mimeType = ext == ".png" ? "image/png" : "image/jpeg";
+            byte[] imageBytes;
+
+            int maxWidth = 1024;
+            int maxHeight = 1024;
+
+            if (originalImage.Width > maxWidth || originalImage.Height > maxHeight)
+            {
+                float ratioX = (float)maxWidth / originalImage.Width;
+                float ratioY = (float)maxHeight / originalImage.Height;
+                float ratio = Math.Min(ratioX, ratioY);
+
+                int newWidth = (int)(originalImage.Width * ratio);
+                int newHeight = (int)(originalImage.Height * ratio);
+
+                using (var newImage = new Bitmap(newWidth, newHeight))
+                {
+                    using (var graphics = Graphics.FromImage(newImage))
+                    {
+                        graphics.CompositingQuality = CompositingQuality.HighQuality;
+                        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        graphics.SmoothingMode = SmoothingMode.HighQuality;
+                        
+                        graphics.DrawImage(originalImage, 0, 0, newWidth, newHeight);
+                    }
+
+                    using (var ms = new MemoryStream())
+                    {
+                        ImageFormat format = ext == ".png" ? ImageFormat.Png : ImageFormat.Jpeg;
+                        newImage.Save(ms, format);
+                        imageBytes = ms.ToArray();
+                    }
+                }
+            }
+            else
+            {
+                using (var ms = new MemoryStream())
+                {
+                    ImageFormat format = ext == ".png" ? ImageFormat.Png : ImageFormat.Jpeg;
+                    originalImage.Save(ms, format);
+                    imageBytes = ms.ToArray();
+                }
+            }
+
+            string base64String = Convert.ToBase64String(imageBytes);
+            return $"data:{mimeType};base64,{base64String}";
+        }
+
         public static string GetImageBase64(string path)
         {
             if (!File.Exists(path))
@@ -99,56 +149,10 @@ namespace Bricscad_AgentAI_V2.Core
                 throw new NotSupportedException($"Format {ext} nie jest obsługiwany jako obraz.");
             }
 
-            string mimeType = ext == ".png" ? "image/png" : "image/jpeg";
-            byte[] imageBytes;
-
             using (var originalImage = Image.FromFile(path))
             {
-                int maxWidth = 1024;
-                int maxHeight = 1024;
-
-                if (originalImage.Width > maxWidth || originalImage.Height > maxHeight)
-                {
-                    float ratioX = (float)maxWidth / originalImage.Width;
-                    float ratioY = (float)maxHeight / originalImage.Height;
-                    float ratio = Math.Min(ratioX, ratioY);
-
-                    int newWidth = (int)(originalImage.Width * ratio);
-                    int newHeight = (int)(originalImage.Height * ratio);
-
-                    using (var newImage = new Bitmap(newWidth, newHeight))
-                    {
-                        using (var graphics = Graphics.FromImage(newImage))
-                        {
-                            graphics.CompositingQuality = CompositingQuality.HighQuality;
-                            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                            graphics.SmoothingMode = SmoothingMode.HighQuality;
-                            
-                            graphics.DrawImage(originalImage, 0, 0, newWidth, newHeight);
-                        }
-
-                        using (var ms = new MemoryStream())
-                        {
-                            ImageFormat format = ext == ".png" ? ImageFormat.Png : ImageFormat.Jpeg;
-                            newImage.Save(ms, format);
-                            imageBytes = ms.ToArray();
-                        }
-                    }
-                }
-                else
-                {
-                    // No resize needed
-                    using (var ms = new MemoryStream())
-                    {
-                        ImageFormat format = ext == ".png" ? ImageFormat.Png : ImageFormat.Jpeg;
-                        originalImage.Save(ms, format);
-                        imageBytes = ms.ToArray();
-                    }
-                }
+                return GetImageBase64(originalImage, ext);
             }
-
-            string base64String = Convert.ToBase64String(imageBytes);
-            return $"data:{mimeType};base64,{base64String}";
         }
     }
 }

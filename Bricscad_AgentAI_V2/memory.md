@@ -767,3 +767,8 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 5. Zmodyfikowano ManageDatasetTool i ImportCsvDatasetTool aby przyjmowaly opis, tagi, kategorie z nowa rygorystyczna wytyczna dotyczaca plaskich tabel.
 ### Hotfix: Polskie znaki w UI
 Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np. "Dołaczono plik" oraz upewniono sie, ze plik zapisany jest z kodowaniem UTF-8.
+### Faza 12: Integracja Schowka Systemowego (Zakonczono)
+1. Dodano w FileExtractor.cs metode do obslugi obrazow bezposrednio z pamieci operacyjnej (obiekt Image), ktora zabezpiecza VRAM i automatycznie przelicza, skaluje oraz uwalnia pamiec za pomoca blokow using.
+2. Zaktualizowano AgentControl.cs wprowadzajac zdarzenie KeyDown dla pola tekstowego txtInput.
+3. Gdy uzytkownik wcisnie Ctrl+V i schowek zawiera obraz, agent automatycznie wyodrebni ten obraz do wewnetrznej zmiennej _attachedClipboardImage, podmieni label GUI i zablokuje typowe wklejenie tekstu. 
+4. Procesowanie obrazu za pomoca Vision API dziala natywnie i poprawnie konwertuje do binarnej bazy 64.
