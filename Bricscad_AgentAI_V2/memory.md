@@ -688,3 +688,13 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Brak.
 ### [KOLEJNY_KROK]
 - Ewentualna optymalizacja makr systemowych lub tworzenie pierwszych narzędzi specyficznych dla użytkownika przez interfejs CAD.
+
+## 2026-06-05T18:02:00+02:00
+### [ZREALIZOWANO]
+- **Zaawansowany Sanitizer jednostek HVAC**: W module ExecuteFormulaTool.cs wprowadzono kaskadowe czyszczenie łańcuchów znaków przed przekazaniem ich do UnitsNet. Rozwiązano problem halucynacji LLM, które generowały zapis algebraiczny (np. 1.5_W/(m^2*K)). Sanitizer wygładza tekst konwertując potęgi, usuwając nawiasy, redukując podwójne spacje, zamieniając znaki mnożenia na środkowe kropki oraz korygując przecinki. Wymuszono także stosowanie CultureInfo.InvariantCulture przy budowaniu skryptów w SavePermanentFormulaTool.cs.
+### [STAN_SYSTEMU]
+- System stabilny, kompilator ignoruje i naprawia błędy wprowadzania jednostek fizycznych pochodzące z naturalnego języka.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Rozbudowa kolejnych mechanizmów lub testowanie praktycznych makr przez użytkownika.

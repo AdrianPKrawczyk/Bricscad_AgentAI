@@ -21,7 +21,7 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                 Function = new FunctionSchema
                 {
                     Name = "SavePermanentFormula",
-                    Description = "Kompiluje i zapisuje kod C# jako permanentną formułę w bazie wiedzy (plik .csx). Formuła staje się od razu dostępna w systemie. Inputs are strings containing values and units (e.g., '50 kg'). When writing C# code for SavePermanentFormulaTool, you MUST parse these inputs using UnitsNet classes (e.g., Mass.Parse(Inputs[\"m\"])) and return a string representation of the final UnitsNet quantity.",
+                    Description = "Kompiluje i zapisuje kod C# jako permanentną formułę w bazie wiedzy (plik .csx). Formuła staje się od razu dostępna w systemie. Inputs are strings containing values and units (e.g., '50 kg'). When writing C# code for SavePermanentFormulaTool, you MUST parse these inputs using UnitsNet classes. When writing Parse methods, ALWAYS use CultureInfo.InvariantCulture. Example: Length.Parse(Inputs[\"h\"], System.Globalization.CultureInfo.InvariantCulture); and return a string representation of the final UnitsNet quantity.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -71,7 +71,7 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             {
                 var options = ScriptOptions.Default
                     .WithReferences(typeof(UnitsNet.Length).Assembly)
-                    .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet");
+                    .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet", "System.Globalization");
                 var script = CSharpScript.Create<string>(code, options, globalsType: typeof(ScriptGlobals));
                 
                 var diagnostics = script.Compile();

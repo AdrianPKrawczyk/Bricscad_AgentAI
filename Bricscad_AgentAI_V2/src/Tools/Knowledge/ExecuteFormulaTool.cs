@@ -63,7 +63,21 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             {
                 foreach (var prop in inputsObj.Properties())
                 {
-                    inputsDict[prop.Name] = prop.Value.ToString();
+                    string rawValue = prop.Value.ToString();
+                    // Sanitizer dla UnitsNet (zaawansowany)
+                    string sanitizedValue = rawValue
+                        .Replace("_", " ")
+                        .Replace("m^3", "m³")
+                        .Replace("m^2", "m²")
+                        .Replace("m3", "m³")
+                        .Replace("m2", "m²")
+                        .Replace("*", "·")
+                        .Replace("(", "")
+                        .Replace(")", "")
+                        .Replace(",", ".")
+                        .Replace("  ", " ");
+                        
+                    inputsDict[prop.Name] = sanitizedValue;
                 }
             }
 

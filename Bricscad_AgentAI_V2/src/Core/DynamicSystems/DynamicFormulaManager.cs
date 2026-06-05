@@ -46,7 +46,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             // Sandboxing: blokujemy dostęp do I/O, zezwalamy tylko na bezpieczne przestrzenie nazw
             var options = ScriptOptions.Default
                 .WithReferences(typeof(UnitsNet.Length).Assembly)
-                .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet");
+                .WithImports("System", "System.Math", "System.Collections.Generic", "UnitsNet", "System.Globalization");
 
             foreach (var file in files)
             {
