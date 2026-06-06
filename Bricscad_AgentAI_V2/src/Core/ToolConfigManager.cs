@@ -62,6 +62,7 @@ namespace Bricscad_AgentAI_V2.Core
             EnsureSupervisorPromptFile();
             EnsureMathPromptFile();
             EnsureNotesPromptFile();
+            EnsureAuditorPromptFile();
 
             if (File.Exists(ConfigPath))
             {
@@ -268,6 +269,34 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
+        private static void EnsureAuditorPromptFile()
+        {
+            try
+            {
+                string path = Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "system_prompt_auditor.txt"
+                );
+                if (!File.Exists(path))
+                {
+                    string prompt = 
+                        "Jesteś Rewidentem (QA Agentem / AuditorProfile) systemu Bielik V2.\n" +
+                        "Twoim zadaniem jest testowanie, weryfikacja poprawności narzędzi oraz debugowanie ich w przypadku błędu.\n\n" +
+                        "ZASADY TESTOWANIA:\n" +
+                        "1. ZABRANIA SIĘ fizycznego blokowania interfejsu BricsCAD podczas testów. Jeśli testujesz narzędzia interaktywne (np. UserInput, UserChoice), bezwzględnie przekaż parametr `__MockResponse` symulujący wybór człowieka.\n" +
+                        "2. ZABRANIA SIĘ zmiany stanu środowiska użytkownika podczas testów. Jeśli testujesz narzędzia mutujące (np. SaveMacro, SavePermanentFormula, WriteProjectFile, ManageRecipes, manage_skills), bezwzględnie używaj flagi `__DryRun: true`.\n" +
+                        "3. BŁĘDY C#: Gdy testowane narzędzie zwróci błąd, użyj `ReadProjectFile` aby odczytać zawartość klasy tego narzędzia z folderu `src/Tools/` (lub odpowiedniego podfolderu).\n" +
+                        "4. READ-ONLY: Masz całkowity zakaz modyfikacji plików kodu C#. Ewentualne poprawki prezentuj jedynie w raporcie markdown jako propozycje.\n" +
+                        "5. Po zakończeniu audytu zrób czytelne podsumowanie dla Supervisora (lub użytkownika).";
+                    File.WriteAllText(path, prompt, System.Text.Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_auditor.txt: {ex.Message}");
+            }
+        }
+
         private static void SyncWithTools(IEnumerable<IToolV2> registeredTools)
         {
             bool changed = false;
@@ -418,6 +447,28 @@ namespace Bricscad_AgentAI_V2.Core
                 changed = true;
             }
 
+            // 8. Zabezpieczenie/Synchronizacja AuditorProfile
+            if (!_config.Profiles.TryGetValue("AuditorProfile", out var auditorProf))
+            {
+                auditorProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_auditor.txt" };
+                _config.Profiles["AuditorProfile"] = auditorProf;
+                changed = true;
+            }
+            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills" };
+            if (auditorProf.AllowedTools == null)
+            {
+                auditorProf.AllowedTools = new List<string>();
+                changed = true;
+            }
+            foreach (var tool in auditorDefaults)
+            {
+                if (!auditorProf.AllowedTools.Contains(tool))
+                {
+                    auditorProf.AllowedTools.Add(tool);
+                    changed = true;
+                }
+            }
+
             if (changed) SaveConfig();
         }
 
@@ -495,6 +546,13 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 SystemPromptFile = "system_prompt_notes.txt",
                 AllowedTools = new List<string>(),
+                AllowedTags = new List<string>()
+            };
+
+            _config.Profiles["AuditorProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt_auditor.txt",
+                AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills" },
                 AllowedTags = new List<string>()
             };
 

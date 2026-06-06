@@ -285,3 +285,21 @@ Jeśli Twoja recepta działa idealnie, możesz ją "ozłocić", czyli dodać jak
 W zakładce **Recepty** znajdziesz dwa tryby weryfikacji:
 1. **🧪 Testuj w Sandboxie**: Przesyła wybrany krok receptury do Tool Sandboxa. Jeśli przepis ma wiele kroków, program zapyta Cię, który z nich chcesz przetestować.
 2. **🚀 Testuj Sekwencję**: Uruchamia cały przepis natychmiast w BricsCAD. W przypadku błędu w składni JSON lub błędnego działania narzędzia, system wyświetli szczegółowy log z diagnozą i sugestią poprawki.
+
+---
+
+## 🕵️ 12. Rewident (QA Agent) i bezpieczne testowanie - NOWOŚĆ v2.28.1
+
+Z myślą o pisaniu i testowaniu nowych narzędzi (skilli i recept) oraz weryfikacji kodu, udostępniono profil **Rewidenta** (`AuditorProfile`). Profil ten jest specjalnym pod-agentem, który operuje wyłącznie w trybie bezpiecznym (Dry-Run i Mock) dla narzędzi interaktywnych lub zmieniających stan dysku/rysunku.
+
+### 12.1. Narzędzia z obsługą izolacji
+Następujące narzędzia wspierają flagi bezpieczne i nie wykonają faktycznych zmian, jeśli są używane przez Rewidenta:
+- **`__DryRun`**: Modyfikacja stanu (np. tworzenie receptur, tworzenie makr i skilli, modyfikacja plików). Zamiast wykonania polecenia, symulują i walidują operację.
+- **`__MockResponse`**: Narzędzia interaktywne (`UserInput`, `UserChoice`). Pozwalają pominąć oczekiwanie na kliknięcie użytkownika w BricsCAD i podstawiają wartości testowe do pętli agenta.
+
+### 12.2. Kiedy i jak używać Rewidenta?
+- Kiedy piszesz nowy kod narzędzi i chcesz sprawdzić, czy agent potrafi go wywołać, bez psucia bazy wiedzy.
+- Rewident ma zakaz modyfikowania kodu wprost (Read-Only na pliki C#), ale może go analizować, walidować i przygotowywać bardzo szczegółowe raporty w formacie markdown.
+
+> [!TIP]
+> Jeśli z poziomu czatu w BricsCAD chcesz przeprowadzić test logiki bez obawy, że cokolwiek zostanie zepsute, przekaż zadanie Rewidentowi wprost. Np: *"Zleć Rewidentowi sprawdzenie logiki polecenia UserChoiceTool"*.

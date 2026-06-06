@@ -30,7 +30,8 @@ namespace Bricscad_AgentAI_V2.Tools
                         {
                             { "PromptMessage", new ToolParameter { Type = "string", Description = "Komunikat wyświetlany użytkownikowi (np. 'Wybierz typ rury:')." } },
                             { "Options", new ToolParameter { Type = "array", Description = "Lista dostępnych opcji (np. ['Stal', 'PCV']). Spacje w nazwach zostaną automatycznie zamienione na podkreślenia." } },
-                            { "SaveAs", new ToolParameter { Type = "string", Description = "Opcjonalna nazwa zmiennej do zapisu wyboru (bez @)." } }
+                            { "SaveAs", new ToolParameter { Type = "string", Description = "Opcjonalna nazwa zmiennej do zapisu wyboru (bez @)." } },
+                            { "__MockResponse", new ToolParameter { Type = "string", Description = "[REZERWACJA DLA AGENTA TESTOWEGO] Pomiń interakcję i użyj tej wartości (musi pasować do Options)." } }
                         },
                         Required = new List<string> { "PromptMessage", "Options" }
                     }
@@ -43,6 +44,7 @@ namespace Bricscad_AgentAI_V2.Tools
             string promptMsg = args["PromptMessage"]?.ToString();
             JArray optionsArr = args["Options"] as JArray;
             string saveAs = args["SaveAs"]?.ToString();
+            string mockResponse = args["__MockResponse"]?.ToString();
 
             if (optionsArr == null || optionsArr.Count == 0)
                 return "BŁĄD: Brak zdefiniowanych opcji w parametrze Options.";
@@ -55,25 +57,33 @@ namespace Bricscad_AgentAI_V2.Tools
                 {
                     Application.MainWindow.Focus();
 
-                    PromptKeywordOptions pko = new PromptKeywordOptions($"\n[DECYZJA AI] {promptMsg}: ");
-                    pko.AllowNone = false;
-
-                    // Przygotowanie Keywords (zamiana spacji na podkreślenia zgodnie z wymogiem API)
-                    foreach (var opt in optionsArr)
+                    string selected = "";
+                    if (!string.IsNullOrEmpty(mockResponse))
                     {
-                        string cleanOpt = opt.ToString().Replace(" ", "_");
-                        if (!string.IsNullOrEmpty(cleanOpt))
-                        {
-                            pko.Keywords.Add(cleanOpt);
-                        }
+                        selected = mockResponse;
                     }
+                    else
+                    {
+                        PromptKeywordOptions pko = new PromptKeywordOptions($"\n[DECYZJA AI] {promptMsg}: ");
+                        pko.AllowNone = false;
 
-                    PromptResult pr = ed.GetKeywords(pko);
+                        // Przygotowanie Keywords (zamiana spacji na podkreślenia zgodnie z wymogiem API)
+                        foreach (var opt in optionsArr)
+                        {
+                            string cleanOpt = opt.ToString().Replace(" ", "_");
+                            if (!string.IsNullOrEmpty(cleanOpt))
+                            {
+                                pko.Keywords.Add(cleanOpt);
+                            }
+                        }
 
-                    if (pr.Status != PromptStatus.OK)
-                        return "[ANULOWANO] Użytkownik przerwał wybór opcji.";
+                        PromptResult pr = ed.GetKeywords(pko);
 
-                    string selected = pr.StringResult;
+                        if (pr.Status != PromptStatus.OK)
+                            return "[ANULOWANO] Użytkownik przerwał wybór opcji.";
+
+                        selected = pr.StringResult;
+                    }
 
                     if (!string.IsNullOrEmpty(saveAs))
                     {

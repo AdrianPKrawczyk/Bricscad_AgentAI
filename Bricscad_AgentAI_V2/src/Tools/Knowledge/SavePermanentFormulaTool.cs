@@ -77,7 +77,8 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                                     Type = "string",
                                     Description = "Płaski, gotowy kod C#. CRITICAL SCRIPTING RULE: DO NOT wrap your C# code in any class, namespace, or method definitions (NO 'public class', NO 'public string Execute'). You MUST write FLAT, top-level script statements only. Parametry pobierasz WYŁĄCZNIE ze słownika 'Inputs', np. Inputs[\"velocity\"].ToString(). Nie istnieją one jako zmienne lokalne! Use UnitsNet classes and CultureInfo.InvariantCulture for parsing. UWAGA: Jeśli nie jesteś w 100% pewien, jak w bibliotece UnitsNet nazywa się dana wielkość fizyczna, UŻYJ NAJPIERW NARZĘDZIA SearchUnitsNetTool. CRITICAL: NEVER use 'UnitsNet.Parse<T>()' - this method DOES NOT EXIST! You must use the exact class name's Parse method, exactly as shown in SearchUnitsNetTool (e.g., 'UnitsNet.Speed.Parse(Inputs[\"velocity\"].ToString(), ... )'). Formuła MUSI na końcu zwracać wartość jako STRING. BARDZO WAŻNE: NIGDY nie ucinaj i nie streszczaj kodu. Musisz podać PEŁNY kod!"
                                 }
-                            }
+                            },
+                            { "__DryRun", new ToolParameter { Type = "boolean", Description = "[REZERWACJA DLA AGENTA TESTOWEGO] Jeśli true, nie zapisuje na dysk, jedynie kompiluje w pamięci." } }
                         },
                         Required = new List<string> { "FormulaId", "CSharpCode", "RequiredInputs" }
                     }
@@ -92,6 +93,7 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             string outputDescription = args["OutputDescription"]?.ToString();
             string code = args["CSharpCode"]?.ToString();
             string category = args["Category"]?.ToString();
+            bool isDryRun = args["__DryRun"] != null && args["__DryRun"].Type == JTokenType.Boolean && (bool)args["__DryRun"];
 
             if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(code))
             {
@@ -139,6 +141,21 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             try
             {
                 string jsonMeta = JsonConvert.SerializeObject(meta, Formatting.Indented);
+                
+                if (isDryRun)
+                {
+                    // Symulacja kompilacji - sprawdzamy składnię używając CSharpScript.Create
+                    var scriptOptions = ScriptOptions.Default.AddReferences("System.dll").AddImports("System");
+                    var script = CSharpScript.Create<string>(code, scriptOptions, typeof(ScriptGlobals));
+                    var diagnostics = script.Compile();
+                    if (diagnostics.Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error))
+                    {
+                        var errors = string.Join("\n", diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error).Select(d => d.GetMessage()));
+                        return $"BŁĄD KOMPILACJI (DRY-RUN): {errors}";
+                    }
+                    return $"SUKCES (DRY-RUN): Formuła '{id}' skompilowana poprawnie. Zapis fizyczny pominięto.";
+                }
+
                 DynamicFormulaManager.SaveFormula(id, code, jsonMeta);
                 DynamicFormulaManager.LoadAndCompileAll();
                 return $"SUKCES: Formuła '{id}' skompilowana i zapisana. Baza została zaktualizowana.";

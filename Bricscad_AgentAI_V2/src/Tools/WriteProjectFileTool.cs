@@ -28,7 +28,8 @@ namespace Bricscad_AgentAI_V2.Tools
                         Properties = new Dictionary<string, ToolParameter>
                         {
                             { "FileName", new ToolParameter { Type = "string", Description = "Tylko nazwa pliku (np. 'raport.csv'). C# sam doklei odpowiednią ścieżkę absolutną." } },
-                            { "Content", new ToolParameter { Type = "string", Description = "Zawartość tekstowa pliku, która zostanie zapisana (nadpisze plik jeśli istnieje)." } }
+                            { "Content", new ToolParameter { Type = "string", Description = "Zawartość tekstowa pliku, która zostanie zapisana (nadpisze plik jeśli istnieje)." } },
+                            { "__DryRun", new ToolParameter { Type = "boolean", Description = "[REZERWACJA DLA AGENTA TESTOWEGO] Jeśli true, nie zapisuje pliku fizycznie na dysk." } }
                         },
                         Required = new List<string> { "FileName", "Content" }
                     }
@@ -40,6 +41,7 @@ namespace Bricscad_AgentAI_V2.Tools
         {
             string fileName = args["FileName"]?.ToString();
             string content = args["Content"]?.ToString() ?? string.Empty;
+            bool isDryRun = args["__DryRun"] != null && args["__DryRun"].Type == JTokenType.Boolean && (bool)args["__DryRun"];
             
             if (string.IsNullOrEmpty(fileName))
                 return "BŁĄD: Parametr 'FileName' jest wymagany.";
@@ -67,6 +69,11 @@ namespace Bricscad_AgentAI_V2.Tools
                 // Dodatkowe zabezpieczenie przeciwko Path Traversal
                 string safeFileName = Path.GetFileName(fileName);
                 string fullPath = Path.Combine(directoryPath, safeFileName);
+
+                if (isDryRun)
+                {
+                    return $"SUKCES (DRY-RUN): Plik '{safeFileName}' zostałby zapisany w folderze ({directoryPath}). Zapis fizyczny pominięto.";
+                }
 
                 File.WriteAllText(fullPath, content);
                 return $"SUKCES: Zapisano plik '{safeFileName}' w folderze projektu ({directoryPath}).";

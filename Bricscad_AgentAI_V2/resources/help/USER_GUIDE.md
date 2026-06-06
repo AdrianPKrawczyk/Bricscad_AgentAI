@@ -288,32 +288,18 @@ W zakładce **Recepty** znajdziesz dwa tryby weryfikacji:
 
 ---
 
-## 📚 12. Skille Inżynierskie (Markdown Skills) - NOWOŚĆ
+## 🕵️ 12. Rewident (QA Agent) i bezpieczne testowanie - NOWOŚĆ v2.28.1
 
-W najnowszej wersji wprowadzono **System Skilli** obsługiwany za pomocą znaku `#`. Skille to trzecia, najwyższa warstwa abstrakcji systemu AI (ponad Makrami i Receptami).
+Z myślą o pisaniu i testowaniu nowych narzędzi (skilli i recept) oraz weryfikacji kodu, udostępniono profil **Rewidenta** (`AuditorProfile`). Profil ten jest specjalnym pod-agentem, który operuje wyłącznie w trybie bezpiecznym (Dry-Run i Mock) dla narzędzi interaktywnych lub zmieniających stan dysku/rysunku.
 
-### 12.1. Czym są Skille?
-Skille to pliki tekstowe zapisane w formacie Markdown (`.md`) z nagłówkiem YAML Frontmatter. W przeciwieństwie do Makr (zapisanych w kodzie JSON) i Recept, Skille są instrukcjami pisanymi w języku naturalnym, skierowanymi bezpośrednio do modelu LLM. 
-Pozwalają na zdefiniowanie złożonych, wieloetapowych procesów i procedur inżynierskich.
+### 12.1. Narzędzia z obsługą izolacji
+Następujące narzędzia wspierają flagi bezpieczne i nie wykonają faktycznych zmian, jeśli są używane przez Rewidenta:
+- **`__DryRun`**: Modyfikacja stanu (np. tworzenie receptur, tworzenie makr i skilli, modyfikacja plików). Zamiast wykonania polecenia, symulują i walidują operację.
+- **`__MockResponse`**: Narzędzia interaktywne (`UserInput`, `UserChoice`). Pozwalają pominąć oczekiwanie na kliknięcie użytkownika w BricsCAD i podstawiają wartości testowe do pętli agenta.
 
-### 12.2. Jak korzystać ze Skilli?
-W oknie czatu wpisz znak `#`. Pojawi się lista dostępnych skilli (np. `#ObliczeniaDachu`, `#Szybki_Raport`).
-- **Autouzupełnianie**: System podpowie dostępne pliki `.md` z folderu `Skills/`.
-- **Wstrzykiwanie w locie (Progressive Disclosure)**: Po wysłaniu wiadomości z tagiem skilla (np. *"Zaprojektuj to używając #ObliczeniaDachu"*), Agent "wstrzyknie" zawartość tego pliku Markdown do swojej pamięci podręcznej (kontekstu) jako instrukcję systemową. Znika to z Twojego głównego okna, aby nie zaśmiecać widoku, ale Agent dokładnie wie, co ma robić.
+### 12.2. Kiedy i jak używać Rewidenta?
+- Kiedy piszesz nowy kod narzędzi i chcesz sprawdzić, czy agent potrafi go wywołać, bez psucia bazy wiedzy.
+- Rewident ma zakaz modyfikowania kodu wprost (Read-Only na pliki C#), ale może go analizować, walidować i przygotowywać bardzo szczegółowe raporty w formacie markdown.
 
-### 12.3. Budowa Pliku Skilla
-Skille można edytować w zakładce **Baza Wiedzy AI -> Skille Inżynierskie**.
-Każdy plik musi zawierać na górze nagłówek YAML:
-```yaml
----
-name: NazwaSkilla
-description: Krótki opis co ten skill robi
-tags: [tag1, tag2]
----
-```
-Poniżej nagłówka piszesz instrukcję dla Agenta czystym tekstem. Możesz tam wskazywać, jakich Makr ma użyć, z jakich katalogów czerpać dane, jakie formuły RPN zastosować oraz opisać znane "pułapki" (pitfalls), których Agent ma unikać.
-
-### 12.4. Skille vs Recepty ($) vs Polecenia (/)
-- **Recepty (`$`)**: Skróty do wywołań konkretnych narzędzi (Tool Calling) z gotowymi parametrami JSON. Działają jak "nagrane makra".
-- **Skille (`#`)**: Instrukcje dla sztucznej inteligencji. Jak podręcznik procedur. Agent sam decyduje jakich narzędzi i recept użyć, aby zrealizować procedurę opisaną w Skillu.
-- **Polecenia (`/`)**: Dyrektywy systemowe i narzędziowe (np. `/notatka` do zapisania wniosków w pliku Markdown, `/compress` do wyczyszczenia historii sesji). Obsługiwane również przez autouzupełnianie.
+> [!TIP]
+> Jeśli z poziomu czatu w BricsCAD chcesz przeprowadzić test logiki bez obawy, że cokolwiek zostanie zepsute, przekaż zadanie Rewidentowi wprost. Np: *"Zleć Rewidentowi sprawdzenie logiki polecenia UserChoiceTool"*.

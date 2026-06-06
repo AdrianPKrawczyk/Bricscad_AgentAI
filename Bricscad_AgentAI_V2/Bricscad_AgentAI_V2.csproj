@@ -194,6 +194,9 @@
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />
+    <Compile Include="src\UI\AgentTesterControl.cs" />
+    <Compile Include="src\UI\AgentAutotestControl.cs" />
+    <Compile Include="src\UI\DatasetStudioControl.cs" />
     <Compile Include="src\UI\HelpCenterControl.cs" />
     <Compile Include="src\Tools\ReadHelpTool.cs" />
   </ItemGroup>

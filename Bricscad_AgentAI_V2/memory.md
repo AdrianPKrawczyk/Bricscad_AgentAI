@@ -931,5 +931,18 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 1. Utworzono strukturę danych `AgentSkill.cs` i zaimplementowano menedżer `SkillManager.cs` parsujący bloki YAML Frontmatter z plików Markdown.
 2. Zintegrowano obsługę plików `.md` w zakładce Baza Wiedzy (nowa podzakładka "Skille Inżynierskie").
 3. Stworzono `ManageSkillsTool.cs` dające Agentowi możliwość interakcji ze skillami (akcje `list_skills`, `read_skill`, `create_skill`).
-4. Wdrożono mechanizm Progressive Disclosure (poziom 1) w `AgentControl.cs` wstrzykujący skille wywołane przez `#` w chatboxie prosto jako wiadomości systemowe (kontekst).
 5. Poprawiono zgodność interfejsu narzędzia z wymogami projektu `IToolV2` i pomyślnie zrekompilowano system.
+
+### Faza 17: Rewident (QA Agent / AuditorProfile) i bezpieczne testowanie narzędzi (Zakończono)
+1. Wdrożono nowy profil Agenta `AuditorProfile` (Rewident) odpowiedzialny za bezpieczne testowanie (QA) oraz diagnozowanie narzędzi na poziomie kodu.
+2. Dodano obsługę parametru `__MockResponse` do narzędzi interaktywnych blokujących UI (`UserInputTool`, `UserChoiceTool`), aby umożliwić przeprowadzanie zautomatyzowanych testów bez udziału użytkownika (symulacja).
+3. Dodano obsługę flagi `__DryRun` do narzędzi modyfikujących stan oraz pliki (Side Effects): `WriteProjectFileTool`, `SaveMacroTool`, `SavePermanentFormulaTool`, `ManageRecipesTool`, `ManageSkillsTool`, która waliduje parametry operacji i omija fizyczny zapis na dysku.
+4. Zaktualizowano `ToolConfigManager.cs` - dodano dedykowany prompt systemowy nakazujący Rewidentowi korzystanie z tych flag w celu unikania zepsucia środowiska, oraz ograniczono jego listę narzędzi tylko do weryfikacji.
+5. Poprawiono odporność parsowania w `ManageSkillsTool` (obsługa wariantów Action/action).
+
+### Faza 18: Zautomatyzowane Testowanie Narzędzi (Autotest) (Zakończono)
+1. Rozbudowano interfejs graficzny `AgentTesterControl.cs` wykorzystując komponent `TabControl`, z wdrożeniem podzakładki "Autotest Narzędzi".
+2. Dodano logikę dynamicznego wczytywania wszystkich dostępnych definicji narzędzi z poziomu `ToolOrchestrator` do kontrolki `CheckedListBox` ze wsparciem zbiorczej selekcji ("Zaznacz wszystko").
+3. Opracowano izolowaną pętlę testową dla zaznaczonych narzędzi - dla każdego polecenia uruchamiana jest "czysta karta" z profilem `AuditorProfile`, żądaniem wykorzystania flag izolacyjnych (`__DryRun`, `__MockResponse`) oraz własnym systemowym promptem Rewidenta.
+4. Zaimplementowano mechanizm kolorowania logów wyjściowych na konsoli w UI (RichTextBox), umożliwiający śledzenie postępów oraz identyfikację błędów/uwag (czerwony/zielony).
+5. Wdrożono generator kompleksowych raportów wyjściowych w formacie `.md` zbierający rezultaty ewaluacji, z systemowym oknem zachęcającym użytkownika do ich zapisu.

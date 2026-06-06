@@ -28,9 +28,10 @@ namespace Bricscad_AgentAI_V2.Core
                             { "action", new ToolParameter { Type = "string", Description = "Akcja do wykonania: 'list_skills', 'read_skill' lub 'create_skill'." } },
                             { "skillId", new ToolParameter { Type = "string", Description = "ID skilla (np. 'ObliczeniaDachu'). Wymagane dla read_skill i create_skill." } },
                             { "category", new ToolParameter { Type = "string", Description = "Kategoria nowego skilla. Używane tylko w create_skill." } },
-                            { "description", new ToolParameter { Type = "string", Description = "Krótki opis, max 1 zdanie. Używane tylko w create_skill." } },
-                            { "tags", new ToolParameter { Type = "string", Description = "Tagi po przecinku, np. 'dach,konstrukcja'. Używane tylko w create_skill." } },
-                            { "markdownContent", new ToolParameter { Type = "string", Description = "Główna zawartość instrukcji w formacie Markdown (bez YAML Frontmatter na górze - system sam go wygeneruje). Używane tylko w create_skill." } }
+                            { "description", new ToolParameter { Type = "string", Description = "Krótki opis celu skilla. (tylko create_skill)" } },
+                            { "tags", new ToolParameter { Type = "string", Description = "Tagi rozdzielone przecinkami (tylko create_skill)" } },
+                            { "markdownContent", new ToolParameter { Type = "string", Description = "Pełna instrukcja dla agenta w formacie Markdown (tylko create_skill)" } },
+                            { "__DryRun", new ToolParameter { Type = "boolean", Description = "[REZERWACJA DLA AGENTA TESTOWEGO] Jeśli true, nie zapisuje pliku na dysk." } }
                         },
                         Required = new List<string> { "action" }
                     }
@@ -44,6 +45,8 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 string action = args.GetValue("action", StringComparison.OrdinalIgnoreCase)?.ToString() 
                              ?? args.GetValue("Action", StringComparison.OrdinalIgnoreCase)?.ToString();
+                
+                bool isDryRun = args["__DryRun"] != null && args["__DryRun"].Type == JTokenType.Boolean && (bool)args["__DryRun"];
                 
                 if (string.IsNullOrEmpty(action))
                 {
@@ -120,6 +123,11 @@ namespace Bricscad_AgentAI_V2.Core
                         Tags = tagList,
                         Content = md
                     };
+
+                    if (isDryRun)
+                    {
+                        return $"Sukces (DRY-RUN): Walidacja skilla '{id}' przebiegła pomyślnie. Zapis fizyczny pominięto.";
+                    }
 
                     SkillManager.SaveSkill(skill);
                     return $"Sukces: Utworzono i zapisano skill '{id}'.";

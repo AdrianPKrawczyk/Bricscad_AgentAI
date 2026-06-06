@@ -29,7 +29,8 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "Trigger", new ToolParameter { Type = "string", Description = "Nazwa (trigger) recepty, np. 'rysuj_okno'. Wymagane dla Read, CreateOrUpdate i Delete." } },
                             { "Description", new ToolParameter { Type = "string", Description = "Opis recepty. Wymagany dla CreateOrUpdate." } },
                             { "ToolExampleJson", new ToolParameter { Type = "string", Description = "Schemat wywołania w formacie JSON (tablica ToolCall). Wymagany dla CreateOrUpdate." } },
-                            { "AutoLoadCategories", new ToolParameter { Type = "array", Items = JToken.FromObject(new ToolParameter { Type = "string" }), Description = "Opcjonalna tablica kategorii narzędzi, które powinny być załadowane dla tej recepty (np. ['#core', '#wymiary'])." } }
+                            { "AutoLoadCategories", new ToolParameter { Type = "array", Items = JToken.FromObject(new ToolParameter { Type = "string" }), Description = "Opcjonalna tablica kategorii narzędzi, które powinny być załadowane dla tej recepty (np. ['#core', '#wymiary'])." } },
+                            { "__DryRun", new ToolParameter { Type = "boolean", Description = "[REZERWACJA DLA AGENTA TESTOWEGO] Jeśli true, waliduje operację ale nie zapisuje/usuwa pliku recepty." } }
                         },
                         Required = new List<string> { "Action" }
                     }
@@ -44,6 +45,7 @@ namespace Bricscad_AgentAI_V2.Tools
             string description = args["Description"]?.ToString();
             string toolExampleJson = args["ToolExampleJson"]?.ToString();
             JArray categoriesArray = args["AutoLoadCategories"] as JArray;
+            bool isDryRun = args["__DryRun"] != null && args["__DryRun"].Type == JTokenType.Boolean && (bool)args["__DryRun"];
 
             switch (action)
             {
@@ -90,6 +92,11 @@ namespace Bricscad_AgentAI_V2.Tools
                         AutoLoadCategories = categories
                     };
 
+                    if (isDryRun)
+                    {
+                        return $"Sukces (DRY-RUN): Recepta '${newRecipe.Trigger}' została pomyślnie zwalidowana. Zapis fizyczny pominięto.";
+                    }
+
                     RecipeManager.AddOrUpdate(newRecipe);
                     return $"Sukces: Recepta '${newRecipe.Trigger}' została pomyślnie utworzona/zaktualizowana.";
 
@@ -98,8 +105,13 @@ namespace Bricscad_AgentAI_V2.Tools
                     var existing = RecipeManager.GetByTrigger(trigger);
                     if (existing == null) return $"BŁĄD: Nie znaleziono recepty '{trigger}'.";
                     
+                    if (isDryRun)
+                    {
+                        return $"Sukces (DRY-RUN): Usunięcie recepty '${trigger}' powiodłoby się. Operacja pominięta.";
+                    }
+
                     RecipeManager.Delete(trigger);
-                    return $"Sukces: Recepta '${trigger}' została usunięta.";
+                    return $"Sukces: Usunięto receptę '${trigger}'.";
 
                 default:
                     return $"BŁĄD: Nieznana akcja '{action}'.";

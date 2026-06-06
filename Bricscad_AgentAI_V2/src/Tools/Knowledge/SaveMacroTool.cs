@@ -70,7 +70,8 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                                         }
                                     }
                                 }
-                            }
+                            },
+                            { "__DryRun", new ToolParameter { Type = "boolean", Description = "[REZERWACJA DLA AGENTA TESTOWEGO] Jeśli true, nie zapisuje na dysk." } }
                         },
                         Required = new List<string> { "MacroId", "JsonSteps" }
                     }
@@ -83,6 +84,7 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
             string id = args["MacroId"]?.ToString();
             string description = args["Description"]?.ToString();
             string category = args["Category"]?.ToString();
+            bool isDryRun = args["__DryRun"] != null && args["__DryRun"].Type == JTokenType.Boolean && (bool)args["__DryRun"];
             
             if (string.IsNullOrWhiteSpace(id)) return "BŁĄD: Parametr MacroId jest wymagany.";
             
@@ -127,6 +129,11 @@ namespace Bricscad_AgentAI_V2.Tools.Knowledge
                     {
                         macro.Tags.Add(t.ToString());
                     }
+                }
+
+                if (isDryRun)
+                {
+                    return $"SUKCES (DRY-RUN): Makro '{id}' zawierające {steps.Count} krok(ów) zostało zwalidowane. Zapis fizyczny pominięto.";
                 }
 
                 string jsonOutput = JsonConvert.SerializeObject(macro, Formatting.Indented);

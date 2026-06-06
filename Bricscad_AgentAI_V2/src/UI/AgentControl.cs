@@ -460,6 +460,9 @@ namespace Bricscad_AgentAI_V2.UI
             TabPage tabTester = new TabPage("Tester");
             tabTester.Controls.Add(new AgentTesterControl(_llmClient));
 
+            TabPage tabAutotest = new TabPage("Autotest");
+            tabAutotest.Controls.Add(new AgentAutotestControl(_llmClient));
+
             // ==========================================
             // ZAKĘą ADKA 5: AGENCI (PrzeglĂ„â€¦d, Prompt, Skille)
             // ==========================================
@@ -669,6 +672,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabTests.Controls.Add(tabTestsSub);
             tabTestsSub.TabPages.Add(tabBenchmark);
             tabTestsSub.TabPages.Add(tabTester);
+            tabTestsSub.TabPages.Add(tabAutotest);
             tabControl.TabPages.Add(tabTests);
             tabControl.TabPages.Add(tabAgents);
             
