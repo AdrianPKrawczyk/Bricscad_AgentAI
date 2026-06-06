@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using Bricscad.ApplicationServices;
 using Bricscad.EditorInput;
 using Bricscad_AgentAI_V2.Core;
+using Bricscad_AgentAI_V2.Core.DynamicSystems;
 using Bricscad_AgentAI_V2.Models;
 using Teigha.DatabaseServices;
 using Newtonsoft.Json;
@@ -1109,9 +1110,8 @@ namespace Bricscad_AgentAI_V2.UI
             List<string> options = new List<string>();
             if (_lastTriggerChar == '#')
             {
-                options.Add("#core - Podstawowe narzędzia");
-                options.Add("#all - Wszystkie narzędzia");
-                options.AddRange(ToolConfigManager.GetAvailableCategories().Select(c => (c.StartsWith("#") ? c : "#" + c) + " - Kategoria narzędzi"));
+                options.AddRange(SkillManager.GetAvailableSkills()
+                    .Select(s => "#" + s.Id + (string.IsNullOrWhiteSpace(s.Description) ? "" : " - " + s.Description)));
             }
             else if (_lastTriggerChar == '$')
             {
@@ -1246,9 +1246,18 @@ namespace Bricscad_AgentAI_V2.UI
 
             foreach (System.Text.RegularExpressions.Match match in tagMatches)
             {
-                extractedTags.Add(match.Value.ToLower());
+                string tag = match.Value.ToLower();
+                extractedTags.Add(tag);
                 // Usuwamy tag z czystej wiadomoĘąâ€şci dla LLM
                 cleanMsg = cleanMsg.Replace(match.Value, "").Trim();
+
+                string skillId = tag.Substring(1);
+                try
+                {
+                    var skill = SkillManager.GetSkill(skillId);
+                    SessionManager.CurrentSession.Messages.Add(new ChatMessage { Role = "system", Content = $"[Pamięć - Wczytano Skill: {skill.Id}]\n{skill.Content}" });
+                }
+                catch { /* Ignoruj jeśli nie znaleziono skilla */ }
             }
 
             object payload = cleanMsg;

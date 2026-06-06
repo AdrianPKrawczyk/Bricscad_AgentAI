@@ -39,6 +39,11 @@ namespace Bricscad_AgentAI_V2.Core
         {
             return Path.Combine(GetCustomKnowledgePath(), "Recipes");
         }
+
+        public static string GetSkillsPath()
+        {
+            return Path.Combine(GetCustomKnowledgePath(), "Skills");
+        }
         
         public static void EnsureDirectoriesExist()
         {
@@ -61,6 +66,11 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(recipes))
             {
                 Directory.CreateDirectory(recipes);
+            }
+            string skills = GetSkillsPath();
+            if (!Directory.Exists(skills))
+            {
+                Directory.CreateDirectory(skills);
             }
         }
     }

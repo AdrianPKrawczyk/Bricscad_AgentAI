@@ -47,6 +47,14 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private DataGridView dgvDataset;
         private Button btnSaveDataset;
 
+        // --- Skills ---
+        private TabPage tabPageSkills;
+        private TreeView tvSkills;
+        private RichTextBox rtbSkillMarkdown;
+        private Button btnAddSkill;
+        private Button btnDeleteSkill;
+        private Button btnSaveSkill;
+
         public KnowledgeBaseControl()
         {
             InitializeComponent();
@@ -196,6 +204,42 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             mainTabControl.TabPages.Add(tabPageFormulas);
             mainTabControl.TabPages.Add(tabPageMacros);
             mainTabControl.TabPages.Add(tabPageDatasets);
+
+            // =========================
+            // Zakładka: Skille (Markdown)
+            // =========================
+            tabPageSkills = new TabPage("Skille Inżynierskie (Markdown)");
+
+            Panel pnlSkillsLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
+            tvSkills = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
+            tvSkills.AfterSelect += TvSkills_AfterSelect;
+
+            Panel pnlSkillsLeftBtns = new Panel { Dock = DockStyle.Bottom, Height = 40 };
+            btnAddSkill = new Button { Text = "➕ Dodaj", Dock = DockStyle.Left, Width = 125, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnAddSkill.Click += BtnAddSkill_Click;
+            btnDeleteSkill = new Button { Text = "🗑️ Usuń", Dock = DockStyle.Right, Width = 125, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnDeleteSkill.Click += BtnDeleteSkill_Click;
+            pnlSkillsLeftBtns.Controls.Add(btnAddSkill);
+            pnlSkillsLeftBtns.Controls.Add(btnDeleteSkill);
+
+            pnlSkillsLeft.Controls.Add(tvSkills);
+            pnlSkillsLeft.Controls.Add(pnlSkillsLeftBtns);
+
+            Panel pnlSkillsRight = new Panel { Dock = DockStyle.Fill };
+            rtbSkillMarkdown = new RichTextBox { Dock = DockStyle.Fill, ReadOnly = false, Font = new Font("Consolas", 10f), BorderStyle = BorderStyle.None, WordWrap = true, ScrollBars = RichTextBoxScrollBars.Both };
+            Panel pnlSkillsRightBtns = new Panel { Dock = DockStyle.Bottom, Height = 40 };
+            btnSaveSkill = new Button { Text = "💾 Zapisz Skill", Dock = DockStyle.Right, Width = 150, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnSaveSkill.Click += BtnSaveSkill_Click;
+            pnlSkillsRightBtns.Controls.Add(btnSaveSkill);
+
+            pnlSkillsRight.Controls.Add(pnlSkillsRightBtns);
+            pnlSkillsRight.Controls.Add(rtbSkillMarkdown);
+
+            tabPageSkills.Controls.Add(pnlSkillsRight);
+            tabPageSkills.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
+            tabPageSkills.Controls.Add(pnlSkillsLeft);
+
+            mainTabControl.TabPages.Add(tabPageSkills);
             this.Controls.Add(mainTabControl);
             pnlTopFilters.BringToFront();
         }
@@ -215,6 +259,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageFormulas.BackColor = panelBg;
             tabPageMacros.BackColor = panelBg;
             tabPageDatasets.BackColor = panelBg;
+            tabPageSkills.BackColor = panelBg;
 
             tvFormulas.BackColor = bgDark; tvFormulas.ForeColor = fgLight;
             rtbFormulaMetadata.BackColor = bgDark; rtbFormulaMetadata.ForeColor = Color.Orange;
@@ -235,6 +280,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnAddMacro.BackColor = panelBg; btnAddMacro.ForeColor = Color.White;
             btnDeleteMacro.BackColor = Color.Brown; btnDeleteMacro.ForeColor = Color.White;
             btnSaveMacro.BackColor = btnBg; btnSaveMacro.ForeColor = Color.White;
+
+            btnAddSkill.BackColor = panelBg; btnAddSkill.ForeColor = Color.White;
+            btnDeleteSkill.BackColor = Color.Brown; btnDeleteSkill.ForeColor = Color.White;
+            btnSaveSkill.BackColor = btnBg; btnSaveSkill.ForeColor = Color.White;
+            tvSkills.BackColor = bgDark; tvSkills.ForeColor = fgLight;
+            rtbSkillMarkdown.BackColor = bgDark; rtbSkillMarkdown.ForeColor = Color.LightSkyBlue;
 
             btnSaveDataset.BackColor = btnBg; btnSaveDataset.ForeColor = Color.White;
         }
@@ -325,6 +376,18 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             PopulateTreeView(tvDatasets, datasets.Select(d => d.DatasetId), id => datasets.FirstOrDefault(d => d.DatasetId == id)?.Category);
             dgvDataset.DataSource = null;
+
+            var skills = SkillManager.GetAvailableSkills();
+            if (tags.Any())
+            {
+                skills = skills.Where(s => 
+                {
+                    if (s.Tags == null) return false;
+                    return tags.All(tag => s.Tags.Any(st => st.ToLower().Contains(tag)));
+                });
+            }
+            PopulateTreeView(tvSkills, skills.Select(s => s.Id), id => SkillManager.GetSkill(id)?.Category);
+            rtbSkillMarkdown.Clear();
         }
 
         private void TxtTagFilter_TextChanged(object sender, EventArgs e)
@@ -341,6 +404,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 {
                     DynamicFormulaManager.LoadAndCompileAll();
                     MacroManager.LoadAllMacros();
+                    SkillManager.LoadAllSkills();
                     LoadData();
                 }
                 catch (Exception ex)
@@ -356,6 +420,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             {
                 DynamicFormulaManager.LoadAndCompileAll();
                 MacroManager.LoadAllMacros();
+                SkillManager.LoadAllSkills();
                 LoadData();
                 MessageBox.Show("Baza wiedzy została pomyślnie przeładowana.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -559,6 +624,76 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd zapisu baza: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void TvSkills_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node == null || e.Node.Tag?.ToString() == "FOLDER") { rtbSkillMarkdown.Clear(); return; }
+            string skillId = e.Node.Tag.ToString();
+            
+            try
+            {
+                var skill = SkillManager.GetSkill(skillId);
+                rtbSkillMarkdown.Text = skill.Content;
+            }
+            catch
+            {
+                rtbSkillMarkdown.Text = $"// Plik dla skilla {skillId} nie istnieje lub nie można go załadować.";
+            }
+        }
+
+        private void BtnAddSkill_Click(object sender, EventArgs e)
+        {
+            string id = ShowInputDialog("Podaj ID nowego skilla (bez spacji):", "Nowy Skill");
+            if (string.IsNullOrWhiteSpace(id)) return;
+
+            string template = $"---\ncategory: Uncategorized\ndescription: Nowy inżynierski skill\ntags: []\n---\n\n## {id}\n\nZasady postępowania dla tego zadania...\n";
+            try
+            {
+                var skill = new AgentSkill { Id = id, Content = template, Category = "Uncategorized" };
+                SkillManager.SaveSkill(skill);
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas dodawania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnDeleteSkill_Click(object sender, EventArgs e)
+        {
+            if (tvSkills.SelectedNode == null || tvSkills.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvSkills.SelectedNode.Tag.ToString();
+            if (MessageBox.Show($"Czy na pewno chcesz usunąć skilla '{id}'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                try
+                {
+                    SkillManager.DeleteSkill(id);
+                    LoadData();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void BtnSaveSkill_Click(object sender, EventArgs e)
+        {
+            if (tvSkills.SelectedNode == null || tvSkills.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvSkills.SelectedNode.Tag.ToString();
+            string markdown = rtbSkillMarkdown.Text;
+            try
+            {
+                var parsed = SkillManager.ParseSkill(id, markdown);
+                SkillManager.SaveSkill(parsed);
+                MessageBox.Show("Zapisano pomyślnie. Frontmatter zwalidowany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"BŁĄD ZAPISU:\n{ex.Message}", "Błąd Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
