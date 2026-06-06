@@ -9,6 +9,9 @@ namespace Bricscad_AgentAI_V2.Models
         [JsonProperty("role")]
         public string Role { get; set; }
 
+        [JsonProperty("active_document_path", NullValueHandling = NullValueHandling.Ignore)]
+        public string ActiveDocumentPath { get; set; }
+
         /// <summary>
         /// Treść wiadomości. Może być 'string' dla tekstu lub 'List<VisionContentPart>' dla treści multimodalnych.
         /// </summary>

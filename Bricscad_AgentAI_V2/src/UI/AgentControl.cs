@@ -1187,7 +1187,7 @@ namespace Bricscad_AgentAI_V2.UI
             txtToolLogs.ScrollToCaret();
         }
 
-        public async Task ProcessInputAsync(string rawInput)
+        public async Task ProcessInputAsync(string rawInput, string activeDwgPath = "")
         {
             if (string.IsNullOrEmpty(rawInput) && string.IsNullOrEmpty(_attachedFilePath) && _attachedClipboardImage == null) return;
 
@@ -1313,7 +1313,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 string aiResponse = await Task.Run(async () => 
                 {
-                    var result = await _supervisor.ProcessInputAsync(payload, new CadExecutionContext(doc));
+                    var result = await _supervisor.ProcessInputAsync(payload, new CadExecutionContext(doc), activeDwgPath);
                     return result.DisplayMessage;
                 });
 
@@ -1347,7 +1347,97 @@ namespace Bricscad_AgentAI_V2.UI
         {
             string userMsg = txtInput.Text.Trim();
             txtInput.Clear();
-            await ProcessInputAsync(userMsg);
+            
+            // Pobieranie aktywnego dokumentu bezpiecznie na głównym wątku UI
+            string activeDwgPath = "";
+            try {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc != null) activeDwgPath = doc.Name;
+            } catch { }
+
+            // Przechwytywacz Komend (Command Interceptor)
+            if (userMsg.StartsWith("/"))
+            {
+                string[] parts = userMsg.Split(new[] { ' ' }, 2);
+                string cmd = parts[0].ToLowerInvariant();
+                string args = parts.Length > 1 ? parts[1] : "";
+
+                if (cmd == "/new_session")
+                {
+                    BtnNewSession_Click(this, EventArgs.Empty);
+                    return;
+                }
+                else if (cmd == "/compress")
+                {
+                    BtnCompressContext_Click(this, EventArgs.Empty);
+                    return;
+                }
+                else if (cmd == "/czytaj_notatke")
+                {
+                    string note = DrawingNoteManager.ReadNote(activeDwgPath);
+                    if (string.IsNullOrWhiteSpace(note)) note = "Brak notatki dla tego pliku.";
+                    AppendToHistory("SYSTEM", $"Notatka dla {activeDwgPath}:\n{note}", isDarkMode ? Color.Orange : Color.DarkOrange);
+                    return;
+                }
+                else if (cmd == "/notatka")
+                {
+                    await GenerateNoteSubAgentAsync(activeDwgPath, args);
+                    return;
+                }
+            }
+
+            await ProcessInputAsync(userMsg, activeDwgPath);
+        }
+
+        private async Task GenerateNoteSubAgentAsync(string activeDwgPath, string instructions)
+        {
+            AppendToHistory("SYSTEM", $"Uruchamiam Sub-Agenta Notatek dla: {activeDwgPath}...", Color.Orange);
+            
+            try
+            {
+                string currentNote = DrawingNoteManager.ReadNote(activeDwgPath);
+                
+                var recentMsgs = SessionManager.CurrentSession.Messages
+                    .Where(m => m.Role != "system" && m.Content != null)
+                    .Select(m => $"{m.Role}: {m.Content}")
+                    .Reverse().Take(10).Reverse().ToList();
+                
+                string conversationContext = string.Join("\n", recentMsgs);
+                
+                string prompt = $@"Jesteś inżynierem dokumentacji. Poniżej znajduje się wycinek ostatniej rozmowy użytkownika oraz obecna notatka dla rysunku {activeDwgPath}. Użytkownik prosi o: {instructions}. Wygeneruj nową, kompletną zawartość pliku Markdown aktualizującą tę notatkę. Zwróć TYLKO czysty kod Markdown.
+
+Obecna notatka:
+{currentNote}
+
+Ostatnia rozmowa:
+{conversationContext}";
+
+                var msgs = new List<ChatMessage>
+                {
+                    new ChatMessage { Role = "system", Content = prompt }
+                };
+
+                // Zablokowanie narzędzi przez puste ID profilu (albo brak wywołania tool)
+                // Użyjemy domyślnego configu klienta LLM bez profilu i przekażemy puste narzędzia
+                var response = await _llmClient.SendMessageReActAsync(msgs, null, new string[0], true, 1, "EMPTY_TOOLS_PROFILE");
+                
+                if (response != null && response.IsSuccess && !string.IsNullOrEmpty(response.DisplayMessage))
+                {
+                    string markdown = response.DisplayMessage.Trim('`', '\n', '\r');
+                    if (markdown.StartsWith("markdown\n")) markdown = markdown.Substring(9);
+                    
+                    DrawingNoteManager.SaveNote(activeDwgPath, markdown);
+                    AppendToHistory("SYSTEM", $"✅ Notatka dla pliku {activeDwgPath} została zaktualizowana i zapisana na dysku.", isDarkMode ? Color.LightGreen : Color.DarkGreen);
+                }
+                else
+                {
+                    AppendToHistory("SYSTEM", "Nie udało się wygenerować notatki.", Color.LightCoral);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendToHistory("SYSTEM", $"Błąd sub-agenta notatek: {ex.Message}", Color.LightCoral);
+            }
         }
 
         private void BtnAttachFile_Click(object sender, EventArgs e)

@@ -27,7 +27,7 @@ namespace Bricscad_AgentAI_V2.Core
 
         public List<ChatMessage> GetHistory() => SessionManager.CurrentSession.Messages;
 
-        public async Task<AgentExecutionResult> ProcessInputAsync(object userContent, IExecutionContext context)
+        public async Task<AgentExecutionResult> ProcessInputAsync(object userContent, IExecutionContext context, string activeDwgPath = "")
         {
             var history = SessionManager.CurrentSession.Messages;
 
@@ -45,10 +45,47 @@ namespace Bricscad_AgentAI_V2.Core
                     }
                 }
                 
+                // RAG: Doklejamy notatkę do promptu systemowego
+                string note = DrawingNoteManager.ReadNote(activeDwgPath);
+                if (!string.IsNullOrWhiteSpace(note))
+                {
+                    sysPrompt += $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
+                }
+                
                 history.Add(new ChatMessage { Role = "system", Content = sysPrompt });
             }
+            else
+            {
+                // Jeśli mamy już system prompt w historii, szukamy go i aktualizujemy notatkę jeśli to potrzebne
+                var sysMsg = history.Find(m => m.Role == "system");
+                if (sysMsg != null && sysMsg.Content is string sysContent)
+                {
+                    string note = DrawingNoteManager.ReadNote(activeDwgPath);
+                    if (!string.IsNullOrWhiteSpace(note))
+                    {
+                        // Zabezpieczenie przed dublowaniem
+                        if (!sysContent.Contains("=== NOTATKA DLA RYSUNKU:"))
+                        {
+                            sysMsg.Content = sysContent + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
+                        }
+                        else
+                        {
+                            // Podmiana notatki (uproszczone)
+                            int startIdx = sysContent.IndexOf("=== NOTATKA DLA RYSUNKU:");
+                            sysMsg.Content = sysContent.Substring(0, startIdx).TrimEnd() + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
+                        }
+                    }
+                }
+            }
 
-            history.Add(new ChatMessage { Role = "user", Content = userContent });
+            // Prefix dla Context Tracking
+            object finalContent = userContent;
+            if (userContent is string strContent && !string.IsNullOrWhiteSpace(activeDwgPath))
+            {
+                finalContent = $"[Kontekst: Aktywny plik to {activeDwgPath}]\n{strContent}";
+            }
+
+            history.Add(new ChatMessage { Role = "user", Content = finalContent, ActiveDocumentPath = activeDwgPath });
             
             // Trigger auto-naming w tle, jeśli mamy już co najmniej 2 wiadomości (np. system + user)
             SessionManager.TriggerAutoNaming(_client, SessionManager.CurrentSession);
