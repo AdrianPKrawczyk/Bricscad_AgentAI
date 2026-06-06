@@ -42,11 +42,18 @@ namespace Bricscad_AgentAI_V2.Core
         {
             try
             {
-                string action = args["action"]?.ToString();
+                string action = args.GetValue("action", StringComparison.OrdinalIgnoreCase)?.ToString() 
+                             ?? args.GetValue("Action", StringComparison.OrdinalIgnoreCase)?.ToString();
+                
                 if (string.IsNullOrEmpty(action))
                 {
                     return "Błąd: Brak parametru 'action'.";
                 }
+
+                action = action.ToLowerInvariant().Trim();
+                if (action == "list") action = "list_skills";
+                if (action == "read") action = "read_skill";
+                if (action == "create" || action == "createorupdate") action = "create_skill";
 
                 if (action == "list_skills")
                 {
@@ -65,7 +72,9 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 else if (action == "read_skill")
                 {
-                    string id = args["skillId"]?.ToString();
+                    string id = args.GetValue("skillId", StringComparison.OrdinalIgnoreCase)?.ToString()
+                             ?? args.GetValue("Trigger", StringComparison.OrdinalIgnoreCase)?.ToString();
+                             
                     if (string.IsNullOrWhiteSpace(id))
                         return "Błąd: Akcja 'read_skill' wymaga parametru 'skillId'.";
                     
@@ -81,19 +90,22 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 else if (action == "create_skill")
                 {
-                    string id = args["skillId"]?.ToString();
-                    string md = args["markdownContent"]?.ToString();
+                    string id = args.GetValue("skillId", StringComparison.OrdinalIgnoreCase)?.ToString()
+                             ?? args.GetValue("Trigger", StringComparison.OrdinalIgnoreCase)?.ToString();
+                    string md = args.GetValue("markdownContent", StringComparison.OrdinalIgnoreCase)?.ToString()
+                             ?? args.GetValue("ToolExampleJson", StringComparison.OrdinalIgnoreCase)?.ToString()
+                             ?? args.GetValue("Content", StringComparison.OrdinalIgnoreCase)?.ToString();
 
                     if (string.IsNullOrWhiteSpace(id))
                         return "Błąd: Akcja 'create_skill' wymaga parametru 'skillId'.";
                     if (string.IsNullOrWhiteSpace(md))
                         return "Błąd: Akcja 'create_skill' wymaga parametru 'markdownContent'.";
 
-                    string cat = args["category"]?.ToString() ?? "Uncategorized";
-                    string desc = args["description"]?.ToString() ?? "";
+                    string cat = args.GetValue("category", StringComparison.OrdinalIgnoreCase)?.ToString() ?? "Uncategorized";
+                    string desc = args.GetValue("description", StringComparison.OrdinalIgnoreCase)?.ToString() ?? "";
                     
                     var tagList = new List<string>();
-                    string tagsStr = args["tags"]?.ToString();
+                    string tagsStr = args.GetValue("tags", StringComparison.OrdinalIgnoreCase)?.ToString();
                     if (!string.IsNullOrWhiteSpace(tagsStr))
                     {
                         tagList = tagsStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
@@ -114,7 +126,7 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 else
                 {
-                    return $"Błąd: Nieznana akcja '{action}'.";
+                    return $"Błąd: Nieznana akcja '{action}'. Dostępne akcje to: 'list_skills', 'read_skill', 'create_skill'.";
                 }
             }
             catch (Exception ex)
