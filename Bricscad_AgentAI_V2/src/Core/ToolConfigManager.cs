@@ -119,7 +119,8 @@ namespace Bricscad_AgentAI_V2.Core
                             !currentText.Contains("OBLICZENIA MATEMATYCZNE, FIZYCZNE") ||
                             !currentText.Contains("NotesProfile") ||
                             !currentText.Contains("$moja_recepta") ||
-                            !currentText.Contains("WIEDZA O SYSTEMIE / POMOC"))
+                            !currentText.Contains("WIEDZA O SYSTEMIE / POMOC") ||
+                            !currentText.Contains("SKILLE INŻYNIERSKIE"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -146,7 +147,12 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n" +
                         "4. WIEDZA O SYSTEMIE / POMOC:\n" +
                         "   - Jeśli użytkownik pyta Cię jak użyć jakiegoś narzędzia, co oznacza komenda, w jaki sposób napisać receptę, lub ogólnie jak działa wtyczka, użyj narzędzia ReadHelp, aby przeczytać zintegrowane pliki dokumentacji.\n" +
-                        "   - Po pobraniu treści z pomocy, połącz tę wiedzę ze znajomością Twojego promptu systemowego oraz listą ekspertów/narzędzi, po czym odpowiedz użytkownikowi rzeczowo i precyzyjnie.\n\n" +
+                        "   - Po pobraniu treści z pomocy, połącz tę wiedzę ze znajomością Twojego promptu systemowego oraz listą ekspertów/narzędzi, po czym odpowiedz użytkownikowi rzeczowo i precyzyjnie.\n" +
+                        "5. SKILLE INŻYNIERSKIE (Pliki Markdown, tagi ze znakiem #):\n" +
+                        "   - Skille to procedury zapisane w języku naturalnym (Markdown) z YAML Frontmatter. Wstrzykiwane są do Twojego kontekstu gdy użytkownik użyje tagu #.\n" +
+                        "   - Jeśli użytkownik prosi o \"utworzenie skilla\", absolutnie NIE używaj narzędzia SaveMacro (Makra to co innego!). Użyj dedykowanego narzędzia manage_skills (akcja create_skill), aby wygenerować plik .md.\n" +
+                        "   - Jeśli użytkownik wspomni o wczytaniu/przeczytaniu skilla, użyj manage_skills z akcją read_skill.\n" +
+                        "   - Kiedy otrzymasz wstrzykniętego skilla do kontekstu, po prostu wykonuj jego instrukcje zlecając zadania do odpowiednich profili przez DelegateTask.\n\n" +
                         "UWAGA KRYTYCZNA: Profile NIE są narzędziami! Nigdy nie wywołuj nazwy profilu (np. CadMathProfile, CadGeometryProfile) jako nazwy funkcji w tool_calls. Jedynym narzędziem do delegowania jest DelegateTask, w którym podajesz TargetProfile jako parametr. Wywołanie profilu bezpośrednio jako funkcji spowoduje błąd krytyczny i nie zostanie wykonane!\n\n" +
                         "Dostępne profile ekspertów do zadań (wybierz najbardziej optymalny):\n" +
                         "- CadGeometryProfile: ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
