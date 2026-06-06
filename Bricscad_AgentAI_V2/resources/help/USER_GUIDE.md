@@ -285,3 +285,35 @@ Jeśli Twoja recepta działa idealnie, możesz ją "ozłocić", czyli dodać jak
 W zakładce **Recepty** znajdziesz dwa tryby weryfikacji:
 1. **🧪 Testuj w Sandboxie**: Przesyła wybrany krok receptury do Tool Sandboxa. Jeśli przepis ma wiele kroków, program zapyta Cię, który z nich chcesz przetestować.
 2. **🚀 Testuj Sekwencję**: Uruchamia cały przepis natychmiast w BricsCAD. W przypadku błędu w składni JSON lub błędnego działania narzędzia, system wyświetli szczegółowy log z diagnozą i sugestią poprawki.
+
+---
+
+## 📚 12. Skille Inżynierskie (Markdown Skills) - NOWOŚĆ
+
+W najnowszej wersji wprowadzono **System Skilli** obsługiwany za pomocą znaku `#`. Skille to trzecia, najwyższa warstwa abstrakcji systemu AI (ponad Makrami i Receptami).
+
+### 12.1. Czym są Skille?
+Skille to pliki tekstowe zapisane w formacie Markdown (`.md`) z nagłówkiem YAML Frontmatter. W przeciwieństwie do Makr (zapisanych w kodzie JSON) i Recept, Skille są instrukcjami pisanymi w języku naturalnym, skierowanymi bezpośrednio do modelu LLM. 
+Pozwalają na zdefiniowanie złożonych, wieloetapowych procesów i procedur inżynierskich.
+
+### 12.2. Jak korzystać ze Skilli?
+W oknie czatu wpisz znak `#`. Pojawi się lista dostępnych skilli (np. `#ObliczeniaDachu`, `#Szybki_Raport`).
+- **Autouzupełnianie**: System podpowie dostępne pliki `.md` z folderu `Skills/`.
+- **Wstrzykiwanie w locie (Progressive Disclosure)**: Po wysłaniu wiadomości z tagiem skilla (np. *"Zaprojektuj to używając #ObliczeniaDachu"*), Agent "wstrzyknie" zawartość tego pliku Markdown do swojej pamięci podręcznej (kontekstu) jako instrukcję systemową. Znika to z Twojego głównego okna, aby nie zaśmiecać widoku, ale Agent dokładnie wie, co ma robić.
+
+### 12.3. Budowa Pliku Skilla
+Skille można edytować w zakładce **Baza Wiedzy AI -> Skille Inżynierskie**.
+Każdy plik musi zawierać na górze nagłówek YAML:
+```yaml
+---
+name: NazwaSkilla
+description: Krótki opis co ten skill robi
+tags: [tag1, tag2]
+---
+```
+Poniżej nagłówka piszesz instrukcję dla Agenta czystym tekstem. Możesz tam wskazywać, jakich Makr ma użyć, z jakich katalogów czerpać dane, jakie formuły RPN zastosować oraz opisać znane "pułapki" (pitfalls), których Agent ma unikać.
+
+### 12.4. Skille vs Recepty ($) vs Polecenia (/)
+- **Recepty (`$`)**: Skróty do wywołań konkretnych narzędzi (Tool Calling) z gotowymi parametrami JSON. Działają jak "nagrane makra".
+- **Skille (`#`)**: Instrukcje dla sztucznej inteligencji. Jak podręcznik procedur. Agent sam decyduje jakich narzędzi i recept użyć, aby zrealizować procedurę opisaną w Skillu.
+- **Polecenia (`/`)**: Dyrektywy systemowe i narzędziowe (np. `/notatka` do zapisania wniosków w pliku Markdown, `/compress` do wyczyszczenia historii sesji). Obsługiwane również przez autouzupełnianie.
