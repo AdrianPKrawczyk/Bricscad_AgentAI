@@ -214,7 +214,7 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
                 try
                 {
                     string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                    string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
+                    string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
                     string autoTestDir = Path.Combine(rootDir, "Autotesty");
                     
                     if (!Directory.Exists(autoTestDir))
@@ -248,7 +248,7 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
             {
                 string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
                 // Szukamy w folderze src (wyżej w drzewie katalogów z bin/Debug)
-                string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..")); 
+                string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..")); 
                 string toolsDir = Path.Combine(rootDir, "src", "Tools");
                 
                 if (Directory.Exists(toolsDir))
