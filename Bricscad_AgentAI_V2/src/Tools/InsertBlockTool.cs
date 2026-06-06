@@ -51,6 +51,12 @@ namespace Bricscad_AgentAI_V2.Tools
             double rotationDeg = args["Rotation"]?.Value<double>() ?? 0.0;
             JArray attrsArr = args["Attributes"] as JArray;
 
+            if (string.IsNullOrWhiteSpace(blockName))
+                return "BŁĄD: Parametr 'BlockName' nie może być pusty.";
+            
+            if (scale == 0.0)
+                return "BŁĄD: Skala nie może wynosić 0.";
+
             Point3d insertPt;
             if (pointStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
             {
@@ -134,8 +140,14 @@ namespace Bricscad_AgentAI_V2.Tools
 
         private Point3d ParsePoint(string ptStr)
         {
+            if (string.IsNullOrWhiteSpace(ptStr)) throw new ArgumentException("Punkt nie może być pusty.");
+            
             ptStr = ptStr.Replace("[", "").Replace("]", "").Replace("(", "").Replace(")", "").Trim();
             string[] parts = ptStr.Split(',');
+            
+            if (parts.Length < 2)
+                throw new FormatException("Punkt musi zawierać przynajmniej współrzędne X i Y oddzielone przecinkiem.");
+
             double x = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
             double y = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
             double z = parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 0;
