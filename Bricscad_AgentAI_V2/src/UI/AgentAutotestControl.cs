@@ -211,13 +211,24 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
 
                 AppendAutoLog($"\n[SYSTEM] Zakończono wszystkie testy. Generowanie raportu...", Color.Cyan);
 
-                using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Markdown files|*.md", Title = "Zapisz Raport Autotestu", FileName = $"Autotest_Report_{DateTime.Now:yyyyMMdd_HHmmss}.md" })
+                try
                 {
-                    if (sfd.ShowDialog() == DialogResult.OK)
+                    string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                    string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
+                    string autoTestDir = Path.Combine(rootDir, "Autotesty");
+                    
+                    if (!Directory.Exists(autoTestDir))
                     {
-                        File.WriteAllText(sfd.FileName, reportBuilder.ToString());
-                        AppendAutoLog($"[SYSTEM] Raport zapisany: {sfd.FileName}", Color.LimeGreen);
+                        Directory.CreateDirectory(autoTestDir);
                     }
+
+                    string fileName = Path.Combine(autoTestDir, $"Autotest_Report_{DateTime.Now:yyyyMMdd_HHmmss}.md");
+                    File.WriteAllText(fileName, reportBuilder.ToString());
+                    AppendAutoLog($"[SYSTEM] Raport automatycznie zapisany: {fileName}", Color.LimeGreen);
+                }
+                catch (Exception exIO)
+                {
+                    AppendAutoLog($"[SYSTEM] Nie udało się automatycznie zapisać raportu: {exIO.Message}", Color.Orange);
                 }
             }
             catch (Exception ex)
