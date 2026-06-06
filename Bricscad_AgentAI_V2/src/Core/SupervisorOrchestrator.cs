@@ -47,10 +47,12 @@ namespace Bricscad_AgentAI_V2.Core
                 
                 // RAG: Doklejamy notatkę do promptu systemowego
                 string note = DrawingNoteManager.ReadNote(activeDwgPath);
-                if (!string.IsNullOrWhiteSpace(note))
+                if (string.IsNullOrWhiteSpace(note))
                 {
-                    sysPrompt += $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
+                    note = "[Brak notatki. Użytkownik nie stworzył jeszcze notatki inżynierskiej dla tego rysunku. Możesz ją wygenerować delegując zadanie do agenta NotesProfile używając narzędzia DelegateTask, albo powiedzieć użytkownikowi o komendzie /notatka]";
                 }
+                
+                sysPrompt += $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
                 
                 history.Add(new ChatMessage { Role = "system", Content = sysPrompt });
             }
@@ -61,19 +63,21 @@ namespace Bricscad_AgentAI_V2.Core
                 if (sysMsg != null && sysMsg.Content is string sysContent)
                 {
                     string note = DrawingNoteManager.ReadNote(activeDwgPath);
-                    if (!string.IsNullOrWhiteSpace(note))
+                    if (string.IsNullOrWhiteSpace(note))
                     {
-                        // Zabezpieczenie przed dublowaniem
-                        if (!sysContent.Contains("=== NOTATKA DLA RYSUNKU:"))
-                        {
-                            sysMsg.Content = sysContent + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
-                        }
-                        else
-                        {
-                            // Podmiana notatki (uproszczone)
-                            int startIdx = sysContent.IndexOf("=== NOTATKA DLA RYSUNKU:");
-                            sysMsg.Content = sysContent.Substring(0, startIdx).TrimEnd() + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
-                        }
+                        note = "[Brak notatki. Użytkownik nie stworzył jeszcze notatki inżynierskiej dla tego rysunku. Możesz ją wygenerować delegując zadanie do agenta NotesProfile używając narzędzia DelegateTask, albo powiedzieć użytkownikowi o komendzie /notatka]";
+                    }
+                    
+                    // Zabezpieczenie przed dublowaniem
+                    if (!sysContent.Contains("=== NOTATKA DLA RYSUNKU:"))
+                    {
+                        sysMsg.Content = sysContent + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
+                    }
+                    else
+                    {
+                        // Podmiana notatki (uproszczone)
+                        int startIdx = sysContent.IndexOf("=== NOTATKA DLA RYSUNKU:");
+                        sysMsg.Content = sysContent.Substring(0, startIdx).TrimEnd() + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
                     }
                 }
             }

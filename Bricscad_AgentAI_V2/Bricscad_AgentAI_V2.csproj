@@ -149,6 +149,8 @@
     <Compile Include="src\Tools\WriteXDataTool.cs" />
     <Compile Include="src\Tools\FindXDataTool.cs" />
     <Compile Include="src\Tools\CaptureVisionAreaTool.cs" />
+    <Compile Include="src\Tools\ReadProjectFileTool.cs" />
+    <Compile Include="src\Tools\WriteProjectFileTool.cs" />
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

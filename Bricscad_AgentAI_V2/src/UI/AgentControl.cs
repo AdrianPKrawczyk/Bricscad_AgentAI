@@ -682,7 +682,7 @@ namespace Bricscad_AgentAI_V2.UI
             
             chkEnableTracer = new CheckBox 
             { 
-                Text = "ĘąŁˇledĘąŁź zdarzenia bazy Teigha", 
+                Text = "Śledź zdarzenia bazy Teigha", 
                 AutoSize = true, 
                 ForeColor = Color.White, 
                 Dock = DockStyle.Left 
@@ -691,7 +691,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnClearDebug = new Button 
             { 
-                Text = "WyczyĘąâ€şĂ„â€ˇ logi", 
+                Text = "Wyczyść logi", 
                 Width = 100, 
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -733,7 +733,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             chkEnableAppLogging = new CheckBox
             {
-                Text = "WĘąâ€šĂ„â€¦cz logowanie debugowania",
+                Text = "Włącz logowanie debugowania",
                 AutoSize = true,
                 ForeColor = Color.White,
                 Dock = DockStyle.Left,
@@ -743,7 +743,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnRefreshAppLog = new Button
             {
-                Text = "Ę‘Łşâ€ťâ€ž OdĘąâ€şwieĘąĘ˝ log",
+                Text = "Odśwież log",
                 Width = 100,
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -755,7 +755,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnClearAppLog = new Button
             {
-                Text = "Ę‘Łşâ€”â€ĘŹÂ¸Łą WyczyĘąâ€şĂ„â€ˇ",
+                Text = "Wyczyść",
                 Width = 90,
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -764,7 +764,7 @@ namespace Bricscad_AgentAI_V2.UI
                 Cursor = Cursors.Hand
             };
             btnClearAppLog.Click += (s, e) => {
-                if (MessageBox.Show("Czy na pewno chcesz wyczyĘąâ€şciĂ„â€ˇ plik logu debugowania?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                if (MessageBox.Show("Czy na pewno chcesz wyczyścić plik logu debugowania?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     BielikLogger.ClearLog();
                     RefreshAppLogView();
@@ -773,7 +773,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnOpenAppLogFile = new Button
             {
-                Text = "Ę‘Łşâ€śâ€š OtwĘ‚Ł‚rz plik logu",
+                Text = "Otwórz plik logu",
                 Width = 130,
                 Dock = DockStyle.Right,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -831,9 +831,9 @@ namespace Bricscad_AgentAI_V2.UI
             };
 
             // ==========================================
-            // PODZAKĘąÂADKA: ĘąŁˇcieĘąĘ˝ki i Dane
+            // PODZAKŁADKA: Ścieżki i Dane
             // ==========================================
-            TabPage tabPathsSub = new TabPage("ĘąŁˇcieĘąĘ˝ki i Dane");
+            TabPage tabPathsSub = new TabPage("Ścieżki i Dane");
             tabPathsSub.BackColor = Color.FromArgb(45, 45, 45);
             tabPathsSub.ForeColor = Color.White;
             
@@ -844,7 +844,7 @@ namespace Bricscad_AgentAI_V2.UI
             TextBox txtCurrentPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
             txtCurrentPath.Text = AppPaths.GetCustomKnowledgePath();
             
-            Button btnChangePath = new Button { Text = "Ę‘Łşâ€śâ€š Wybierz inny folder...", Left = 610, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            Button btnChangePath = new Button { Text = "Wybierz inny folder...", Left = 610, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             
             panPathSetup.Controls.Add(lblPathCurrent);
             panPathSetup.Controls.Add(txtCurrentPath);
@@ -1067,8 +1067,15 @@ namespace Bricscad_AgentAI_V2.UI
             string textSoFar = txtInput.Text.Substring(0, index);
             int lastHashIndex = textSoFar.LastIndexOf('#');
             int lastDollarIndex = textSoFar.LastIndexOf('$');
+            int lastSlashIndex = textSoFar.LastIndexOf('/');
+            
+            // Reagujemy na ukośnik tylko na początku linii lub po spacji/nowej linii
+            if (lastSlashIndex > 0 && textSoFar[lastSlashIndex - 1] != ' ' && textSoFar[lastSlashIndex - 1] != '\n')
+            {
+                lastSlashIndex = -1;
+            }
 
-            int activeIndex = Math.Max(lastHashIndex, lastDollarIndex);
+            int activeIndex = Math.Max(lastHashIndex, Math.Max(lastDollarIndex, lastSlashIndex));
             if (activeIndex == -1)
             {
                 lstAutocomplete.Visible = false;
@@ -1087,13 +1094,20 @@ namespace Bricscad_AgentAI_V2.UI
             List<string> options = new List<string>();
             if (_lastTriggerChar == '#')
             {
-                options.Add("#core");
-                options.Add("#all");
-                options.AddRange(ToolConfigManager.GetAvailableCategories().Select(c => c.StartsWith("#") ? c : "#" + c));
+                options.Add("#core - Podstawowe narzędzia");
+                options.Add("#all - Wszystkie narzędzia");
+                options.AddRange(ToolConfigManager.GetAvailableCategories().Select(c => (c.StartsWith("#") ? c : "#" + c) + " - Kategoria narzędzi"));
             }
             else if (_lastTriggerChar == '$')
             {
-                options.AddRange(RecipeManager.GetAll().Select(r => "$" + r.Trigger));
+                options.AddRange(RecipeManager.GetAll().Select(r => "$" + r.Trigger + (string.IsNullOrWhiteSpace(r.Description) ? "" : " - " + r.Description)));
+            }
+            else if (_lastTriggerChar == '/')
+            {
+                options.Add("/notatka - Zleca utworzenie lub aktualizację notatki inżynierskiej");
+                options.Add("/czytaj_notatke - Wyświetla aktualną notatkę rysunkową");
+                options.Add("/new_session - Rozpoczyna nową sesję i czyści pamięć");
+                options.Add("/compress - Kompresuje historię kontekstu (oszczędza tokeny)");
             }
 
             var matches = options.Where(o => o.StartsWith(searchString, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -1125,6 +1139,12 @@ namespace Bricscad_AgentAI_V2.UI
             if (lstAutocomplete.SelectedItem == null) return;
 
             string tag = lstAutocomplete.SelectedItem.ToString();
+            int dashIndex = tag.IndexOf(" - ");
+            if (dashIndex != -1)
+            {
+                tag = tag.Substring(0, dashIndex);
+            }
+
             int caretIndex = txtInput.SelectionStart;
 
             string textSoFar = txtInput.Text.Substring(0, caretIndex);

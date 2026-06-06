@@ -61,6 +61,7 @@ namespace Bricscad_AgentAI_V2.Core
         {
             EnsureSupervisorPromptFile();
             EnsureMathPromptFile();
+            EnsureNotesPromptFile();
 
             if (File.Exists(ConfigPath))
             {
@@ -115,7 +116,8 @@ namespace Bricscad_AgentAI_V2.Core
                             !currentText.Contains("LUŹNA ROZMOWA") || 
                             !currentText.Contains("CadMathProfile") ||
                             !currentText.Contains("Profile NIE są narzędziami") ||
-                            !currentText.Contains("OBLICZENIA MATEMATYCZNE, FIZYCZNE"))
+                            !currentText.Contains("OBLICZENIA MATEMATYCZNE, FIZYCZNE") ||
+                            !currentText.Contains("NotesProfile"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -145,6 +147,7 @@ namespace Bricscad_AgentAI_V2.Core
                         "- CadBlocksProfile: ekspert od bloków i atrybutów (tworzenie bloków, wstawianie, listowanie, edycja atrybutów bloku).\n" +
                         "- CadMetadataProfile: ekspert od analityki rysunku, pomiarów, XData (czytanie właściwości, metadane XData, wyszukiwanie w rysunku, inspekcja obiektów, zrzuty ekranu CAD).\n" +
                         "- CadMathProfile: ekspert od obliczeń matematycznych, fizycznych, konwersji jednostek i analizy wymiarowej rysunku.\n" +
+                        "- NotesProfile: system przechowuje notatki inżynierskie dla każdego rysunku w plikach [Nazwa].ai_note.md. Masz do dyspozycji wyspecjalizowanego sub-agenta 'NotesProfile'. Jeśli użytkownik wyraźnie prosi Cię o zapisanie czegoś w notatce, ZAWSZE używaj narzędzia DelegateTask przekazując mu to zadanie, lub poinformuj użytkownika o możliwości użycia komendy /notatka.\n" +
                         "- CadProfile: uniwersalny profil awaryjny (używaj tylko jeśli zadanie łączy wiele z powyższych dziedzin w jeden ciąg).";
                     File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
                 }
@@ -230,6 +233,29 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
+        private static void EnsureNotesPromptFile()
+        {
+            try
+            {
+                string notesPromptPath = Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "system_prompt_notes.txt"
+                );
+                if (!File.Exists(notesPromptPath))
+                {
+                    string defaultNotesPrompt = 
+                        "Jesteś Sub-Agentem ds. Notatek Projektowych (NotesProfile).\n" +
+                        "Twoim jedynym zadaniem jest generowanie i zwracanie czystej treści notatki w formacie Markdown na podstawie poleceń użytkownika.\n" +
+                        "Nie używaj żadnych narzędzi poza wygenerowaniem tekstu i przekazaniem go jako końcowy wynik. Twoja odpowiedź nadpisze plik [Nazwa].ai_note.md w głównym systemie.";
+                    File.WriteAllText(notesPromptPath, defaultNotesPrompt, System.Text.Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_notes.txt: {ex.Message}");
+            }
+        }
+
         private static void SyncWithTools(IEnumerable<IToolV2> registeredTools)
         {
             bool changed = false;
@@ -256,7 +282,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["SupervisorProfile"] = supervisorProf;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -372,6 +398,14 @@ namespace Bricscad_AgentAI_V2.Core
                 }
             }
 
+            // 7. Zabezpieczenie/Synchronizacja NotesProfile
+            if (!_config.Profiles.TryGetValue("NotesProfile", out var notesProf))
+            {
+                notesProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_notes.txt" };
+                _config.Profiles["NotesProfile"] = notesProf;
+                changed = true;
+            }
+
             if (changed) SaveConfig();
         }
 
@@ -398,7 +432,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_supervisor.txt",
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile" },
                 AllowedTags = new List<string>()
             };
             
@@ -443,6 +477,13 @@ namespace Bricscad_AgentAI_V2.Core
                 SystemPromptFile = "system_prompt_math.txt",
                 AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset" },
                 AllowedTags = new List<string> { "#math", "#obliczenia" }
+            };
+
+            _config.Profiles["NotesProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = "system_prompt_notes.txt",
+                AllowedTools = new List<string>(),
+                AllowedTags = new List<string>()
             };
 
             // BEZWZGLĘDNY ZAPIS PO WYGENEROWANIU
