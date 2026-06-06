@@ -35,6 +35,11 @@ namespace Bricscad_AgentAI_V2.Core
             return Path.Combine(GetCustomKnowledgePath(), "Datasets");
         }
         
+        public static string GetRecipesPath()
+        {
+            return Path.Combine(GetCustomKnowledgePath(), "Recipes");
+        }
+        
         public static void EnsureDirectoriesExist()
         {
             string formulas = GetFormulasPath();
@@ -51,6 +56,11 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(datasets))
             {
                 Directory.CreateDirectory(datasets);
+            }
+            string recipes = GetRecipesPath();
+            if (!Directory.Exists(recipes))
+            {
+                Directory.CreateDirectory(recipes);
             }
         }
     }

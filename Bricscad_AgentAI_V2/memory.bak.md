@@ -92,20 +92,8 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
     - Rezygnacja z COM `ZoomWindow` na rzecz natywnego logicznego manipulowania `ViewTableRecord`.
     - Poprawa cyklu życia `ViewTableRecord` (naprawa błędu use-after-dispose).
     - Usunięcie flagi `Transparent` z poleceń wizyjnych celem umożliwienia zmian widoku.
-- v2.21.0 GOLD [MULTI-AGENT ORCHESTRATION] - Rozdzielenie kompetencji agentów: wprowadzenie `IExecutionContext`, `SharedMemoryState` (Blackboard) dla komunikacji, `SupervisorOrchestrator` oraz `DelegateTaskTool` (Kroki 1-5).
-- v2.22.0 GOLD [MATH EXPERT & RPN] - Wdrożenie profilu `CadMathProfile` i eksperta matematycznego zintegrowanego z kalkulatorem `RpnCalculator`. Wsparcie dla szablonów `{MATH:...}` w narzędziach CAD.
-- v2.23.0 GOLD [MULTI-CRITERIA FILTERS] - Rozszerzenie `DatasetManager` o filtrowanie wielokryterialne podtypów (Faza 8.1).
-- v2.24.0 GOLD [KNOWLEDGE BASE CATEGORIZATION] - System kategoryzacji baz danych, makr i formuł. Wprowadzenie tagów, hierarchii folderów oraz widoku drzewiastego TreeView w GUI (Faza 9).
-- v2.25.0 GOLD [MULTI-MODAL VISION] - Obsługa multimodalnych załączników (tekst, PDF, XLSX) i automatyczna kompresja/skalowanie obrazów z Vision API oraz integracja ze schowkiem Ctrl+V (Faza 10 & 12).
-- v2.25.1 GOLD [DATASET STANDARDIZATION] - Rozdzielenie plików metadanych i danych (*.data.json), zabezpieczenie przed brakiem danych oraz normalizacja tabel w GUI (Faza 11).
-- v2.25.2 HOTFIX [GUI ENCODING] - Poprawka błędów kodowania polskich znaków w interfejsie AgentControl.cs.
-- v2.26.0 GOLD [SESSION & COMPRESSION] - System zarządzania sesjami ChatSession, trwały zapis sesji w APPDATA, automatyczne nadawanie nazw sesjom oraz kompresja kontekstu w oknie Context Bar (Faza 13).
-- v2.27.0 GOLD [DWG CONTEXT & NOTES] - System Notatek Projektowych (Sidecar Markdown), komenda `/notatka` w GUI, menedżer DrawingNoteManager oraz dynamiczne wstrzykiwanie RAG do promptu Supervisora (Faza 14).
-- v2.28.0 GOLD [SAFE FILE TOOLS] - Zabezpieczone narzędzia plikowe Read/WriteProjectFileTool z blokadami ścieżek/rozszerzeń oraz integracja autouzupełniania komend i tagów w GUI (Faza 15).
 
-- v2.28.1 GOLD [MEMORY SYNCHRONIZATION] - Ujednolicenie pliku pamięci memory.md, naprawa zniekształceń Mojibake i UTF-16, nadanie numerów wersji kolejnym krokom.
-
-## Decyzje Architektoniczne
+## Decjzje Architektoniczne
 - **Semantic Tool Routing**: System dynamicznego dobierania narzędzi na podstawie tagów (#core, #bloki, itp.). Od v2.8.0 zarządzany przez `ToolConfigManager`.
 - **Early Exit (Fast Mode)**: Mechanizm pozwalający Agentowi na zakończenie pętli po wykonaniu narzędzi akcji, jeśli wspierają one flagę `SupportsEarlyExit`. Drastyczna redukcja tokenów i czasu odpowiedzi.
 - **AI Package Manager**: Model LLM samodzielnie odkrywa i ładuje pakiety narzędzi przez `RequestAdditionalToolsTool`.
@@ -116,8 +104,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Build CS0111/CS0103**: Naprawiono błędy kompilacji po masowej refaktoryzacji (dodanie plików do .csproj oraz usunięcie duplikatu klasy w UserInputTool.cs).
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
-## Dziennik Deweloperski (Logi Zadań)
-## [v2.20.10] 2026-06-03T10:45:17+02:00 - Inicjalna analiza architektury V2 i protokołów pamięci
+## 2026-06-03T10:45:17+02:00
 ### [ZREALIZOWANO]
 - Przeprowadzono szczegółową analizę architektury projektu w wersji V2 (Function Calling, LLMClient ReAct, RPN, Dataset Studio, CLI, system receptur i faza Vision).
 - Przeanalizowano wytyczne, instrukcje i zasady w dokumentacji projektu.
@@ -128,7 +115,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Oczekiwanie na konkretne zadania implementacyjne od użytkownika.
 
-## [v2.20.11] 2026-06-03T11:31:40+02:00 - Analiza konfiguracji LLM i identyfikacja parametrów LM Studio
+## 2026-06-03T11:31:40+02:00
 ### [ZREALIZOWANO]
 - Przeanalizowano pliki konfiguracyjne LLM (LLMConfigModels.cs, LLMClient.cs) w celu identyfikacji parametrów, które można przekazać do dostawców API (OpenAI, OpenRouter, LM Studio).
 - Opracowano listę potencjalnych rozszerzeń konfiguracji (m.in. reasoning_effort, thinking budget, top_p, seed, frequency/presence penalties).
@@ -139,7 +126,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Ewentualna implementacja dodatkowych pól w LLMProviderConfig i LLMConfigDialog na życzenie użytkownika.
 
-## [v2.20.12] 2026-06-03T11:34:52+02:00 - Poprawka kodowania znaków UTF-8 w GUI AgentControl.cs
+## 2026-06-03T11:34:52+02:00
 ### [ZREALIZOWANO]
 - Przeanalizowano przydatność parametrów LLM specyficznych dla silników lokalnych (Ollama, LM Studio, llama.cpp): top_p, top_k, min_p, repeat_penalty oraz stop sequences.
 - Opracowano plan integracji parametrów samplingu dla modeli lokalnych w celu poprawy deterministyczności i stabilności Tool Callingu na małych modelach (np. Qwen, DeepSeek).
@@ -150,7 +137,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Oczekiwanie na decyzję użytkownika co do implementacji rozszerzonych parametrów lokalnych.
 
-## [v2.20.13] 2026-06-03T11:38:50+02:00 - Poprawka formatu kodowania pliku LLMConfigModels.cs na UTF-8
+## 2026-06-03T11:38:50+02:00
 ### [ZREALIZOWANO]
 - Wdrożono rozszerzone parametry konfiguracji dostawców LLM (TopP, TopK, MinP, RepetitionPenalty, ReasoningEffort) w modelach danych C# (LLMConfigModels.cs), silniku klienta (LLMClient.cs) oraz formularzu UI (LLMConfigDialog.cs).
 - Pomyślnie skompilowano i zweryfikowano projekt Bricscad_AgentAI_V2 za pomocą dotnet build.
@@ -161,7 +148,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Oczekiwanie na uruchomienie i testy użytkownika w środowisku BricsCAD.
 
-## [v2.20.14] 2026-06-03T11:42:24+02:00 - Poprawa importu System.Text.Encoding w LLMConfigDialog.cs
+## 2026-06-03T11:42:24+02:00
 ### [ZREALIZOWANO]
 - Wdrożono czytelny interfejs pomocy i podpowiedzi (ToolTips) dla wszystkich zaawansowanych parametrów konfiguracji dostawców (Temperature, Max Tokens, Top-P, Top-K, Min-P, Repetition Penalty, Reasoning Effort).
 - Pomyślnie skompilowano i przetestowano aplikację.
@@ -172,7 +159,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Oczekiwanie na dalsze wytyczne od użytkownika.
 
-## [v2.20.15] 2026-06-03T13:20:00+02:00 - Testowanie stabilności ładowania modeli i integracji z CAD
+## 2026-06-03T13:20:00+02:00
 ### [ZREALIZOWANO]
 - Dodano twarde zabezpieczenia (safeguards) w `LLMClient.cs` zapobiegające dołączaniu zaawansowanych parametrów samplingu (`top_k`, `min_p`, `repetition_penalty`) do żądań wysyłanych do oficjalnych API OpenAI (`api.openai.com`) i Azure OpenAI (`openai.azure.com`).
 - Usunięto błędy kompilacji:
@@ -187,7 +174,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Testowanie działania dynamicznego ładowania w środowisku CAD po netloadzie wtyczki.
 
-## [v2.20.16] 2026-06-03T13:35:00+02:00 - Usunięcie nieobsługiwanych parametrów z payloadu LM Studio API
+## 2026-06-03T13:35:00+02:00
 ### [ZREALIZOWANO]
 - Rozwiązano błąd `unrecognized_keys` w LM Studio (`contextLength`, `flashAttention`, `offloadKvCacheToGpu`):
   - Usunięto duplikowane camelCase parametry z payloadu ładowania w `LLMClient.cs` oraz `LLMConfigDialog.cs`. REST API LM Studio wspiera wyłącznie snake_case.
@@ -201,7 +188,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Czekanie na weryfikację ze strony użytkownika.
 
-## [v2.20.17] 2026-06-03T14:00:00+02:00 - Wdrożenie dynamicznego edytora system promptu w zakładce Ustawienia
+## 2026-06-03T14:00:00+02:00
 ### [ZREALIZOWANO]
 - Wdrożono dynamiczne zarządzanie promptem systemowym z poziomu UI wtyczki BricsCAD:
   - Dodano nową, ostatnią zakładkę "⚙️ Ustawienia" w panelu głównym `AgentControl.cs`.
@@ -217,7 +204,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Uruchomienie wtyczki w programie BricsCAD i weryfikacja nowej zakładki "Ustawienia".
 
-## [v2.20.18] 2026-06-03T14:15:00+02:00 - Dodanie struktury podzakładek (TabControl) w Ustawieniach
+## 2026-06-03T14:15:00+02:00
 ### [ZREALIZOWANO]
 - Przebudowano strukturę zakładki "⚙️ Ustawienia" w `AgentControl.cs` w celu wdrożenia architektury zagnieżdżonych podzakładek (TabControl):
   - Utworzono podzakładkę "Prompt" przeznaczoną do edycji promptu systemowego.
@@ -231,7 +218,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Czekanie na weryfikację ze strony użytkownika.
 
-## [v2.20.19] 2026-06-03T14:45:00+02:00 - Fix wczytywania parametrów dostawców LLM w GUI
+## 2026-06-03T14:45:00+02:00
 ### [ZREALIZOWANO]
 - Naprawiono błąd pustych/niewidocznych parametrów aktywnego profilu przy otwarciu okna "Ustawienia Dostawców LLM":
   - W metodzie `LoadData` w pliku `LLMConfigDialog.cs` dodano reset `cbProviders.SelectedIndex = -1` przed przypisaniem docelowego indeksu dostawcy. Wymusza to poprawne wywołanie zdarzenia `SelectedIndexChanged` w WinForms, kiedy domyślny indeks pokrywa się z indeksem 0 (który był automatycznie przypisywany przy bindowaniu DataSource).
@@ -243,7 +230,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Czekanie na weryfikację ze strony użytkownika.
 
-## [v2.20.20] 2026-06-03T15:05:00+02:00 - Refaktoryzacja WykonajInteligentneZaznaczenie z Regex na Newtonsoft JSON
+## 2026-06-03T15:05:00+02:00
 ### [ZREALIZOWANO]
 - Zrefaktoryzowano metodę `WykonajInteligentneZaznaczenie` w pliku `AgentCommand.cs` (V1).
 - Zastąpiono 4 wywołania `Regex.Match`/`Regex.Matches` (EntityType, Mode, Scope, Conditions) parsowaniem strukturalnym przez `JObject.Parse(json)` z biblioteki `Newtonsoft.Json.Linq`.
@@ -258,7 +245,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Kompilacja i weryfikacja poprawności działania w środowisku BricsCAD.
 
-## [v2.21.0] 2026-06-03T20:10:00+02:00 - Multi-Agent Krok 1: Refaktoring silnika ReAct i IExecutionContext
+## 2026-06-03T20:10:00+02:00
 ### [ZREALIZOWANO]
 - Wykonano Krok 1 z `12_Mulitagent_upgrade.md`: Refaktoring silnika ReAct (`LLMClient.cs`).
 - Utworzono interfejs `IExecutionContext` oraz `CadExecutionContext` aby uniezależnić Workery od sztywnego wymogu `Document doc`.
@@ -272,7 +259,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Krok 2: Wdrożenie Blackboard (współdzielony stan).
 
-## [v2.21.1] 2026-06-03T20:12:00+02:00 - Multi-Agent Krok 2: SharedMemoryState i narzędzia Read/Write Blackboard
+## 2026-06-03T20:12:00+02:00
 ### [ZREALIZOWANO]
 - Wykonano Krok 2 z `12_Mulitagent_upgrade.md`: Wdrożono Blackboard (Współdzielony Stan).
 - Utworzono klasę `SharedMemoryState` (`ConcurrentDictionary<string, string>`) dla bezpiecznej wymiany danych między agentami.
@@ -285,7 +272,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Krok 3: Profile Narzędzi (`ToolConfigManager.cs`).
 
-## [v2.21.2] 2026-06-03T20:14:00+02:00 - Multi-Agent Krok 3: Profile agentów i konfiguracja ToolConfigRoot
+## 2026-06-03T20:14:00+02:00
 ### [ZREALIZOWANO]
 - Wykonano Krok 3 z `12_Mulitagent_upgrade.md`: Restrukturyzacja zarządzania narzędziami.
 - Wprowadzono nową strukturę konfiguracji JSON w `ToolConfigManager.cs` (`ToolConfigRoot`), grupującą definicje narzędzi oraz nowe Profile Agentów.
@@ -299,7 +286,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Krok 4: Implementacja Supervisora (Nadrzędna pętla sterująca).
 
-## [v2.21.3] 2026-06-03T20:20:00+02:00 - Multi-Agent Krok 4: Klasa SupervisorOrchestrator i DelegateTaskTool
+## 2026-06-03T20:20:00+02:00
 ### [ZREALIZOWANO]
 - Wykonano Krok 4 z `12_Mulitagent_upgrade.md`: Utworzenie Orchestratora Głównego.
 - Utworzono klasę `SupervisorOrchestrator`, odpowiedzialną za przechowywanie globalnej historii i inicjalizację głównej pętli dla "SupervisorProfile".
@@ -314,7 +301,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Krok 5: Propagacja i Zgodność UX (Eventy z sub-pętli wysyłane do AgentControl, obsługa logowania wywołań w UI z zachowaniem informacji o roli Agenta wykonującego).
 
-## [v2.21.4] 2026-06-03T20:25:00+02:00 - Multi-Agent Krok 5: Integracja ChatSession i SessionManager
+## 2026-06-03T20:25:00+02:00
 ### [ZREALIZOWANO]
 - Wykonano Krok 5 z `12_Mulitagent_upgrade.md`: Propagacja i Zgodność UX.
 - Zmodyfikowano kontrolkę `AgentControl.cs`, upewniając się, że metody aktualizujące HUD (`UpdateStatusHUD`, `UpdateStatsHUD`, `AppendToolLog`) są publiczne i gotowe do odbioru zdarzeń z zewnątrz.
@@ -329,7 +316,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Rozpoczęcie tworzenia konkretnych, wyspecjalizowanych narzędzi pod kątem nowych profili (np. dedykowany Agent do zarządzania arkuszami).
 
-## [v2.21.5] 2026-06-03T22:35:00+02:00 - Dostosowanie zakładki Agenci i Tester V2 do Multi-Agent
+## 2026-06-03T22:35:00+02:00
 ### [ZREALIZOWANO]
 - Naprawiono regresję routingu Supervisora i brakujących profili w konfiguracji:
   - Zaimplementowano funkcję `EnsureSupervisorPromptFile()` w `ToolConfigManager.cs`, która automatycznie tworzy plik `system_prompt_supervisor.txt` z rygorystycznymi wytycznymi dotyczącymi braku pogawędek i natychmiastowego delegowania do `CadProfile`.
@@ -344,7 +331,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Testowanie zachowania asystenta w programie BricsCAD pod kątem masowych selekcji i edycji.
 
-## [v2.21.6] 2026-06-03T22:52:00+02:00 - BielikLogger crash-safe diagnostics i logi w GUI
+## 2026-06-03T22:52:00+02:00
 ### [ZREALIZOWANO]
 - Uporządkowano i zsynchronizowano pozostałe zakładki aplikacji z architekturą Multi-Agent:
   - **Ustawienia (Prompt Editor)**: Dodano rozwijaną listę `cbPromptFile` do wyboru pliku promptu (`system_prompt.txt` / `system_prompt_supervisor.txt`), umożliwiając dynamiczną edycję i zapis promptów CAD i Supervisora bezpośrednio z UI.
@@ -359,7 +346,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Uruchomienie zaktualizowanego panelu w BricsCAD (po restarcie aplikacji CAD w celu zwolnienia blokady pliku DLL) i testy manualne.
 
-## [v2.21.7] 2026-06-03T23:10:00+02:00 - Testy LISP generatora dla walidacji operacji na blokach
+## 2026-06-03T23:10:00+02:00
 ### [ZREALIZOWANO]
 - Wdrożono lekki, bezpieczny system logowania i diagnostyki `BielikLogger.cs` w celu monitorowania działania wtyczki w locie i diagnozowania nagłych zamknięć (crashy) programu BricsCAD:
   - Stworzono klasę statyczną `BielikLogger` piszącą synchronicznie (dla bezpieczeństwa zapisu przed crashem) do pliku `bielik_debug.log` z rotacją po przekroczeniu rozmiaru 1 MB.
@@ -375,7 +362,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Testy w środowisku BricsCAD z otwartym podglądem Diagnostyki i przechwyceniem logów w razie awarii.
 
-## [v2.21.8] 2026-06-03T23:25:00+02:00 - Integracja orkiestratora z wątkiem GUI BricsCAD
+## 2026-06-03T23:25:00+02:00
 ### [ZREALIZOWANO]
 - Wprowadzono architekturę wieloagentową z trzema nowymi, wysoce wyspecjalizowanymi profilami pod-agentów (Workers) w celu skrócenia czasu reakcji, redukcji tokenów i zwiększenia precyzji:
   - **`CadGeometryProfile`**: Dedykowany do rysowania, warstw, kolorów, linii i tekstów (narzędzia geometryczne).
@@ -396,7 +383,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Załadowanie LISP-a w BricsCAD, uruchomienie generowania obiektów i przeprowadzenie testów routingu Supervisora oraz wykonania u poszczególnych agentów.
 
-## [v2.21.9] 2026-06-03T23:36:00+02:00 - Selekcja i filtrowanie BlockReference z wieloznacznikami w SelectEntitiesTool
+## 2026-06-03T23:36:00+02:00
 ### [ZREALIZOWANO]
 - Naprawiono błąd wyszukiwania instancji bloków (`SelectEntitiesTool.cs`) podczas selekcji po `EntityType`:
   - Przechwycono zapytania o właściwości `"EntityType"` oraz `"Type"`, przekierowując je bezpośrednio na pobranie nazwy typu C# (`ent.GetType().Name`) i tym samym omijając refleksję C#, która zwracała `null` dla typu klasy `BlockReference`.
@@ -410,7 +397,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Uruchomienie BricsCAD i ponowne przetestowanie Scenario 2 w celu weryfikacji zmiany atrybutu biurka o ID A2 na "Wolne".
 
-## [v2.21.10] 2026-06-03T23:55:00+02:00 - Złagodzenie restrykcji promptu systemowego Supervisora
+## 2026-06-03T23:55:00+02:00
 ### [ZREALIZOWANO]
 - Złagodzono restrykcje promptu systemowego Supervisora (`system_prompt_supervisor.txt`):
   - Zaktualizowano definicję i generowanie promptu w `ToolConfigManager.cs`, aby jednoznacznie zezwalać na bezpośrednie, rzeczowe i przyjazne odpowiadanie na pytania ogólne (matematyczne, historyczne, luźne rozmowy) bez delegowania ani odmawiania.
@@ -423,7 +410,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Weryfikacja działania przez użytkownika w programie BricsCAD (pytania ogólne typu "kto był pierwszym królem Polski" lub obliczenia matematyczne powinny teraz uzyskiwać bezpośrednie odpowiedzi).
 
-## [v2.22.0] 2026-06-04T00:15:00+02:00 - Wdrożenie CadMathProfile, promptu Math Experta i narzędzia CalculateRpn
+## 2026-06-04T00:15:00+02:00
 ### [ZREALIZOWANO]
 - Wdrożono wyspecjalizowany profil obliczeniowy `CadMathProfile` oraz narzędzie `CalculateRpn`:
   - Utworzono klasę [CalculateRpnTool.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Tools/CalculateRpnTool.cs) implementującą interfejs `IToolV2`, umożliwiającą bezpieczne wykonywanie obliczeń RPN za pomocą wewnętrznego silnika wymiarowego `RpnCalculator`.
@@ -440,7 +427,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Testowanie w programie BricsCAD z użyciem nowego profilu obliczeniowego `CadMathProfile` i narzędzia `CalculateRpn`.
 
-## [v2.22.1] 2026-06-04T00:17:00+02:00 - Zasady routingu matematyczno-fizycznego Supervisora
+## 2026-06-04T00:17:00+02:00
 ### [ZREALIZOWANO]
 - Skorygowano reguły routingu nadrzędnego Supervisora w `ToolConfigManager.cs`:
   - Rozgraniczono "LUŹNĄ ROZMOWĘ I WIEDZĘ OGÓLNĄ" (którą Supervisor obsługuje sam w zwykłym tekście) od "OBLICZEŃ MATEMATYCZNYCH, FIZYCZNYCH I PRZELICZANIA JEDNOSTEK" (które Supervisor musi bezwzględnie delegować do profilu `CadMathProfile` za pomocą narzędzia `DelegateTask`).
@@ -453,7 +440,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Weryfikacja delegowania obliczeń do `CadMathProfile` w programie BricsCAD.
 
-## [v2.22.2] 2026-06-04T00:30:00+02:00 - Rozbudowa promptu Math Experta o notację RPN i wzory
+## 2026-06-04T00:30:00+02:00
 ### [ZREALIZOWANO]
 - Skorygowano i rozbudowano prompt systemowy Math Experta (`system_prompt_math.txt`):
   - Dodano szczegółowe zasady działania notacji RPN na stosie i formatowania wartości z jednostkami (np. `10_m`, `11.34_g/cm3`).
@@ -470,7 +457,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Ponowne przetestowanie obliczeń (koło i kula) w BricsCAD.
 
 
-## [v2.22.3] 2026-06-04T00:38:00+02:00 - Auto-upgrade promptu o wytyczne unikania zwisów stosu (Dangled Stack)
+## 2026-06-04T00:38:00+02:00
 ### [ZREALIZOWANO]
 - Udoskonalono walidację i proces auto-upgrade dla szablonu promptu Math Experta (`system_prompt_math.txt`) w `ToolConfigManager.cs`, wprowadzając sprawdzenie obecności fraz `"Częsty błąd przy ułamkach"` oraz `"UNIKAJ DANGLED STACK"`.
 - Rozbudowano domyślny prompt systemowy dla profilu `CadMathProfile` o jasne wytyczne dotyczące unikania zwisów na stosie (Dangled Stack) oraz zasad zapisu ułamków i mnożenia ułamków (np. `4 3 / wyrażenie *` lub `wyrażenie 4 * 3 /` zamiast błędnego `wyrażenie 4 / 3`).
@@ -484,7 +471,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Przetestowanie działania agenta Bielik (Supervisor + Math Expert) w BricsCAD po ponownym załadowaniu wtyczki z nowym promptem matematycznym.
 
 
-## [v2.22.4] 2026-06-04T00:43:00+02:00 - E2E testy profilu matematycznego w CAD i blokada profili jako narzędzi
+## 2026-06-04T00:43:00+02:00
 ### [ZREALIZOWANO]
 - Zdiagnozowano i pomyślnie przetestowano wywołanie profilu matematycznego w programie BricsCAD. Agent poprawnie rozłożył i obliczył energię kinetyczną w 4 krokach: promień (`0.1_m 2 /`), objętość (`@Promien 3 ^ #PI * 4 * 3 /`), masę (`@Objetosc 11340_kg/m3 *`) oraz energię kinetyczną (`@Masa #G * 10_m *`). Wszystkie operacje stosu i stałe fizyczne zadziałały bezbłędnie.
 - Zidentyfikowano pojedynczą próbę wywołania nazwy profilu `"CadMathProfile"` jako bezpośredniej nazwy funkcji przez model Supervisor.
@@ -499,7 +486,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Oczekiwanie na ostateczne potwierdzenie działania przez użytkownika w środowisku BricsCAD.
 
 
-## [v2.22.5] 2026-06-04T00:46:00+02:00 - Silnik benchmarków dla wyboru profilu i promptów eksperckich
+## 2026-06-04T00:46:00+02:00
 ### [ZREALIZOWANO]
 - Przebudowano system benchmarkowy pod kątem obsługi wyboru profilu i testowania konkretnego Agenta Eksperta:
   - Rozszerzono metodę `SendMessageBenchmarkAsync` w `LLMClient.cs` o opcjonalny parametr `profileName`. Gdy profil jest podany, wywoływany jest orkiestrator z listą dozwolonych narzędzi i tagów zdefiniowanych dla tego profilu (zamiast standardowego `#all`).
@@ -515,7 +502,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Przetestowanie nova funkcję wyboru profilu w zakładce Benchmark systemu BricsCAD.
 
 
-## [v2.22.6] 2026-06-04T00:49:00+02:00 - Zbiór testowy benchmarku Benchmark_02_Math.json
+## 2026-06-04T00:49:00+02:00
 ### [ZREALIZOWANO]
 - Utworzono dedykowany zestaw testowy benchmarku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) zawierający 5 reprezentatywnych zadań matematycznych i fizycznych (Pole koła, Objętość kuli, Masa ołowiu z gęstości, Energia potencjalna, Objętość rury).
 - Skonfigurowano reguły walidacji typu `EvaluateRPN_Argument` w celu precyzyjnego obliczania i weryfikowania wyjściowej wartości RPN (np. asercja do `"7853.981634_mm2"` lub `"86.393798_L"`).
@@ -528,7 +515,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Wczytanie pliku `Benchmark_02_Math.json` w zakładce Benchmark i uruchomienie testu z wybranym profilem `CadMathProfile`.
 
 
-## [v2.22.7] 2026-06-04T00:54:00+02:00 - Optymalizacja wzoru objętości kuli w promptach
+## 2026-06-04T00:54:00+02:00
 ### [ZREALIZOWANO]
 - Naprawiono i uściślono przykład obliczania objętości kuli w `EnsureMathPromptFile` w `ToolConfigManager.cs` (dodano `'cm3' CONVE` do wzoru przykładowego, aby model precyzyjnie konwertował jednostki do oczekiwanego formatu).
 - Zmodyfikowano zapytania `UserPrompt` w pliku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json), doprecyzowując wymóg wykonania obliczeń w pojedynczym kroku RPN z wyraźnym poleceniem konwersji jednostki (`CONVE`). Rozwiązuje to problem przedwczesnego zatrzymania pętli ReAct po napotkaniu mockowanych odpowiedzi w teście wieloetapowym.
@@ -541,7 +528,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Ponowne wykonanie testu benchmarkowego `Benchmark_02_Math.json` w BricsCAD i weryfikacja skuteczności.
 
 
-## [v2.22.8] 2026-06-04T01:05:00+02:00 - Uruchomienie rzeczywistych narzędzi obliczeniowych w benchmarku
+## 2026-06-04T01:05:00+02:00
 ### [ZREALIZOWANO]
 - **Realne wykonanie narzędzi obliczeniowych i pamięciowych w benchmarku**: Zmodyfikowano metodę `SendMessageBenchmarkAsync` w [LLMClient.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/LLMClient.cs) tak, aby narzędzia `CalculateRpn`, `ReadFromBlackboard` oraz `WriteToBlackboard` były wykonywane naprawdę za pomocą orkiestratora, zamiast zwracania mockowanych odpowiedzi z pliku JSON. Rozwiązuje to problem przedwczesnego zakończenia pętli ReAct (LLM przestaje kończyć działanie na pierwszym kroku obliczeń cząstkowych po otrzymaniu mockowanego wyniku ostatecznego).
 - **Walidacja ostatniego wywołania RPN**: Zaktualizowano regułę `EvaluateRPN_Argument` w [AutoBenchmarkEngine.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/AutoBenchmarkEngine.cs) do pobierania ostatniego wywołania `CalculateRpn` (`LastOrDefault`) zamiast pierwszego wywołania z argumentami (`FirstOrDefault`). Zapewnia to poprawną weryfikację końcowego wyniku w zadaniach wielokrokowych, w których LLM odwołuje się do zmiennych zapisanych w tablicy (blackboard).
@@ -554,7 +541,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Wykonanie testu benchmarku w programie BricsCAD w celu weryfikacji 100% poprawności.
 
 
-## [v2.22.9] 2026-06-04T01:10:00+02:00 - Uproszczenie zapytań benchmarkowych dla Bielika 11B
+## 2026-06-04T01:10:00+02:00
 ### [ZREALIZOWANO]
 - **Uproszczenie zapytań w pliku benchmarkowym**: Przywrócono naturalne sformułowania w zapytaniach `UserPrompt` w [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) (usunieto narzucony wymóg "wykonania obliczeń jako pojedyncze wyrażenie RPN"). Dzięki temu model nie otrzymuje sprzecznych instrukcji z system promptem (który nakazuje dzielenie zadań na logiczne kroki cząstkowe) i poprawnie rozbija obliczenia na czytelne etapy, co eliminuje błędy składniowe i matematyczne (takie jak błędne potęgowanie czy zbędne dzielenie przez 1000).
 - **Weryfikacja kompilacji**: Kompilacja wtyczki powiodła się bez żadnych błędów i ostrzeżeń.
@@ -566,7 +553,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Wykonanie testu benchmarku w BricsCAD i weryfikacja poprawności.
 
 
-## [v2.22.10] 2026-06-04T01:17:00+02:00 - Podniesienie precyzji RPN (12 miejsc) i fizyczne porównanie tolerancji
+## 2026-06-04T01:17:00+02:00
 ### [ZREALIZOWANO]
 - **Podniesienie precyzji kalkulatora RPN**: Zwiększono precyzję formatowania liczb zmiennoprzecinkowych w metodzie `ToString()` klasy `PhysicalValue` w [RpnCalculator.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/RpnCalculator.cs) z 6 do **12 miejsc po przecinku**. Zapobiega to utracie precyzji w obliczeniach wielokrokowych, gdy wyniki cząstkowe są zapisywane jako tekst w pamięci Agenta (np. małe wartości w m2/m3 po konwersji do mm2/cm3/litrów ulegały silnemu zaokrągleniu).
 - **Fizyczne porównywanie wartości w walidacji (AreValuesPhysicallyEqual)**: Dodano inteligentną metodę porównywania wielkości fizycznych w `RpnCalculator` i zintegrowano ją w [AutoBenchmarkEngine.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/AutoBenchmarkEngine.cs). Zamiast porównywać sztywne napisy (np. `7853.981634_mm2` vs `7854_mm2`), silnik parsuje obie wartości, weryfikuje zgodność wymiarową (Dimensions) i sprawdza wartość liczbową w granicach tolerancji `1e-4` (relative tolerance).
@@ -582,7 +569,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Uruchomienie zaktualizowanego benchmarku w środowisku BricsCAD i weryfikacja przejścia wszystkich 5 testów.
 
 
-## [v2.22.11] 2026-06-04T01:23:00+02:00 - Dodanie wskazówek syntaktycznych RPN do pytań benchmarku
+## 2026-06-04T01:23:00+02:00
 ### [ZREALIZOWANO]
 - **Dodanie wskazówek RPN do zapytań benchmarkowych**: Wzbogacono pytania `UserPrompt` w pliku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) o wyraźne wskazówki dotyczące konieczności stosowania kalkulatora RPN, dopisywania jednostek (np. `_mm`, `_cm3`) oraz używania polecenia `CONVE` w pojedynczych cudzysłowach. Pomaga to mniejszemu modelowi (Bielik 11B) w utrzymaniu dyscypliny składniowej RPN bez zmuszania go do nienaturalnego upakowywania całego zadania w jedno wywołanie.
 - **Weryfikacja kompilacji**: Kompilacja powiodła się bez żadnych błędów i ostrzeżeń.
@@ -594,53 +581,58 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - Wykonanie testu benchmarku w programie BricsCAD w celu weryfikacji.
 
 
-ഀ
-##2026-06-04T02:23:00+02:00
-###[ZREALIZOWANO]
--Wdro|onofallbackwCreateObjectTool.csprzekierowujcydanedoRpnCalculatorwprzypadkubBduformatowanialiczb.
--UsunitocaBkowicienarzdzieCalculateRpnTool.
--Zaimplementowanoszablonymatematyczne{MATH:...}wForeachTool,CreateObjectTool,ModifyPropertiesTool.
-###[STAN_SYSTEMU]
--SystemstabilnieobsBugujenaturalnmatematykwptlachiwBa[ciwo[ciach.
-###[BLOKADY/PROBLEMY]
--Brak.
-###[KOLEJNY_KROK]
--Commitdorepozytorium.
+ 
+ # #   2 0 2 6 - 0 6 - 0 4 T 0 2 : 2 3 : 0 0 + 0 2 : 0 0  
+ # # #   [ Z R E A L I Z O W A N O ]  
+ -   W d r o |o n o   f a l l b a c k   w   C r e a t e O b j e c t T o o l . c s   p r z e k i e r o w u j c y   d a n e   d o   R p n C a l c u l a t o r   w   p r z y p a d k u   b Bd u   f o r m a t o w a n i a   l i c z b .  
+ -   U s u n i t o   c a Bk o w i c i e   n a r z d z i e   C a l c u l a t e R p n T o o l .  
+ -   Z a i m p l e m e n t o w a n o   s z a b l o n y   m a t e m a t y c z n e   { M A T H :   . . . }   w   F o r e a c h T o o l ,   C r e a t e O b j e c t T o o l ,   M o d i f y P r o p e r t i e s T o o l .  
+ # # #   [ S T A N _ S Y S T E M U ]  
+ -   S y s t e m   s t a b i l n i e   o b s Bu g u j e   n a t u r a l n   m a t e m a t y k   w   p t l a c h   i   w Ba [c i w o [c i a c h .  
+ # # #   [ B L O K A D Y   /   P R O B L E M Y ]  
+ -   B r a k .  
+ # # #   [ K O L E J N Y _ K R O K ]  
+ -   C o m m i t   d o   r e p o z y t o r i u m .  
+ 
+ # #   2 0 2 6 - 0 6 - 0 4 T 1 8 : 5 5 : 0 0 + 0 2 : 0 0 
+ # # #   [ Z R E A L I Z O W A N O ] 
+ -   * * R o z w i � & z a n i e   r y z y k a   D e a d l o c k a * * :   Z r e f a k t o r y z o w a n o   D e l e g a t e T a s k T o o l . c s   -   w y w o 9 a n i e   a s y n c h r o n i c z n e j   p � "!t l i   L L M   ( c l i e n t . S e n d M e s s a g e R e A c t A s y n c )   o p a k o w a n o   w   b e z p i e c z n e   T a s k . R u n ( . . . ) . G e t A w a i t e r ( ) . G e t R e s u l t ( ) ,   c o   e l i m i n u j e   r y z y k o   z a b l o k o w a n i a   g 9 Bw n e g o   w � & t k u   U I   B r i c s C A D   ( S y n c h r o n i z a t i o n C o n t e x t ) . 
+ -   * * O p t y m a l i z a c j a   k o n t e k s t u   B l a c k b o a r d * * :   Z a s t � & p i o n o   p e 9 n y   z r z u t   p a m i � "!c i   t a b l i c y   ( B l a c k b o a r d )   z w i � "!z 9 y m   S p i s e m   T r e 9: c i   ( T a b l e   o f   C o n t e n t s   -   T O C )   z a w i e r a j � & c y m   k l u c z e ,   t y p y   d a n y c h   o r a z   s k r Bc o n e   w a r t o 9: c i ,   c o   z n a c z � & c o   o s z c z � "!d z a   t o k e n y   k o n t e k s t u   L L M . 
+ -   * * W d r o 9=e n i e   Z a s a d   S O L I D   ( D I P ) * * :   O d p � "!t 9 a n o   ( d e c o u p l e d )   l o g i k � "!  b i z n e s o w � &   C o r e /   o d   w a r s t w y   p r e z e n t a c j i   W i n F o r m s   ( U I / A g e n t C o n t r o l . c s ) .   W p r o w a d z o n o   s t a t y c z n � &   k l a s � "!  t e l e m e t r y c z n � &   A g e n t T e l e m e t r y ,   p r z e z   k t Br � &   U I   s u b s k r y b u j e   z d a r z e n i a   o   p o s t � "!p i e   d e l e g a c j i   z a d a 9   ( n p .   O n D e l e g a t i o n S t a r t e d ,   O n D e l e g a t i o n F i n i s h e d ) . 
+ -   * * Z a b e z p i e c z e n i e   p r z e d   I n c e p c j � &   A g e n t Bw * * :   W p r o w a d z o n o   w e r y f i k a c j � "!  p r o f i l u   w y w o 9 u j � & c e g o   ( c a l l e r P r o f i l e )   w   T o o l O r c h e s t r a t o r   o r a z   L L M C l i e n t .   B l o k u j e   t o   w y w o 9 a n i e   n a r z � "!d z i a   D e l e g a t e T a s k T o o l   p r z e z   j a k i k o l w i e k   p r o f i l   i n n y   n i 9=  S u p e r v i s o r P r o f i l e   ( z a p o b i e g a j � & c   n i e s k o 9 c z o n y m   p � "!t l o m   d e l e g a c j i   t y p u   W o r k e r   - >   W o r k e r ) . 
+ -   * * W e r y f i k a c j a * * :   P r o j e k t   k o m p i l u j e   s i � "!  w   p e 9 n i   p o p r a w n i e   ( 0   b 9 � "!d Bw ) . 
+ # # #   [ S T A N _ S Y S T E M U ] 
+ -   A r c h i t e k t u r a   S u p e r v i s o r - W o r k e r   z o s t a 9 a   u o d p o r n i o n a   n a   d e a d l o c k i ,   w y c i e k   k o n t e k s t u   ( B l a c k b o a r d   T O C )   o r a z   z a p � "!t l e n i a   w y w o 9 a 9   a g e n t Bw .   K o d   j e s t   w   p e 9 n i   m o d u l a r n y   i   z g o d n y   z   z a s a d � &   D I P . 
+ # # #   [ B L O K A D Y   /   P R O B L E M Y ] 
+ -   B r a k . 
+ # # #   [ K O L E J N Y _ K R O K ] 
+ -   C o m m i t   z m i a n   n a   r e p o z y t o r i u m   G i t H u b . 
 
-##2026-06-04T18:55:00+02:00
-###[ZREALIZOWANO]
-###[STAN_SYSTEMU]
-###[BLOKADY/PROBLEMY]
--Brak.
-###[KOLEJNY_KROK]
--CommitzmiannarepozytoriumGitHub.
-
-## [v2.25.2-pre.1] 2026-06-04T21:30:00+02:00 - Renderowanie LaTeX w czacie i testy jednostkowe
+## 2026-06-04T21:30:00+02:00
 ### [ZREALIZOWANO]
-- **Renderowanie LaTeX w czacie**: Zaimplementowano klasę `LatexToUnicodeConverter` konwertującą surowe formuły LaTeX (`$...`, `$$...$$`) na czytelny tekst Unicode (indeksy górne/dolne, symbole matematyczne i litery greckie).
-- **Integracja UI**: Zintegrowano konwerter z metodą `AppendToHistory` w `AgentControl.cs`, poprawiając prezentację wyników obliczeń modelu w formancie `RichTextBox`.
-- **Testy jednostkowe**: Dodano zestaw testów w `LatexToUnicodeConverterTests.cs` weryfikujący poprawność konwersji jednostek, notacji naukowej oraz wzorów matematycznych. Testy zintegrowano z konsolowym `TestRunner.cs`.
+- **Renderowanie LaTeX w czacie**: Zaimplementowano klasÄ™ `LatexToUnicodeConverter` konwertujÄ…cÄ… surowe formuĹ‚y LaTeX (`$...`, `$$...$$`) na czytelny tekst Unicode (indeksy gĂłrne/dolne, symbole matematyczne i litery greckie).
+- **Integracja UI**: Zintegrowano konwerter z metodÄ… `AppendToHistory` w `AgentControl.cs`, poprawiajÄ…c prezentacjÄ™ wynikĂłw obliczeĹ„ modelu w formancie `RichTextBox`.
+- **Testy jednostkowe**: Dodano zestaw testĂłw w `LatexToUnicodeConverterTests.cs` weryfikujÄ…cy poprawnoĹ›Ä‡ konwersji jednostek, notacji naukowej oraz wzorĂłw matematycznych. Testy zintegrowano z konsolowym `TestRunner.cs`.
 ### [STAN_SYSTEMU]
-- System kompiluje się bez błędów. Nowy mechanizm automatycznie i w locie przekształca formuły matematyczne generowane przez AI na czytelną formę tekstową Unicode.
+- System kompiluje siÄ™ bez bĹ‚Ä™dĂłw. Nowy mechanizm automatycznie i w locie przeksztaĹ‚ca formuĹ‚y matematyczne generowane przez AI na czytelnÄ… formÄ™ tekstowÄ… Unicode.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Weryfikacja działania wtyczki w środowisku uruchomieniowym BricsCAD.
+- Weryfikacja dziaĹ‚ania wtyczki w Ĺ›rodowisku uruchomieniowym BricsCAD.
 
 
 ## 2026-06-05T01:40:00+02:00
 ### [ZREALIZOWANO]
-- **Refaktoryzacja zakładki agentów (UI AgentControl)**: Przeprojektowano zakładkę " Agenci\ w interfejsie użytkownika. Zastąpiono tabelę przypisywania skilli wygodną listą typu CheckedListBox (chlbAgentTools) powiązaną z wybranym profilem.
-- **Dodanie Leksykonu Skilli**: Wprowadzono listę wszystkich dostępnych w systemie narzędzi/skilli (lbAllTools) wraz z podglądem ich schematów JSON (
-tbToolSchema) generowanych automatycznie na podstawie definicji parametrów wysyłanych do LLM.
-- **Wsparcie dla konfiguracji profilowych w UI**: Powiązano listę wyboru promptów systemowych bezpośrednio z wybranym agentem. Dodano przycisk umożliwiający natychmiastowe otwarcie powiązanego pliku promptu systemowego w Notatniku.
-- **Aktualizacja zapisu profilu**: Dodano logikę zapisu przypisanego pliku promptu i zestawu dozwolonych narzędzi do ools_config.json za pomocą ToolConfigManager.UpdateAgentProfile.
+- **Refaktoryzacja zak�adki agent�w (UI AgentControl)**: Przeprojektowano zak�adk� " Agenci\ w interfejsie u�ytkownika. Zast�piono tabel� przypisywania skilli wygodn� list� typu CheckedListBox (chlbAgentTools) powi�zan� z wybranym profilem.
+- **Dodanie Leksykonu Skilli**: Wprowadzono list� wszystkich dost�pnych w systemie narz�dzi/skilli (lbAllTools) wraz z podgl�dem ich schemat�w JSON (tbToolSchema) generowanych automatycznie na podstawie definicji parametr�w wysy�anych do LLM.
+- **Wsparcie dla konfiguracji profilowych w UI**: Powi�zano list� wyboru prompt�w systemowych bezpo�rednio z wybranym agentem. Dodano przycisk umo�liwiaj�cy natychmiastowe otwarcie powi�zanego pliku promptu systemowego w Notatniku.
+- **Aktualizacja zapisu profilu**: Dodano logik� zapisu przypisanego pliku promptu i zestawu dozwolonych narz�dzi do ools_config.json za pomoc� ToolConfigManager.UpdateAgentProfile.
 ### [STAN_SYSTEMU]
-- System kompiluje się w pełni poprawnie (0 błędów, 0 ostrzeżeń). UI poprawnie synchronizuje konfiguracje profili agentów.
+- System kompiluje si� w pe�ni poprawnie (0 b��d�w, 0 ostrze�e�). UI poprawnie synchronizuje konfiguracje profili agent�w.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie nowej zakładki Agenci bezpośrednio w BricsCAD.
+- Testowanie nowej zak�adki Agenci bezpo�rednio w BricsCAD.
 
 ## 2026-06-05T09:51:00+02:00
 ### [ZREALIZOWANO]
@@ -732,7 +724,7 @@ tbToolSchema) generowanych automatycznie na podstawie definicji parametrów wysy
 ### [KOLEJNY_KROK]
 - Testowanie modułu baz danych w interakcji.
 
-## [v2.23.0] 2026-06-05T21:42:00+02:00 - Faza 8.1 - Filtrowanie wielokryterialne dla podtypów w DatasetManager
+## 2026-06-05T21:42:00+02:00
 ### [ZREALIZOWANO]
 - **FAZA 8.1: Filtrowanie wielokryterialne dla podtypów w DatasetManager**: 
   1. Zmodyfikowano interfejs `IDatasetProvider` by metody `GetExactMatch`, `GetNearestGreater`, `GetNearestLower` przyjmowały opcjonalny słownik `Dictionary<string, string> filters`.
@@ -746,7 +738,7 @@ tbToolSchema) generowanych automatycznie na podstawie definicji parametrów wysy
 ### [KOLEJNY_KROK]
 - Testowanie w CAD / praca inżynierska na bazach.
 
-## [v2.24.0] 2026-06-05T22:05:00+02:00 - Faza 9 - Kategoryzacja, Tagowanie i Drzewo Folderów
+## 2026-06-05T22:05:00+02:00
 ### [ZREALIZOWANO]
 - **FAZA 9: System Kategoryzacji, Tagowania i Drzewa Folderów**: 
   1. Dodano pola Category i Tags do metadanych formuł i makr.
@@ -762,28 +754,11 @@ tbToolSchema) generowanych automatycznie na podstawie definicji parametrów wysy
 ### [KOLEJNY_KROK]
 - Testowanie nowej struktury z użyciem narzędzi lub dalszy rozwój bazy wiedzy.
 
-## [v2.28.1] 2026-06-06T20:44:00+02:00 - Ujednolicenie pliku pamięci i naprawa kodowania
-### [ZREALIZOWANO]
-- Przeanalizowano pliki pamięci i zidentyfikowano błędy kodowania Mojibake (znaki UTF-8 zdekodowane jako Windows-1250 i zapisane ponownie) oraz błędy zapisu UTF-16-BE (alternujące spacje/NUL w pliku).
-- Stworzono kopię zapasową pliku `memory.md` jako `memory.bak.md` w folderze głównym wtyczki V2.
-- Naprawiono wszystkie zniekształcenia kodowania, przywracając czysty polski tekst UTF-8.
-- Ponadawano numery wersji (v2.20.10 do v2.28.0) wszystkim krokom deweloperskim z datami od 2026-06-03.
-- Zaktualizowano i ujednolicono spis wersji (Changelog) na początku pliku o nowe wersje odpowiadające krokom deweloperskim i fazom V2.
-- Zsynchronizowano plik `memory.md` w katalogu głównym oraz w folderze `docs/`.
-### [STAN_SYSTEMU]
-- Pliki pamięci są w pełni ujednolicone, spójne syntaktycznie i wolne od uszkodzeń kodowania.
-### [BLOKADY / PROBLEMY]
-- Brak.
-### [KOLEJNY_KROK]
-- Dalszy rozwój projektu zgodnie z planem wdrożenia w BricsCAD.
-
-
-## Podsumowania Ukończonych Faz Deweloperskich V2
-### Faza 10: Multi-Modalne Załączniki (Tekst i Wizja) (Zakończono)
-1. Zaimplementowano klasę FileExtractor.cs do obsługi załączników tekstowych (TXT, PY, MD, LSP) oraz binarnych (PDF, XLS/XLSX).
-2. Wprowadzono kompresję i skalowanie obrazów (PNG, JPG) używając System.Drawing.Common do 1024x1024px z konwersją do Base64 dla wsparcia Vision API.
-3. Zaktualizowano AgentControl.cs - dodano przycisk załącznika (btnAttachFile), obsługę OpenFileDialog, logikę procesowania załącznika w ProcessInputAsync i wyświetlanie w UI (lblAttachedFile).
-4. Skompilowano kod z wynikiem pozytywnym bez błędów (MSBuild).
+### Faza 10: Multi-Modalne Za��czniki (Tekst i Wizja) (Zako�czono)
+1. Zaimplementowano klas� FileExtractor.cs do obs�ugi za��cznik�w tekstowych (TXT, PY, MD, LSP) oraz binarnych (PDF, XLS/XLSX).
+2. Wprowadzono kompresj� i skalowanie obraz�w (PNG, JPG) u�ywaj�c System.Drawing.Common do 1024x1024px z konwersj� do Base64 dla wsparcia Vision API.
+3. Zaktualizowano AgentControl.cs - dodano przycisk za��cznika (btnAttachFile), obs�ug� OpenFileDialog, logik� procesowania za��cznika w ProcessInputAsync i wy�wietlanie w UI (lblAttachedFile).
+4. Skompilowano kod z wynikiem pozytywnym bez b��d�w (MSBuild).
 ### Faza 11: Standaryzacja Datasetow (Wzorzec Plikow Towarzyszacych i Normalizacja) (Zakonczono)
 1. Dodano plik Models/DatasetMetadata.cs aby zapewnic ustandaryzowana strukture bazy wiedzy.
 2. Rozdzielono zapis/odczyt plikow baz danych w DatasetManager.cs na [id].json (metadane) i [id].data.json (tablice z danymi).

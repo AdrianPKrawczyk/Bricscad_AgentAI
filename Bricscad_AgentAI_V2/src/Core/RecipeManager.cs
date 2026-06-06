@@ -9,23 +9,7 @@ namespace Bricscad_AgentAI_V2.Core
 {
     public static class RecipeManager
     {
-        private static List<AgentRecipe> _recipes = new List<AgentRecipe>();
-        private static string _configPath;
-
-        private static string ConfigPath
-        {
-            get
-            {
-                if (_configPath == null)
-                {
-                    _configPath = Path.Combine(
-                        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                        "AgentRecipes.json"
-                    );
-                }
-                return _configPath;
-            }
-        }
+        private static readonly Dictionary<string, AgentRecipe> _recipes = new Dictionary<string, AgentRecipe>(StringComparer.OrdinalIgnoreCase);
 
         static RecipeManager()
         {
@@ -34,57 +18,131 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static void Load()
         {
-            if (File.Exists(ConfigPath))
+            _recipes.Clear();
+            
+            // 1. Zapewniamy istnienie folderu
+            AppPaths.EnsureDirectoriesExist();
+            string recipesPath = AppPaths.GetRecipesPath();
+
+            // 2. Migracja ze starego pliku AgentRecipes.json (jeśli istnieje)
+            string oldConfigPath = Path.Combine(
+                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                "AgentRecipes.json"
+            );
+
+            if (File.Exists(oldConfigPath))
             {
                 try
                 {
-                    string json = File.ReadAllText(ConfigPath);
-                    _recipes = JsonConvert.DeserializeObject<List<AgentRecipe>>(json) ?? new List<AgentRecipe>();
+                    string oldJson = File.ReadAllText(oldConfigPath);
+                    var oldRecipesList = JsonConvert.DeserializeObject<List<AgentRecipe>>(oldJson);
+                    if (oldRecipesList != null)
+                    {
+                        foreach (var recipe in oldRecipesList)
+                        {
+                            if (!string.IsNullOrWhiteSpace(recipe.Trigger))
+                            {
+                                string cleanTrigger = recipe.Trigger.TrimStart('$');
+                                string filePath = Path.Combine(recipesPath, $"{cleanTrigger}.json");
+                                if (!File.Exists(filePath))
+                                {
+                                    File.WriteAllText(filePath, JsonConvert.SerializeObject(recipe, Formatting.Indented));
+                                    BielikLogger.LogInfo($"[Migracja] Zapisano receptę '{cleanTrigger}' do nowego formatu.");
+                                }
+                            }
+                        }
+                    }
+                    // Po udanej migracji, zmieniamy nazwę pliku, żeby nie migrować go ponownie
+                    string backupPath = oldConfigPath + ".bak";
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    File.Move(oldConfigPath, backupPath);
+                    BielikLogger.LogInfo("[Migracja] Stary plik AgentRecipes.json został przeniesiony do .bak.");
                 }
-                catch
+                catch (Exception ex)
                 {
-                    _recipes = new List<AgentRecipe>();
+                    BielikLogger.LogError("[Migracja] Błąd podczas migracji starego pliku z receptami.", ex);
                 }
             }
-            else
+
+            // 3. Właściwe ładowanie recept z folderu Recipes
+            try
             {
-                _recipes = new List<AgentRecipe>();
+                var files = Directory.GetFiles(recipesPath, "*.json", SearchOption.TopDirectoryOnly);
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        string json = File.ReadAllText(file);
+                        var recipe = JsonConvert.DeserializeObject<AgentRecipe>(json);
+                        if (recipe != null && !string.IsNullOrWhiteSpace(recipe.Trigger))
+                        {
+                            string cleanTrigger = recipe.Trigger.TrimStart('$');
+                            _recipes[cleanTrigger] = recipe;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        BielikLogger.LogError($"[Recepty] Błąd ładowania recepty z pliku '{file}'", ex);
+                    }
+                }
+                BielikLogger.LogInfo($"[Recepty] Załadowano {_recipes.Count} recept.");
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogError("[Recepty] Błąd odczytu folderu z receptami.", ex);
             }
         }
 
         public static void Save()
         {
-            try
-            {
-                string json = JsonConvert.SerializeObject(_recipes, Formatting.Indented);
-                File.WriteAllText(ConfigPath, json);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd zapisu przepisów: {ex.Message}");
-            }
+            // Opcjonalne: funkcja dla wstecznej kompatybilności,
+            // ale teraz zapisujemy każdą receptę osobno w `AddOrUpdate`.
         }
 
-        public static List<AgentRecipe> GetAll() => _recipes;
+        public static List<AgentRecipe> GetAll() 
+        {
+            return new List<AgentRecipe>(_recipes.Values);
+        }
 
         public static void AddOrUpdate(AgentRecipe recipe)
         {
-            var existing = _recipes.Find(r => r.Trigger.Equals(recipe.Trigger, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
+            if (string.IsNullOrWhiteSpace(recipe.Trigger)) return;
+            string cleanTrigger = recipe.Trigger.TrimStart('$');
+            
+            _recipes[cleanTrigger] = recipe;
+            
+            try
             {
-                _recipes.Remove(existing);
+                string filePath = Path.Combine(AppPaths.GetRecipesPath(), $"{cleanTrigger}.json");
+                File.WriteAllText(filePath, JsonConvert.SerializeObject(recipe, Formatting.Indented));
             }
-            _recipes.Add(recipe);
-            Save();
+            catch (Exception ex)
+            {
+                BielikLogger.LogError($"[Recepty] Błąd zapisu recepty '{cleanTrigger}'", ex);
+            }
         }
 
         public static void Delete(string trigger)
         {
-            var existing = _recipes.Find(r => r.Trigger.Equals(trigger, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
+            if (string.IsNullOrWhiteSpace(trigger)) return;
+            string cleanTrigger = trigger.TrimStart('$');
+            
+            if (_recipes.ContainsKey(cleanTrigger))
             {
-                _recipes.Remove(existing);
-                Save();
+                _recipes.Remove(cleanTrigger);
+            }
+
+            try
+            {
+                string filePath = Path.Combine(AppPaths.GetRecipesPath(), $"{cleanTrigger}.json");
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogError($"[Recepty] Błąd usuwania pliku recepty '{cleanTrigger}'", ex);
             }
         }
 
@@ -92,7 +150,12 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (string.IsNullOrEmpty(trigger)) return null;
             string cleanTrigger = trigger.TrimStart('$');
-            return _recipes.Find(r => r.Trigger.Equals(cleanTrigger, StringComparison.OrdinalIgnoreCase));
+            
+            if (_recipes.TryGetValue(cleanTrigger, out var recipe))
+            {
+                return recipe;
+            }
+            return null;
         }
     }
 }

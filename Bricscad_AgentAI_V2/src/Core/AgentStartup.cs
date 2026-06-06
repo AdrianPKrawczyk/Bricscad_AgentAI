@@ -26,7 +26,7 @@ namespace Bricscad_AgentAI_V2.Core
             try
             {
                 BielikLogger.RegisterMainThread();
-                BielikLogger.LogInfo("Inicjalizacja wtyczki Bielik AI V2 GOLD...");
+                BielikLogger.LogInfo("Inicjalizacja wtyczki AGENT BRICS-AI V2.0...");
 
                 AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
                 System.Windows.Forms.Application.ThreadException += Application_ThreadException;
@@ -43,7 +43,7 @@ namespace Bricscad_AgentAI_V2.Core
             try
             {
                 AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
-                BielikLogger.LogInfo("Zamykanie wtyczki Bielik AI V2 GOLD.");
+                BielikLogger.LogInfo("Zamykanie wtyczki AGENT BRICS-AI V2.0.");
             }
             catch { }
         }
@@ -125,14 +125,14 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
-        [CommandMethod("AGENT_V2")]
+        [CommandMethod("AI")]
         public void ShowAgentPanel()
         {
             try
             {
                 if (_paletteSet == null)
                 {
-                    _paletteSet = new PaletteSet("Bielik AI V2 GOLD", new Guid("B2A1C4D3-F5E6-4879-9A8B-1C2D3E4F5A6B"));
+                    _paletteSet = new PaletteSet("AGENT BRICS-AI V2.0", new Guid("B2A1C4D3-F5E6-4879-9A8B-1C2D3E4F5A6B"));
                     _paletteSet.Add("Asystent", new AgentControl());
                     _paletteSet.Dock = DockSides.Left;
                     _paletteSet.Size = new System.Drawing.Size(400, 600);

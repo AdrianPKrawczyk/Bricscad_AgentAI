@@ -79,6 +79,7 @@ namespace Bricscad_AgentAI_V2.UI
         // --- UI Agenci ---
         private TabPage tabAgents;
         private TabControl tabAgentsSub;
+        private TabPage tabHelp;
         // PrzeglĂ„â€¦d
         private TabPage tabAgentsOverview;
         private ListBox lbAgents;
@@ -242,7 +243,7 @@ namespace Bricscad_AgentAI_V2.UI
             // ==========================================
             // ZAKĘą ADKA 1: CZAT Z AI 
             // ==========================================
-            tabChat = new TabPage("Czat (V2 GOLD)");
+            tabChat = new TabPage("CZAT");
 
             // --- Pasek Kontekstu (Context Bar) ---
             panContextBar = new Panel { Dock = DockStyle.Top, Height = 30, Padding = new Padding(5) };
@@ -276,7 +277,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnSend = new Button
             {
-                Text = "WyĘąâ€şlij\n(Ctrl+Enter)",
+                Text = "Wyślij\n(Ctrl+Enter)",
                 Dock = DockStyle.Right,
                 Width = 100,
                 BackColor = Color.FromArgb(0, 122, 204),
@@ -291,7 +292,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnReset = new Button
             {
-                Text = "Reset\nPamiĂ„â„˘ci",
+                Text = "Reset\nPamięci",
                 Dock = DockStyle.Right,
                 Width = 80,
                 BackColor = Color.Crimson,
@@ -353,7 +354,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnAttachFile = new Button
             {
-                Text = "+",
+                Text = "📎",
                 Dock = DockStyle.Left,
                 Width = 40,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -455,7 +456,7 @@ namespace Bricscad_AgentAI_V2.UI
             // ==========================================
             // ZAKĘą ADKA 4: TESTER (WORKBENCH V2)
             // ==========================================
-            TabPage tabTester = new TabPage("Tester V2");
+            TabPage tabTester = new TabPage("Tester");
             tabTester.Controls.Add(new AgentTesterControl(_llmClient));
 
             // ==========================================
@@ -660,9 +661,14 @@ namespace Bricscad_AgentAI_V2.UI
             InitializeSessionTab();
             tabControl.TabPages.Add(tabSessions);
             tabControl.TabPages.Add(tabChat);
-            tabControl.TabPages.Add(tabDev);
-            tabControl.TabPages.Add(tabBenchmark);
-            tabControl.TabPages.Add(tabTester);
+            // Przeniesiono tabDev i tabDebug do tabSettingsSub
+            
+            var tabTests = new TabPage("Testy");
+            var tabTestsSub = new TabControl { Dock = DockStyle.Fill };
+            tabTests.Controls.Add(tabTestsSub);
+            tabTestsSub.TabPages.Add(tabBenchmark);
+            tabTestsSub.TabPages.Add(tabTester);
+            tabControl.TabPages.Add(tabTests);
             tabControl.TabPages.Add(tabAgents);
             
             var tabDataset = new TabPage("Dataset Studio");
@@ -673,6 +679,12 @@ namespace Bricscad_AgentAI_V2.UI
             knowledgeBaseControl = new KnowledgeBaseControl();
             tabKnowledgeBase.Controls.Add(knowledgeBaseControl);
             tabControl.TabPages.Add(tabKnowledgeBase);
+
+            tabHelp = new TabPage("❓ Pomoc");
+            tabHelp.BackColor = Color.FromArgb(30, 30, 30);
+            var helpCtrl = new HelpCenterControl();
+            tabHelp.Controls.Add(helpCtrl);
+            tabControl.TabPages.Add(tabHelp);
 
             // ==========================================
             // ZAKĘą ADKA 7: DEBUG (ENGINE TRACER)
@@ -715,13 +727,16 @@ namespace Bricscad_AgentAI_V2.UI
 
             tabDebug.Controls.Add(rtbEngineLogs);
             tabDebug.Controls.Add(panDebugTop);
-            tabControl.TabPages.Add(tabDebug);
+            // tabControl.TabPages.Add(tabDebug); // przeniesiono do Ustawień
 
             // ==========================================
             // ZAKĘą ADKA 8: USTAWIENIA (PANEL BAZOWY)
             // ==========================================
             tabSettings = new TabPage("Ustawienia");
             tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
+            
+            tabSettingsSub.TabPages.Add(tabDev);
+            tabSettingsSub.TabPages.Add(tabDebug);
 
             // PodzakĘąâ€šadka Prompt zostaĘąâ€ša przeniesiona do tabAgents
 
@@ -892,12 +907,12 @@ namespace Bricscad_AgentAI_V2.UI
                                     {
                                         System.IO.File.Copy(newFilePath, newFilePath.Replace(oldPath, newPath), true);
                                     }
-                                    MessageBox.Show("Dane zostaĘąâ€šy poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    MessageBox.Show("Dane zostały poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 }
                             }
                             catch(Exception ex)
                             {
-                                MessageBox.Show($"WystĂ„â€¦piĘąâ€š bĘąâ€šĂ„â€¦d podczas kopiowania plikĘ‚Ł‚w: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show($"Wystąpił błąd podczas kopiowania plików: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
                         
@@ -908,7 +923,7 @@ namespace Bricscad_AgentAI_V2.UI
                         {
                             knowledgeBaseControl.LoadData();
                         }
-                        MessageBox.Show("ĘąŁˇcieĘąĘ˝ka do bazy wiedzy zostaĘąâ€ša zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Ścieżka do bazy wiedzy została zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
             };
@@ -1337,7 +1352,7 @@ namespace Bricscad_AgentAI_V2.UI
                     return result.DisplayMessage;
                 });
 
-                AppendToHistory("BIELIK (Supervisor)", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);
+                AppendToHistory("(Supervisor)", aiResponse, isDarkMode ? Color.LightGreen : Color.DarkGreen);
 
                 // --- DATASET STUDIO INTEGRATION ---
                 try
@@ -1491,12 +1506,70 @@ Ostatnia rozmowa:
             txtHistory.SelectionFont = new Font(txtHistory.Font, FontStyle.Bold);
             txtHistory.AppendText($"[{sender}]: ");
 
-            txtHistory.SelectionColor = isDarkMode ? Color.White : Color.Black;
-            txtHistory.SelectionFont = new Font(txtHistory.Font, FontStyle.Regular);
-            txtHistory.AppendText($"{formattedMessage}\n\n");
+            Color msgColor = isDarkMode ? Color.White : Color.Black;
+            AppendMarkdownText(txtHistory, formattedMessage, msgColor);
+            txtHistory.AppendText("\n\n");
 
             txtHistory.SelectionStart = txtHistory.Text.Length;
             txtHistory.ScrollToCaret();
+        }
+
+        private void AppendMarkdownText(RichTextBox rtb, string text, Color defaultColor)
+        {
+            // Konwersja nagłówków (#, ##, ###) na pogrubienie z zachowaniem znaków #
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"^#+\s+.*", "**$&**", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Podział tekstu na bloki. Używamy (?s:...) dla bloków kodu wielolinijkowych (```), 
+            // a dla reszty (.) nie łapie nowych linii, by uniknąć rozjeżdżania się formatowania.
+            var segments = System.Text.RegularExpressions.Regex.Split(text, @"((?s:```.*?```)|\*\*.*?\*\*|\*.*?\*|`.*?`)");
+            
+            Font regularFont = new Font(rtb.Font, FontStyle.Regular);
+            Font boldFont = new Font(rtb.Font, FontStyle.Bold);
+            Font italicFont = new Font(rtb.Font, FontStyle.Italic);
+            Font codeFont = new Font("Consolas", rtb.Font.Size, FontStyle.Regular);
+
+            foreach (var segment in segments)
+            {
+                if (string.IsNullOrEmpty(segment)) continue;
+
+                rtb.SelectionStart = rtb.TextLength;
+                rtb.SelectionLength = 0;
+
+                if (segment.StartsWith("```") && segment.EndsWith("```") && segment.Length >= 6)
+                {
+                    rtb.SelectionFont = codeFont;
+                    rtb.SelectionColor = isDarkMode ? Color.LightGray : Color.DarkSlateGray;
+                    rtb.SelectionBackColor = isDarkMode ? Color.FromArgb(40, 40, 40) : Color.LightGray;
+                    rtb.AppendText("\n" + segment.Substring(3, segment.Length - 6).Trim('\r', '\n') + "\n");
+                    rtb.SelectionBackColor = rtb.BackColor;
+                }
+                else if (segment.StartsWith("**") && segment.EndsWith("**") && segment.Length >= 4)
+                {
+                    rtb.SelectionFont = boldFont;
+                    rtb.SelectionColor = defaultColor;
+                    rtb.AppendText(segment.Substring(2, segment.Length - 4));
+                }
+                else if (segment.StartsWith("*") && segment.EndsWith("*") && segment.Length >= 2)
+                {
+                    rtb.SelectionFont = italicFont;
+                    rtb.SelectionColor = defaultColor;
+                    rtb.AppendText(segment.Substring(1, segment.Length - 2));
+                }
+                else if (segment.StartsWith("`") && segment.EndsWith("`") && segment.Length >= 2)
+                {
+                    rtb.SelectionFont = codeFont;
+                    rtb.SelectionColor = isDarkMode ? Color.LightGray : Color.DarkSlateGray;
+                    rtb.SelectionBackColor = isDarkMode ? Color.FromArgb(40, 40, 40) : Color.LightGray;
+                    rtb.AppendText(segment.Substring(1, segment.Length - 2));
+                    rtb.SelectionBackColor = rtb.BackColor;
+                }
+                else
+                {
+                    rtb.SelectionFont = regularFont;
+                    rtb.SelectionColor = defaultColor;
+                    rtb.AppendText(segment);
+                }
+            }
         }
 
         public void AppendEngineLog(string message)

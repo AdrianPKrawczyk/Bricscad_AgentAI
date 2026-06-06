@@ -1,0 +1,17 @@
+[
+  {
+    "Title": "Podręcznik Użytkownika",
+    "File": "USER_GUIDE.md",
+    "Order": 1
+  },
+  {
+    "Title": "Referencja Komend CLI",
+    "File": "COMMANDS_REFERENCE.md",
+    "Order": 2
+  },
+  {
+    "Title": "Referencja Narzędzi (Tools)",
+    "File": "TOOLS_REFERENCE.md",
+    "Order": 3
+  }
+]

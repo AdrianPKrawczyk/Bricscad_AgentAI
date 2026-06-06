@@ -117,7 +117,9 @@ namespace Bricscad_AgentAI_V2.Core
                             !currentText.Contains("CadMathProfile") ||
                             !currentText.Contains("Profile NIE są narzędziami") ||
                             !currentText.Contains("OBLICZENIA MATEMATYCZNE, FIZYCZNE") ||
-                            !currentText.Contains("NotesProfile"))
+                            !currentText.Contains("NotesProfile") ||
+                            !currentText.Contains("$moja_recepta") ||
+                            !currentText.Contains("WIEDZA O SYSTEMIE / POMOC"))
                         {
                             needsWrite = true; // Auto-upgrade starych wersji promptu
                         }
@@ -139,8 +141,12 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - Przed wywołaniem DelegateTask nie pisz żadnego tekstu objaśniającego ani zapowiadającego.\n" +
                         "3. ZADANIA CAD / OPERACJE NA RYSUNKU (np. rysowanie, zaznaczanie, zmiana kolorów, warstw, odczyt atrybutów lub XData):\n" +
                         "   - Nie wykonuj ich samodzielnie. MUSISZ natychmiast wydelegować zadanie do odpowiedniego eksperta za pomocą narzędzia DelegateTask.\n" +
+                        "   - Jeśli polecenie użytkownika zawiera nazwy recept ze znakiem dolara (np. `$moja_recepta`), MUSISZ przenieść ten tekst dosłownie (wraz ze znakiem `$`) do opisu zadania (TaskDescription) dla Workera, aby Worker wiedział jakiego schematu użyć.\n" +
                         "   - Przed wywołaniem DelegateTask nie pisz żadnego tekstu objaśniającego ani zapowiadającego.\n" +
-                        "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n\n" +
+                        "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n" +
+                        "4. WIEDZA O SYSTEMIE / POMOC:\n" +
+                        "   - Jeśli użytkownik pyta Cię jak użyć jakiegoś narzędzia, co oznacza komenda, w jaki sposób napisać receptę, lub ogólnie jak działa wtyczka, użyj narzędzia ReadHelp, aby przeczytać zintegrowane pliki dokumentacji.\n" +
+                        "   - Po pobraniu treści z pomocy, połącz tę wiedzę ze znajomością Twojego promptu systemowego oraz listą ekspertów/narzędzi, po czym odpowiedz użytkownikowi rzeczowo i precyzyjnie.\n\n" +
                         "UWAGA KRYTYCZNA: Profile NIE są narzędziami! Nigdy nie wywołuj nazwy profilu (np. CadMathProfile, CadGeometryProfile) jako nazwy funkcji w tool_calls. Jedynym narzędziem do delegowania jest DelegateTask, w którym podajesz TargetProfile jako parametr. Wywołanie profilu bezpośrednio jako funkcji spowoduje błąd krytyczny i nie zostanie wykonane!\n\n" +
                         "Dostępne profile ekspertów do zadań (wybierz najbardziej optymalny):\n" +
                         "- CadGeometryProfile: ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
@@ -282,7 +288,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["SupervisorProfile"] = supervisorProf;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -316,7 +322,7 @@ namespace Bricscad_AgentAI_V2.Core
                 "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                 "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                 "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset"
+                "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes"
             };
             if (cadProf.AllowedTools == null)
             {
@@ -432,7 +438,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_supervisor.txt",
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes" },
                 AllowedTags = new List<string>()
             };
             
@@ -446,7 +452,7 @@ namespace Bricscad_AgentAI_V2.Core
                     "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                     "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                     "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                    "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset"
+                    "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes"
                 },
                 AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
             };
