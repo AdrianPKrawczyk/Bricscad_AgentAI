@@ -64,25 +64,31 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
                     else
                     {
-                        PromptKeywordOptions pko = new PromptKeywordOptions($"\n[DECYZJA AI] {promptMsg}: ");
+                        PromptKeywordOptions pko = new PromptKeywordOptions("");
                         pko.AllowNone = false;
-
-                        // Przygotowanie Keywords (zamiana spacji na podkreślenia zgodnie z wymogiem API)
+                        string promptText = $"\n[DECYZJA AI] {promptMsg}\n";
+                        
+                        int idx = 1;
+                        Dictionary<string, string> map = new Dictionary<string, string>();
                         foreach (var opt in optionsArr)
                         {
-                            string cleanOpt = opt.ToString().Replace(" ", "_");
-                            if (!string.IsNullOrEmpty(cleanOpt))
-                            {
-                                pko.Keywords.Add(cleanOpt);
-                            }
+                            string optStr = opt.ToString();
+                            string kw = idx.ToString();
+                            pko.Keywords.Add(kw);
+                            promptText += $"  [{kw}] {optStr}\n";
+                            map[kw] = optStr;
+                            idx++;
                         }
+                        
+                        pko.Message = promptText + "Wybierz opcję: ";
 
                         PromptResult pr = ed.GetKeywords(pko);
 
                         if (pr.Status != PromptStatus.OK)
                             return "[ANULOWANO] Użytkownik przerwał wybór opcji.";
 
-                        selected = pr.StringResult;
+                        // Zmapowanie cyfry z powrotem na oryginalny string
+                        selected = map.ContainsKey(pr.StringResult) ? map[pr.StringResult] : pr.StringResult;
                     }
 
                     if (!string.IsNullOrEmpty(saveAs))
