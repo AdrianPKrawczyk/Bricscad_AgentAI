@@ -90,6 +90,7 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             history.Add(new ChatMessage { Role = "user", Content = finalContent, ActiveDocumentPath = activeDwgPath });
+            SessionManager.SaveSession(); // Natychmiastowy zapis zapobiegający utracie pytania ("ucieło moje pytanie")
             
             // Trigger auto-naming w tle, jeśli mamy już co najmniej 2 wiadomości (np. system + user)
             SessionManager.TriggerAutoNaming(_client, SessionManager.CurrentSession);

@@ -55,6 +55,15 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         private Button btnDeleteSkill;
         private Button btnSaveSkill;
 
+        // --- Lisps ---
+        private TabPage tabPageLisps;
+        private TreeView tvLisps;
+        private RichTextBox rtbLispCode;
+        private Button btnExecuteLisp;
+        private Button btnAddLisp;
+        private Button btnDeleteLisp;
+        private Button btnSaveLisp;
+
         public KnowledgeBaseControl()
         {
             InitializeComponent();
@@ -240,6 +249,47 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageSkills.Controls.Add(pnlSkillsLeft);
 
             mainTabControl.TabPages.Add(tabPageSkills);
+
+            // =========================
+            // Zakładka: Skrypty LISP
+            // =========================
+            tabPageLisps = new TabPage("Skrypty LISP");
+
+            Panel pnlLispsLeft = new Panel { Dock = DockStyle.Left, Width = 250 };
+            tvLisps = new TreeView { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, HideSelection = false };
+            tvLisps.AfterSelect += TvLisps_AfterSelect;
+
+            Panel pnlLispsLeftBtns = new Panel { Dock = DockStyle.Bottom, Height = 60 };
+            btnAddLisp = new Button { Text = "➕ Dodaj", Left = 5, Top = 5, Width = 115, Height = 30, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnAddLisp.Click += BtnAddLisp_Click;
+            btnDeleteLisp = new Button { Text = "🗑️ Usuń", Left = 125, Top = 5, Width = 115, Height = 30, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnDeleteLisp.Click += BtnDeleteLisp_Click;
+            pnlLispsLeftBtns.Controls.Add(btnAddLisp);
+            pnlLispsLeftBtns.Controls.Add(btnDeleteLisp);
+
+            btnExecuteLisp = new Button { Text = "▶️ Wykonaj Skrypt LISP", Dock = DockStyle.Bottom, Height = 40, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnExecuteLisp.Click += BtnExecuteLisp_Click;
+
+            pnlLispsLeft.Controls.Add(tvLisps);
+            pnlLispsLeft.Controls.Add(pnlLispsLeftBtns);
+            pnlLispsLeft.Controls.Add(btnExecuteLisp);
+
+            Panel pnlLispsRight = new Panel { Dock = DockStyle.Fill };
+            rtbLispCode = new RichTextBox { Dock = DockStyle.Fill, ReadOnly = false, Font = new Font("Consolas", 10f), BorderStyle = BorderStyle.None, WordWrap = false, ScrollBars = RichTextBoxScrollBars.Both };
+            Panel pnlLispsRightBtns = new Panel { Dock = DockStyle.Bottom, Height = 40 };
+            btnSaveLisp = new Button { Text = "💾 Zapisz Skrypt LISP", Dock = DockStyle.Right, Width = 180, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnSaveLisp.Click += BtnSaveLisp_Click;
+            pnlLispsRightBtns.Controls.Add(btnSaveLisp);
+
+            pnlLispsRight.Controls.Add(pnlLispsRightBtns);
+            pnlLispsRight.Controls.Add(rtbLispCode);
+
+            tabPageLisps.Controls.Add(pnlLispsRight);
+            tabPageLisps.Controls.Add(new Splitter { Dock = DockStyle.Left, Width = 5 });
+            tabPageLisps.Controls.Add(pnlLispsLeft);
+
+            mainTabControl.TabPages.Add(tabPageLisps);
+
             this.Controls.Add(mainTabControl);
             pnlTopFilters.BringToFront();
         }
@@ -260,6 +310,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             tabPageMacros.BackColor = panelBg;
             tabPageDatasets.BackColor = panelBg;
             tabPageSkills.BackColor = panelBg;
+            tabPageLisps.BackColor = panelBg;
 
             tvFormulas.BackColor = bgDark; tvFormulas.ForeColor = fgLight;
             rtbFormulaMetadata.BackColor = bgDark; rtbFormulaMetadata.ForeColor = Color.Orange;
@@ -286,6 +337,13 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             btnSaveSkill.BackColor = btnBg; btnSaveSkill.ForeColor = Color.White;
             tvSkills.BackColor = bgDark; tvSkills.ForeColor = fgLight;
             rtbSkillMarkdown.BackColor = bgDark; rtbSkillMarkdown.ForeColor = Color.LightSkyBlue;
+
+            tvLisps.BackColor = bgDark; tvLisps.ForeColor = fgLight;
+            rtbLispCode.BackColor = bgDark; rtbLispCode.ForeColor = Color.LightGoldenrodYellow;
+            btnExecuteLisp.BackColor = Color.SeaGreen; btnExecuteLisp.ForeColor = Color.White; btnExecuteLisp.FlatAppearance.BorderSize = 0;
+            btnAddLisp.BackColor = panelBg; btnAddLisp.ForeColor = Color.White;
+            btnDeleteLisp.BackColor = Color.Brown; btnDeleteLisp.ForeColor = Color.White;
+            btnSaveLisp.BackColor = btnBg; btnSaveLisp.ForeColor = Color.White;
 
             btnSaveDataset.BackColor = btnBg; btnSaveDataset.ForeColor = Color.White;
         }
@@ -388,6 +446,19 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             PopulateTreeView(tvSkills, skills.Select(s => s.Id), id => SkillManager.GetSkill(id)?.Category);
             rtbSkillMarkdown.Clear();
+
+            var lisps = LispManager.GetAvailableLisps();
+            if (tags.Any())
+            {
+                lisps = lisps.Where(l => 
+                {
+                    var meta = LispManager.GetMetadata(l);
+                    if (meta == null || meta.Tags == null) return false;
+                    return tags.All(tag => meta.Tags.Any(mt => mt.ToLower().Contains(tag)));
+                });
+            }
+            PopulateTreeView(tvLisps, lisps, l => LispManager.GetMetadata(l)?.Category);
+            rtbLispCode.Clear();
         }
 
         private void TxtTagFilter_TextChanged(object sender, EventArgs e)
@@ -405,6 +476,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                     DynamicFormulaManager.LoadAndCompileAll();
                     MacroManager.LoadAllMacros();
                     SkillManager.LoadAllSkills();
+                    LispManager.LoadAllLisps();
                     LoadData();
                 }
                 catch (Exception ex)
@@ -421,6 +493,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 DynamicFormulaManager.LoadAndCompileAll();
                 MacroManager.LoadAllMacros();
                 SkillManager.LoadAllSkills();
+                LispManager.LoadAllLisps();
                 LoadData();
                 MessageBox.Show("Baza wiedzy została pomyślnie przeładowana.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -488,7 +561,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd odczytu bazy: {ex.Message}");
+                    MessageBox.Show($"BĹ‚Ä…d odczytu bazy: {ex.Message}");
                 }
             }
             else
@@ -499,22 +572,22 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
 
         private void BtnAddFormula_Click(object sender, EventArgs e)
         {
-            string id = ShowInputDialog("Podaj ID nowej formuły (bez spacji):", "Nowa formuła");
+            string id = ShowInputDialog("Podaj ID nowej formuĹ‚y (bez spacji):", "Nowa formuĹ‚a");
             if (string.IsNullOrWhiteSpace(id)) return;
             
             string templateCode = "return \"0 mm\";";
-            var templateMeta = new FormulaMetadata { FormulaId = id, Description = "Nowa formuła inżynierska", OutputDescription = "Wartość z jednostką", Category = "Uncategorized" };
+            var templateMeta = new FormulaMetadata { FormulaId = id, Description = "Nowa formuĹ‚a inĹĽynierska", OutputDescription = "WartoĹ›Ä‡ z jednostkÄ…", Category = "Uncategorized" };
             string templateJson = JsonConvert.SerializeObject(templateMeta, Formatting.Indented);
 
             try
             {
                 DynamicFormulaManager.SaveFormula(id, templateCode, templateJson);
                 LoadData();
-                // Opcjonalnie można rozwinąć drzewo i zaznaczyć nowo dodany element.
+                // Opcjonalnie moĹĽna rozwinÄ…Ä‡ drzewo i zaznaczyÄ‡ nowo dodany element.
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas dodawania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹ‚Ä…d podczas dodawania: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -522,7 +595,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         {
             if (tvFormulas.SelectedNode == null || tvFormulas.SelectedNode.Tag?.ToString() == "FOLDER") return;
             string id = tvFormulas.SelectedNode.Tag.ToString();
-            if (MessageBox.Show($"Czy na pewno chcesz usunąć formułę '{id}' (obie części)?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            if (MessageBox.Show($"Czy na pewno chcesz usunÄ…Ä‡ formuĹ‚Ä™ '{id}' (obie czÄ™Ĺ›ci)?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -531,7 +604,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"BĹ‚Ä…d: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -545,12 +618,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             try
             {
                 DynamicFormulaManager.SaveFormula(id, code, json);
-                MessageBox.Show("Zapisano pomyślnie. Kompilacja i walidacja JSON OK.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Zapisano pomyĹ›lnie. Kompilacja i walidacja JSON OK.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"BŁĄD:\n{ex.Message}", "Błąd Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹÄ„D:\n{ex.Message}", "BĹ‚Ä…d Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -567,7 +640,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas dodawania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹ‚Ä…d podczas dodawania: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -575,7 +648,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         {
             if (tvMacros.SelectedNode == null || tvMacros.SelectedNode.Tag?.ToString() == "FOLDER") return;
             string id = tvMacros.SelectedNode.Tag.ToString();
-            if (MessageBox.Show($"Czy na pewno chcesz usunąć makro '{id}'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            if (MessageBox.Show($"Czy na pewno chcesz usunÄ…Ä‡ makro '{id}'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -584,7 +657,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"BĹ‚Ä…d: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -597,12 +670,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             try
             {
                 MacroManager.SaveMacro(id, json);
-                MessageBox.Show("Zapisano pomyślnie. JSON zwalidowany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Zapisano pomyĹ›lnie. JSON zwalidowany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"BŁĄD JSON:\n{ex.Message}", "Błąd Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹÄ„D JSON:\n{ex.Message}", "BĹ‚Ä…d Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -618,12 +691,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                     var metadata = DatasetManager.GetAvailableDatasets().FirstOrDefault(d => d.DatasetId == datasetName);
                     if (metadata == null) metadata = new DatasetMetadata { DatasetId = datasetName, Description = "Zaktualizowano w UI", Category = "Uncategorized" };
                     DatasetManager.SaveDataset(metadata, json);
-                    MessageBox.Show("Baza została zapisana i uaktualniona.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Baza zostaĹ‚a zapisana i uaktualniona.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu baza: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹ‚Ä…d zapisu baza: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -639,7 +712,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             catch
             {
-                rtbSkillMarkdown.Text = $"// Plik dla skilla {skillId} nie istnieje lub nie można go załadować.";
+                rtbSkillMarkdown.Text = $"// Plik dla skilla {skillId} nie istnieje lub nie moĹĽna go zaĹ‚adowaÄ‡.";
             }
         }
 
@@ -648,7 +721,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             string id = ShowInputDialog("Podaj ID nowego skilla (bez spacji):", "Nowy Skill");
             if (string.IsNullOrWhiteSpace(id)) return;
 
-            string template = $"---\ncategory: Uncategorized\ndescription: Nowy inżynierski skill\ntags: []\n---\n\n## {id}\n\nZasady postępowania dla tego zadania...\n";
+            string template = $"---\ncategory: Uncategorized\ndescription: Nowy inĹĽynierski skill\ntags: []\n---\n\n## {id}\n\nZasady postÄ™powania dla tego zadania...\n";
             try
             {
                 var skill = new AgentSkill { Id = id, Content = template, Category = "Uncategorized" };
@@ -657,7 +730,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas dodawania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹ‚Ä…d podczas dodawania: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -665,7 +738,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         {
             if (tvSkills.SelectedNode == null || tvSkills.SelectedNode.Tag?.ToString() == "FOLDER") return;
             string id = tvSkills.SelectedNode.Tag.ToString();
-            if (MessageBox.Show($"Czy na pewno chcesz usunąć skilla '{id}'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            if (MessageBox.Show($"Czy na pewno chcesz usunÄ…Ä‡ skilla '{id}'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -674,7 +747,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"BĹ‚Ä…d: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -688,12 +761,12 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             {
                 var parsed = SkillManager.ParseSkill(id, markdown);
                 SkillManager.SaveSkill(parsed);
-                MessageBox.Show("Zapisano pomyślnie. Frontmatter zwalidowany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Zapisano pomyĹ›lnie. Frontmatter zwalidowany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"BŁĄD ZAPISU:\n{ex.Message}", "Błąd Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹÄ„D ZAPISU:\n{ex.Message}", "BĹ‚Ä…d Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -702,7 +775,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             if (tvMacros.SelectedNode == null || tvMacros.SelectedNode.Tag?.ToString() == "FOLDER") return;
             string macroId = tvMacros.SelectedNode.Tag.ToString();
             btnExecuteMacro.Enabled = false;
-            btnExecuteMacro.Text = "⏳ Wykonywanie...";
+            btnExecuteMacro.Text = "âŹł Wykonywanie...";
 
             try
             {
@@ -715,18 +788,106 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
                         MacroManager.ExecuteMacro(macroId, context);
                     }
                 });
-                MessageBox.Show($"Makro '{macroId}' zostało wykonane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"Makro '{macroId}' zostaĹ‚o wykonane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"BĹ‚Ä…d: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
                 if (this.IsHandleCreated)
                 {
-                    this.BeginInvoke(new Action(() => { btnExecuteMacro.Enabled = true; btnExecuteMacro.Text = "▶️ Wykonaj Wybrane Makro"; }));
+                    this.BeginInvoke(new Action(() => { btnExecuteMacro.Enabled = true; btnExecuteMacro.Text = "â–¶ď¸Ź Wykonaj Wybrane Makro"; }));
                 }
+            }
+        }
+
+        private void TvLisps_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node == null || e.Node.Tag?.ToString() == "FOLDER") { rtbLispCode.Clear(); return; }
+            string lispId = e.Node.Tag.ToString();
+            
+            try
+            {
+                string code = LispManager.GetLispCode(lispId);
+                rtbLispCode.Text = code;
+            }
+            catch
+            {
+                rtbLispCode.Text = $"// Plik dla LISP "{lispId}" nie istnieje lub nie można go załadować.";
+            }
+        }
+
+        private void BtnAddLisp_Click(object sender, EventArgs e)
+        {
+            string id = ShowInputDialog("Podaj ID nowego skryptu LISP (bez spacji):", "Nowy LISP");
+            if (string.IsNullOrWhiteSpace(id)) return;
+
+            string template = "(defun c:" + id + " (/)\n  (princ "\nNowy skrypt LISP")\n  (princ)\n)";
+            try
+            {
+                var meta = new LispMetadata { LispId = id, Description = "Nowy skrypt LISP", Category = "Uncategorized", CreatedAt = DateTime.Now };
+                LispManager.SaveLisp(meta, template);
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas dodawania: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnDeleteLisp_Click(object sender, EventArgs e)
+        {
+            if (tvLisps.SelectedNode == null || tvLisps.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvLisps.SelectedNode.Tag.ToString();
+            if (MessageBox.Show("Czy na pewno chcesz usunąć skrypt LISP '" + id + "'?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                try
+                {
+                    LispManager.DeleteLisp(id);
+                    LoadData();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void BtnSaveLisp_Click(object sender, EventArgs e)
+        {
+            if (tvLisps.SelectedNode == null || tvLisps.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string id = tvLisps.SelectedNode.Tag.ToString();
+            string code = rtbLispCode.Text;
+            try
+            {
+                var meta = LispManager.GetMetadata(id);
+                if (meta == null) meta = new LispMetadata { LispId = id, Description = "Zaktualizowano w UI", Category = "Uncategorized", CreatedAt = DateTime.Now };
+                LispManager.SaveLisp(meta, code);
+                MessageBox.Show("Zapisano skrypt LISP pomyślnie.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("BŁĄD ZAPISU:\n" + ex.Message, "Błąd Zapisywania", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnExecuteLisp_Click(object sender, EventArgs e)
+        {
+            if (tvLisps.SelectedNode == null || tvLisps.SelectedNode.Tag?.ToString() == "FOLDER") return;
+            string lispId = tvLisps.SelectedNode.Tag.ToString();
+            
+            try
+            {
+                string code = rtbLispCode.Text;
+                LispManager.TriggerLispExecution(lispId, code);
+                MessageBox.Show("Polecenie uruchomienia skryptu LISP '" + lispId + "' zostało przesłane do BricsCAD.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -747,3 +908,4 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
         }
     }
 }
+

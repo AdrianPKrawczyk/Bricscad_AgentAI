@@ -121,6 +121,18 @@ namespace Bricscad_AgentAI_V2.UI
             LLMConfigManager.OnConfigChanged += UpdateModelLabel;
             UpdateModelLabel();
 
+            LispManager.OnLispExecutionRequested += (lispId, code) =>
+            {
+                if (this.InvokeRequired)
+                {
+                    this.BeginInvoke(new Action(() => ExecuteLispFromExternal(lispId, code)));
+                }
+                else
+                {
+                    ExecuteLispFromExternal(lispId, code);
+                }
+            };
+
             // Inicjalizacja wiadomosci powitalnych
             AppendToHistory("SYSTEM", "Bielik V2 GOLD gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
         }        private void InitializeEngineV2()
@@ -1228,6 +1240,17 @@ namespace Bricscad_AgentAI_V2.UI
             txtToolLogs.AppendText(rawJsonCall + "\n");
             txtToolLogs.SelectionStart = txtToolLogs.Text.Length;
             txtToolLogs.ScrollToCaret();
+        }
+
+        private void ExecuteLispFromExternal(string lispId, string code)
+        {
+            try
+            {
+                SaveTempLisp(code);
+                AppendToHistory("SYSTEM", $"Przygotowano do wykonania skrypt z Bazy Wiedzy: '{lispId}'", isDarkMode ? Color.Orange : Color.DarkOrange);
+                ExecuteLispFromTemp();
+            }
+            catch (Exception ex) { BielikLogger.LogError("Błąd ładowania zewnętrznego skryptu LISP", ex); }
         }
 
         public async Task ProcessInputAsync(string rawInput, string activeDwgPath = "")

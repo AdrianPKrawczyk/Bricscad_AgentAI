@@ -45,6 +45,11 @@ namespace Bricscad_AgentAI_V2.Core
             return Path.Combine(GetCustomKnowledgePath(), "Skills");
         }
         
+        public static string GetLispPath()
+        {
+            return Path.Combine(GetCustomKnowledgePath(), "Lisp");
+        }
+
         public static void EnsureDirectoriesExist()
         {
             string formulas = GetFormulasPath();
@@ -71,6 +76,11 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(skills))
             {
                 Directory.CreateDirectory(skills);
+            }
+            string lisp = GetLispPath();
+            if (!Directory.Exists(lisp))
+            {
+                Directory.CreateDirectory(lisp);
             }
         }
     }

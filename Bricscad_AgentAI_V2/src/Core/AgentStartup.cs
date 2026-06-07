@@ -19,6 +19,8 @@ namespace Bricscad_AgentAI_V2.Core
     {
         private static PaletteSet _paletteSet = null;
 
+        public static event Action<string, string> OnLispCallback;
+
         public void Initialize()
         {
             EnsureKnowledgeBaseFolders();
@@ -612,6 +614,38 @@ namespace Bricscad_AgentAI_V2.Core
             ed.WriteMessage("\n [INFO]      Pusty [ENTER] lub '=' kończy pracę.");
             ed.WriteMessage("\n             Dla RPN: wysyła wynik do linii poleceń CAD.");
             ed.WriteMessage("\n=======================================================\n");
+        }
+
+        // ==============================================================
+        // LISP SELF-HEALING HOOK
+        // ==============================================================
+        [LispFunction("agent-callback")]
+        public object LispAgentCallback(ResultBuffer args)
+        {
+            try
+            {
+                if (args == null) return false;
+                
+                var list = new System.Collections.Generic.List<string>();
+                foreach (TypedValue tv in args)
+                {
+                    list.Add(tv.Value?.ToString() ?? "");
+                }
+
+                if (list.Count < 2) return false;
+
+                string status = list[0];
+                string errorMessage = list[1];
+
+                BielikLogger.LogInfo($"[LispCallback] Odebrano status: {status}, msg: {errorMessage}");
+                OnLispCallback?.Invoke(status, errorMessage);
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                BielikLogger.LogError("Błąd agent-callback", ex);
+                return false;
+            }
         }
     }
 }

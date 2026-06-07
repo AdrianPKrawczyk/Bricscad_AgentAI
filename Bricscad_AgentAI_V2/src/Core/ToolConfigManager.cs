@@ -324,7 +324,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["SupervisorProfile"] = supervisorProf;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -358,7 +358,7 @@ namespace Bricscad_AgentAI_V2.Core
                 "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                 "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                 "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes"
+                "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps"
             };
             if (cadProf.AllowedTools == null)
             {
@@ -380,7 +380,7 @@ namespace Bricscad_AgentAI_V2.Core
                 geomProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = "system_prompt.txt", 
-                    AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool" },
+                    AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool", "manage_lisps" },
                     AllowedTags = new List<string> { "#cad" }
                 };
                 _config.Profiles["CadGeometryProfile"] = geomProf;
@@ -393,7 +393,7 @@ namespace Bricscad_AgentAI_V2.Core
                 blocksProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = "system_prompt.txt", 
-                    AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
+                    AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps" },
                     AllowedTags = new List<string> { "#bloki" }
                 };
                 _config.Profiles["CadBlocksProfile"] = blocksProf;
@@ -406,7 +406,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = "system_prompt.txt", 
-                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea" },
+                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "manage_lisps" },
                     AllowedTags = new List<string> { "#xdata" }
                 };
                 _config.Profiles["CadMetadataProfile"] = metadataProf;
@@ -425,7 +425,7 @@ namespace Bricscad_AgentAI_V2.Core
                 mathProf.SystemPromptFile = "system_prompt_math.txt";
                 changed = true;
             }
-            var mathDefaults = new List<string> { "CalculateMath", "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset" };
+            var mathDefaults = new List<string> { "CalculateMath", "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "manage_lisps" };
             if (mathProf.AllowedTools == null)
             {
                 mathProf.AllowedTools = new List<string>();
@@ -455,7 +455,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["AuditorProfile"] = auditorProf;
                 changed = true;
             }
-            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent" };
+            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent", "manage_lisps" };
             if (auditorProf.AllowedTools == null)
             {
                 auditorProf.AllowedTools = new List<string>();
@@ -496,7 +496,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_supervisor.txt",
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "SearchFileContent" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps" },
                 AllowedTags = new List<string>()
             };
             
@@ -643,3 +643,5 @@ namespace Bricscad_AgentAI_V2.Core
         }
     }
 }
+
+
