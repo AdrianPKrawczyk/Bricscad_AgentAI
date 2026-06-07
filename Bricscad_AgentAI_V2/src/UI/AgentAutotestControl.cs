@@ -57,6 +57,32 @@ namespace Bricscad_AgentAI_V2.UI
             lvAutoTools.Columns.Add("Statyczne", 85);
             lvAutoTools.Columns.Add("Interaktywne", 100);
             lvAutoTools.Columns.Add("Status", 180);
+            ContextMenuStrip ctxMenu = new ContextMenuStrip();
+            var showHistoryItem = ctxMenu.Items.Add("Pokaż historię testów");
+            showHistoryItem.Click += (s, e) => {
+                if (lvAutoTools.SelectedItems.Count > 0)
+                {
+                    string toolName = lvAutoTools.SelectedItems[0].Text;
+                    string logPath = Path.Combine(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "..", "..")), "Autotesty", "Logs", $"{toolName}_History.md");
+                    if (File.Exists(logPath))
+                        System.Diagnostics.Process.Start(logPath);
+                    else
+                        MessageBox.Show("Brak historii dla tego narzędzia.");
+                }
+            };
+            var markFixedItem = ctxMenu.Items.Add("Oznacz jako poprawione (Ręcznie)");
+            markFixedItem.Click += (s, e) => {
+                if (lvAutoTools.SelectedItems.Count > 0)
+                {
+                    string toolName = lvAutoTools.SelectedItems[0].Text;
+                    AutotestRegistry.MarkAsFixed(toolName);
+                    string logPath = Path.Combine(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "..", "..")), "Autotesty", "Logs", $"{toolName}_History.md");
+                    if (!Directory.Exists(Path.GetDirectoryName(logPath))) Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                    File.AppendAllText(logPath, $"\n\n## [USER FIX] - {DateTime.Now:yyyy-MM-dd HH:mm:ss}\nUżytkownik ręcznie oznaczył narzędzie jako poprawione.\n---\n");
+                    LoadAutotestTools();
+                }
+            };
+            lvAutoTools.ContextMenuStrip = ctxMenu;
             panLeft.Controls.Add(lvAutoTools);
 
             Panel panButtons = new Panel { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(0, 5, 0, 0) };
@@ -162,10 +188,10 @@ namespace Bricscad_AgentAI_V2.UI
             txtAutoConsole.Clear();
             AppendAutoLog($"[SYSTEM] Rozpoczynanie autotestu dla {lvAutoTools.CheckedItems.Count} narzędzi o godzinie {DateTime.Now:HH:mm:ss}...", Color.Cyan);
 
-            System.Text.StringBuilder reportBuilder = new System.Text.StringBuilder();
-            reportBuilder.AppendLine("# Raport Autotestu Narzędzi V2");
-            reportBuilder.AppendLine($"Data generacji: {DateTime.Now}");
-            reportBuilder.AppendLine("---");
+            string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
+            string logsDir = Path.Combine(rootDir, "Autotesty", "Logs");
+            if (!Directory.Exists(logsDir)) Directory.CreateDirectory(logsDir);
 
             try
             {
@@ -233,35 +259,15 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
 
                     AutotestRegistry.UpdateRecord(toolName, rbStatic.Checked, passed);
 
-                    reportBuilder.AppendLine($"## Test narzędzia: {toolName}");
-                    reportBuilder.AppendLine(response);
-                    reportBuilder.AppendLine("---");
+                    string logPath = Path.Combine(logsDir, $"{toolName}_History.md");
+                    string logContent = $"\n\n## Raport Autotestu - {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n**Tryb:** {(rbStatic.Checked ? "Statyczny" : "Interaktywny")}\n**Wynik:** {(passed ? "Sukces" : "Błędy")}\n\n{response}\n---";
+                    File.AppendAllText(logPath, logContent);
                 }
 
                 // Odśwież tabelę po zakończeniu testów
                 LoadAutotestTools();
 
-                AppendAutoLog($"\n[SYSTEM] Zakończono wszystkie testy. Generowanie raportu...", Color.Cyan);
-
-                try
-                {
-                    string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                    string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
-                    string autoTestDir = Path.Combine(rootDir, "Autotesty");
-                    
-                    if (!Directory.Exists(autoTestDir))
-                    {
-                        Directory.CreateDirectory(autoTestDir);
-                    }
-
-                    string fileName = Path.Combine(autoTestDir, $"Autotest_Report_{DateTime.Now:yyyyMMdd_HHmmss}.md");
-                    File.WriteAllText(fileName, reportBuilder.ToString());
-                    AppendAutoLog($"[SYSTEM] Raport automatycznie zapisany: {fileName}", Color.LimeGreen);
-                }
-                catch (Exception exIO)
-                {
-                    AppendAutoLog($"[SYSTEM] Nie udało się automatycznie zapisać raportu: {exIO.Message}", Color.Orange);
-                }
+                AppendAutoLog($"\n[SYSTEM] Zakończono wszystkie testy. Logi zapisane w folderze Autotesty/Logs/", Color.Cyan);
             }
             catch (Exception ex)
             {
