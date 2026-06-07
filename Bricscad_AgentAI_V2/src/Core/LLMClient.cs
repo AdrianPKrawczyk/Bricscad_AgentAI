@@ -44,6 +44,7 @@ namespace Bricscad_AgentAI_V2.Core
         public async Task<AgentExecutionResult> SendMessageReActAsync(List<ChatMessage> conversationHistory, IExecutionContext context, IEnumerable<string> initialTags = null, bool earlyExitEnabled = true, int maxIterations = 5, string profileName = null)
         {
             PreProcessRecipes(conversationHistory);
+            PreProcessLisps(conversationHistory);
 
             var config = LLMConfigManager.GetActiveProvider();
             
@@ -385,6 +386,39 @@ namespace Bricscad_AgentAI_V2.Core
                         }
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Skanuje historię w poszukiwaniu znaczników LISP (%lisp_id lub %lisp_id%) i instruuje agenta do ich uruchomienia.
+        /// </summary>
+        private void PreProcessLisps(List<ChatMessage> history)
+        {
+            var userMsgs = history.Where(m => m.Role == "user" && m.Content != null).ToList();
+            if (!userMsgs.Any()) return;
+
+            var discoveredLisps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var msg in userMsgs)
+            {
+                if (msg.Content is string textContent)
+                {
+                    var matches = Regex.Matches(textContent, @"%([a-zA-Z0-9_:]+)%?");
+                    foreach (Match m in matches) discoveredLisps.Add(m.Groups[1].Value);
+                }
+            }
+
+            if (!discoveredLisps.Any()) return;
+
+            int injectionIdx = history.FindIndex(m => m.Role == "system") + 1;
+            if (injectionIdx <= 0) injectionIdx = 0;
+
+            foreach (var lispId in discoveredLisps)
+            {
+                history.Insert(injectionIdx++, new ChatMessage 
+                { 
+                    Role = "system", 
+                    Content = $"UŻYTKOWNIK UŻYŁ ZNACZNIKA %{lispId}. Oznacza to jawne żądanie uruchomienia tego skryptu LISP. Natychmiast użyj narzędzia manage_lisps z Action='execute_lisp' i LispId='{lispId}'." 
+                });
             }
         }
 
