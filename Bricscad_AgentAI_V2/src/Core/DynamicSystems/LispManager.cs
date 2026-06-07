@@ -48,7 +48,7 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             BielikLogger.LogInfo($"[LispManager] Zapisano skrypt LISP: {metadata.LispId} w {safeCategory}");
         }
 
-        public static IEnumerable<LispMetadata> GetAvailableLisps()
+        public static IEnumerable<LispMetadata> LoadAllLisps()
         {
             string path = AppPaths.GetLispPath();
             if (!Directory.Exists(path)) return new List<LispMetadata>();
@@ -77,6 +77,22 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
             }
 
             return lisps;
+        }
+
+        public static LispMetadata GetMetadata(string lispId)
+        {
+            return LoadAllLisps().FirstOrDefault(m => m.LispId == lispId);
+        }
+
+        public static void DeleteLisp(string lispId)
+        {
+            string basePath = AppPaths.GetLispPath();
+            var jsonFiles = Directory.GetFiles(basePath, $"{lispId}.json", SearchOption.AllDirectories);
+            var lspFiles = Directory.GetFiles(basePath, $"{lispId}.lsp", SearchOption.AllDirectories);
+
+            foreach (var f in jsonFiles) File.Delete(f);
+            foreach (var f in lspFiles) File.Delete(f);
+            BielikLogger.LogInfo($"[LispManager] Usunięto skrypt LISP: {lispId}");
         }
 
         public static string GetLispCode(string lispId)

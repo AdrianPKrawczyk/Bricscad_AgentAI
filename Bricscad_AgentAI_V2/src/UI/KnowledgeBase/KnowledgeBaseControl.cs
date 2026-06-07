@@ -447,17 +447,16 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             PopulateTreeView(tvSkills, skills.Select(s => s.Id), id => SkillManager.GetSkill(id)?.Category);
             rtbSkillMarkdown.Clear();
 
-            var lisps = LispManager.GetAvailableLisps();
+            var lisps = LispManager.LoadAllLisps();
             if (tags.Any())
             {
                 lisps = lisps.Where(l => 
                 {
-                    var meta = LispManager.GetMetadata(l);
-                    if (meta == null || meta.Tags == null) return false;
-                    return tags.All(tag => meta.Tags.Any(mt => mt.ToLower().Contains(tag)));
+                    if (l.Tags == null) return false;
+                    return tags.All(tag => l.Tags.Any(mt => mt.ToLower().Contains(tag)));
                 });
             }
-            PopulateTreeView(tvLisps, lisps, l => LispManager.GetMetadata(l)?.Category);
+            PopulateTreeView(tvLisps, lisps.Select(l => l.LispId), id => LispManager.GetMetadata(id)?.Category);
             rtbLispCode.Clear();
         }
 
@@ -815,7 +814,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             }
             catch
             {
-                rtbLispCode.Text = $"// Plik dla LISP "{lispId}" nie istnieje lub nie można go załadować.";
+                rtbLispCode.Text = $"// Plik dla LISP \"{lispId}\" nie istnieje lub nie można go załadować.";
             }
         }
 
@@ -824,7 +823,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             string id = ShowInputDialog("Podaj ID nowego skryptu LISP (bez spacji):", "Nowy LISP");
             if (string.IsNullOrWhiteSpace(id)) return;
 
-            string template = "(defun c:" + id + " (/)\n  (princ "\nNowy skrypt LISP")\n  (princ)\n)";
+            string template = "(defun c:" + id + " (/)\n  (princ \"\\nNowy skrypt LISP\")\n  (princ)\n)";
             try
             {
                 var meta = new LispMetadata { LispId = id, Description = "Nowy skrypt LISP", Category = "Uncategorized", CreatedAt = DateTime.Now };

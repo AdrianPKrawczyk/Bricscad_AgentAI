@@ -16,5 +16,8 @@ namespace Bricscad_AgentAI_V2.Models
 
         [JsonProperty("tags")]
         public List<string> Tags { get; set; } = new List<string>();
+
+        [JsonProperty("createdAt")]
+        public System.DateTime CreatedAt { get; set; } = System.DateTime.Now;
     }
 }

@@ -209,6 +209,9 @@
     
     <Compile Include="src\UI\HelpCenterControl.cs" />
     <Compile Include="src\Tools\ReadHelpTool.cs" />
+    <Compile Include="src\Core\DynamicSystems\LispManager.cs" />
+    <Compile Include="src\Models\LispMetadata.cs" />
+    <Compile Include="src\Tools\ManageLispsTool.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

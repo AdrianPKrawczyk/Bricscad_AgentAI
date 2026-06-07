@@ -1253,6 +1253,29 @@ namespace Bricscad_AgentAI_V2.UI
             catch (Exception ex) { BielikLogger.LogError("Błąd ładowania zewnętrznego skryptu LISP", ex); }
         }
 
+        private void SaveTempLisp(string code)
+        {
+            string tempDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Bricscad_AgentAI", "Temp");
+            System.IO.Directory.CreateDirectory(tempDir);
+            string tempLispFile = System.IO.Path.Combine(tempDir, "temp_agent.lsp");
+            System.IO.File.WriteAllText(tempLispFile, code);
+        }
+
+        private void ExecuteLispFromTemp()
+        {
+            string tempDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Bricscad_AgentAI", "Temp");
+            string tempLispFile = System.IO.Path.Combine(tempDir, "temp_agent.lsp");
+            if (System.IO.File.Exists(tempLispFile))
+            {
+                string safePath = tempLispFile.Replace("\\", "/");
+                var doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                if (doc != null)
+                {
+                    doc.SendStringToExecute($"(load \"{safePath}\") ", true, false, false);
+                }
+            }
+        }
+
         public async Task ProcessInputAsync(string rawInput, string activeDwgPath = "")
         {
             if (string.IsNullOrEmpty(rawInput) && string.IsNullOrEmpty(_attachedFilePath) && _attachedClipboardImage == null) return;
