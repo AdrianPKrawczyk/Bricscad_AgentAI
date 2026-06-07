@@ -115,15 +115,10 @@ namespace Bricscad_AgentAI_V2.Core
                         string currentText = File.ReadAllText(supervisorPromptPath);
                         if (!currentText.Contains("CadGeometryProfile") || 
                             !currentText.Contains("LUŹNA ROZMOWA") || 
-                            !currentText.Contains("CadMathProfile") ||
-                            !currentText.Contains("Profile NIE są narzędziami") ||
-                            !currentText.Contains("OBLICZENIA MATEMATYCZNE, FIZYCZNE") ||
-                            !currentText.Contains("NotesProfile") ||
-                            !currentText.Contains("$moja_recepta") ||
-                            !currentText.Contains("WIEDZA O SYSTEMIE / POMOC") ||
-                            !currentText.Contains("SKILLE INŻYNIERSKIE"))
+                            !currentText.Contains("AuditorProfile") ||
+                            currentText.Contains("BŁĘDY LOGICZNE")) 
                         {
-                            needsWrite = true; // Auto-upgrade starych wersji promptu
+                            needsWrite = true;
                         }
                     }
                     catch { }
@@ -156,12 +151,12 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - Kiedy otrzymasz wstrzykniętego skilla do kontekstu, po prostu wykonuj jego instrukcje zlecając zadania do odpowiednich profili przez DelegateTask.\n\n" +
                         "UWAGA KRYTYCZNA: Profile NIE są narzędziami! Nigdy nie wywołuj nazwy profilu (np. CadMathProfile, CadGeometryProfile) jako nazwy funkcji w tool_calls. Jedynym narzędziem do delegowania jest DelegateTask, w którym podajesz TargetProfile jako parametr. Wywołanie profilu bezpośrednio jako funkcji spowoduje błąd krytyczny i nie zostanie wykonane!\n\n" +
                         "Dostępne profile ekspertów do zadań (wybierz najbardziej optymalny):\n" +
-                        "- CadGeometryProfile: ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
-                        "- CadBlocksProfile: ekspert od bloków i atrybutów (tworzenie bloków, wstawianie, listowanie, edycja atrybutów bloku).\n" +
-                        "- CadMetadataProfile: ekspert od analityki rysunku, pomiarów, XData (czytanie właściwości, metadane XData, wyszukiwanie w rysunku, inspekcja obiektów, zrzuty ekranu CAD).\n" +
-                        "- CadMathProfile: ekspert od obliczeń matematycznych, fizycznych, konwersji jednostek i analizy wymiarowej rysunku.\n" +
-                        "- NotesProfile: system przechowuje notatki inżynierskie dla każdego rysunku w plikach [Nazwa].ai_note.md. Masz do dyspozycji wyspecjalizowanego sub-agenta 'NotesProfile'. Jeśli użytkownik wyraźnie prosi Cię o zapisanie czegoś w notatce, ZAWSZE używaj narzędzia DelegateTask przekazując mu to zadanie, lub poinformuj użytkownika o możliwości użycia komendy /notatka.\n" +
-                        "- CadProfile: uniwersalny profil awaryjny (używaj tylko jeśli zadanie łączy wiele z powyższych dziedzin w jeden ciąg).";
+                        "- DelegateTaskTool(ProfileName: \"CadGeometryProfile\", ...) -> ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
+                        "- DelegateTaskTool(ProfileName: \"CadBlocksProfile\", ...) -> Przekaż tutaj wszystko co dotyczy BLOKÓW i ATRYBUTÓW.\n" +
+                        "- DelegateTaskTool(ProfileName: \"CadMetadataProfile\", ...) -> Przekaż tutaj prośby o odczyt właściwości, XData, pomiary, zestawienia, analizę rysunku.\n" +
+                        "- DelegateTaskTool(ProfileName: \"CadProfile\", ...) -> Profil ogólny, używaj tylko gdy zadanie nie pasuje do żadnego z 3 powyższych.\n" +
+                        "- DelegateTaskTool(ProfileName: \"AuditorProfile\", ...) -> [AGENT QA / MÓZG] Użyj TEGO profilu, gdy aplikacja zachowuje się dziwnie, zwraca błędy C# lub gdy użytkownik prosi o testy/debugowanie/wyjaśnienie kodu źródłowego systemu Bielik V2. Agent QA ma pełny odczyt rdzenia aplikacji, potrafi debugować, testować narzędzia statycznie (RunToolTest) i analizować system. PAMIĘTAJ: Zanim oddelegujesz problem do AuditorProfile, powiadom o tym użytkownika i uzyskaj jego zgodę.\n\n" +
+                        "- NotesProfile: system przechowuje notatki inżynierskie dla każdego rysunku w plikach [Nazwa].ai_note.md. Masz do dyspozycji wyspecjalizowanego sub-agenta 'NotesProfile'. Jeśli użytkownik wyraźnie prosi Cię o zapisanie czegoś w notatce, ZAWSZE używaj narzędzia DelegateTask przekazując mu to zadanie, lub poinformuj użytkownika o możliwości użycia komendy /notatka.";
                     File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
                 }
             }
@@ -286,8 +281,13 @@ namespace Bricscad_AgentAI_V2.Core
                         "1. ZABRANIA SIĘ fizycznego blokowania interfejsu BricsCAD podczas testów. Jeśli testujesz narzędzia interaktywne (np. UserInput, UserChoice), bezwzględnie przekaż parametr `__MockResponse` symulujący wybór człowieka.\n" +
                         "2. ZABRANIA SIĘ zmiany stanu środowiska użytkownika podczas testów. Jeśli testujesz narzędzia mutujące (np. SaveMacro, SavePermanentFormula, WriteProjectFile, ManageRecipes, manage_skills), bezwzględnie używaj flagi `__DryRun: true`.\n" +
                         "3. BŁĘDY C#: Gdy testowane narzędzie zwróci błąd, użyj `ReadProjectFile` aby odczytać zawartość klasy tego narzędzia z folderu `src/Tools/` (lub odpowiedniego podfolderu).\n" +
-                        "4. READ-ONLY: Masz całkowity zakaz modyfikacji plików kodu C#. Ewentualne poprawki prezentuj jedynie w raporcie markdown jako propozycje.\n" +
-                        "5. Po zakończeniu audytu zrób czytelne podsumowanie dla Supervisora (lub użytkownika).";
+                        "4. TESTY STATYCZNE: Masz do dyspozycji narzędzie `RunToolTest`, które pozwala Ci na samodzielne, statyczne testowanie narzędzi. Przygotuj prawidłowy JSON (koniecznie z parametrem `__DryRun: true` lub `__MockResponse`) i przetestuj narzędzie.\n" +
+                        "5. RAPORTY QA I KODOWANIE: Gdy zakończysz audyt lub znajdziesz błąd w C#, którego nie powinieneś sam ryzykownie edytować: \n" +
+                        "   - użyj `WriteQAReport`, aby napisać notatkę z testów dla Supervisora.\n" +
+                        "   - użyj `DelegateTaskToAntigravity`, aby wygenerować zlecenie wgrania poprawki w kodzie źródłowym. Antigravity AI (Zewnętrzny Agent Kodowania) zobaczy ten plik i naprawi program!\n" +
+                        "6. READ-ONLY: Masz całkowity zakaz bezpośredniej modyfikacji plików kodu C# za pomocą `WriteProjectFile` (chyba że użytkownik na to zezwoli). Zawsze używaj zlecenia do Antigravity.\n" +
+                        "7. ANALIZA RDZENIA (CORE): Masz pełny dostęp (Read-Only) do całego kodu źródłowego systemu Bielik V2. Używaj narzędzi `ListSourceFiles` oraz `ReadSourceCode` aby eksplorować architekturę systemu, pętlę agentową, komunikację z BricsCAD oraz inne pliki C# z katalogu `src/Core/`, `src/UI/` itd.\n" +
+                        "8. Po zakończeniu audytu zrób czytelne podsumowanie dla Supervisora (lub użytkownika).";
                     File.WriteAllText(path, prompt, System.Text.Encoding.UTF8);
                 }
             }
@@ -454,7 +454,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["AuditorProfile"] = auditorProf;
                 changed = true;
             }
-            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills" };
+            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity" };
             if (auditorProf.AllowedTools == null)
             {
                 auditorProf.AllowedTools = new List<string>();
@@ -552,7 +552,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["AuditorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_auditor.txt",
-                AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills" },
+                AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity" },
                 AllowedTags = new List<string>()
             };
 

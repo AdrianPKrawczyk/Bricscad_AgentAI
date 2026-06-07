@@ -288,18 +288,23 @@ W zakładce **Recepty** znajdziesz dwa tryby weryfikacji:
 
 ---
 
-## 🕵️ 12. Rewident (QA Agent) i bezpieczne testowanie - NOWOŚĆ v2.28.1
+## 🕵️ 12. Rewident (Mózg QA) i Automatyczne Testowanie (v2.28.3 GOLD)
 
-Z myślą o pisaniu i testowaniu nowych narzędzi (skilli i recept) oraz weryfikacji kodu, udostępniono profil **Rewidenta** (`AuditorProfile`). Profil ten jest specjalnym pod-agentem, który operuje wyłącznie w trybie bezpiecznym (Dry-Run i Mock) dla narzędzi interaktywnych lub zmieniających stan dysku/rysunku.
+Z myślą o pisaniu i testowaniu nowych narzędzi (skilli i recept) oraz weryfikacji kodu C#, udostępniono profil **Mózgu QA** (`AuditorProfile`). Ten wyspecjalizowany agent-inżynier operuje w trybie izolowanym, z pełnym dostępem do odczytu kodu źródłowego systemu oraz potężnym arsenałem do diagnostyki i komunikacji.
 
-### 12.1. Narzędzia z obsługą izolacji
-Następujące narzędzia wspierają flagi bezpieczne i nie wykonają faktycznych zmian, jeśli są używane przez Rewidenta:
-- **`__DryRun`**: Modyfikacja stanu (np. tworzenie receptur, tworzenie makr i skilli, modyfikacja plików). Zamiast wykonania polecenia, symulują i walidują operację.
-- **`__MockResponse`**: Narzędzia interaktywne (`UserInput`, `UserChoice`). Pozwalają pominąć oczekiwanie na kliknięcie użytkownika w BricsCAD i podstawiają wartości testowe do pętli agenta.
+### 12.1. Testy Statyczne (RunToolTest)
+Mózg QA nie musi ręcznie wchodzić do interfejsu testowego. Posiada narzędzie `RunToolTest`, które pozwala mu w środowisku pamięci przygotować wirtualny ładunek (JSON) i wstrzyknąć go do Orkiestratora. 
+W przypadku awarii kodu C# (np. błąd `NullReferenceException`), testowany proces jest przechwytywany i bezpiecznie zatrzymywany, a sam Mózg bada "StackTrace", dowiadując się, co i w której linii kodu zawiodło.
+*Zawsze stosuje flagę testową `__DryRun: true` lub `__MockResponse` dla bezpieczeństwa rysunku użytkownika.*
 
-### 12.2. Kiedy i jak używać Rewidenta?
-- Kiedy piszesz nowy kod narzędzi i chcesz sprawdzić, czy agent potrafi go wywołać, bez psucia bazy wiedzy.
-- Rewident ma zakaz modyfikowania kodu wprost (Read-Only na pliki C#), ale może go analizować, walidować i przygotowywać bardzo szczegółowe raporty w formacie markdown.
+### 12.2. Raportowanie Błędów (WriteQAReport)
+Po zakończonym audycie i zlokalizowaniu usterki, Mózg QA tworzy czytelny, sformatowany raport w formacie Markdown z analizą błędu. Wykorzystuje do tego narzędzie `WriteQAReport`, zapisujące dokumenty w folderze `Autotesty/Reports/`, co zostawia trwały ślad z przeprowadzonych testów.
+
+### 12.3. Połączenie z Zewnętrznym Deweloperem (Antigravity AI)
+Mózg QA ma zakaz samodzielnego przepisywania wrażliwych plików źródłowych C# w czasie pracy BricsCADa. Jeśli zdiagnozuje usterkę, która wymaga modyfikacji rdzenia systemu, wysyła oficjalne zgłoszenie za pomocą narzędzia `DelegateTaskToAntigravity`.
+- System generuje bilet/raport w formacie Markdown w folderze `Autotesty/TasksForAntigravity/`.
+- Zewnętrzny Agent Kodowania (np. Antigravity AI) może bezpiecznie wejść w ten folder, przeczytać wytyczne Mózgu i nanieść profesjonalne poprawki w repozytorium użytkownika.
+- Eliminuje to ryzyko niekontrolowanego zawieszenia interfejsu BricsCAD i zachowuje pełny "Separation of Concerns".
 
 > [!TIP]
-> Jeśli z poziomu czatu w BricsCAD chcesz przeprowadzić test logiki bez obawy, że cokolwiek zostanie zepsute, przekaż zadanie Rewidentowi wprost. Np: *"Zleć Rewidentowi sprawdzenie logiki polecenia UserChoiceTool"*.
+> Jeśli z poziomu czatu w BricsCAD natrafisz na jakiś niewyjaśniony błąd, po prostu napisz Głównemu Agentowi (Supervisor): *"Poproś Mózg o przetestowanie polecenia InsertBlockTool, bo przestało działać"*. Mózg sprawdzi kod, odpali symulację, napisze raport i zgłosi do Antigravity potrzebę naprawy!

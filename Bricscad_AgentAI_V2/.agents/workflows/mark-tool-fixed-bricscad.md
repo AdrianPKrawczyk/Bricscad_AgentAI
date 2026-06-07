@@ -1,6 +1,6 @@
 ---
 name: mark-tool-fixed-bricscad
-description: Oznacza konkretne narzędzie jako poprawione po wykonaniu audytu i dopisuje log od Agenta w historii. Używaj tej komendy po skutecznym naprawieniu kodu narzędzia, np. `/mark-tool-fixed-bricscad --tool InsertBlockTool --desc "Usunięto błąd NaN i dodano try-catch"`.
+description: Oznacza konkretne narzędzie jako poprawione po wykonaniu audytu i dopisuje log od Agenta w historii. Używaj tej komendy po skutecznym naprawieniu kodu narzędzia, np. `/mark-tool-fixed-bricscad --tool InsertBlock --desc "Usunięto błąd NaN i dodano try-catch"`.
 ---
 
 # Zastosowanie
@@ -11,7 +11,7 @@ Ten workflow służy do zautomatyzowanego rejestrowania poprawek w narzędziach 
 ## 1. Wyodrębnij argumenty wejściowe z wywołania użytkownika
 Użytkownik wywoła polecenie np. `/mark-tool-fixed-bricscad --tool NazwaNarzędzia --desc "opis"`.
 Musisz wyciągnąć:
-- `ToolName` - docelowa nazwa narzędzia (np. `InsertBlockTool`). Zazwyczaj kończy się na `Tool`.
+- `ToolName` - dokładna nazwa narzędzia tak, jak wyświetla się w interfejsie BricsCAD (np. `InsertBlock`, zazwyczaj bez przyrostka "Tool"!).
 - `Description` - techniczny opis poprawek, które właśnie wprowadziłeś w kodzie C#. Czasem użytkownik pominie ten opis - w takim wypadku sam sformułuj zwięzłe podsumowanie dokonanych przez Ciebie zmian!
 
 ## 2. Zaktualizuj plik historii narzędzia

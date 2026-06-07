@@ -933,3 +933,28 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 3. Stworzono `ManageSkillsTool.cs` dajÄ…ce Agentowi moÅ¼liwoÅ›Ä‡ interakcji ze skillami (akcje `list_skills`, `read_skill`, `create_skill`).
 4. WdroÅ¼ono mechanizm Progressive Disclosure (poziom 1) w `AgentControl.cs` wstrzykujÄ…cy skille wywoÅ‚ane przez `#` w chatboxie prosto jako wiadomoÅ›ci systemowe (kontekst).
 5. Poprawiono zgodnoÅ›Ä‡ interfejsu narzÄ™dzia z wymogami projektu `IToolV2` i pomyÅ›lnie zrekompilowano system.
+
+## [v2.28.2] 2026-06-07T11:40:00+02:00 - Poprawa interfejsu QA i dostÄ™pu Agenta do kodu ÅºrÃ³dÅ‚owego
+### [ZREALIZOWANO]
+- Naprawiono krytyczny bÅ‚Ä…d kasowania siÄ™ historii konwersacji w oknie QA poprzez wywoÅ‚anie `QASessionManager.SaveSession()` natychmiast po udanej odpowiedzi z modelu, a przed asynchronicznym odÅ›wieÅ¼eniem GUI (`LoadSessions()` i `LbSessions_SelectedIndexChanged`). Zapobiega to nadpisywaniu nowej sesji pustym stanem z dysku (Race Condition).
+- Rozszerzono `ToolConfigManager.cs` o narzÄ™dzia `ListSourceFiles` i `ReadSourceCode` w domyÅ›lnej biaÅ‚ej liÅ›cie (`AllowedTools`) profilu `AuditorProfile`.
+- Zaktualizowano generatory `system_prompt_auditor.txt` i plik awaryjny w `QASessionManager.cs` o wyraÅºne instrukcje dajÄ…ce QA peÅ‚ny dostÄ™p odczytu do warstwy C# w BricsCAD_AgentAI_V2.
+### [STAN_SYSTEMU]
+- UI QA stabilne, a Agent w peÅ‚ni Å›wiadomy swojej mocy analitycznej caÅ‚ego kodu ÅºrÃ³dÅ‚owego.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na dyspozycje uÅ¼ytkownika.
+
+## [v2.28.3] 2026-06-07T12:03:19+02:00 - Rozszerzenie Mozgu QA o autotesty statyczne i integracje z Antigravity
+### [ZREALIZOWANO]
+- Wdro¿ono narzêdzie RunToolTestTool.cs pozwalaj¹ce Agentowi QA (Mózg) na niezale¿ne i bezpieczne uruchamianie statycznych testów narzêdzi CAD poprzez wstrzykiwanie kontrolowanego JSON i ³apanie wyj¹tków.
+- Zmodyfikowano ToolConfigManager.cs, rozszerzaj¹c pulê dozwolonych narzêdzi AuditorProfile o RunToolTest, WriteQAReport oraz DelegateTaskToAntigravity.
+- Zaktualizowano systemowy prompt dla Supervisora i Auditora: Supervisor jest teraz w pe³ni œwiadomy mocy diagnostycznej Agenta QA i potrafi zapytaæ u¿ytkownika o zgodê na przekazanie mu problemów za pomoc¹ DelegateTaskTool.
+- Wprowadzono architekturê delegowania zadañ do zewnêtrznego agenta kodowania (Antigravity) poprzez zapisywanie zleceñ w folderze Autotesty/TasksForAntigravity/.
+### [STAN_SYSTEMU]
+- System potrafi samodzielnie testowaæ swój kod, wychwytywaæ b³êdy C# bez crashowania œrodowiska CAD, generowaæ profesjonalne raporty QA i wystawiaæ zadania dla zewnêtrznych agentów deweloperskich.
+### [BLOKADY / PROBLEMY]
+- Wymagana kompilacja projektu poprzez natywne narzêdzia MSBuild / Visual Studio z powodu ograniczeñ œrodowiska CLI wzglêdem biblioteki Newtonsoft.Json.
+### [KOLEJNY_KROK]
+- Testowanie w œrodowisku produkcyjnym i ewentualne tworzenie zautomatyzowanych ci¹gów testów dla Mózgu.

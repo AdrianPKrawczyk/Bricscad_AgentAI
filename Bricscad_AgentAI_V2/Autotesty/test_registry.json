@@ -3,14 +3,7 @@
         "ToolName":  "InsertBlock",
         "StaticTestsCount":  1,
         "InteractiveTestsCount":  1,
-        "LastStatus":  "Wymaga Poprawki (Failed)",
-        "LastTestDate":  "2026-06-07T09:45:40.893008+02:00"
-    },
-    {
         "LastStatus":  "Poprawione (Fixed)",
-        "LastTestDate":  "2026-06-07T10:06:02.6875938+02:00",
-        "InteractiveTestsCount":  0,
-        "StaticTestsCount":  0,
-        "ToolName":  "InsertBlockTool"
+        "LastTestDate":  "2026-06-07T09:45:40.893008+02:00"
     }
 ]

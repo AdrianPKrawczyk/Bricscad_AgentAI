@@ -88,6 +88,7 @@
     <Compile Include="src\Models\AgentSkill.cs" />
     <Compile Include="src\Core\DynamicSystems\SkillManager.cs" />
     <Compile Include="src\Tools\ManageSkillsTool.cs" />
+    <Compile Include="src\Tools\RunToolTestTool.cs" />
     <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
