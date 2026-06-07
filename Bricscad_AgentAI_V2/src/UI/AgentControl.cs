@@ -1254,7 +1254,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 SaveTempLisp(code);
                 AppendToHistory("SYSTEM", $"Przygotowano do wykonania skrypt z Bazy Wiedzy: '{lispId}'", isDarkMode ? Color.Orange : Color.DarkOrange);
-                ExecuteLispFromTemp();
+                ExecuteLispFromTemp(lispId);
             }
             catch (Exception ex) { BielikLogger.LogError("Błąd ładowania zewnętrznego skryptu LISP", ex); }
         }
@@ -1267,7 +1267,7 @@ namespace Bricscad_AgentAI_V2.UI
             System.IO.File.WriteAllText(tempLispFile, code);
         }
 
-        private void ExecuteLispFromTemp()
+        private void ExecuteLispFromTemp(string lispId)
         {
             string tempDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Bricscad_AgentAI", "Temp");
             string tempLispFile = System.IO.Path.Combine(tempDir, "temp_agent.lsp");
@@ -1277,7 +1277,10 @@ namespace Bricscad_AgentAI_V2.UI
                 var doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
                 if (doc != null)
                 {
+                    // Ładuje LISP do pamięci
                     doc.SendStringToExecute($"(load \"{safePath}\") ", true, false, false);
+                    // Odpala zdefiniowaną komendę
+                    doc.SendStringToExecute($"{lispId} ", true, false, false);
                 }
             }
         }
