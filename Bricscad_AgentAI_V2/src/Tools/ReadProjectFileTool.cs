@@ -11,7 +11,7 @@ namespace Bricscad_AgentAI_V2.Tools
 {
     public class ReadProjectFileTool : IToolV2
     {
-        private static readonly string[] AllowedExtensions = { ".txt", ".md", ".qmd", ".json", ".xml", ".csv" };
+        private static readonly string[] AllowedExtensions = { ".txt", ".md", ".qmd", ".json", ".xml", ".csv", ".cs", ".csx" };
 
         public ToolDefinition GetToolSchema()
         {
@@ -21,7 +21,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "ReadProjectFile",
-                    Description = "Czyta zawartość bezpiecznego pliku tekstowego z folderu aktywnego projektu CAD. Użyj tego, aby zapoznać się z zawartością przed jej modyfikacją. Dozwolone formaty: txt, md, qmd, json, xml, csv. CRITICAL: ZAKAZ odczytu oficjalnych notatek *.ai_note.md.",
+                    Description = "Czyta zawartość bezpiecznego pliku tekstowego z folderu aktywnego projektu CAD. Użyj tego, aby zapoznać się z zawartością przed jej modyfikacją. Dozwolone formaty: txt, md, qmd, json, xml, csv, cs, csx. CRITICAL: ZAKAZ odczytu oficjalnych notatek *.ai_note.md.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -47,7 +47,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
             string ext = Path.GetExtension(fileName).ToLowerInvariant();
             if (!AllowedExtensions.Contains(ext))
-                return "BŁĄD: Niedozwolone rozszerzenie pliku. Akceptowane to tylko txt, md, qmd, json, xml, csv.";
+                return "BŁĄD: Niedozwolone rozszerzenie pliku. Akceptowane to tylko txt, md, qmd, json, xml, csv, cs, csx.";
 
             try
             {
