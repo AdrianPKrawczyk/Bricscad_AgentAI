@@ -34,7 +34,7 @@ namespace Bricscad_AgentAI_V2.UI
             this.Font = new Font("Segoe UI", 9.5f);
             this.BackColor = Color.FromArgb(30, 30, 30);
 
-            SplitContainer splitAuto = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterDistance = 250 };
+            SplitContainer splitAuto = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 300 };
             
             // PANEL LEWY (Lista narzędzi)
             Panel panLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
@@ -50,12 +50,13 @@ namespace Bricscad_AgentAI_V2.UI
                 CheckBoxes = true,
                 View = View.Details,
                 FullRowSelect = true,
-                GridLines = true
+                GridLines = true,
+                HeaderStyle = ColumnHeaderStyle.Nonclickable
             };
-            lvAutoTools.Columns.Add("Narzędzie", 140);
-            lvAutoTools.Columns.Add("Statyczne", 70);
-            lvAutoTools.Columns.Add("Interaktywne", 80);
-            lvAutoTools.Columns.Add("Status", 130);
+            lvAutoTools.Columns.Add("Narzędzie", 250);
+            lvAutoTools.Columns.Add("Statyczne", 85);
+            lvAutoTools.Columns.Add("Interaktywne", 100);
+            lvAutoTools.Columns.Add("Status", 180);
             panLeft.Controls.Add(lvAutoTools);
 
             Panel panButtons = new Panel { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(0, 5, 0, 0) };
