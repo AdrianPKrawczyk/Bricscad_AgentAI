@@ -1,4 +1,4 @@
-﻿# BricsCAD Agent AI V2: Profesjonalny PodrÄ™cznik UĹĽytkownika (v2.20.4 GOLD)
+# BricsCAD Agent AI V2: Profesjonalny PodrÄ™cznik UĹĽytkownika (v2.20.4 GOLD)
 
 Witaj w wersji **GOLD** systemu Bielik AI V2. Niniejszy podrÄ™cznik zostaĹ‚ przygotowany dla inĹĽynierĂłw i projektantĂłw BricsCAD, ktĂłrzy chcÄ… w peĹ‚ni wykorzystaÄ‡ potencjaĹ‚ sztucznej inteligencji zintegrowanej bezpoĹ›rednio z silnikiem CAD.
 
@@ -313,3 +313,5 @@ MĂłzg QA ma zakaz samodzielnego przepisywania wraĹĽliwych plikĂłw ĹşrĂ�
 ## Zarządzanie Skryptami LISP
 Bielik V2 potrafi generować, walidować i zapisywać skrypty AutoLISP bezpośrednio do Bazy Wiedzy. Dzięki nowej architekturze Actor-Critic każdy generowany kod posiada wbudowany mechanizm Self-Healing (nadpisana funkcja *error*), który w razie awarii bezpiecznie przywraca środowisko CAD (m.in. OSMODE, CMDECHO) oraz powiadamia agenta o błędzie. Użytkownik ma dostęp do bazy skryptów w specjalnej zakładce 'Skrypty LISP' wewnątrz okna Knowledge Base.
 
+### Autouzupełnianie LISP (%)
+Możesz szybko wywołać skrypt LISP wpisując znak `%` w polu tekstowym Agenta (np. `%test_srodowiska`). Po wpisaniu `%` wyświetli się rozwijana lista podpowiedzi z dostępnymi skryptami, wczytywana dynamicznie z bazy wiedzy. Agent załaduje wybrany skrypt i automatycznie go wykona.
