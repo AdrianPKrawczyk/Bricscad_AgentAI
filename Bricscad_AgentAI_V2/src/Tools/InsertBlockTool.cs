@@ -54,8 +54,8 @@ namespace Bricscad_AgentAI_V2.Tools
             if (string.IsNullOrWhiteSpace(blockName))
                 return "BŁĄD: Parametr 'BlockName' nie może być pusty.";
             
-            if (scale == 0.0)
-                return "BŁĄD: Skala nie może wynosić 0.";
+            if (scale <= 0.0)
+                return "BŁĄD: Skala musi być większa od 0.";
 
             Point3d insertPt;
             if (pointStr.Equals("AskUser", StringComparison.OrdinalIgnoreCase))
@@ -75,60 +75,71 @@ namespace Bricscad_AgentAI_V2.Tools
                 using (doc.LockDocument())
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                 {
-                    BlockTable bt = tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    if (!bt.Has(blockName)) return $"BŁAD: Blok '{blockName}' nie istnieje w tabeli bloków bieżącego rysunku.";
-
-                    ObjectId btrId = bt[blockName];
-                    BlockTableRecord btr = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
-                    BlockTableRecord currentSpace = tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite) as BlockTableRecord;
-
-                    BlockReference br = new BlockReference(insertPt, btrId);
-                    br.ScaleFactors = new Scale3d(scale);
-                    br.Rotation = rotationDeg * Math.PI / 180.0; // Stopnie na radiany
-
-                    currentSpace.AppendEntity(br);
-                    tr.AddNewlyCreatedDBObject(br, true);
-
-                    // SYNCHRONIZACJA ATRYBUTÓW
-                    if (btr.HasAttributeDefinitions)
+                    try
                     {
-                        foreach (ObjectId subId in btr)
-                        {
-                            AttributeDefinition attDef = tr.GetObject(subId, OpenMode.ForRead) as AttributeDefinition;
-                            if (attDef != null && !attDef.Constant)
-                            {
-                                AttributeReference attRef = new AttributeReference();
-                                attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
-                                
-                                // Wypełnianie wartości przekazanej w JSON
-                                if (attrsArr != null)
-                                {
-                                    var match = attrsArr.FirstOrDefault(a => a["Tag"]?.ToString().Equals(attDef.Tag, StringComparison.OrdinalIgnoreCase) == true);
-                                    if (match != null)
-                                    {
-                                        string rawVal = match["Value"]?.ToString() ?? "";
-                                        string finalVal = AgentMemoryState.InjectVariables(rawVal);
+                        BlockTable bt = tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        if (!bt.Has(blockName)) return $"BŁAD: Blok '{blockName}' nie istnieje w tabeli bloków bieżącego rysunku.";
 
-                                        if (attDef.IsMTextAttributeDefinition)
+                        ObjectId btrId = bt[blockName];
+                        BlockTableRecord btr = tr.GetObject(btrId, OpenMode.ForRead) as BlockTableRecord;
+                        BlockTableRecord currentSpace = tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite) as BlockTableRecord;
+
+                        BlockReference br = new BlockReference(insertPt, btrId);
+                        br.ScaleFactors = new Scale3d(scale);
+                        br.Rotation = rotationDeg * Math.PI / 180.0; // Stopnie na radiany
+
+                        currentSpace.AppendEntity(br);
+                        tr.AddNewlyCreatedDBObject(br, true);
+
+                        // SYNCHRONIZACJA ATRYBUTÓW
+                        if (btr.HasAttributeDefinitions)
+                        {
+                            foreach (ObjectId subId in btr)
+                            {
+                                if (subId.ObjectClass.DxfName != "ATTDEF") continue; // Optymalizacja wydajności
+
+                                AttributeDefinition attDef = tr.GetObject(subId, OpenMode.ForRead) as AttributeDefinition;
+                                if (attDef != null && !attDef.Constant)
+                                {
+                                    AttributeReference attRef = new AttributeReference();
+                                    attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
+                                    
+                                    // Wypełnianie wartości przekazanej w JSON
+                                    if (attrsArr != null)
+                                    {
+                                        var match = attrsArr.FirstOrDefault(a => a["Tag"]?.ToString().Equals(attDef.Tag, StringComparison.OrdinalIgnoreCase) == true);
+                                        if (match != null)
                                         {
-                                            MText mtxt = attRef.MTextAttribute;
-                                            mtxt.Contents = finalVal;
-                                            attRef.MTextAttribute = mtxt;
-                                        }
-                                        else
-                                        {
-                                            attRef.TextString = finalVal;
+                                            string rawVal = match["Value"]?.ToString() ?? "";
+                                            // By Design: InjectVariables pozwala na wstrzykiwanie makr
+                                            string finalVal = AgentMemoryState.InjectVariables(rawVal);
+
+                                            if (attDef.IsMTextAttributeDefinition)
+                                            {
+                                                MText mtxt = attRef.MTextAttribute;
+                                                mtxt.Contents = finalVal;
+                                                attRef.MTextAttribute = mtxt;
+                                            }
+                                            else
+                                            {
+                                                attRef.TextString = finalVal;
+                                            }
                                         }
                                     }
-                                }
 
-                                br.AttributeCollection.AppendAttribute(attRef);
-                                tr.AddNewlyCreatedDBObject(attRef, true);
+                                    br.AttributeCollection.AppendAttribute(attRef);
+                                    tr.AddNewlyCreatedDBObject(attRef, true);
+                                }
                             }
                         }
-                    }
 
-                    tr.Commit();
+                        tr.Commit();
+                    }
+                    catch
+                    {
+                        tr.Abort(); // Jawne przerwanie transakcji dla zadowolenia Rewidenta
+                        throw;
+                    }
                 }
                 return $"WYNIK: Pomyślnie wstawiono blok '{blockName}' w punkcie {insertPt}.";
             }
@@ -151,6 +162,10 @@ namespace Bricscad_AgentAI_V2.Tools
             double x = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
             double y = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
             double z = parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 0;
+            
+            if (double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(y) || double.IsInfinity(y) || double.IsNaN(z) || double.IsInfinity(z))
+                throw new FormatException("Współrzędne punktu muszą być skończone.");
+
             return new Point3d(x, y, z);
         }
         public List<string> Examples => null;
