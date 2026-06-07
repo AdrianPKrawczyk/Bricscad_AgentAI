@@ -94,6 +94,8 @@
     <Compile Include="src\Models\LLMConfigModels.cs" />
     <Compile Include="src\Models\AgentExecutionResult.cs" />
     <Compile Include="src\Core\IToolV2.cs" />
+    <Compile Include="src\Models\AutotestRecord.cs" />
+    <Compile Include="src\Core\AutotestRegistry.cs" />
     <Compile Include="src\Core\IExecutionContext.cs" />
     <Compile Include="src\Core\SharedMemoryState.cs" />
     <Compile Include="src\Core\SupervisorOrchestrator.cs" />

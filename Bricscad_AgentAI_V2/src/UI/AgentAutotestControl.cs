@@ -16,7 +16,7 @@ namespace Bricscad_AgentAI_V2.UI
     public class AgentAutotestControl : UserControl
     {
         private LLMClient _client;
-        private CheckedListBox clbAutoTools;
+        private ListView lvAutoTools;
         private Button btnRunAutotest;
         private RichTextBox txtAutoConsole;
         private RadioButton rbStatic;
@@ -42,16 +42,29 @@ namespace Bricscad_AgentAI_V2.UI
             Label lblTools = new Label { Text = "Dostępne narzędzia (IToolV2):", Dock = DockStyle.Top, Height = 25, ForeColor = Color.LightSkyBlue, TextAlign = ContentAlignment.MiddleLeft };
             panLeft.Controls.Add(lblTools);
 
-            clbAutoTools = new CheckedListBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(45, 45, 48), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle, CheckOnClick = true };
-            panLeft.Controls.Add(clbAutoTools);
+            lvAutoTools = new ListView {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(45, 45, 48),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                CheckBoxes = true,
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = true
+            };
+            lvAutoTools.Columns.Add("Narzędzie", 140);
+            lvAutoTools.Columns.Add("Statyczne", 70);
+            lvAutoTools.Columns.Add("Interaktywne", 80);
+            lvAutoTools.Columns.Add("Status", 130);
+            panLeft.Controls.Add(lvAutoTools);
 
             Panel panButtons = new Panel { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(0, 5, 0, 0) };
             
             Button btnSelectAll = new Button { Text = "Zaznacz wszystko", Dock = DockStyle.Top, Height = 25, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(60, 60, 60), Cursor = Cursors.Hand };
-            btnSelectAll.Click += (s, e) => { for (int i = 0; i < clbAutoTools.Items.Count; i++) clbAutoTools.SetItemChecked(i, true); };
+            btnSelectAll.Click += (s, e) => { foreach (ListViewItem item in lvAutoTools.Items) item.Checked = true; };
             
             Button btnDeselectAll = new Button { Text = "Odznacz wszystko", Dock = DockStyle.Top, Height = 25, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(60, 60, 60), Cursor = Cursors.Hand };
-            btnDeselectAll.Click += (s, e) => { for (int i = 0; i < clbAutoTools.Items.Count; i++) clbAutoTools.SetItemChecked(i, false); };
+            btnDeselectAll.Click += (s, e) => { foreach (ListViewItem item in lvAutoTools.Items) item.Checked = false; };
             
             panButtons.Controls.Add(btnDeselectAll);
             panButtons.Controls.Add(btnSelectAll);
@@ -87,11 +100,22 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void LoadAutotestTools()
         {
-            clbAutoTools.Items.Clear();
+            lvAutoTools.Items.Clear();
             var allTools = ToolOrchestrator.Instance.GetToolsPayload(new[] { "#all" });
             foreach (var t in allTools.OrderBy(x => x.Function.Name))
             {
-                clbAutoTools.Items.Add(t.Function.Name);
+                var record = AutotestRegistry.GetRecord(t.Function.Name);
+                ListViewItem item = new ListViewItem(t.Function.Name);
+                item.SubItems.Add(record.StaticTestsCount.ToString());
+                item.SubItems.Add(record.InteractiveTestsCount.ToString());
+                item.SubItems.Add(record.LastStatus);
+                
+                if (record.LastStatus.Contains("Sukces") || record.LastStatus.Contains("Poprawione"))
+                    item.ForeColor = Color.LimeGreen;
+                else if (record.LastStatus.Contains("Failed") || record.LastStatus.Contains("Wymaga"))
+                    item.ForeColor = Color.OrangeRed;
+
+                lvAutoTools.Items.Add(item);
             }
         }
 
@@ -126,7 +150,7 @@ namespace Bricscad_AgentAI_V2.UI
 
         private async void BtnRunAutotest_Click(object sender, EventArgs e)
         {
-            if (clbAutoTools.CheckedItems.Count == 0)
+            if (lvAutoTools.CheckedItems.Count == 0)
             {
                 MessageBox.Show("Zaznacz co najmniej jedno narzędzie do przetestowania.");
                 return;
@@ -135,7 +159,7 @@ namespace Bricscad_AgentAI_V2.UI
             btnRunAutotest.Enabled = false;
             btnRunAutotest.Text = "⏳ TRWA AUTOTEST...";
             txtAutoConsole.Clear();
-            AppendAutoLog($"[SYSTEM] Rozpoczynanie autotestu dla {clbAutoTools.CheckedItems.Count} narzędzi o godzinie {DateTime.Now:HH:mm:ss}...", Color.Cyan);
+            AppendAutoLog($"[SYSTEM] Rozpoczynanie autotestu dla {lvAutoTools.CheckedItems.Count} narzędzi o godzinie {DateTime.Now:HH:mm:ss}...", Color.Cyan);
 
             System.Text.StringBuilder reportBuilder = new System.Text.StringBuilder();
             reportBuilder.AppendLine("# Raport Autotestu Narzędzi V2");
@@ -144,9 +168,9 @@ namespace Bricscad_AgentAI_V2.UI
 
             try
             {
-                foreach (var item in clbAutoTools.CheckedItems)
+                foreach (ListViewItem item in lvAutoTools.CheckedItems)
                 {
-                    string toolName = item.ToString();
+                    string toolName = item.Text;
                     AppendAutoLog($"\n[TEST] ---> Narzędzie: {toolName}", Color.Yellow);
                     
                     AgentMemoryState.Clear();
@@ -194,9 +218,11 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
                     
                     string response = result.DisplayMessage;
                     
-                    if (response.ToLower().Contains("błąd") || response.ToLower().Contains("error") || response.ToLower().Contains("niepowodzenie"))
+                    bool passed = true;
+                    if (response.ToLower().Contains("błąd") || response.ToLower().Contains("error") || response.ToLower().Contains("niepowodzenie") || response.Contains("FAILED"))
                     {
                         AppendAutoLog($"[WYNIK] {toolName}: Znaleziono potencjalne błędy.", Color.OrangeRed);
+                        passed = false;
                     }
                     else
                     {
@@ -204,10 +230,15 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
                     }
                     AppendAutoLog(response, Color.LightGray);
 
+                    AutotestRegistry.UpdateRecord(toolName, rbStatic.Checked, passed);
+
                     reportBuilder.AppendLine($"## Test narzędzia: {toolName}");
                     reportBuilder.AppendLine(response);
                     reportBuilder.AppendLine("---");
                 }
+
+                // Odśwież tabelę po zakończeniu testów
+                LoadAutotestTools();
 
                 AppendAutoLog($"\n[SYSTEM] Zakończono wszystkie testy. Generowanie raportu...", Color.Cyan);
 
