@@ -971,3 +971,15 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 - Brak.
 ### [KOLEJNY_KROK]
 - Rozbudowa kolejnych mechanizmow lub poprawki wydajnosciowe.
+
+## [v2.28.5] 2026-06-08T00:30:00+02:00 - Rozbudowa interfejsu LISP oraz poprawa wywo³ywania skryptów LISP
+### [ZREALIZOWANO]
+- Wdro¿ono autouzupe³nianie UI (klasa AgentControl.cs) obs³uguj¹ce skrypty LISP po wpisaniu znaku '%' poprzez bezpoœrednie wstrzykiwanie LispManager.LoadAllLisps() do opcji podpowiedzi.
+- Zmodyfikowano metodê ExecuteLispFromTemp w AgentControl.cs w celu pe³nego wykonania zdefiniowanego skryptu AutoLISP. Od teraz aplikacja najpierw wczytuje LISP (doc.SendStringToExecute("(load ...) ")), a nastêpnie automatycznie uruchamia sam¹ komendê (doc.SendStringToExecute("lispId ")).
+- Zaktualizowano dokumentacjê USER_GUIDE.md dodaj¹c informacje o nowym podpowiadaniu skryptów w interfejsie.
+### [STAN_SYSTEMU]
+- Autouzupe³nianie LISP dzia³a poprawnie, a polecenia wywo³ywane przez Agenta lub UI poprzez '%skrypt' odpalaj¹ w³aœciwe akcje bezpoœrednio w rysunku.
+### [BLOKADY / PROBLEMY]
+- Brak. System sprawnie radzi sobie z wymogiem zamykania/otwierania BricsCAD w trakcie kompilacji przez MSBuild.
+### [KOLEJNY_KROK]
+- Oczekiwanie na dyspozycje uzytkownika.
