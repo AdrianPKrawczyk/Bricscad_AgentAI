@@ -1104,6 +1104,7 @@ namespace Bricscad_AgentAI_V2.UI
             int lastHashIndex = textSoFar.LastIndexOf('#');
             int lastDollarIndex = textSoFar.LastIndexOf('$');
             int lastSlashIndex = textSoFar.LastIndexOf('/');
+            int lastPercentIndex = textSoFar.LastIndexOf('%');
             
             // Reagujemy na ukośnik tylko na początku linii lub po spacji/nowej linii
             if (lastSlashIndex > 0 && textSoFar[lastSlashIndex - 1] != ' ' && textSoFar[lastSlashIndex - 1] != '\n')
@@ -1111,7 +1112,7 @@ namespace Bricscad_AgentAI_V2.UI
                 lastSlashIndex = -1;
             }
 
-            int activeIndex = Math.Max(lastHashIndex, Math.Max(lastDollarIndex, lastSlashIndex));
+            int activeIndex = Math.Max(lastPercentIndex, Math.Max(lastHashIndex, Math.Max(lastDollarIndex, lastSlashIndex)));
             if (activeIndex == -1)
             {
                 lstAutocomplete.Visible = false;
@@ -1143,6 +1144,11 @@ namespace Bricscad_AgentAI_V2.UI
                 options.Add("/czytaj_notatke - Wyświetla aktualną notatkę rysunkową");
                 options.Add("/new_session - Rozpoczyna nową sesję i czyści pamięć");
                 options.Add("/compress - Kompresuje historię kontekstu (oszczędza tokeny)");
+            }
+            else if (_lastTriggerChar == '%')
+            {
+                options.AddRange(Core.DynamicSystems.LispManager.LoadAllLisps()
+                    .Select(l => "%" + l.LispId + (string.IsNullOrWhiteSpace(l.Description) ? "" : " - " + l.Description)));
             }
 
             var matches = options.Where(o => o.StartsWith(searchString, StringComparison.OrdinalIgnoreCase)).ToList();
