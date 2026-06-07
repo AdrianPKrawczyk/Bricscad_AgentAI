@@ -24,7 +24,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "Action", new ToolParameter { Type = "string", Enum = new List<string> { "save_lisp", "read_lisp", "execute_lisp" }, Description = "Akcja do wykonania." } },
+                            { "Action", new ToolParameter { Type = "string", Enum = new List<string> { "save_lisp", "read_lisp", "execute_lisp", "delete_lisp" }, Description = "Akcja do wykonania." } },
                             { "LispId", new ToolParameter { Type = "string", Description = "Unikalny identyfikator skryptu (np. 'c:prostokat' lub 'moj_test'). Bez spacji, z użyciem podkreśleń." } },
                             { "Category", new ToolParameter { Type = "string", Description = "Kategoria skryptu LISP. Wymagane przy zapisie. Przykłady: 'Geometria', 'Narzędzia', 'Testy'." } },
                             { "Description", new ToolParameter { Type = "string", Description = "Krótki opis co robi skrypt. Wymagane przy zapisie." } },
@@ -40,7 +40,8 @@ namespace Bricscad_AgentAI_V2.Tools
         {
             "{ \"Action\": \"save_lisp\", \"LispId\": \"test_srodowiska\", \"Category\": \"Testy\", \"Description\": \"Testowy skrypt\", \"LispCode\": \"(defun c:test_srodowiska ... )\" }",
             "{ \"Action\": \"read_lisp\", \"LispId\": \"test_srodowiska\" }",
-            "{ \"Action\": \"execute_lisp\", \"LispId\": \"test_srodowiska\" }"
+            "{ \"Action\": \"execute_lisp\", \"LispId\": \"test_srodowiska\" }",
+            "{ \"Action\": \"delete_lisp\", \"LispId\": \"test_srodowiska\" }"
         };
 
         public string Execute(Document doc, JObject args)
@@ -91,9 +92,14 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     return $"[SUKCES] Polecenie uruchomienia skryptu '{lispId}' w BricsCAD zostało przekazane i jest wykonywane.";
                 }
+                else if (action == "delete_lisp")
+                {
+                    LispManager.DeleteLisp(lispId);
+                    return $"[SUKCES] Skrypt LISP '{lispId}' został usunięty z Bazy Wiedzy.";
+                }
                 else
                 {
-                    return $"Błąd: Nieznana akcja '{action}'. Dozwolone to: save_lisp, read_lisp, execute_lisp.";
+                    return $"Błąd: Nieznana akcja '{action}'. Dozwolone to: save_lisp, read_lisp, execute_lisp, delete_lisp.";
                 }
             }
             catch (Exception ex)

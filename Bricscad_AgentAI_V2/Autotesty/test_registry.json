@@ -1,9 +1,16 @@
-﻿[
-    {
-        "ToolName":  "InsertBlock",
-        "StaticTestsCount":  1,
-        "InteractiveTestsCount":  1,
-        "LastStatus":  "Poprawione (Fixed)",
-        "LastTestDate":  "2026-06-07T09:45:40.893008+02:00"
-    }
+[
+  {
+    "ToolName": "InsertBlock",
+    "StaticTestsCount": 1,
+    "InteractiveTestsCount": 1,
+    "LastStatus": "Poprawione (Fixed)",
+    "LastTestDate": "2026-06-07T09:45:40.893008+02:00"
+  },
+  {
+    "ToolName": "manage_lisps",
+    "StaticTestsCount": 4,
+    "InteractiveTestsCount": 0,
+    "LastStatus": "Sukces (Passed)",
+    "LastTestDate": "2026-06-07T23:29:56.1882414+02:00"
+  }
 ]

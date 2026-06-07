@@ -24,6 +24,11 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
 
         public static void SaveLisp(LispMetadata metadata, string lispCode)
         {
+            if (string.IsNullOrWhiteSpace(metadata.LispId)) throw new ArgumentException("LispId cannot be empty");
+            string safeId = new string(metadata.LispId.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == ':').ToArray());
+            if (string.IsNullOrWhiteSpace(safeId)) throw new ArgumentException("LispId contains only invalid characters");
+            metadata.LispId = safeId;
+
             AppPaths.EnsureDirectoriesExist();
             
             string safeCategory = string.IsNullOrWhiteSpace(metadata.Category) ? "Uncategorized" : metadata.Category;
@@ -86,19 +91,27 @@ namespace Bricscad_AgentAI_V2.Core.DynamicSystems
 
         public static void DeleteLisp(string lispId)
         {
+            if (string.IsNullOrWhiteSpace(lispId)) throw new ArgumentException("LispId cannot be empty");
+            string safeId = new string(lispId.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == ':').ToArray());
+            if (safeId.Length < 2) throw new ArgumentException("LispId is too short or invalid for safe deletion");
+
             string basePath = AppPaths.GetLispPath();
-            var jsonFiles = Directory.GetFiles(basePath, $"{lispId}.json", SearchOption.AllDirectories);
-            var lspFiles = Directory.GetFiles(basePath, $"{lispId}.lsp", SearchOption.AllDirectories);
+            var jsonFiles = Directory.GetFiles(basePath, $"{safeId}.json", SearchOption.AllDirectories);
+            var lspFiles = Directory.GetFiles(basePath, $"{safeId}.lsp", SearchOption.AllDirectories);
 
             foreach (var f in jsonFiles) File.Delete(f);
             foreach (var f in lspFiles) File.Delete(f);
-            BielikLogger.LogInfo($"[LispManager] Usunięto skrypt LISP: {lispId}");
+            BielikLogger.LogInfo($"[LispManager] Usunięto skrypt LISP: {safeId}");
         }
 
         public static string GetLispCode(string lispId)
         {
+            if (string.IsNullOrWhiteSpace(lispId)) return null;
+            string safeId = new string(lispId.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == ':').ToArray());
+            if (string.IsNullOrWhiteSpace(safeId)) return null;
+
             string basePath = AppPaths.GetLispPath();
-            var files = Directory.GetFiles(basePath, $"{lispId}.lsp", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(basePath, $"{safeId}.lsp", SearchOption.AllDirectories);
             
             if (files.Length == 0)
             {
