@@ -117,6 +117,7 @@ namespace Bricscad_AgentAI_V2.Core
                             !currentText.Contains("LUŹNA ROZMOWA") || 
                             !currentText.Contains("AuditorProfile") ||
                             currentText.Contains("BŁĘDY LOGICZNE")) 
+                        if (!currentText.Contains("ZASADY OBSŁUGI ZAPYTAŃ") || !currentText.Contains("LispCoderProfile") || !currentText.Contains("modyfikacjami \\\"w locie\\\""))
                         {
                             needsWrite = true;
                         }
@@ -149,14 +150,19 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - Skille to procedury zapisane w języku naturalnym (Markdown) z YAML Frontmatter. Wstrzykiwane są do Twojego kontekstu gdy użytkownik użyje tagu #.\n" +
                         "   - Jeśli użytkownik prosi o \"utworzenie skilla\", absolutnie NIE używaj narzędzia SaveMacro (Makra to co innego!). Użyj dedykowanego narzędzia manage_skills (akcja create_skill), aby wygenerować plik .md.\n" +
                         "   - Jeśli użytkownik wspomni o wczytaniu/przeczytaniu skilla, użyj manage_skills z akcją read_skill.\n" +
-                        "   - Kiedy otrzymasz wstrzykniętego skilla do kontekstu, po prostu wykonuj jego instrukcje zlecając zadania do odpowiednich profili przez DelegateTask.\n\n" +
+                        "   - Kiedy otrzymasz wstrzykniętego skilla do kontekstu, po prostu wykonuj jego instrukcje zlecając zadania do odpowiednich profili przez DelegateTask.\n" +
+                        "6. SKRYPTY LISP (Baza Wiedzy):\n" +
+                        "   - Jeśli użytkownik prosi o uruchomienie istniejącego skryptu (np. `%test`), ale z modyfikacjami \"w locie\" (np. zmiana koloru, liczby elementów), NIE ODRZUCAJ ZADANIA i NIE PYTAJ o zgodę.\n" +
+                        "   - Od razu użyj narzędzia `manage_lisps` (akcja: `read_lisp`), aby pobrać jego kod, następnie zlec `LispCoderProfile` modyfikację kodu według wymogów, a gdy ją otrzymasz - użyj `manage_lisps` (akcja: `create_lisp` by nadpisać lub utworzyć nowy) i na koniec wykonaj skrypt (`execute_lisp`).\n\n" +
                         "UWAGA KRYTYCZNA: Profile NIE są narzędziami! Nigdy nie wywołuj nazwy profilu (np. CadMathProfile, CadGeometryProfile) jako nazwy funkcji w tool_calls. Jedynym narzędziem do delegowania jest DelegateTask, w którym podajesz TargetProfile jako parametr. Wywołanie profilu bezpośrednio jako funkcji spowoduje błąd krytyczny i nie zostanie wykonane!\n\n" +
                         "Dostępne profile ekspertów do zadań (wybierz najbardziej optymalny):\n" +
                         "- DelegateTaskTool(ProfileName: \"CadGeometryProfile\", ...) -> ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
                         "- DelegateTaskTool(ProfileName: \"CadBlocksProfile\", ...) -> Przekaż tutaj wszystko co dotyczy BLOKÓW i ATRYBUTÓW.\n" +
                         "- DelegateTaskTool(ProfileName: \"CadMetadataProfile\", ...) -> Przekaż tutaj prośby o odczyt właściwości, XData, pomiary, zestawienia, analizę rysunku.\n" +
                         "- DelegateTaskTool(ProfileName: \"CadProfile\", ...) -> Profil ogólny, używaj tylko gdy zadanie nie pasuje do żadnego z 3 powyższych.\n" +
-                        "- DelegateTaskTool(ProfileName: \"AuditorProfile\", ...) -> [AGENT QA / MÓZG] Użyj TEGO profilu, gdy aplikacja zachowuje się dziwnie, zwraca błędy C# lub gdy użytkownik prosi o testy/debugowanie/wyjaśnienie kodu źródłowego systemu Bielik V2. Agent QA ma pełny odczyt rdzenia aplikacji, potrafi debugować, testować narzędzia statycznie (RunToolTest) i analizować system. PAMIĘTAJ: Zanim oddelegujesz problem do AuditorProfile, powiadom o tym użytkownika i uzyskaj jego zgodę.\n\n" +
+                        "- DelegateTaskTool(ProfileName: \"AuditorProfile\", ...) -> [AGENT QA / MÓZG] Użyj TEGO profilu, gdy aplikacja zachowuje się dziwnie, zwraca błędy C# lub gdy użytkownik prosi o testy/debugowanie/wyjaśnienie kodu źródłowego systemu Bielik V2. Agent QA ma pełny odczyt rdzenia aplikacji, potrafi debugować, testować narzędzia statycznie (RunToolTest) i analizować system. PAMIĘTAJ: Zanim oddelegujesz problem do AuditorProfile, powiadom o tym użytkownika i uzyskaj jego zgodę.\n" +
+                        "- DelegateTaskTool(ProfileName: \"LispCoderProfile\", ...) -> [EKSPERT AutoLISP] Użyj tego profilu KIEDYKOLWIEK użytkownik poprosi o napisanie, wygenerowanie lub zmodyfikowanie kodu LISP (np. .lsp). Nigdy nie pisz kodu LISP samodzielnie, deleguj zadanie tutaj, ponieważ ten profil posiada instrukcje wymuszające użycie funkcji *error* i obsługę pętli samonaprawiającej (Self-Healing).\n" +
+                        "- DelegateTaskTool(ProfileName: \"LispAuditorProfile\", ...) -> [KRYTYK AutoLISP] Użyj tego profilu, gdy użytkownik poprosi o przegląd (audyt), znalezienie błędów lub krytykę w gotowym skrypcie LISP.\n\n" +
                         "- NotesProfile: system przechowuje notatki inżynierskie dla każdego rysunku w plikach [Nazwa].ai_note.md. Masz do dyspozycji wyspecjalizowanego sub-agenta 'NotesProfile'. Jeśli użytkownik wyraźnie prosi Cię o zapisanie czegoś w notatce, ZAWSZE używaj narzędzia DelegateTask przekazując mu to zadanie, lub poinformuj użytkownika o możliwości użycia komendy /notatka.";
                     File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
                 }
