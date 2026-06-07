@@ -139,3 +139,13 @@ Od wersji **v2.16.0** kaÅ¼de narzÄ™dzie moÅ¼e byÄ‡ czÄ™Å›ciÄ… zapisanego "Przepi
 - **Trigger $**: UmoÅ¼liwia wywoÅ‚anie sekwencji narzÄ™dzi jednym poleceniem.
 - **Few-Shot Prompting**: Receptury sÄ… wstrzykiwane jako przykÅ‚ady `tool_calls`, co pomaga Agentowi zrozumieÄ‡ poprawne parametry i kolejnoÅ›Ä‡ wywoÅ‚aÅ„ w specyficznym kontekÅ›cie inÅ¼ynierskim.
 - **Kategoryzacja**: Wybranie przepisu moÅ¼e automatycznie zaÅ‚adowaÄ‡ powiÄ…zane kategorie narzÄ™dzi (#bloki, #wymiary itp.), zapewniajÄ…c, Å¼e Agent ma dostÄ™p do wymaganego "zestawu instrumentÃ³w".
+
+## SearchFileContentTool
+**Typ:** Systemowe (Core)
+**Uprawnienia:** AuditorProfile (do kodu), SupervisorProfile (do notatek i rysunków).
+**Opis:** Narzêdzie dzia³aj¹ce jak linuksowy grep. Szybko skanuje foldery w poszukiwaniu wyst¹pieñ tekstu w plikach bez ³adowania ca³ych plików do kontekstu LLM. Posiada zabezpieczenia limituj¹ce maksymaln¹ iloœæ wyników (zapobiega przepe³nieniu tokenów) oraz ograniczenia na wychodzenie poza folder roboczy (Directory Traversal).
+**Parametry:**
+* DirectoryType *(wymagane)*: Okreœla punkt startowy wyszukiwania. Dozwolone: SourceCode (kod C# wtyczki) lub DrawingFolder (folder bie¿¹cego dokumentu DWG).
+* SearchQuery *(wymagane)*: Poszukiwana fraza tekstowa (wielkoœæ liter jest ignorowana).
+* RelativePath *(opcjonalne)*: Œcie¿ka podfolderu, w którym zawê¿one zostanie wyszukiwanie.
+* FileExtension *(opcjonalne)*: Filtr rozszerzenia, np. *.cs, *.md, *.txt.

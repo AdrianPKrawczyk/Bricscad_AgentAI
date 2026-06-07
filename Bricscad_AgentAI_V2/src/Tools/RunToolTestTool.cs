@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using Bricscad_AgentAI_V2.Models;
+using Bricscad.ApplicationServices;
 
 namespace Bricscad_AgentAI_V2.Core
 {
@@ -30,8 +31,11 @@ namespace Bricscad_AgentAI_V2.Core
             };
         }
 
-        public string Execute(JObject arguments, IExecutionContext context)
+        public List<string> Examples => new List<string> { "{ \"TargetToolName\": \"SomeToolName\", \"ArgumentsJson\": \"{\\\"__DryRun\\\": true}\" }" };
+
+        public string Execute(Document doc, JObject arguments)
         {
+            IExecutionContext context = new CadExecutionContext(doc);
             string targetToolName = arguments["TargetToolName"]?.ToString();
             string argumentsJsonString = arguments["ArgumentsJson"]?.ToString();
 

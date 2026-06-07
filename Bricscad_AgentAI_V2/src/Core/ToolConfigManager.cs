@@ -143,6 +143,7 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n" +
                         "4. WIEDZA O SYSTEMIE / POMOC:\n" +
                         "   - Jeśli użytkownik pyta Cię jak użyć jakiegoś narzędzia, co oznacza komenda, w jaki sposób napisać receptę, lub ogólnie jak działa wtyczka, użyj narzędzia ReadHelp, aby przeczytać zintegrowane pliki dokumentacji.\n" +
+                        "   - Jeśli musisz odszukać wzmiankę tekstową (np. o konkretnym detalu) w notatkach projektu, użyj narzędzia SearchFileContent (ustawiając DirectoryType='DrawingFolder').\n" +
                         "   - Po pobraniu treści z pomocy, połącz tę wiedzę ze znajomością Twojego promptu systemowego oraz listą ekspertów/narzędzi, po czym odpowiedz użytkownikowi rzeczowo i precyzyjnie.\n" +
                         "5. SKILLE INŻYNIERSKIE (Pliki Markdown, tagi ze znakiem #):\n" +
                         "   - Skille to procedury zapisane w języku naturalnym (Markdown) z YAML Frontmatter. Wstrzykiwane są do Twojego kontekstu gdy użytkownik użyje tagu #.\n" +
@@ -286,7 +287,7 @@ namespace Bricscad_AgentAI_V2.Core
                         "   - użyj `WriteQAReport`, aby napisać notatkę z testów dla Supervisora.\n" +
                         "   - użyj `DelegateTaskToAntigravity`, aby wygenerować zlecenie wgrania poprawki w kodzie źródłowym. Antigravity AI (Zewnętrzny Agent Kodowania) zobaczy ten plik i naprawi program!\n" +
                         "6. READ-ONLY: Masz całkowity zakaz bezpośredniej modyfikacji plików kodu C# za pomocą `WriteProjectFile` (chyba że użytkownik na to zezwoli). Zawsze używaj zlecenia do Antigravity.\n" +
-                        "7. ANALIZA RDZENIA (CORE): Masz pełny dostęp (Read-Only) do całego kodu źródłowego systemu Bielik V2. Używaj narzędzi `ListSourceFiles` oraz `ReadSourceCode` aby eksplorować architekturę systemu, pętlę agentową, komunikację z BricsCAD oraz inne pliki C# z katalogu `src/Core/`, `src/UI/` itd.\n" +
+                        "7. ANALIZA RDZENIA (CORE): Masz pełny dostęp (Read-Only) do całego kodu źródłowego systemu Bielik V2. Używaj narzędzi `ListSourceFiles` oraz `ReadSourceCode` aby eksplorować architekturę systemu, pętlę agentową, komunikację z BricsCAD oraz inne pliki C# z katalogu `src/Core/`, `src/UI/` itd. Możesz też przeszukać zawartość wszystkich plików w poszukiwaniu frazy (np. nazwy metody) za pomocą narzędzia `SearchFileContent` (DirectoryType='SourceCode').\n" +
                         "8. Po zakończeniu audytu zrób czytelne podsumowanie dla Supervisora (lub użytkownika).";
                     File.WriteAllText(path, prompt, System.Text.Encoding.UTF8);
                 }
@@ -323,7 +324,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["SupervisorProfile"] = supervisorProf;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -454,7 +455,7 @@ namespace Bricscad_AgentAI_V2.Core
                 _config.Profiles["AuditorProfile"] = auditorProf;
                 changed = true;
             }
-            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity" };
+            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent" };
             if (auditorProf.AllowedTools == null)
             {
                 auditorProf.AllowedTools = new List<string>();
@@ -495,7 +496,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_supervisor.txt",
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "SearchFileContent" },
                 AllowedTags = new List<string>()
             };
             
@@ -552,7 +553,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["AuditorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = "system_prompt_auditor.txt",
-                AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity" },
+                AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent" },
                 AllowedTags = new List<string>()
             };
 

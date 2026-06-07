@@ -958,3 +958,16 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 - Wymagana kompilacja projektu poprzez natywne narzêdzia MSBuild / Visual Studio z powodu ograniczeñ œrodowiska CLI wzglêdem biblioteki Newtonsoft.Json.
 ### [KOLEJNY_KROK]
 - Testowanie w œrodowisku produkcyjnym i ewentualne tworzenie zautomatyzowanych ci¹gów testów dla Mózgu.
+
+## [v2.28.4] 2026-06-07T12:54:00+02:00 - Implementacja SearchFileContentTool (Grep)
+### [ZREALIZOWANO]
+- Utworzono uniwersalne narzedzie SearchFileContentTool sluzace do szybkiego przeszukiwania tekstu wewnatrz wielu plikow. Posiada zabezpieczenia limitujace wyniki oraz ograniczajace dozwolone foldery (anti-directory traversal).
+- Wdrozono dwutorowy tryb dzialania (DirectoryType): SourceCode (dla profilu Auditor do analizy warstwy C#) oraz DrawingFolder (dla profilu Supervisor do przeszukiwania notatek inzynierskich powiazanych z rysunkiem DWG).
+- Zaktualizowano ToolConfigManager.cs, dystrybuujac uprawnienia do nowego narzedzia dla Supervisora oraz Mozgu QA.
+- Pomyslnie zrekompilowano architekture i przeprowadzono testy E2E udowadniajace zdolnosc LLM do weryfikacji faktow z plikow uzytkownika oraz zrozumienia struktury wlasnego kodu.
+### [STAN_SYSTEMU]
+- System potrafi wykonywac blyskawiczne analizy tekstowe (odpowiednik polecenia grep), co redukuje obciazenie tokenowe wzgledem tradycyjnego ladowania plikow w calosci.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Rozbudowa kolejnych mechanizmow lub poprawki wydajnosciowe.
