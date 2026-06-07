@@ -24,13 +24,13 @@ namespace Bricscad_AgentAI_V2.Tools
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "Action", new ToolParameter { Type = "string", Enum = new List<string> { "save_lisp", "read_lisp", "execute_lisp", "delete_lisp" }, Description = "Akcja do wykonania." } },
-                            { "LispId", new ToolParameter { Type = "string", Description = "Unikalny identyfikator skryptu (np. 'c:prostokat' lub 'moj_test'). Bez spacji, z użyciem podkreśleń." } },
+                            { "Action", new ToolParameter { Type = "string", Enum = new List<string> { "save_lisp", "read_lisp", "execute_lisp", "delete_lisp", "list_lisps" }, Description = "Akcja do wykonania." } },
+                            { "LispId", new ToolParameter { Type = "string", Description = "Unikalny identyfikator skryptu (np. 'c:prostokat' lub 'moj_test'). Bez spacji, z użyciem podkreśleń. Opcjonalne tylko dla list_lisps." } },
                             { "Category", new ToolParameter { Type = "string", Description = "Kategoria skryptu LISP. Wymagane przy zapisie. Przykłady: 'Geometria', 'Narzędzia', 'Testy'." } },
                             { "Description", new ToolParameter { Type = "string", Description = "Krótki opis co robi skrypt. Wymagane przy zapisie." } },
                             { "LispCode", new ToolParameter { Type = "string", Description = "Kod źródłowy LISP. Wymagane przy zapisie." } }
                         },
-                        Required = new List<string> { "Action", "LispId" }
+                        Required = new List<string> { "Action" }
                     }
                 }
             };
@@ -38,6 +38,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
         public List<string> Examples => new List<string>
         {
+            "{ \"Action\": \"list_lisps\" }",
             "{ \"Action\": \"save_lisp\", \"LispId\": \"test_srodowiska\", \"Category\": \"Testy\", \"Description\": \"Testowy skrypt\", \"LispCode\": \"(defun c:test_srodowiska ... )\" }",
             "{ \"Action\": \"read_lisp\", \"LispId\": \"test_srodowiska\" }",
             "{ \"Action\": \"execute_lisp\", \"LispId\": \"test_srodowiska\" }",
@@ -49,10 +50,24 @@ namespace Bricscad_AgentAI_V2.Tools
             if (args["Action"] == null)
                 return "Błąd: Brak parametru Action.";
             
+            string action = args["Action"].ToString();
+
+            if (action == "list_lisps")
+            {
+                var lisps = LispManager.LoadAllLisps();
+                if (lisps == null) return "Brak zapisanych skryptów LISP.";
+                var list = new List<string>();
+                foreach (var l in lisps)
+                {
+                    list.Add($"- [{l.Category}] {l.LispId}: {l.Description}");
+                }
+                if (list.Count == 0) return "Baza skryptów LISP jest pusta.";
+                return "Dostępne skrypty LISP:\n" + string.Join("\n", list);
+            }
+
             if (args["LispId"] == null)
                 return "Błąd: Brak parametru LispId.";
 
-            string action = args["Action"].ToString();
             string lispId = args["LispId"].ToString();
 
             try
@@ -99,7 +114,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else
                 {
-                    return $"Błąd: Nieznana akcja '{action}'. Dozwolone to: save_lisp, read_lisp, execute_lisp, delete_lisp.";
+                    return $"Błąd: Nieznana akcja '{action}'. Dozwolone to: save_lisp, read_lisp, execute_lisp, delete_lisp, list_lisps.";
                 }
             }
             catch (Exception ex)
