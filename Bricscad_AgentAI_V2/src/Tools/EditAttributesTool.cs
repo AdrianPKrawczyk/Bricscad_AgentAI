@@ -23,7 +23,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "EditAttributes",
-                    Description = "Modyfikuje lub odczytuje wartości atrybutów w konkretnych wystąpieniach bloków znajdujących się w zaznaczeniu.",
+                    Description = "Narzędzie do odczytu i edycji atrybutów w blokach CAD. ZASADA KRYTYCZNA: Jeśli musisz zmienić wartość atrybutu X tylko dla bloków, w których atrybut Y ma konkretną wartość (np. VAL = T1), ABSOLUTNIE NIE UŻYWAJ instrukcji warunkowych w RPN (zakaz używania IFTE). Zamiast tego, wykonaj osobne wywołania Action: Update, używając parametrów 'FilterTag' (np. VAL) oraz 'FilterValue' (np. T1). Zmienna $OLD_VALUE w RPN zwraca ZAWSZE wartość edytowanego atrybutu, a nie atrybutu z filtra!",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -41,7 +41,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Attributes", new ToolParameter
                                 {
                                     Type = "array",
-                                    Description = "Lista atrybutów. Dla Update: [{\"Tag\": \"NUMER\", \"Value\": \"101\"}]. Dla Read opcjonalnie lista tagów do pobrania."
+                                    Description = "Lista atrybutów do zmiany. Wspiera stałe teksty oraz operacje matematyczne przy użyciu zmiennej $OLD_VALUE i notacji RPN, np: [{\"Tag\": \"DN_VAL\", \"Value\": \"RPN: $OLD_VALUE 1 +\"}]. PAMIĘTAJ: Jako 'Tag' podawaj zawsze czystą nazwę etykiety, bezwzględnie usuwając z niej wszelkie metadane w nawiasach kwadratowych z odczytu (np. pomiń [Ukryty] lub [Wieloliniowy])."
                                 }
                             },
                             {
@@ -140,16 +140,60 @@ namespace Bricscad_AgentAI_V2.Tools
                                 if (shouldRead)
                                 {
                                     string val = attRef.IsMTextAttribute ? attRef.MTextAttribute.Text : attRef.TextString;
-                                    if (!string.IsNullOrEmpty(val)) readValues.Add(val);
+
+                                    // Budowanie pigułki informacyjnej dla LLM
+                                    string meta = "";
+                                    if (attRef.Invisible) meta += " [Ukryty]";
+                                    if (attRef.IsMTextAttribute) meta += " [Wieloliniowy]";
+                                    // Jeśli wyciągniesz Prompt z definicji bloku, można go tu dodać: meta += $" [Opis: {prompt}]"
+
+                                    if (!string.IsNullOrEmpty(val))
+                                    {
+                                        readValues.Add($"{currentTag}{meta}: {val}");
+                                    }
                                 }
                             }
                             else if (action == "Update" && attrList != null)
                             {
-                                var match = attrList.FirstOrDefault(a => a["Tag"]?.ToString().Equals(currentTag, StringComparison.OrdinalIgnoreCase) == true);
+                                // Szukamy dopasowania, ale najpierw oczyszczamy to, co przysłał Agent (jeśli dodał nawiasy)
+                                var match = attrList.FirstOrDefault(a => {
+                                    string agentTag = a["Tag"]?.ToString() ?? "";
+                                    if (agentTag.Contains("[")) agentTag = agentTag.Substring(0, agentTag.IndexOf('[')).Trim();
+                                    return agentTag.Equals(currentTag, StringComparison.OrdinalIgnoreCase);
+                                });
+
                                 if (match != null)
                                 {
                                     string rawVal = match["Value"]?.ToString() ?? "";
+
+                                    // 1. Pobierz obecną wartość atrybutu
+                                    string oldVal = attRef.IsMTextAttribute ? attRef.MTextAttribute.Text : attRef.TextString;
+
+                                    // 2. Jeśli Agent próbuje operacji na starej wartości (np. przesyła RPN: "$OLD_VALUE 1 +")
+                                    if (rawVal.Contains("$OLD_VALUE"))
+                                    {
+                                        // Ujednolicamy przecinki na kropki, żeby RPN i systemy liczące się nie gubiły
+                                        oldVal = oldVal.Replace(",", ".");
+                                        rawVal = rawVal.Replace("$OLD_VALUE", oldVal);
+                                    }
+
+                                    // 3. Wstrzykiwanie ewentualnych zmiennych z pamięci Agenta
                                     string finalVal = AgentMemoryState.InjectVariables(rawVal);
+
+                                    // 4. Integracja z silnikiem matematycznym RPN (jeśli wykryto notację RPN)
+                                    if (finalVal.StartsWith("RPN:"))
+                                    {
+                                        string rpnExpression = finalVal.Replace("RPN:", "").Trim();
+                                        try
+                                        {
+                                            // Wykorzystanie silnika RpnCalculator z Core (zwraca obliczony wynik jako string)
+                                            finalVal = Bricscad_AgentAI_V2.Core.RpnCalculator.Evaluate(rpnExpression);
+                                        }
+                                        catch
+                                        {
+                                            // W razie błędu obliczeń zostawiamy surowy tekst
+                                        }
+                                    }
 
                                     if (attRef.IsMTextAttribute)
                                     {

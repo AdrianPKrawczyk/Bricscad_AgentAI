@@ -151,6 +151,20 @@ namespace Bricscad_AgentAI_V2.Core
                 return "BŁĄD KRYTYCZNY (ZABEZPIECZENIE ARCHITEKTONICZNE): Tylko główny profil 'SupervisorProfile' ma uprawnienia do delegowania zadań. Nie możesz używać tego narzędzia.";
             }
 
+            // ---- NOWY KOD BŁOKADY ZAZNACZENIA ----
+            if (toolName.Equals("SelectEntities", StringComparison.OrdinalIgnoreCase) && AgentMemoryState.IsSelectionScopeLocked)
+            {
+                // Domyślnie Scope to "Model", chyba że przekazano "Blocks" do filtrowania zagnieżdżonego
+                string scope = arguments?["Scope"]?.ToString() ?? "Model";
+
+                if (scope.Equals("Model", StringComparison.OrdinalIgnoreCase))
+                {
+                    BielikLogger.LogWarn($"[TOOL WARN] Subagent próbuje nadpisać zaznaczenie, gdy SelectionScopeLock = true.");
+                    return "BŁĄD KRYTYCZNY: Modyfikacja zaznaczenia jest zablokowana przez Głównego Supervisora! Nie używaj narzędzia 'SelectEntities' do szukania w całym modelu. Używaj narzędzi operujących bezpośrednio na istniejącym zaznaczeniu (np. EditAttributes z Target='Selection').";
+                }
+            }
+            // --------------------------------------
+
             if (!_tools.TryGetValue(toolName, out var tool))
             {
                 BielikLogger.LogWarn($"[TOOL WARN] Próba wywołania uśpionego narzędzia: {toolName}");
