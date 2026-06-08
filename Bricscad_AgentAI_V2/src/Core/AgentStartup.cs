@@ -38,6 +38,25 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 try { BielikLogger.LogError("Błąd podczas rejestrowania obsługi wyjątków startupu", ex); } catch { }
             }
+
+            if (UISettingsManager.Settings.BricsCADStartupBehavior == 0)
+            {
+                Application.Idle += OnIdleShowPanel;
+            }
+        }
+
+        private void OnIdleShowPanel(object sender, EventArgs e)
+        {
+            Application.Idle -= OnIdleShowPanel;
+            try
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc != null)
+                {
+                    doc.SendStringToExecute("AI\n", true, false, false);
+                }
+            }
+            catch { }
         }
 
         public void Terminate() 

@@ -37,6 +37,7 @@ namespace Bricscad_AgentAI_V2.UI
         private System.Drawing.Image _attachedClipboardImage = null;
         private Label lblStats;
         private Label lblStatus;
+        private Label lblSessionInfo;
         private ListBox lstAutocomplete;
         private char _lastTriggerChar = '\0';
 
@@ -135,6 +136,12 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Inicjalizacja wiadomosci powitalnych
             AppendToHistory("SYSTEM", "Bielik V2 GOLD gotowy. Zasilony przez OpenAI Tool Calling Standard.\n\n" + _orchestrator.GetRegisteredToolsInfo(), isDarkMode ? Color.Orange : Color.DarkOrange);
+            
+            // Zachowanie przy starcie
+            if (UISettingsManager.Settings.AIStartupBehavior == 2)
+            {
+                tabControl.SelectedTab = tabSessions;
+            }
         }        private void InitializeEngineV2()
         {
             _orchestrator = ToolOrchestrator.Instance;
@@ -351,7 +358,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             Button btnSettings = new Button
             {
-                Text = "Ă˘Łˇâ„˘ĘŹÂ¸Łą",
+                Text = "🧠",
                 Dock = DockStyle.Right,
                 Width = 40,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -367,7 +374,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnAttachFile = new Button
             {
-                Text = "📎",
+                Text = "➕",
                 Dock = DockStyle.Left,
                 Width = 40,
                 BackColor = Color.FromArgb(60, 60, 60),
@@ -399,7 +406,7 @@ namespace Bricscad_AgentAI_V2.UI
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnSend);
 
-            Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 2, 5, 2) };
+            Panel panStats = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 2, 5, 2) };
             
             lblStatus = new Label
             {
@@ -409,6 +416,16 @@ namespace Bricscad_AgentAI_V2.UI
                 Font = new Font("Segoe UI", 8, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Text = $"[Model: {_activeModel}] Gotowy."
+            };
+
+            lblSessionInfo = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 20,
+                ForeColor = Color.Yellow,
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Text = "Sesja: Brak"
             };
 
             lblStats = new Label
@@ -422,6 +439,7 @@ namespace Bricscad_AgentAI_V2.UI
             };
 
             panStats.Controls.Add(lblStats);
+            panStats.Controls.Add(lblSessionInfo);
             panStats.Controls.Add(lblStatus);
 
 
@@ -429,6 +447,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabChat.Controls.Add(panContextBar);
             tabChat.Controls.Add(txtHistory);
             tabChat.Controls.Add(panInput);
+            txtHistory.BringToFront();
 
             // ==========================================
             // ZAKĘą ADKA 2: LOGI NARZĂ„ËśDZI (JSON)
@@ -886,7 +905,7 @@ namespace Bricscad_AgentAI_V2.UI
             panPathSetup.Controls.Add(txtCurrentPath);
             panPathSetup.Controls.Add(btnChangePath);
 
-            Label lblPathInfo = new Label { Text = "DomyĘąâ€şlnie agent zapisuje wyuczone formuĘąâ€šy i makra w folderze systemowym AppData. MoĘąĘ˝esz zmieniĂ„â€ˇ ten folder na np. swĘ‚Ł‚j dysk w chmurze (OneDrive/Dropbox), aby synchronizowaĂ„â€ˇ bazĂ„â„˘ wiedzy miĂ„â„˘dzy komputerami.", Dock = DockStyle.Top, Height = 60, Padding = new Padding(10), ForeColor = Color.DarkGray };
+            Label lblPathInfo = new Label { Text = "Domyślnie agent zapisuje wyuczone formuły i makra w folderze systemowym AppData. Możesz zmienić ten folder na np. swój dysk w chmurze (OneDrive/Dropbox), aby synchronizować bazę wiedzy między komputerami.", Dock = DockStyle.Top, Height = 80, Padding = new Padding(10), ForeColor = Color.DarkGray };
 
             tabPathsSub.Controls.Add(panPathSetup);
             tabPathsSub.Controls.Add(lblPathInfo);
@@ -950,6 +969,36 @@ namespace Bricscad_AgentAI_V2.UI
             };
 
             tabSettingsSub.TabPages.Add(tabPathsSub);
+
+            TabPage tabWorkflowSub = new TabPage("Workflow");
+            tabWorkflowSub.Padding = new Padding(20);
+
+            Label lblAIStartup = new Label { Text = "Zachowanie przy starcie systemu AI:", Location = new Point(20, 20), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            ComboBox cmbAIStartup = new ComboBox { Location = new Point(20, 45), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbAIStartup.Items.AddRange(new string[] { "Ładuj poprzednią sesję", "Twórz nową sesję", "Wybór manualny" });
+            cmbAIStartup.SelectedIndex = UISettingsManager.Settings.AIStartupBehavior;
+            cmbAIStartup.SelectedIndexChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.AIStartupBehavior = cmbAIStartup.SelectedIndex;
+                UISettingsManager.Save();
+            };
+
+            Label lblBricsCADStartup = new Label { Text = "Zachowanie przy starcie BricsCAD:", Location = new Point(20, 85), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            ComboBox cmbBricsCADStartup = new ComboBox { Location = new Point(20, 110), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbBricsCADStartup.Items.AddRange(new string[] { "Automatycznie uruchom agenta AI", "Uruchomienie manualne (komenda \"AI\")" });
+            cmbBricsCADStartup.SelectedIndex = UISettingsManager.Settings.BricsCADStartupBehavior;
+            cmbBricsCADStartup.SelectedIndexChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.BricsCADStartupBehavior = cmbBricsCADStartup.SelectedIndex;
+                UISettingsManager.Save();
+            };
+
+            tabWorkflowSub.Controls.Add(lblAIStartup);
+            tabWorkflowSub.Controls.Add(cmbAIStartup);
+            tabWorkflowSub.Controls.Add(lblBricsCADStartup);
+            tabWorkflowSub.Controls.Add(cmbBricsCADStartup);
+
+            tabSettingsSub.TabPages.Add(tabWorkflowSub);
 
             tabSettings.Controls.Add(tabSettingsSub);
             tabControl.TabPages.Add(tabSettings);
@@ -1894,6 +1943,7 @@ Ostatnia rozmowa:
                 _supervisor?.ClearHistory();
                 RefreshSessionsGrid();
                 ReloadChatHistoryFromSession();
+                tabControl.SelectedTab = tabChat;
             }
         }
 
@@ -1927,6 +1977,7 @@ Ostatnia rozmowa:
         {
             txtHistory.Clear();
             var session = SessionManager.CurrentSession;
+            if (lblSessionInfo != null) lblSessionInfo.Text = $"Sesja: {session?.Description ?? session?.Id ?? "Brak"}";
             foreach (var msg in session.Messages)
             {
                 if (msg.Role == "user") AppendToHistory("TY", msg.Content.ToString(), Color.LightSkyBlue);

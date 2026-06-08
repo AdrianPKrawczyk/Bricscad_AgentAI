@@ -71,7 +71,7 @@ namespace Bricscad_AgentAI_V2.Core
             if (session == null) session = CurrentSession;
             if (session == null) return;
             
-            if (session.Messages.Count == 0 && session.Description == "Nowa sesja") return;
+            if (session.Messages.Count <= 1 && session.Description == "Nowa sesja") return;
             
             session.UpdatedAt = DateTime.Now;
 

@@ -75,7 +75,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             this.Dock = DockStyle.Fill;
             this.VisibleChanged += KnowledgeBaseControl_VisibleChanged;
 
-            pnlTopFilters = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(5) };
+            pnlTopFilters = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5) };
             Label lblTagFilter = new Label { Text = "Filtruj wg tagów (po przecinku):", AutoSize = true, Location = new Point(10, 12), ForeColor = Color.LightGray };
             txtTagFilter = new TextBox { Location = new Point(190, 9), Width = 300, Font = new Font("Segoe UI", 9.5f) };
             txtTagFilter.TextChanged += TxtTagFilter_TextChanged;
@@ -291,7 +291,7 @@ namespace Bricscad_AgentAI_V2.UI.KnowledgeBase
             mainTabControl.TabPages.Add(tabPageLisps);
 
             this.Controls.Add(mainTabControl);
-            pnlTopFilters.BringToFront();
+            mainTabControl.BringToFront();
         }
 
         private void ApplyTheme()

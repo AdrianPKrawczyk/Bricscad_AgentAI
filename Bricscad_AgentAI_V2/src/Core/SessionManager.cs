@@ -20,7 +20,28 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 Directory.CreateDirectory(SessionsDirectory);
             }
-            CreateNewSession(); // Tworzy nową sesję na start
+            int mode = UISettingsManager.Settings.AIStartupBehavior;
+            if (mode == 0) // Ładuj poprzednią
+            {
+                var sessions = GetAllSessions();
+                if (sessions.Count > 0)
+                {
+                    LoadSession(sessions.First().Id);
+                }
+                else
+                {
+                    CreateNewSession();
+                }
+            }
+            else if (mode == 1) // Twórz nową
+            {
+                CreateNewSession();
+            }
+            else // Wybór manualny (nie zapisujemy jej od razu)
+            {
+                CurrentSession = new ChatSession();
+                SharedMemoryState.Clear();
+            }
         }
 
         public static void CreateNewSession()

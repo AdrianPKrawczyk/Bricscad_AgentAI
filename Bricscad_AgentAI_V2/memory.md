@@ -1,4 +1,4 @@
-﻿# Bricscad Agent AI V2 - Logi PamiÄ™ci
+# Bricscad Agent AI V2 - Logi PamiÄ™ci
 
 ## WstÄ™p
 Ten dokument sĹ‚uĹĽy jako zewnÄ™trzna pamiÄ™Ä‡ dĹ‚ugotrwaĹ‚a dla modelu AI. Zawiera historiÄ™ zmian, kluczowe decyzje architektoniczne oraz napotkane bĹ‚Ä™dy.
