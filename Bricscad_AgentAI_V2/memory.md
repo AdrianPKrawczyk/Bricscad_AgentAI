@@ -121,6 +121,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.28.16 FEAT [LISP KNOWLEDGE BASE] - Integracja zakładki Skrypty LISP z Bazą Wiedzy i manage_lisps.
 - v2.28.17 FIX [LISP UI EXECUTION] - Poprawa autouzupełniania %skrypt i pełnego wykonania LISPa po load.
 - v2.28.18 DOC [MEMORY CANONICALIZATION] - Scalenie memory.md i docs/memory.md, renumeracja kolizji v2.28.x oraz wskazanie jednego źródła prawdy.
+- v2.28.19 FEAT [AGENT CHAT] - Dodanie zakładki Agent-Czat do ręcznego testowania wybranego subagenta, z panelem tool JSON i eksportem debugowym.
 
 ## Decyzje Architektoniczne
 - **Semantic Tool Routing**: System dynamicznego dobierania narzędzi na podstawie tagów (#core, #bloki, itp.). Od v2.8.0 zarządzany przez `ToolConfigManager`.
@@ -1065,3 +1066,16 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 - Starsze historyczne fragmenty mogą nadal zawierać lokalne ślady dawnego mojibake; bieżąca końcówka historii została uporządkowana ręcznie.
 ### [KOLEJNY_KROK]
 - Przyszłe wpisy należy dopisywać wyłącznie do `Bricscad_AgentAI_V2/memory.md`.
+
+## [v2.28.19] 2026-06-08T13:05:00+02:00 - FEAT: Nowa zakładka Agent-Czat do testowania subagentów [AGENT-CHAT]
+### [ZREALIZOWANO]
+- Dodano nową kontrolkę `SubAgentChatControl.cs` oraz osobną zakładkę `Agent-Czat` w sekcji `Testy`, bez obsługi sesji i bez ingerencji w główny czat Supervisora.
+- Wdrożono wybór profilu subagenta z `ToolConfigManager.GetProfiles()`, automatyczne ładowanie promptu systemowego i reset kontekstu po zmianie profilu.
+- Dodano dwa równoległe widoki debugowe: transcript rozmowy oraz panel `Tool Calls / JSON` pokazujący snapshot profilu, wywołania narzędzi i odpowiedzi `tool`.
+- Dodano szybkie akcje diagnostyczne: `Wyczyść`, `Eksport czatu`, `Eksport JSON` i `Kopiuj pakiet`.
+### [STAN_SYSTEMU]
+- `Autotest-Czat` pozostaje wyspecjalizowanym kanałem QA, a `Agent-Czat` służy do ręcznych rozmów z dowolnym workerem bez routingu przez Supervisora.
+### [BLOKADY / PROBLEMY]
+- Pełny `dotnet build` nadal nie przechodzi w tym repo z powodu istniejących braków referencji/pakietów (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet`, `ExcelDataReader`, `UglyToad.PdfPig`) niezwiązanych z nową zakładką.
+### [KOLEJNY_KROK]
+- Przetestować ergonomię `Agent-Czat` w BricsCAD i ewentualnie rozszerzyć eksport o pojedynczy pakiet `.zip` z promptem, transcriptami i logami narzędzi.

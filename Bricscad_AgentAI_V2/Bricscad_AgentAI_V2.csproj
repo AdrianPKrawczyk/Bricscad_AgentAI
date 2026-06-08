@@ -98,6 +98,9 @@
     <Compile Include="src\UI\AgentQAChatControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="src\UI\SubAgentChatControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
