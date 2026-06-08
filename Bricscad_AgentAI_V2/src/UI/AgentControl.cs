@@ -1461,6 +1461,7 @@ namespace Bricscad_AgentAI_V2.UI
             btnSend.Enabled = false;
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
+            SyncImpliedSelectionToAgentMemory(doc);
 
             // _conversationHistory zostaje usuniĂ„â„˘te - wszystko leci przez Supervisora
             UpdateStatusHUD("Oczekiwanie na analizĂ„â„˘ przez Supervisora...");
@@ -1740,6 +1741,24 @@ Ostatnia rozmowa:
                 : $"Ă˘ŁˇÂ ĘŹÂ¸Łą Recepta przerwana. Wykonano {successCount}/{total} krokĘ‚Ł‚w.", 
                 isDarkMode ? Color.LightGreen : Color.DarkGreen);
         }
+        private void SyncImpliedSelectionToAgentMemory(Document doc)
+        {
+            if (doc == null) return;
+
+            try
+            {
+                PromptSelectionResult selRes = doc.Editor.SelectImplied();
+                if (selRes.Status == PromptStatus.OK && selRes.Value != null)
+                {
+                    AgentMemoryState.Update(selRes.Value.GetObjectIds());
+                }
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogError("Błąd synchronizacji zaznaczenia BricsCAD z pamięcią Agenta", ex);
+            }
+        }
+
         public async void ExternalProcessPrompt(string prompt)
         {
             if (string.IsNullOrEmpty(prompt)) return;

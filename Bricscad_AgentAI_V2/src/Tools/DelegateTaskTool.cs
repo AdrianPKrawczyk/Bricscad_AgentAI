@@ -27,6 +27,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         Properties = new Dictionary<string, ToolParameter>
                         {
                             { "TargetProfile", new ToolParameter { Type = "string", Description = "Nazwa profilu docelowego eksperta (np. 'CadProfile', 'NotesProfile')." } },
+                            { "SelectionScopeLock", new ToolParameter { Type = "boolean", Description = "Ustaw true, gdy zadanie ma operowac wylacznie na aktualnie zaznaczonych/wybranych obiektach uzytkownika. Blokuje Workerowi zastapienie selekcji globalnym wyszukiwaniem po modelu." } },
                             { "TaskDescription", new ToolParameter { Type = "string", Description = "Szczegółowa instrukcja dla eksperta." } }
                         },
                         Required = new List<string> { "TargetProfile", "TaskDescription" }
@@ -53,6 +54,19 @@ namespace Bricscad_AgentAI_V2.Tools
 
             // 1. Ładowanie system promptu eksperta
             string systemPrompt = LoadSystemPrompt(profileConfig.SystemPromptFile);
+
+            bool explicitSelectionScopeLock = args["SelectionScopeLock"]?.Value<bool>() ?? false;
+            bool isSelectionScopedTask = explicitSelectionScopeLock || IsSelectionScopedTask(taskDescription);
+            if (isSelectionScopedTask && AgentMemoryState.ActiveSelection.Length == 0)
+            {
+                return "BŁĄD: Zadanie dotyczy aktualnie zaznaczonych obiektów, ale pamięć Agenta nie zawiera żadnego zaznaczenia. Zaznacz obiekty ponownie albo najpierw zsynchronizuj SelectionSet.";
+            }
+
+            bool lockSelectionScope = isSelectionScopedTask;
+            if (lockSelectionScope)
+            {
+                AgentMemoryState.LockSelectionScope();
+            }
 
             // 2. Przygotowanie izolowanej historii
             var localHistory = new List<ChatMessage>
@@ -131,6 +145,26 @@ namespace Bricscad_AgentAI_V2.Tools
             {
                 return $"BŁĄD KRYTYCZNY podczas delegowania do '{targetProfile}': {ex.Message}";
             }
+            finally
+            {
+                if (lockSelectionScope)
+                {
+                    AgentMemoryState.UnlockSelectionScope();
+                }
+            }
+        }
+
+        private bool IsSelectionScopedTask(string taskDescription)
+        {
+            if (string.IsNullOrWhiteSpace(taskDescription)) return false;
+
+            string text = taskDescription.ToLowerInvariant();
+            return text.Contains("zaznaczon") ||
+                   text.Contains("wybran") ||
+                   text.Contains("activeselection") ||
+                   text.Contains("selectionset") ||
+                   text.Contains("aktualnym wybor") ||
+                   text.Contains("obecnym wybor");
         }
 
         private string LoadSystemPrompt(string filename)

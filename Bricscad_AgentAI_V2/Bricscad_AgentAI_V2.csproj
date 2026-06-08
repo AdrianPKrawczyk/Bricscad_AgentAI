@@ -66,7 +66,6 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting">
       <Version>4.8.0</Version>
     </PackageReference>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="System.Text.Json">
       <Version>8.0.5</Version>
     </PackageReference>
@@ -96,7 +95,9 @@
     <Compile Include="src\Tools\ListSourceFilesTool.cs" />
     <Compile Include="src\Tools\ReadSourceCodeTool.cs" />
     <Compile Include="src\Tools\WriteQAReportTool.cs" />
-    <Compile Include="src\UI\AgentQAChatControl.cs" />
+    <Compile Include="src\UI\AgentQAChatControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
@@ -205,10 +206,12 @@
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />
-    
-    <Compile Include="src\UI\AgentAutotestControl.cs" />
-    
-    <Compile Include="src\UI\HelpCenterControl.cs" />
+    <Compile Include="src\UI\AgentAutotestControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="src\UI\HelpCenterControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="src\Tools\ReadHelpTool.cs" />
     <Compile Include="src\Core\DynamicSystems\LispManager.cs" />
     <Compile Include="src\Models\LispMetadata.cs" />

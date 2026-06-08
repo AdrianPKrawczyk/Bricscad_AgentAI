@@ -13,6 +13,7 @@ namespace Bricscad_AgentAI_V2.Core
     public static class AgentMemoryState
     {
         private static ObjectId[] _activeSelection = new ObjectId[0];
+        private static bool _selectionScopeLocked;
 
         /// <summary>
         /// Globalny magazyn przechowujący zmienne sesji Agenta (@zmienna) z automatycznym
@@ -24,6 +25,18 @@ namespace Bricscad_AgentAI_V2.Core
         /// Zbiór referencji do aktualnie wyizolowanych (lub zaznaczonych) obiektów w dokumencie.
         /// </summary>
         public static ObjectId[] ActiveSelection => _activeSelection;
+
+        public static bool IsSelectionScopeLocked => _selectionScopeLocked;
+
+        public static void LockSelectionScope()
+        {
+            _selectionScopeLocked = true;
+        }
+
+        public static void UnlockSelectionScope()
+        {
+            _selectionScopeLocked = false;
+        }
 
         /// <summary>
         /// Funkcja zastępująca wzorce @zmienna wartościami ze słownika Variables.
@@ -77,6 +90,7 @@ namespace Bricscad_AgentAI_V2.Core
         public static void Clear()
         {
             _activeSelection = new ObjectId[0];
+            _selectionScopeLocked = false;
         }
     }
 

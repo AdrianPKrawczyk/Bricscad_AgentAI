@@ -113,11 +113,15 @@ namespace Bricscad_AgentAI_V2.Core
                     try
                     {
                         string currentText = File.ReadAllText(supervisorPromptPath);
+                        if (!currentText.Contains("ZAKRES: ZAZNACZONE") || !currentText.Contains("SelectionScopeLock"))
+                        {
+                            needsWrite = true;
+                        }
                         if (!currentText.Contains("CadGeometryProfile") || 
                             !currentText.Contains("LUŹNA ROZMOWA") || 
                             !currentText.Contains("AuditorProfile") ||
                             currentText.Contains("BŁĘDY LOGICZNE")) 
-                        if (!currentText.Contains("ZASADY OBSŁUGI ZAPYTAŃ") || !currentText.Contains("LispCoderProfile") || !currentText.Contains("modyfikacjami \\\"w locie\\\""))
+                        if (!currentText.Contains("ZASADY OBSŁUGI ZAPYTAŃ") || !currentText.Contains("LispCoderProfile") || !currentText.Contains("modyfikacjami \\\"w locie\\\"") || !currentText.Contains("ZAKRES: ZAZNACZONE") || !currentText.Contains("SelectionScopeLock"))
                         {
                             needsWrite = true;
                         }
@@ -140,6 +144,8 @@ namespace Bricscad_AgentAI_V2.Core
                         "3. ZADANIA CAD / OPERACJE NA RYSUNKU (np. rysowanie, zaznaczanie, zmiana kolorów, warstw, odczyt atrybutów lub XData):\n" +
                         "   - Nie wykonuj ich samodzielnie. MUSISZ natychmiast wydelegować zadanie do odpowiedniego eksperta za pomocą narzędzia DelegateTask.\n" +
                         "   - Jeśli polecenie użytkownika zawiera nazwy recept ze znakiem dolara (np. `$moja_recepta`), MUSISZ przenieść ten tekst dosłownie (wraz ze znakiem `$`) do opisu zadania (TaskDescription) dla Workera, aby Worker wiedział jakiego schematu użyć.\n" +
+                        "   - ZAKRES: ZAZNACZONE. Jesli uzytkownik mowi: zaznaczone, w zaznaczonych, wybrane, aktualny wybor albo podobnie, wywoluj DelegateTask z SelectionScopeLock=true oraz w TaskDescription jasno nakazuj: operuj WYLACZNIE na obecnym ActiveSelection/SelectionSet. Nie wolno Workerowi ponownie wyszukiwac obiektow w modelu, uzywac SelectEntities z Mode=New ani rozszerzac zakresu na caly rysunek bez osobnej zgody uzytkownika.\n" +
+                        "   - Dla polecen typu \"zamien X na Y\" w zaznaczonych tekstach przekazuj intencje jako podmiane fragmentu tekstu w aktualnie zaznaczonych obiektach, np. TextEditTool Replace: FindText=X, ReplaceWith=Y. Nie opisuj tego jako warunku, ze cala zawartosc tekstu ma byc dokladnie rowna X, chyba ze uzytkownik wyraznie tak powiedzial.\n" +
                         "   - Przed wywołaniem DelegateTask nie pisz żadnego tekstu objaśniającego ani zapowiadającego.\n" +
                         "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n" +
                         "4. WIEDZA O SYSTEMIE / POMOC:\n" +

@@ -86,7 +86,7 @@ namespace Bricscad_AgentAI_V2.Core
             object finalContent = userContent;
             if (userContent is string strContent && !string.IsNullOrWhiteSpace(activeDwgPath))
             {
-                finalContent = $"[Kontekst: Aktywny plik to {activeDwgPath}]\n{strContent}";
+                finalContent = $"[Kontekst: Aktywny plik to {activeDwgPath}; ActiveSelection zawiera {AgentMemoryState.ActiveSelection.Length} obiekt(ow)]\n{strContent}";
             }
 
             history.Add(new ChatMessage { Role = "user", Content = finalContent, ActiveDocumentPath = activeDwgPath });

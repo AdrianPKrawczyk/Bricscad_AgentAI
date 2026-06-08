@@ -1,7 +1,7 @@
-# Bricscad Agent AI V2 - Logi PamiÄ™ci
+# Bricscad Agent AI V2 - Logi Pamięci
 
-## WstÄ™p
-Ten dokument sĹ‚uĹĽy jako zewnÄ™trzna pamiÄ™Ä‡ dĹ‚ugotrwaĹ‚a dla modelu AI. Zawiera historiÄ™ zmian, kluczowe decyzje architektoniczne oraz napotkane bĹ‚Ä™dy.
+## Wstęp
+Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawiera historię zmian, kluczowe decyzje architektoniczne oraz napotkane błędy.
 
 ## Historia Wersji (Log Zmian)
 - v2.0.0: Inicjalna migracja do Function Calling (IToolV2).
@@ -9,592 +9,609 @@ Ten dokument sĹ‚uĹĽy jako zewnÄ™trzna pamiÄ™Ä‡ dĹ‚ugotrwaĹ‚a
 - v2.5.0: Implementacja `ForeachTool` i `RpnCalculator`.
 - v2.6.0: Rozbudowa systemu Benchmarkingowego i UI Testera.
 - v2.7.10 GOLD: Implementacja twardych Guardrails w `CreateObjectTool.cs`.
-- v2.8.0 GOLD: PrzejĹ›cie na dynamicznÄ… konfiguracjÄ™ narzÄ™dzi (`tools_config.json`, `ToolConfigManager`).
-    - UsuniÄ™cie wĹ‚aĹ›ciwoĹ›ci `ToolTags` z `IToolV2` i wszystkich narzÄ™dzi (21 plikĂłw).
+- v2.8.0 GOLD: Przejście na dynamiczną konfigurację narzędzi (`tools_config.json`, `ToolConfigManager`).
+    - Usunięcie właściwości `ToolTags` z `IToolV2` i wszystkich narzędzi (21 plików).
     - Implementacja wzorca "AI Package Manager" w `RequestAdditionalToolsTool` (ListCategories/LoadCategory).
-    - Dodanie zakĹ‚adki "Tagi" w `AgentControl.cs` (UI do edycji `IsCore` i `Tags`).
-    - Dynamiczne filtrowanie narzÄ™dzi w `ToolOrchestrator` na podstawie JSON.
+    - Dodanie zakładki "Tagi" w `AgentControl.cs` (UI do edycji `IsCore` i `Tags`).
+    - Dynamiczne filtrowanie narzędzi w `ToolOrchestrator` na podstawie JSON.
 - 2026-04-05: v2.6.8 GOLD [FOREACH+ SEQ] - Implementacja Sequence Generator w ForeachTool.cs, rozszerzenie ToolParameter o nested properties/items, testy i dokumentacja.
-- 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Naprawa bĹ‚Ä™du LINQ w AutoBenchmarkEngine (ArgumentMatch), odblokowanie RecordedToolCalls w JSON.
-- 2026-04-05: v2.6.6 GOLD [UI HOTFIX] - Rozdzielono etykiety HUD (lblStatus/lblStats), caĹ‚kowity refaktoring AgentTesterControl (SplitContainer, JSON V1).
-- v2.9.0 GOLD [EARLY EXIT] - Implementacja mechanizmu Client-Side Resolution (Tryb Szybki), przerywajÄ…cego pÄ™tlÄ™ ReAct po udanych akcjach fizycznych (Create/Modify).
-- v2.9.2 GOLD [FIX TOOL POOL] - RozwiÄ…zanie problemu "Spirali Ĺšmierci" (mismatch nazw API vs C#) i uodpornienie Ĺ‚adowania narzÄ™dzi #core w ToolOrchestrator.
-- v2.10.0 GOLD [DATASET STUDIO] - Implementacja moduĹ‚u Dataset Studio (Data Flywheel) do zbierania danych treningowych .jsonl. Refaktoring statystyk LLM na jednolity model LLMStats.
-- v2.10.1 GOLD [BUILD HOTFIX] - Naprawa bĹ‚Ä™dĂłw kompilacji (CS1501, CS0246, CS0105) oraz czyszczenie nieuĹĽywanych pĂłl w UI (CS0169).
-- v2.10.2 GOLD [DATASET UX] - Naprawa Ĺ›cieĹĽki zapisu JSONL (Brak UprawnieĹ„) oraz poprawki UX w Dataset Studio (formatowanie czasu ms -> s, czytelne etykiety).
-- v2.10.3 GOLD [DOC SYNC] - PeĹ‚na synchronizacja System_Blueprint.md oraz dokumentacji w folderze /docs z aktualnym stanem V2.10.x.
-- v2.11.0 GOLD [CONTEXT SLICER] - Implementacja inteligentnej "Krajalnicy" (Context Slicer) w Dataset Studio. RozwiÄ…zanie problemu Context Poisoning przez izolacjÄ™ turnĂłw (System + Last User + Responses). GĹ‚Ä™boka kopia historii konwersacji w UI. Synchronizacja dokumentacji.
-- v2.11.1 GOLD [TOOLS IN JSONL] - Dodanie tablicy "tools" do eksportu JSONL w Dataset Studio. PeĹ‚na zgodnoĹ›Ä‡ z formatem OpenAI Fine-tuning dla Tool Calling.
-- v2.11.2 GOLD [UI PERSISTENCE] - Naprawa ukĹ‚adu Dataset Studio (widocznoĹ›Ä‡ statystyk, kolejnoĹ›Ä‡ DockStyle.Fill). Implementacja UISettingsManager do trwaĹ‚ego zapamiÄ™tywania pozycji splittera (ui_settings.json).
-- v2.11.3 GOLD [RPN UNIT STRIP] - Naprawa bĹ‚Ä™du double.TryParse w CreateObjectTool.cs. WstrzykniÄ™cie komend RPN (#UNITL CONVE UVAL) celem normalizacji wynikĂłw przed konwersjÄ… na typ numeryczny.
-- v2.11.4 GOLD [RPN SMART SCALE] - Hotfix bĹ‚Ä™du rzutowania jednostek. Dodano inteligentne sprawdzanie Regex w CreateObjectTool.cs â€“ konwersja do jednostek dokumentu zachodzi tylko wtedy, gdy wynik RPN zawiera sygnaturÄ™ literowÄ… (jednostkÄ™). Zapobiega to bĹ‚Ä™dnemu skalowaniu goĹ‚ych wspĂłĹ‚rzÄ™dnych.
-- v2.11.5 GOLD [FOREACH INDEX] - Dodanie obsĹ‚ugi tagu {index} w ForeachTool.cs. UmoĹĽliwia to generowanie sekwencyjnego nazewnictwa (np. "OĹ› 1", "OĹ› 2") podczas operacji w pÄ™tli. Licznik iteracji startuje od 1.
-- v2.11.6 GOLD [PROMPT EXPANSION] - Rozbudowa System Promptu w AgentControl.cs o instrukcje dla RPN (CONCAT, IFTE) oraz formatowanie nowej linii (\P) dla MText. Poprawia to zdolnoĹ›Ä‡ modelu do generowania dynamicznych tekstĂłw w pÄ™tlach.
-- v2.11.7 GOLD [COLOR MAP] - WstrzykniÄ™cie mapy kolorĂłw ACI (AutoCAD Color Index) oraz instrukcji TrueColor (RGB) do promptu systemowego. UĹ‚atwia to modelowi poprawne wyszukiwanie i zamianÄ™ kolorĂłw w rysunku.
-- v2.11.8 GOLD [RGB SELECT] - Refaktoryzacja wydobywania kolorĂłw w SelectEntitiesTool.cs. Wprowadzono peĹ‚nÄ… obsĹ‚ugÄ™ formatu RGB ("R,G,B") dla TrueColor oraz poprawne rzutowanie kolorĂłw dziedziczonych z warstw, co umoĹĽliwia precyzyjne filtrowanie selekcji po kolorach innych niĹĽ ACI.
-- v2.11.9 GOLD [RGB PATTERN] - Dodanie do System Promptu instrukcji o "Wzorcu Przecinka" do masowego wykrywania dowolnych kolorĂłw RGB (`contains: ","`) oraz przypomnienia o zakresie skĹ‚adowych 0-255.
-- v2.11.10 GOLD [VISUAL PERCEPTION] - WdroĹĽenie "ReguĹ‚y Percepcji" do System Promptu. Model zostaĹ‚ poinstruowany, aby automatycznie uĹĽywaÄ‡ wĹ‚aĹ›ciwoĹ›ci wirtualnych (`VisualColor`, `VisualLinetype` itd.) przy zapytaniach dotyczÄ…cych wyglÄ…du zewnÄ™trznego obiektĂłw, co zapewnia poprawne uwzglÄ™dnienie dziedziczenia warstw (ByLayer).
-- v2.11.11 GOLD [PROPERTY SYNC] - Ujednolicenie mapowania wĹ‚aĹ›ciwoĹ›ci (Transparency, LineWeight, LinetypeScale) miÄ™dzy UI a API. WdroĹĽono dwukierunkowÄ… konwersjÄ™ przezroczystoĹ›ci (0-90 UI <=> 0-255 Alpha) oraz rozbudowano System Prompt o globalne zasady dla gruboĹ›ci i rodzajĂłw linii.
-- v2.11.12 GOLD [LAYER NATIVE] - Kompletny refaktoring ManageLayersTool.cs na natywne API BricsCAD (LayerTable/LayerTableRecord). UsuniÄ™to wywoĹ‚ania `Editor.Command`, co wyeliminowaĹ‚o bĹ‚Ä™dy Fatal Error i blokowanie interfejsu. Dodano obsĹ‚ugÄ™ wielu warstw (lista po przecinku), akcjÄ™ `Toggle` (Lock/Freeze/Off) oraz bezpieczne `Rename`.
-- v2.11.13 GOLD [STRUCTURE DIRECTIVE] - Wprowadzenie "Dyrektywy Struktury" do System Promptu. Model otrzymaĹ‚ kategoryczny zakaz uĹĽywania narzÄ™dzi geometrycznych (`CreateObject`, `ModifyProperties`) do manipulacji strukturÄ… rysunku (warstwami). Wzmocniono rolÄ™ narzÄ™dzia `ManageLayers` oraz mechanizmu ĹĽÄ…dania dodatkowych narzÄ™dzi.
-- v2.11.14 GOLD [THREAD SAFETY] - WdroĹĽenie thread-marshalingu (UI thread synchronization) dla narzÄ™dzi `UserInputTool` i `UserChoiceTool`. Interakcje z BricsCAD Editor sÄ… teraz bezpiecznie delegowane do gĹ‚Ăłwnego wÄ…tku za pomocÄ… `Invoke`, eliminujÄ…c bĹ‚Ä™dy Cross-Thread Exception i Fatal Error podczas asynchronicznych sesji LLM.
-- v2.11.15 GOLD [STRICT ACTION VALIDATION] - Dodanie twardej walidacji parametru `Action` w `ManageLayersTool.cs`. NarzÄ™dzie odrzuca teraz nieobsĹ‚ugiwane polecenia (np. `CreateLayer`) z wyraĹşnym komunikatem o bĹ‚Ä™dzie, zamiast koĹ„czyÄ‡ dziaĹ‚anie bez efektu.
-- v2.11.16 GOLD [HOT-RELOAD & DYNAMIC PROMPT] - WdroĹĽenie odĹ›wieĹĽania orkiestratora na ĹĽÄ…danie (po zapisie konfiguracji) oraz dynamicznego wstrzykiwania dostÄ™pnych kategorii narzÄ™dzi z `ToolConfigManager` do promptu systemowego. Wyeliminowano potrzebÄ™ restartu aplikacji po zmianie dostÄ™pnych pakietĂłw narzÄ™dziowych.
-- v2.11.17 GOLD [DISCOVERY & ACTIVATION] - WdroĹĽenie "Katalogu NarzÄ™dzi UĹ›pionych" automatycznie generowanego z definicji orkiestratora. Model LLM widzi teraz nazwy i opisy narzÄ™dzi, ktĂłrych nie ma w arsenale, i moĹĽe poprosiÄ‡ o ich zaĹ‚adowanie poprzez `RequestAdditionalTools`. UmoĹĽliwiono aktywacjÄ™ narzÄ™dzi bezpoĹ›rednio po nazwie klasy/API jako fallback.
-- v2.12.1 GOLD [3-PILLAR ARCHITECTURE] - Kompletna przebudowa architektury wiedzy. 1) Konstytucja Agenta (Prompt) zcentralizowana na RPN i logice CAD. 2) Lokalne Schematy (Tool Schemas) przejÄ™Ĺ‚y specyficzne guardraile narzÄ™dzi. 3) Dynamiczne Odkrywanie (Discovery) - `RequestAdditionalTools` serwuje teraz peĹ‚ny katalog opisĂłw narzÄ™dzi uĹ›pionych.
-- v2.12.2 GOLD [REACT ERROR PROTOCOL] - WdroĹĽenie instrukcyjnego komunikatu bĹ‚Ä™du w `ToolOrchestrator.ExecuteTool`. JeĹ›li model wywoĹ‚a uĹ›pione narzÄ™dzie, otrzyma "BĹÄ„D KRYTYCZNY" z natychmiastowÄ… instrukcjÄ… uĹĽycia `RequestAdditionalTools`, co wymusza poprawny cykl rozumowania (ReAct).
-- v2.12.3 GOLD [DYNAMIC SCHEMA INJECTION] - Naprawa luki w Ĺ‚adowaniu narzÄ™dzi. WdroĹĽono `SessionDynamicTags` w `ToolConfigManager`, co pozwala orkiestratorowi na natychmiastowe odblokowanie schematĂłw (ToolDefinition) nowo zaĹ‚adowanych narzÄ™dzi w trakcie tej samej sesji. Zapewnia to, ĹĽe LLM otrzyma definicje parametrĂłw zaraz po akcji `LoadCategory`.
-- v2.12.4 GOLD [TWO-PHASE COMMIT] - Naprawa bĹ‚Ä™du "Silent Transaction Failure" w `ManageLayersTool.cs`. WdroĹĽono wzorzec dwufazowego zatwierdzania bazy danych: najpierw tworzona jest struktura warstwy, a dopiero po pomyĹ›lnym `Commit()` gĹ‚Ăłwnej transakcji, w drugiej maĹ‚ej transakcji, warstwa jest ustawiana jako aktualna (`db.Clayer`). Zapobiega to powstawaniu "warstw widm".
-- v2.12.5 GOLD [CONTEXT PROTECTION] - Wzmocnienie stabilnoĹ›ci `ManageLayersTool.cs` poprzez wymuszenie kontekstu `HostApplicationServices.WorkingDatabase` (rozwiÄ…zanie problemu Silent Rollback w ODA Teigha). Dodatkowo zoptymalizowano proces tworzenia rekordĂłw warstw, inicjujÄ…c ich wĹ‚aĹ›ciwoĹ›ci (kolor, rodzaj linii) przed dodaniem do tablicy symboli.
-- v2.12.6 GOLD [ENGINE TRACER] - WdroĹĽenie zakĹ‚adki Debug oraz nasĹ‚uchiwania zdarzeĹ„ bazy danych (ObjectAppended, TransactionAborted) celem diagnozy zjawiska Silent Rollback w Teigha API.
-- v2.12.7 GOLD [THREAD-SAFE UI SYNC] - Refaktoryzacja `ManageLayersTool.cs`. Przeniesiono aktywacjÄ™ warstw (`db.Clayer`) oraz odĹ›wieĹĽanie interfejsu do GĹ‚Ăłwnego WÄ…tku (Main Thread) za pomocÄ… `doc.SendStringToExecute`. RozwiÄ…zuje to problem "cichego rollbacku" przy interakcjach z UI z wÄ…tkĂłw pobocznych.
-- v2.12.8 GOLD [ACTION SETCURRENT] - Dodanie dedykowanej akcji `SetCurrent` do `ManageLayersTool.cs`. RozwiÄ…zuje to problem bĹ‚Ä™dnego uĹĽywania przez LLM akcji `Toggle -> On` do przeĹ‚Ä…czania warstwy roboczej. Zaktualizowano schemat narzÄ™dzia, oznaczajÄ…c flagÄ™ `MakeCurrent` jako przestarzaĹ‚Ä….
-- v2.12.9 GOLD [LAYER MODIFICATION] - Rozszerzenie `ManageLayersTool.cs` o akcjÄ™ `Modify` oraz obsĹ‚ugÄ™ wĹ‚aĹ›ciwoĹ›ci: `Transparency` (konwersja 0-90 na Alpha 255-0), `LineWeight` oraz `Plottable`. Zunifikowano logikÄ™ `Create/Modify` z peĹ‚nÄ… obsĹ‚ugÄ… masek (*, ?) dla modyfikacji masowych, co eliminuje halucynacje modelu dotyczÄ…ce uĹĽywania narzÄ™dzi edycji obiektĂłw fizycznych do zarzÄ…dzania strukturÄ… warstw.
-- v2.12.10 GOLD [PROMPT ENHANCEMENT] - Optymalizacja schematu `ForeachTool.cs` (Prompt Engineering). WstrzykniÄ™to "ZĹ‚oty Standard" wywoĹ‚aĹ„ (Few-Shot Examples) bezpoĹ›rednio do opisu parametrĂłw. Agent dowiaduje siÄ™ o moĹĽliwoĹ›ci zagnieĹĽdĹĽania ewaluacji RPN, uĹĽywania tagu `{index}` oraz wywoĹ‚ywania dowolnych narzÄ™dzi (np. `ManageLayers`) wewnÄ…trz pÄ™tli za pomocÄ… klucza `ToolName`.
-- v2.12.11 GOLD [RPN INTERCEPTION] - Implementacja RPN Interception w `ForeachTool.cs`. Parametry oznaczone prefiksem `RPN:` wewnÄ…trz pÄ™tli sÄ… teraz ewaluowane przez `RpnCalculator` przed przekazaniem do orkiestratora. RozwiÄ…zuje to problem przesyĹ‚ania surowych wyraĹĽeĹ„ matematycznych zamiast wyliczonych wartoĹ›ci (np. dla kolorĂłw lub pozycji) w pÄ™tlach.
-- v2.12.12 GOLD [TEST FIX] - Naprawa bĹ‚Ä™du kompilacji CS0103 w `ForeachToolTests.cs` poprzez dodanie brakujÄ…cego `using Bricscad_AgentAI_V2.Core`.
-- v2.12.13 GOLD [LAYER HOTFIX] - Wyeliminowanie bĹ‚Ä™du "Double-Open" w `ManageLayersTool.cs`. PrzejĹ›cie na operowanie bezpoĹ›rednio na `LayerTableRecord` (List) zamiast ponownego otwierania obiektĂłw przez `ObjectId`. RozwiÄ…zuje to problem cichego rollbacku transakcji w Teigha API przy modyfikacji nowo utworzonych warstw.
-- v2.12.14 GOLD [STALE UI FIX] - WdroĹĽenie wymuszonej synchronizacji GUI w `ManageLayersTool.cs`. Gwarantowane wywoĹ‚anie `SendStringToExecute` (z komendÄ… `(princ)` jako fallback) zapewnia, ĹĽe MenedĹĽer Warstw BricsCAD odĹ›wieĹĽy swĂłj stan i pokaĹĽe nowo utworzone/zmodyfikowane warstwy nawet w trybie asynchronicznym bez ich aktywacji.
-- v2.12.15 GOLD [XREF PROTECTION] - WdroĹĽenie zabezpieczeĹ„ dla warstw zaleĹĽnych (XREF) w `ManageLayersTool.cs`. Zablokowano akcje `SetCurrent`, `Rename` oraz `Delete` dla warstw `IsDependent`. Zaktualizowano schemat o instrukcjÄ™ uĹĽycia znaku `|` do modyfikacji wizualnej podkĹ‚adĂłw.
-- v2.12.16 GOLD [SUPPRESS UI] - Implementacja mechanizmu `SuppressUI` w `ManageLayersTool.cs` i `ForeachTool.cs`. NarzÄ™dzia wywoĹ‚ywane w pÄ™tlach otrzymujÄ… flagÄ™ blokujÄ…cÄ… odĹ›wieĹĽanie interfejsu w kaĹĽdej iteracji, co eliminuje kolizje blokad dokumentu (`eLockViolation`). Zbiorcze odĹ›wieĹĽenie UI nastÄ™puje raz po zakoĹ„czeniu caĹ‚ej pÄ™tli.
-- v2.13.1 GOLD [ADVANCED FILTERS] - Implementacja `AdvancedFilters` w `SelectEntitiesTool.cs`. Dodano obsĹ‚ugÄ™ zĹ‚oĹĽonych zapytaĹ„ o wĹ‚aĹ›ciwoĹ›ci CAD (np. Transparency 0-90, TextOverride) z uĹĽyciem refleksji i dedykowanego mapowania klas. Rozszerzono logikÄ™ o operatory `Contains` oraz `NotContains`.
-- v2.13.2 GOLD [UI REFACTOR] - Reorganizacja interfejsu `DatasetStudioControl.cs`. Zmieniono ukĹ‚ad z pionowego na poziomy (lista na gĂłrze - 20%, edytor na dole - 80%). Wprowadzono czytelnÄ… belkÄ™ nagĹ‚ĂłwkowÄ… na samej gĂłrze dla przeĹ‚Ä…cznikĂłw i statystyk.
-- v2.13.3 GOLD [DATASET STUDIO PRO] - Kompleksowa przebudowa Dataset Studio. WdroĹĽono kolorowanie skĹ‚adni JSON (VSC style), system zakĹ‚adek ("Aktualna sesja" / "Edycja data setĂłw") oraz peĹ‚ne zarzÄ…dzanie plikami JSONL z funkcjÄ… "Uruchom Makro" do testowania instrukcji. Wprowadzono trwaĹ‚oĹ›Ä‡ ustawieĹ„ ostatnio otwartego pliku.
-- v2.13.4 GOLD [INSTRUCTION TOOLS] - Rozbudowa Dataset Studio o narzÄ™dzia manipulacji treĹ›ciÄ…: przyciski "UsuĹ„ instrukcje" (czyszczenie tablicy messages) oraz "ZamieĹ„ instrukcjÄ™" (wklejanie z walidacjÄ… formatu ze schowka).
-- v2.13.5 GOLD [SMART INSTRUCTIONS] - Refaktoryzacja narzÄ™dzi instrukcji: "UsuĹ„ instrukcje" teraz precyzyjnie zachowuje nagĹ‚Ăłwek `system`, a "ZamieĹ„ instrukcjÄ™" inteligentnie Ĺ‚Ä…czy nowÄ… interakcjÄ™ ze schowka, dbajÄ…c o niepowtarzanie nagĹ‚ĂłwkĂłw systemowych.
-- v2.13.6 GOLD [UI REFINERY] - Poprawki UX w Dataset Studio: wdroĹĽenie debounce dla kolorowania skĹ‚adni (fix klawisza Enter), przeniesienie przyciskĂłw zarzÄ…dzania wpisami (Duplikuj/UsuĹ„) na gĂłrny pasek, wdroĹĽenie responsywnego ukĹ‚adu dolnego panelu akcji oraz dodanie funkcji usuwania rekordĂłw z listÄ… potwierdzeĹ„.
-- v2.14.0 GOLD [SEPARATION OF CONCERNS] - Rozdzielenie kompetencji narzÄ™dzi: wdroĹĽenie wyspecjalizowanego `DimensionEditTool` (#wymiary), wprowadzenie blokady (Runtime Guardrail) w `ModifyPropertiesTool` dla tekstu i wymiarĂłw oraz implementacja hard-cast fallback w `SelectEntitiesTool` dla `HatchObjectType` (fix gradientĂłw) i wĹ‚aĹ›ciwoĹ›ci tekstowych.
-- v2.14.1 HOTFIX [DIMENSION SYNC] - Usprawnienie `DimensionEditTool`: wdroĹĽenie `GetArrowObjectId` dla automatycznego generowania standardowych grotĂłw (Lazy Loading) oraz dodanie `RecomputeDimensionBlock` dla natychmiastowego odĹ›wieĹĽania grafiki wymiaru po zmianie parametrĂłw.
-- v2.14.2 CRITICAL HOTFIX [SAFE PARSE] - CaĹ‚kowita rekonstrukcja `Execute` w `DimensionEditTool`: wdroĹĽenie bezpiecznego parsowania (`InvariantCulture`), wymuszenie trybu `OpenMode.ForWrite` dla kaĹĽdego obiektu oraz dodanie polecenia `REGEN` dla synchronizacji interfejsu CAD.
-- v2.15.0 GOLD [TOOL SANDBOX] - WdroĹĽenie zakĹ‚adki "Tool Sandbox" do izolowanego testowania logiki C# narzÄ™dzi `IToolV2`. Implementacja inteligentnego generatora szablonĂłw JSON na podstawie schematĂłw, integracja z `AgentMemoryState` celem Ĺ‚adowania zaznaczenia CAD oraz system logowania wynikĂłw z sygnaturÄ… czasowÄ….
-- v2.15.1 [TOOL SANDBOX TRANSFORMATION] - PrzeksztaĹ‚cenie Sandboxa w interaktywnÄ… dokumentacjÄ™. WdroĹĽenie "Property Discovery" (dynamiczny podglÄ…d parametrĂłw i typĂłw), obsĹ‚uga "Snippets" (przykĹ‚adĂłw JSON), ulepszone szablony z komentarzami i placeholderami oraz automatyczne oczyszczanie JSON (Regex) przed egzekucjÄ…. Poprawiono wysokoĹ›Ä‡ sekcji dokumentacji oraz przywrĂłiono `DimensionEditTool` i `InspectEntityTool` do projektu.
-- v2.15.2 [INTERACTIVE SANDBOX] - WdroĹĽenie interaktywnego budowania JSON: podwĂłjne klikniÄ™cie na parametr w dokumentacji wstawia go do edytora. Wprowadzenie minimalistycznych szablonĂłw (tylko pola Required).
-- v2.15.3 [UI POLISH] - Ulepszenie interakcji: podwĂłjne klikniÄ™cie ustawia kursor bezpoĹ›rednio wewnÄ…trz pustych cudzysĹ‚owĂłw `""` (bez tekstu zastÄ™pczego). Uproszczenie generatora szablonĂłw celem zwiÄ™kszenia przejrzystoĹ›ci. ResponsywnoĹ›Ä‡ Tool Sandbox (SplitContainer + persistence), Click-to-Add dla parametrĂłw.
-- v2.16.0 [AGENT RECIPES] - WdroĹĽenie systemu "Agent Recipes" (Drogowskazy). Nowa 4. zakĹ‚adka w Dataset Studio, mechanizm Few-Shot Prompting ($trigger) oraz przycisk "PrzechwyÄ‡ jako Przepis" w edytorze sesji.
-- v2.16.1 [DYNAMIC AUTOCOMPLETE] - WdroĹĽenie dynamicznego autouzupeĹ‚niania dla `#` (Tagi z ToolConfigManager) oraz `$` (Receptury z RecipeManager). Naprawiono bĹ‚Ä…d braku widocznoĹ›ci rÄ™cznie dodanych kategorii w podpowiedziach.
-- v2.17.0 [ADVANCED RECIPES] - Rozbudowa systemu receptur o "Tryb Makra" ($trigger$ - natychmiastowe wykonanie). WdroĹĽenie testowania caĹ‚ej sekwencji z walidacjÄ… JSON oraz interaktywnego wyboru kroku do przesĹ‚ania do Tool Sandboxa.
-- v2.18.0 [UI & INTEGRATION] - Zmiana nazwy na "Recepty". Implementacja integracji "WyĹ›lij do Recepty" w Tool Sandboxie. Dodanie przycisku "Nowa Recepta" (tworzenie od zera). Optymalizacja proporcji UI (25/75) z persistencjÄ….
-- v2.19.0 [TRAINING DATA] - WdroĹĽenie moduĹ‚u "Eksport do ZĹ‚otego Standardu" w Receptach. Automatyczna generacja JSONL z uwzglÄ™dnieniem System Promptu, definicji narzÄ™dzi (#core + tagi) oraz zapytania uĹĽytkownika.
-- v2.20.0 GOLD [CLI INTERFACE] - WdroĹĽenie Command Line Interface (CLI). Dodano komendy `AI_RUN`, `AI_TOOL`, `AI_PROPS` oraz `AI_DIM`. Implementacja mechanizmu `SyncSelectionWithMemory` do automatycznej synchronizacji zaznaczenia CAD (PickFirst) z pamiÄ™ciÄ… Agenta. RozwiÄ…zanie konfliktu nazw dla klasy `Exception`.
-- v2.20.1 GOLD [RPN CLI] - PeĹ‚na migracja systemu RPN z v1. Komendy RPN, CALC, STOS. TrwaĹ‚oĹ›Ä‡ stosu w DWG.
-- v2.20.2 GOLD [RPN FINAL SPEC] - Finalizacja CLI RPN. Tryb interaktywny (pÄ™tla), interaktywne pomiary CAD.
-- v2.20.3 GOLD [RPN V1 SYNC] - PeĹ‚na synchronizacja zachowania z v1. Implementacja "wstrzykiwania" wyniku na koĹ„cu komendy RPN (SendStringToExecute), pÄ™tla obliczeĹ„ dla CALC oraz automatyczne odĹ›wieĹĽanie stosu w konsoli.
-- v2.20.4 GOLD [UNIT CLEAN INJECTION] - Inteligentne czyszczenie jednostek przed wstrzykniÄ™ciem do CAD. Automatyczna konwersja jednostek dĹ‚ugoĹ›ci na jednostki rysunku (INSUNITS) oraz wstrzykiwanie surowych wartoĹ›ci (DisplayValue) dla innych wymiarĂłw.
-- v2.20.5 GOLD [READ XDATA] - Nowe narzÄ™dzie `ReadXData` do odczytu metadanych XData. Dodano komendÄ™ CLI `AI_XDATA` oraz peĹ‚nÄ… dokumentacjÄ™ technicznÄ….
-- v2.20.6 GOLD [WRITE XDATA] - Implementacja narzÄ™dzia `WriteXData` z obsĹ‚ugÄ… automatycznej rejestracji RegApp oraz komendÄ… CLI `AI_SETXDATA`.
-- v2.20.7 GOLD [FIND XDATA] - Implementacja narzÄ™dzia `FindXData` z obsĹ‚ugÄ… rekurencyjnego skanowania blokĂłw oraz komendÄ… CLI `AI_FINDXDATA`.
-- v2.20.8 GOLD [MULTIMODAL VISION] - WdroĹĽenie obsĹ‚ugi modeli VLM (Vision).
+- 2026-04-05: v2.6.7 GOLD [BENCHMARK+ LGC] - Naprawa błędu LINQ w AutoBenchmarkEngine (ArgumentMatch), odblokowanie RecordedToolCalls w JSON.
+- 2026-04-05: v2.6.6 GOLD [UI HOTFIX] - Rozdzielono etykiety HUD (lblStatus/lblStats), całkowity refaktoring AgentTesterControl (SplitContainer, JSON V1).
+- v2.9.0 GOLD [EARLY EXIT] - Implementacja mechanizmu Client-Side Resolution (Tryb Szybki), przerywającego pętlę ReAct po udanych akcjach fizycznych (Create/Modify).
+- v2.9.2 GOLD [FIX TOOL POOL] - Rozwiązanie problemu "Spirali Śmierci" (mismatch nazw API vs C#) i uodpornienie ładowania narzędzi #core w ToolOrchestrator.
+- v2.10.0 GOLD [DATASET STUDIO] - Implementacja modułu Dataset Studio (Data Flywheel) do zbierania danych treningowych .jsonl. Refaktoring statystyk LLM na jednolity model LLMStats.
+- v2.10.1 GOLD [BUILD HOTFIX] - Naprawa błędów kompilacji (CS1501, CS0246, CS0105) oraz czyszczenie nieużywanych pól w UI (CS0169).
+- v2.10.2 GOLD [DATASET UX] - Naprawa ścieżki zapisu JSONL (Brak Uprawnień) oraz poprawki UX w Dataset Studio (formatowanie czasu ms -> s, czytelne etykiety).
+- v2.10.3 GOLD [DOC SYNC] - Pełna synchronizacja System_Blueprint.md oraz dokumentacji w folderze /docs z aktualnym stanem V2.10.x.
+- v2.11.0 GOLD [CONTEXT SLICER] - Implementacja inteligentnej "Krajalnicy" (Context Slicer) w Dataset Studio. Rozwiązanie problemu Context Poisoning przez izolację turnów (System + Last User + Responses). Głęboka kopia historii konwersacji w UI. Synchronizacja dokumentacji.
+- v2.11.1 GOLD [TOOLS IN JSONL] - Dodanie tablicy "tools" do eksportu JSONL w Dataset Studio. Pełna zgodność z formatem OpenAI Fine-tuning dla Tool Calling.
+- v2.11.2 GOLD [UI PERSISTENCE] - Naprawa układu Dataset Studio (widoczność statystyk, kolejność DockStyle.Fill). Implementacja UISettingsManager do trwałego zapamiętywania pozycji splittera (ui_settings.json).
+- v2.11.3 GOLD [RPN UNIT STRIP] - Naprawa błędu double.TryParse w CreateObjectTool.cs. Wstrzyknięcie komend RPN (#UNITL CONVE UVAL) celem normalizacji wyników przed konwersją na typ numeryczny.
+- v2.11.4 GOLD [RPN SMART SCALE] - Hotfix błędu rzutowania jednostek. Dodano inteligentne sprawdzanie Regex w CreateObjectTool.cs – konwersja do jednostek dokumentu zachodzi tylko wtedy, gdy wynik RPN zawiera sygnaturę literową (jednostkę). Zapobiega to błędnemu skalowaniu gołych współrzędnych.
+- v2.11.5 GOLD [FOREACH INDEX] - Dodanie obsługi tagu {index} w ForeachTool.cs. Umożliwia to generowanie sekwencyjnego nazewnictwa (np. "Oś 1", "Oś 2") podczas operacji w pętli. Licznik iteracji startuje od 1.
+- v2.11.6 GOLD [PROMPT EXPANSION] - Rozbudowa System Promptu w AgentControl.cs o instrukcje dla RPN (CONCAT, IFTE) oraz formatowanie nowej linii (\P) dla MText. Poprawia to zdolność modelu do generowania dynamicznych tekstów w pętlach.
+- v2.11.7 GOLD [COLOR MAP] - Wstrzyknięcie mapy kolorów ACI (AutoCAD Color Index) oraz instrukcji TrueColor (RGB) do promptu systemowego. Ułatwia to modelowi poprawne wyszukiwanie i zamianę kolorów w rysunku.
+- v2.11.8 GOLD [RGB SELECT] - Refaktoryzacja wydobywania kolorów w SelectEntitiesTool.cs. Wprowadzono pełną obsługę formatu RGB ("R,G,B") dla TrueColor oraz poprawne rzutowanie kolorów dziedziczonych z warstw, co umożliwia precyzyjne filtrowanie selekcji po kolorach innych niż ACI.
+- v2.11.9 GOLD [RGB PATTERN] - Dodanie do System Promptu instrukcji o "Wzorcu Przecinka" do masowego wykrywania dowolnych kolorów RGB (`contains: ","`) oraz przypomnienia o zakresie składowych 0-255.
+- v2.11.10 GOLD [VISUAL PERCEPTION] - Wdrożenie "Reguły Percepcji" do System Promptu. Model został poinstruowany, aby automatycznie używać właściwości wirtualnych (`VisualColor`, `VisualLinetype` itd.) przy zapytaniach dotyczących wyglądu zewnętrznego obiektów, co zapewnia poprawne uwzględnienie dziedziczenia warstw (ByLayer).
+- v2.11.11 GOLD [PROPERTY SYNC] - Ujednolicenie mapowania właściwości (Transparency, LineWeight, LinetypeScale) między UI a API. Wdrożono dwukierunkową konwersję przezroczystości (0-90 UI <=> 0-255 Alpha) oraz rozbudowano System Prompt o globalne zasady dla grubości i rodzajów linii.
+- v2.11.12 GOLD [LAYER NATIVE] - Kompletny refaktoring ManageLayersTool.cs na natywne API BricsCAD (LayerTable/LayerTableRecord). Usunięto wywołania `Editor.Command`, co wyeliminowało błędy Fatal Error i blokowanie interfejsu. Dodano obsługę wielu warstw (lista po przecinku), akcję `Toggle` (Lock/Freeze/Off) oraz bezpieczne `Rename`.
+- v2.11.13 GOLD [STRUCTURE DIRECTIVE] - Wprowadzenie "Dyrektywy Struktury" do System Promptu. Model otrzymał kategoryczny zakaz używania narzędzi geometrycznych (`CreateObject`, `ModifyProperties`) do manipulacji strukturą rysunku (warstwami). Wzmocniono rolę narzędzia `ManageLayers` oraz mechanizmu żądania dodatkowych narzędzi.
+- v2.11.14 GOLD [THREAD SAFETY] - Wdrożenie thread-marshalingu (UI thread synchronization) dla narzędzi `UserInputTool` i `UserChoiceTool`. Interakcje z BricsCAD Editor są teraz bezpiecznie delegowane do głównego wątku za pomocą `Invoke`, eliminując błędy Cross-Thread Exception i Fatal Error podczas asynchronicznych sesji LLM.
+- v2.11.15 GOLD [STRICT ACTION VALIDATION] - Dodanie twardej walidacji parametru `Action` w `ManageLayersTool.cs`. Narzędzie odrzuca teraz nieobsługiwane polecenia (np. `CreateLayer`) z wyraźnym komunikatem o błędzie, zamiast kończyć działanie bez efektu.
+- v2.11.16 GOLD [HOT-RELOAD & DYNAMIC PROMPT] - Wdrożenie odświeżania orkiestratora na żądanie (po zapisie konfiguracji) oraz dynamicznego wstrzykiwania dostępnych kategorii narzędzi z `ToolConfigManager` do promptu systemowego. Wyeliminowano potrzebę restartu aplikacji po zmianie dostępnych pakietów narzędziowych.
+- v2.11.17 GOLD [DISCOVERY & ACTIVATION] - Wdrożenie "Katalogu Narzędzi Uśpionych" automatycznie generowanego z definicji orkiestratora. Model LLM widzi teraz nazwy i opisy narzędzi, których nie ma w arsenale, i może poprosić o ich załadowanie poprzez `RequestAdditionalTools`. Umożliwiono aktywację narzędzi bezpośrednio po nazwie klasy/API jako fallback.
+- v2.12.1 GOLD [3-PILLAR ARCHITECTURE] - Kompletna przebudowa architektury wiedzy. 1) Konstytucja Agenta (Prompt) zcentralizowana na RPN i logice CAD. 2) Lokalne Schematy (Tool Schemas) przejęły specyficzne guardraile narzędzi. 3) Dynamiczne Odkrywanie (Discovery) - `RequestAdditionalTools` serwuje teraz pełny katalog opisów narzędzi uśpionych.
+- v2.12.2 GOLD [REACT ERROR PROTOCOL] - Wdrożenie instrukcyjnego komunikatu błędu w `ToolOrchestrator.ExecuteTool`. Jeśli model wywoła uśpione narzędzie, otrzyma "BŁĄD KRYTYCZNY" z natychmiastową instrukcją użycia `RequestAdditionalTools`, co wymusza poprawny cykl rozumowania (ReAct).
+- v2.12.3 GOLD [DYNAMIC SCHEMA INJECTION] - Naprawa luki w ładowaniu narzędzi. Wdrożono `SessionDynamicTags` w `ToolConfigManager`, co pozwala orkiestratorowi na natychmiastowe odblokowanie schematów (ToolDefinition) nowo załadowanych narzędzi w trakcie tej samej sesji. Zapewnia to, że LLM otrzyma definicje parametrów zaraz po akcji `LoadCategory`.
+- v2.12.4 GOLD [TWO-PHASE COMMIT] - Naprawa błędu "Silent Transaction Failure" w `ManageLayersTool.cs`. Wdrożono wzorzec dwufazowego zatwierdzania bazy danych: najpierw tworzona jest struktura warstwy, a dopiero po pomyślnym `Commit()` głównej transakcji, w drugiej małej transakcji, warstwa jest ustawiana jako aktualna (`db.Clayer`). Zapobiega to powstawaniu "warstw widm".
+- v2.12.5 GOLD [CONTEXT PROTECTION] - Wzmocnienie stabilności `ManageLayersTool.cs` poprzez wymuszenie kontekstu `HostApplicationServices.WorkingDatabase` (rozwiązanie problemu Silent Rollback w ODA Teigha). Dodatkowo zoptymalizowano proces tworzenia rekordów warstw, inicjując ich właściwości (kolor, rodzaj linii) przed dodaniem do tablicy symboli.
+- v2.12.6 GOLD [ENGINE TRACER] - Wdrożenie zakładki Debug oraz nasłuchiwania zdarzeń bazy danych (ObjectAppended, TransactionAborted) celem diagnozy zjawiska Silent Rollback w Teigha API.
+- v2.12.7 GOLD [THREAD-SAFE UI SYNC] - Refaktoryzacja `ManageLayersTool.cs`. Przeniesiono aktywację warstw (`db.Clayer`) oraz odświeżanie interfejsu do Głównego Wątku (Main Thread) za pomocą `doc.SendStringToExecute`. Rozwiązuje to problem "cichego rollbacku" przy interakcjach z UI z wątków pobocznych.
+- v2.12.8 GOLD [ACTION SETCURRENT] - Dodanie dedykowanej akcji `SetCurrent` do `ManageLayersTool.cs`. Rozwiązuje to problem błędnego używania przez LLM akcji `Toggle -> On` do przełączania warstwy roboczej. Zaktualizowano schemat narzędzia, oznaczając flagę `MakeCurrent` jako przestarzałą.
+- v2.12.9 GOLD [LAYER MODIFICATION] - Rozszerzenie `ManageLayersTool.cs` o akcję `Modify` oraz obsługę właściwości: `Transparency` (konwersja 0-90 na Alpha 255-0), `LineWeight` oraz `Plottable`. Zunifikowano logikę `Create/Modify` z pełną obsługą masek (*, ?) dla modyfikacji masowych, co eliminuje halucynacje modelu dotyczące używania narzędzi edycji obiektów fizycznych do zarządzania strukturą warstw.
+- v2.12.10 GOLD [PROMPT ENHANCEMENT] - Optymalizacja schematu `ForeachTool.cs` (Prompt Engineering). Wstrzyknięto "Złoty Standard" wywołań (Few-Shot Examples) bezpośrednio do opisu parametrów. Agent dowiaduje się o możliwości zagnieżdżania ewaluacji RPN, używania tagu `{index}` oraz wywoływania dowolnych narzędzi (np. `ManageLayers`) wewnątrz pętli za pomocą klucza `ToolName`.
+- v2.12.11 GOLD [RPN INTERCEPTION] - Implementacja RPN Interception w `ForeachTool.cs`. Parametry oznaczone prefiksem `RPN:` wewnątrz pętli są teraz ewaluowane przez `RpnCalculator` przed przekazaniem do orkiestratora. Rozwiązuje to problem przesyłania surowych wyrażeń matematycznych zamiast wyliczonych wartości (np. dla kolorów lub pozycji) w pętlach.
+- v2.12.12 GOLD [TEST FIX] - Naprawa błędu kompilacji CS0103 w `ForeachToolTests.cs` poprzez dodanie brakującego `using Bricscad_AgentAI_V2.Core`.
+- v2.12.13 GOLD [LAYER HOTFIX] - Wyeliminowanie błędu "Double-Open" w `ManageLayersTool.cs`. Przejście na operowanie bezpośrednio na `LayerTableRecord` (List) zamiast ponownego otwierania obiektów przez `ObjectId`. Rozwiązuje to problem cichego rollbacku transakcji w Teigha API przy modyfikacji nowo utworzonych warstw.
+- v2.12.14 GOLD [STALE UI FIX] - Wdrożenie wymuszonej synchronizacji GUI w `ManageLayersTool.cs`. Gwarantowane wywołanie `SendStringToExecute` (z komendą `(princ)` jako fallback) zapewnia, że Menedżer Warstw BricsCAD odświeży swój stan i pokaże nowo utworzone/zmodyfikowane warstwy nawet w trybie asynchronicznym bez ich aktywacji.
+- v2.12.15 GOLD [XREF PROTECTION] - Wdrożenie zabezpieczeń dla warstw zależnych (XREF) w `ManageLayersTool.cs`. Zablokowano akcje `SetCurrent`, `Rename` oraz `Delete` dla warstw `IsDependent`. Zaktualizowano schemat o instrukcję użycia znaku `|` do modyfikacji wizualnej podkładów.
+- v2.12.16 GOLD [SUPPRESS UI] - Implementacja mechanizmu `SuppressUI` w `ManageLayersTool.cs` i `ForeachTool.cs`. Narzędzia wywoływane w pętlach otrzymują flagę blokującą odświeżanie interfejsu w każdej iteracji, co eliminuje kolizje blokad dokumentu (`eLockViolation`). Zbiorcze odświeżenie UI następuje raz po zakończeniu całej pętli.
+- v2.13.1 GOLD [ADVANCED FILTERS] - Implementacja `AdvancedFilters` w `SelectEntitiesTool.cs`. Dodano obsługę złożonych zapytań o właściwości CAD (np. Transparency 0-90, TextOverride) z użyciem refleksji i dedykowanego mapowania klas. Rozszerzono logikę o operatory `Contains` oraz `NotContains`.
+- v2.13.2 GOLD [UI REFACTOR] - Reorganizacja interfejsu `DatasetStudioControl.cs`. Zmieniono układ z pionowego na poziomy (lista na górze - 20%, edytor na dole - 80%). Wprowadzono czytelną belkę nagłówkową na samej górze dla przełączników i statystyk.
+- v2.13.3 GOLD [DATASET STUDIO PRO] - Kompleksowa przebudowa Dataset Studio. Wdrożono kolorowanie składni JSON (VSC style), system zakładek ("Aktualna sesja" / "Edycja data setów") oraz pełne zarządzanie plikami JSONL z funkcją "Uruchom Makro" do testowania instrukcji. Wprowadzono trwałość ustawień ostatnio otwartego pliku.
+- v2.13.4 GOLD [INSTRUCTION TOOLS] - Rozbudowa Dataset Studio o narzędzia manipulacji treścią: przyciski "Usuń instrukcje" (czyszczenie tablicy messages) oraz "Zamień instrukcję" (wklejanie z walidacją formatu ze schowka).
+- v2.13.5 GOLD [SMART INSTRUCTIONS] - Refaktoryzacja narzędzi instrukcji: "Usuń instrukcje" teraz precyzyjnie zachowuje nagłówek `system`, a "Zamień instrukcję" inteligentnie łączy nową interakcję ze schowka, dbając o niepowtarzanie nagłówków systemowych.
+- v2.13.6 GOLD [UI REFINERY] - Poprawki UX w Dataset Studio: wdrożenie debounce dla kolorowania składni (fix klawisza Enter), przeniesienie przycisków zarządzania wpisami (Duplikuj/Usuń) na górny pasek, wdrożenie responsywnego układu dolnego panelu akcji oraz dodanie funkcji usuwania rekordów z listą potwierdzeń.
+- v2.14.0 GOLD [SEPARATION OF CONCERNS] - Rozdzielenie kompetencji narzędzi: wdrożenie wyspecjalizowanego `DimensionEditTool` (#wymiary), wprowadzenie blokady (Runtime Guardrail) w `ModifyPropertiesTool` dla tekstu i wymiarów oraz implementacja hard-cast fallback w `SelectEntitiesTool` dla `HatchObjectType` (fix gradientów) i właściwości tekstowych.
+- v2.14.1 HOTFIX [DIMENSION SYNC] - Usprawnienie `DimensionEditTool`: wdrożenie `GetArrowObjectId` dla automatycznego generowania standardowych grotów (Lazy Loading) oraz dodanie `RecomputeDimensionBlock` dla natychmiastowego odświeżania grafiki wymiaru po zmianie parametrów.
+- v2.14.2 CRITICAL HOTFIX [SAFE PARSE] - Całkowita rekonstrukcja `Execute` w `DimensionEditTool`: wdrożenie bezpiecznego parsowania (`InvariantCulture`), wymuszenie trybu `OpenMode.ForWrite` dla każdego obiektu oraz dodanie polecenia `REGEN` dla synchronizacji interfejsu CAD.
+- v2.15.0 GOLD [TOOL SANDBOX] - Wdrożenie zakładki "Tool Sandbox" do izolowanego testowania logiki C# narzędzi `IToolV2`. Implementacja inteligentnego generatora szablonów JSON na podstawie schematów, integracja z `AgentMemoryState` celem ładowania zaznaczenia CAD oraz system logowania wyników z sygnaturą czasową.
+- v2.15.1 [TOOL SANDBOX TRANSFORMATION] - Przekształcenie Sandboxa w interaktywną dokumentację. Wdrożenie "Property Discovery" (dynamiczny podgląd parametrów i typów), obsługa "Snippets" (przykładów JSON), ulepszone szablony z komentarzami i placeholderami oraz automatyczne oczyszczanie JSON (Regex) przed egzekucją. Poprawiono wysokość sekcji dokumentacji oraz przywróiono `DimensionEditTool` i `InspectEntityTool` do projektu.
+- v2.15.2 [INTERACTIVE SANDBOX] - Wdrożenie interaktywnego budowania JSON: podwójne kliknięcie na parametr w dokumentacji wstawia go do edytora. Wprowadzenie minimalistycznych szablonów (tylko pola Required).
+- v2.15.3 [UI POLISH] - Ulepszenie interakcji: podwójne kliknięcie ustawia kursor bezpośrednio wewnątrz pustych cudzysłowów `""` (bez tekstu zastępczego). Uproszczenie generatora szablonów celem zwiększenia przejrzystości. Responsywność Tool Sandbox (SplitContainer + persistence), Click-to-Add dla parametrów.
+- v2.16.0 [AGENT RECIPES] - Wdrożenie systemu "Agent Recipes" (Drogowskazy). Nowa 4. zakładka w Dataset Studio, mechanizm Few-Shot Prompting ($trigger) oraz przycisk "Przechwyć jako Przepis" w edytorze sesji.
+- v2.16.1 [DYNAMIC AUTOCOMPLETE] - Wdrożenie dynamicznego autouzupełniania dla `#` (Tagi z ToolConfigManager) oraz `$` (Receptury z RecipeManager). Naprawiono błąd braku widoczności ręcznie dodanych kategorii w podpowiedziach.
+- v2.17.0 [ADVANCED RECIPES] - Rozbudowa systemu receptur o "Tryb Makra" ($trigger$ - natychmiastowe wykonanie). Wdrożenie testowania całej sekwencji z walidacją JSON oraz interaktywnego wyboru kroku do przesłania do Tool Sandboxa.
+- v2.18.0 [UI & INTEGRATION] - Zmiana nazwy na "Recepty". Implementacja integracji "Wyślij do Recepty" w Tool Sandboxie. Dodanie przycisku "Nowa Recepta" (tworzenie od zera). Optymalizacja proporcji UI (25/75) z persistencją.
+- v2.19.0 [TRAINING DATA] - Wdrożenie modułu "Eksport do Złotego Standardu" w Receptach. Automatyczna generacja JSONL z uwzględnieniem System Promptu, definicji narzędzi (#core + tagi) oraz zapytania użytkownika.
+- v2.20.0 GOLD [CLI INTERFACE] - Wdrożenie Command Line Interface (CLI). Dodano komendy `AI_RUN`, `AI_TOOL`, `AI_PROPS` oraz `AI_DIM`. Implementacja mechanizmu `SyncSelectionWithMemory` do automatycznej synchronizacji zaznaczenia CAD (PickFirst) z pamięcią Agenta. Rozwiązanie konfliktu nazw dla klasy `Exception`.
+- v2.20.1 GOLD [RPN CLI] - Pełna migracja systemu RPN z v1. Komendy RPN, CALC, STOS. Trwałość stosu w DWG.
+- v2.20.2 GOLD [RPN FINAL SPEC] - Finalizacja CLI RPN. Tryb interaktywny (pętla), interaktywne pomiary CAD.
+- v2.20.3 GOLD [RPN V1 SYNC] - Pełna synchronizacja zachowania z v1. Implementacja "wstrzykiwania" wyniku na końcu komendy RPN (SendStringToExecute), pętla obliczeń dla CALC oraz automatyczne odświeżanie stosu w konsoli.
+- v2.20.4 GOLD [UNIT CLEAN INJECTION] - Inteligentne czyszczenie jednostek przed wstrzyknięciem do CAD. Automatyczna konwersja jednostek długości na jednostki rysunku (INSUNITS) oraz wstrzykiwanie surowych wartości (DisplayValue) dla innych wymiarów.
+- v2.20.5 GOLD [READ XDATA] - Nowe narzędzie `ReadXData` do odczytu metadanych XData. Dodano komendę CLI `AI_XDATA` oraz pełną dokumentację techniczną.
+- v2.20.6 GOLD [WRITE XDATA] - Implementacja narzędzia `WriteXData` z obsługą automatycznej rejestracji RegApp oraz komendą CLI `AI_SETXDATA`.
+- v2.20.7 GOLD [FIND XDATA] - Implementacja narzędzia `FindXData` z obsługą rekurencyjnego skanowania bloków oraz komendą CLI `AI_FINDXDATA`.
+- v2.20.8 GOLD [MULTIMODAL VISION] - Wdrożenie obsługi modeli VLM (Vision).
     - Implementacja `CaptureVisionAreaTool` (Win32 P/Invoke screenshot).
     - Rozszerzenie `ChatMessage` o pole `Content` (object) dla standardu GPT-4o Vision.
-    - Automatyczne wstrzykiwanie Base64 obrazĂłw do historii sesji w `LLMClient`.
+    - Automatyczne wstrzykiwanie Base64 obrazów do historii sesji w `LLMClient`.
     - Nowe polecenia CLI: `SKAN` (zrzut ekranu) i `AI_VISION` (zrzut + pytanie).
-- v2.20.9 GOLD [VISION e15 FIX] - Naprawa krytycznego bĹ‚Ä™du `eVetoed` (e15) w module Vision.
+- v2.20.9 GOLD [VISION e15 FIX] - Naprawa krytycznego błędu `eVetoed` (e15) w module Vision.
     - Rezygnacja z COM `ZoomWindow` na rzecz natywnego logicznego manipulowania `ViewTableRecord`.
-    - Poprawa cyklu ĹĽycia `ViewTableRecord` (naprawa bĹ‚Ä™du use-after-dispose).
-    - UsuniÄ™cie flagi `Transparent` z poleceĹ„ wizyjnych celem umoĹĽliwienia zmian widoku.
-- v2.21.0 GOLD [MULTI-AGENT ORCHESTRATION] - Rozdzielenie kompetencji agentĂłw: wprowadzenie `IExecutionContext`, `SharedMemoryState` (Blackboard) dla komunikacji, `SupervisorOrchestrator` oraz `DelegateTaskTool` (Kroki 1-5).
-- v2.22.0 GOLD [MATH EXPERT & RPN] - WdroĹĽenie profilu `CadMathProfile` i eksperta matematycznego zintegrowanego z kalkulatorem `RpnCalculator`. Wsparcie dla szablonĂłw `{MATH:...}` w narzÄ™dziach CAD.
-- v2.23.0 GOLD [MULTI-CRITERIA FILTERS] - Rozszerzenie `DatasetManager` o filtrowanie wielokryterialne podtypĂłw (Faza 8.1).
-- v2.24.0 GOLD [KNOWLEDGE BASE CATEGORIZATION] - System kategoryzacji baz danych, makr i formuĹ‚. Wprowadzenie tagĂłw, hierarchii folderĂłw oraz widoku drzewiastego TreeView w GUI (Faza 9).
-- v2.25.0 GOLD [MULTI-MODAL VISION] - ObsĹ‚uga multimodalnych zaĹ‚Ä…cznikĂłw (tekst, PDF, XLSX) i automatyczna kompresja/skalowanie obrazĂłw z Vision API oraz integracja ze schowkiem Ctrl+V (Faza 10 & 12).
-- v2.25.1 GOLD [DATASET STANDARDIZATION] - Rozdzielenie plikĂłw metadanych i danych (*.data.json), zabezpieczenie przed brakiem danych oraz normalizacja tabel w GUI (Faza 11).
-- v2.25.2 HOTFIX [GUI ENCODING] - Poprawka bĹ‚Ä™dĂłw kodowania polskich znakĂłw w interfejsie AgentControl.cs.
-- v2.26.0 GOLD [SESSION & COMPRESSION] - System zarzÄ…dzania sesjami ChatSession, trwaĹ‚y zapis sesji w APPDATA, automatyczne nadawanie nazw sesjom oraz kompresja kontekstu w oknie Context Bar (Faza 13).
-- v2.27.0 GOLD [DWG CONTEXT & NOTES] - System Notatek Projektowych (Sidecar Markdown), komenda `/notatka` w GUI, menedĹĽer DrawingNoteManager oraz dynamiczne wstrzykiwanie RAG do promptu Supervisora (Faza 14).
-- v2.28.0 GOLD [SAFE FILE TOOLS] - Zabezpieczone narzÄ™dzia plikowe Read/WriteProjectFileTool z blokadami Ĺ›cieĹĽek/rozszerzeĹ„ oraz integracja autouzupeĹ‚niania komend i tagĂłw w GUI (Faza 15).
+    - Poprawa cyklu życia `ViewTableRecord` (naprawa błędu use-after-dispose).
+    - Usunięcie flagi `Transparent` z poleceń wizyjnych celem umożliwienia zmian widoku.
+- v2.21.0 GOLD [MULTI-AGENT ORCHESTRATION] - Rozdzielenie kompetencji agentów: wprowadzenie `IExecutionContext`, `SharedMemoryState` (Blackboard) dla komunikacji, `SupervisorOrchestrator` oraz `DelegateTaskTool` (Kroki 1-5).
+- v2.22.0 GOLD [MATH EXPERT & RPN] - Wdrożenie profilu `CadMathProfile` i eksperta matematycznego zintegrowanego z kalkulatorem `RpnCalculator`. Wsparcie dla szablonów `{MATH:...}` w narzędziach CAD.
+- v2.23.0 GOLD [MULTI-CRITERIA FILTERS] - Rozszerzenie `DatasetManager` o filtrowanie wielokryterialne podtypów (Faza 8.1).
+- v2.24.0 GOLD [KNOWLEDGE BASE CATEGORIZATION] - System kategoryzacji baz danych, makr i formuł. Wprowadzenie tagów, hierarchii folderów oraz widoku drzewiastego TreeView w GUI (Faza 9).
+- v2.25.0 GOLD [MULTI-MODAL VISION] - Obsługa multimodalnych załączników (tekst, PDF, XLSX) i automatyczna kompresja/skalowanie obrazów z Vision API oraz integracja ze schowkiem Ctrl+V (Faza 10 & 12).
+- v2.25.1 GOLD [DATASET STANDARDIZATION] - Rozdzielenie plików metadanych i danych (*.data.json), zabezpieczenie przed brakiem danych oraz normalizacja tabel w GUI (Faza 11).
+- v2.25.2 HOTFIX [GUI ENCODING] - Poprawka błędów kodowania polskich znaków w interfejsie AgentControl.cs.
+- v2.26.0 GOLD [SESSION & COMPRESSION] - System zarządzania sesjami ChatSession, trwały zapis sesji w APPDATA, automatyczne nadawanie nazw sesjom oraz kompresja kontekstu w oknie Context Bar (Faza 13).
+- v2.27.0 GOLD [DWG CONTEXT & NOTES] - System Notatek Projektowych (Sidecar Markdown), komenda `/notatka` w GUI, menedżer DrawingNoteManager oraz dynamiczne wstrzykiwanie RAG do promptu Supervisora (Faza 14).
+- v2.28.0 GOLD [SAFE FILE TOOLS] - Zabezpieczone narzędzia plikowe Read/WriteProjectFileTool z blokadami ścieżek/rozszerzeń oraz integracja autouzupełniania komend i tagów w GUI (Faza 15).
 
-- v2.28.1 GOLD [MEMORY SYNCHRONIZATION] - Ujednolicenie pliku pamiÄ™ci memory.md, naprawa znieksztaĹ‚ceĹ„ Mojibake i UTF-16, nadanie numerĂłw wersji kolejnym krokom.
+- v2.28.1 GOLD [MEMORY SYNCHRONIZATION] - Ujednolicenie pliku pamięci memory.md, naprawa zniekształceń Mojibake i UTF-16, nadanie numerów wersji kolejnym krokom.
+- v2.28.2 GOLD [RECIPES MANAGER] - Przeniesienie recept do osobnych plików JSON i dodanie ManageRecipesTool.
+- v2.28.3 GOLD [HELP CENTER] - Implementacja zakładki Pomoc z renderowaniem Markdown.
+- v2.28.4 GOLD [READ HELP] - Dodanie ReadHelpTool i dostępu Supervisora do dokumentacji użytkownika.
+- v2.28.5 GOLD [UI MARKDOWN] - Zmiana komendy startowej na AI oraz formatowanie Markdown w konsoli.
+- v2.28.6 GOLD [SKILLS SYSTEM] - Wdrożenie skilli Markdown+YAML i ManageSkillsTool.
+- v2.28.7 GOLD [SKILLS DOCS] - Uzupełnienie USER_GUIDE o skille # i polecenia /.
+- v2.28.8 GOLD [SUPERVISOR SKILLS] - Doprecyzowanie promptu Supervisora: Skille # kontra Recepty $.
+- v2.28.9 GOLD [MANAGE SKILLS] - Dodanie manage_skills do domyślnych narzędzi Supervisora.
+- v2.28.10 GOLD [SKILLS ALIASES] - Uodpornienie ManageSkillsTool na wielkość liter i aliasy.
+- v2.28.11 FIX [QA SESSION] - Naprawa zapisu sesji QA i udostępnienie AuditorProfile odczytu kodu źródłowego.
+- v2.28.12 FEAT [QA ANTIGRAVITY] - Dodanie RunToolTest, WriteQAReport i DelegateTaskToAntigravity.
+- v2.28.13 FEAT [SEARCH FILE CONTENT] - Dodanie SearchFileContentTool dla SourceCode i DrawingFolder.
+- v2.28.14 FEAT [LISP SELF-HEALING] - Wdrożenie profili LISP, agent-callback i pętli samonaprawiającej.
+- v2.28.15 FIX [LISP ROUTING] - Naprawa utraty sesji i wymuszenie delegowania kodu LISP do LispCoderProfile.
+- v2.28.16 FEAT [LISP KNOWLEDGE BASE] - Integracja zakładki Skrypty LISP z Bazą Wiedzy i manage_lisps.
+- v2.28.17 FIX [LISP UI EXECUTION] - Poprawa autouzupełniania %skrypt i pełnego wykonania LISPa po load.
+- v2.28.18 DOC [MEMORY CANONICALIZATION] - Scalenie memory.md i docs/memory.md, renumeracja kolizji v2.28.x oraz wskazanie jednego źródła prawdy.
 
 ## Decyzje Architektoniczne
-- **Semantic Tool Routing**: System dynamicznego dobierania narzÄ™dzi na podstawie tagĂłw (#core, #bloki, itp.). Od v2.8.0 zarzÄ…dzany przez `ToolConfigManager`.
-- **Early Exit (Fast Mode)**: Mechanizm pozwalajÄ…cy Agentowi na zakoĹ„czenie pÄ™tli po wykonaniu narzÄ™dzi akcji, jeĹ›li wspierajÄ… one flagÄ™ `SupportsEarlyExit`. Drastyczna redukcja tokenĂłw i czasu odpowiedzi.
-- **AI Package Manager**: Model LLM samodzielnie odkrywa i Ĺ‚aduje pakiety narzÄ™dzi przez `RequestAdditionalToolsTool`.
-- **Hard Guardrails**: KaĹĽde narzÄ™dzie jest odpowiedzialne za walidacjÄ™ swoich parametrĂłw i zwracanie "BĹ‚Ä™du Krytycznego" w celu przerwania halucynacji LLM.
+- **Semantic Tool Routing**: System dynamicznego dobierania narzędzi na podstawie tagów (#core, #bloki, itp.). Od v2.8.0 zarządzany przez `ToolConfigManager`.
+- **Early Exit (Fast Mode)**: Mechanizm pozwalający Agentowi na zakończenie pętli po wykonaniu narzędzi akcji, jeśli wspierają one flagę `SupportsEarlyExit`. Drastyczna redukcja tokenów i czasu odpowiedzi.
+- **AI Package Manager**: Model LLM samodzielnie odkrywa i ładuje pakiety narzędzi przez `RequestAdditionalToolsTool`.
+- **Hard Guardrails**: Każde narzędzie jest odpowiedzialne za walidację swoich parametrów i zwracanie "Błędu Krytycznego" w celu przerwania halucynacji LLM.
 
-## RozwiÄ…zane Problemy (Bug Log)
-- **UI Autocomplete**: Naprawiono przechwytywanie klawiszy Tab/Enter przez migracjÄ™ do `ProcessCmdKey` w `AgentControl.cs`.
-- **Build CS0111/CS0103**: Naprawiono bĹ‚Ä™dy kompilacji po masowej refaktoryzacji (dodanie plikĂłw do .csproj oraz usuniÄ™cie duplikatu klasy w UserInputTool.cs).
-- **Silent Name Mismatch (Death Spiral)**: Naprawiono bĹ‚Ä…d w v2.9.1, gdzie klucze `ToolConfigManager` korzystaĹ‚y z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiaĹ‚o mechanizm Early Exit i gubiĹ‚o narzÄ™dzia #core.
+## Rozwiązane Problemy (Bug Log)
+- **UI Autocomplete**: Naprawiono przechwytywanie klawiszy Tab/Enter przez migrację do `ProcessCmdKey` w `AgentControl.cs`.
+- **Build CS0111/CS0103**: Naprawiono błędy kompilacji po masowej refaktoryzacji (dodanie plików do .csproj oraz usunięcie duplikatu klasy w UserInputTool.cs).
+- **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
-## Dziennik Deweloperski (Logi ZadaĹ„)
-## [v2.20.10] 2026-06-03T10:45:17+02:00 - Inicjalna analiza architektury V2 i protokoĹ‚Ăłw pamiÄ™ci
+## Dziennik Deweloperski (Logi Zadań)
+## [v2.20.10] 2026-06-03T10:45:17+02:00 - Inicjalna analiza architektury V2 i protokołów pamięci
 ### [ZREALIZOWANO]
-- Przeprowadzono szczegĂłĹ‚owÄ… analizÄ™ architektury projektu w wersji V2 (Function Calling, LLMClient ReAct, RPN, Dataset Studio, CLI, system receptur i faza Vision).
+- Przeprowadzono szczegółową analizę architektury projektu w wersji V2 (Function Calling, LLMClient ReAct, RPN, Dataset Studio, CLI, system receptur i faza Vision).
 - Przeanalizowano wytyczne, instrukcje i zasady w dokumentacji projektu.
 ### [STAN_SYSTEMU]
-- System w peĹ‚ni stabilny i przeanalizowany, gotowy do dalszego rozwoju.
+- System w pełni stabilny i przeanalizowany, gotowy do dalszego rozwoju.
 ### [BLOKADY / PROBLEMY]
-- Brak napotkanych trudnoĹ›ci w procesie analizy.
+- Brak napotkanych trudności w procesie analizy.
 ### [KOLEJNY_KROK]
-- Oczekiwanie na konkretne zadania implementacyjne od uĹĽytkownika.
+- Oczekiwanie na konkretne zadania implementacyjne od użytkownika.
 
-## [v2.20.11] 2026-06-03T11:31:40+02:00 - Analiza konfiguracji LLM i identyfikacja parametrĂłw LM Studio
+## [v2.20.11] 2026-06-03T11:31:40+02:00 - Analiza konfiguracji LLM i identyfikacja parametrów LM Studio
 ### [ZREALIZOWANO]
-- Przeanalizowano pliki konfiguracyjne LLM (LLMConfigModels.cs, LLMClient.cs) w celu identyfikacji parametrĂłw, ktĂłre moĹĽna przekazaÄ‡ do dostawcĂłw API (OpenAI, OpenRouter, LM Studio).
-- Opracowano listÄ™ potencjalnych rozszerzeĹ„ konfiguracji (m.in. reasoning_effort, thinking budget, top_p, seed, frequency/presence penalties).
+- Przeanalizowano pliki konfiguracyjne LLM (LLMConfigModels.cs, LLMClient.cs) w celu identyfikacji parametrów, które można przekazać do dostawców API (OpenAI, OpenRouter, LM Studio).
+- Opracowano listę potencjalnych rozszerzeń konfiguracji (m.in. reasoning_effort, thinking budget, top_p, seed, frequency/presence penalties).
 ### [STAN_SYSTEMU]
-- System jest gotowy na wprowadzenie zmian w konfiguracji dostawcĂłw. Parametry sÄ… obecnie ograniczone do Model, Temperature, MaxTokens, ApiKey i EndpointUrl.
+- System jest gotowy na wprowadzenie zmian w konfiguracji dostawców. Parametry są obecnie ograniczone do Model, Temperature, MaxTokens, ApiKey i EndpointUrl.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Ewentualna implementacja dodatkowych pĂłl w LLMProviderConfig i LLMConfigDialog na ĹĽyczenie uĹĽytkownika.
+- Ewentualna implementacja dodatkowych pól w LLMProviderConfig i LLMConfigDialog na życzenie użytkownika.
 
-## [v2.20.12] 2026-06-03T11:34:52+02:00 - Poprawka kodowania znakĂłw UTF-8 w GUI AgentControl.cs
+## [v2.20.12] 2026-06-03T11:34:52+02:00 - Poprawka kodowania znaków UTF-8 w GUI AgentControl.cs
 ### [ZREALIZOWANO]
-- Przeanalizowano przydatnoĹ›Ä‡ parametrĂłw LLM specyficznych dla silnikĂłw lokalnych (Ollama, LM Studio, llama.cpp): top_p, top_k, min_p, repeat_penalty oraz stop sequences.
-- Opracowano plan integracji parametrĂłw samplingu dla modeli lokalnych w celu poprawy deterministycznoĹ›ci i stabilnoĹ›ci Tool Callingu na maĹ‚ych modelach (np. Qwen, DeepSeek).
+- Przeanalizowano przydatność parametrów LLM specyficznych dla silników lokalnych (Ollama, LM Studio, llama.cpp): top_p, top_k, min_p, repeat_penalty oraz stop sequences.
+- Opracowano plan integracji parametrów samplingu dla modeli lokalnych w celu poprawy deterministyczności i stabilności Tool Callingu na małych modelach (np. Qwen, DeepSeek).
 ### [STAN_SYSTEMU]
-- System bez zmian kodu ĹşrĂłdĹ‚owego. Przeprowadzono analizÄ™ wpĹ‚ywu parametrĂłw lokalnych na API.
+- System bez zmian kodu źródłowego. Przeprowadzono analizę wpływu parametrów lokalnych na API.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Oczekiwanie na decyzjÄ™ uĹĽytkownika co do implementacji rozszerzonych parametrĂłw lokalnych.
+- Oczekiwanie na decyzję użytkownika co do implementacji rozszerzonych parametrów lokalnych.
 
 ## [v2.20.13] 2026-06-03T11:38:50+02:00 - Poprawka formatu kodowania pliku LLMConfigModels.cs na UTF-8
 ### [ZREALIZOWANO]
-- WdroĹĽono rozszerzone parametry konfiguracji dostawcĂłw LLM (TopP, TopK, MinP, RepetitionPenalty, ReasoningEffort) w modelach danych C# (LLMConfigModels.cs), silniku klienta (LLMClient.cs) oraz formularzu UI (LLMConfigDialog.cs).
-- PomyĹ›lnie skompilowano i zweryfikowano projekt Bricscad_AgentAI_V2 za pomocÄ… dotnet build.
+- Wdrożono rozszerzone parametry konfiguracji dostawców LLM (TopP, TopK, MinP, RepetitionPenalty, ReasoningEffort) w modelach danych C# (LLMConfigModels.cs), silniku klienta (LLMClient.cs) oraz formularzu UI (LLMConfigDialog.cs).
+- Pomyślnie skompilowano i zweryfikowano projekt Bricscad_AgentAI_V2 za pomocą dotnet build.
 ### [STAN_SYSTEMU]
-- System w peĹ‚ni zaktualizowany o obsĹ‚ugÄ™ zaawansowanych parametrĂłw dla modeli lokalnych i chmurowych. Wszystkie zmiany sÄ… wstecznie kompatybilne.
+- System w pełni zaktualizowany o obsługę zaawansowanych parametrów dla modeli lokalnych i chmurowych. Wszystkie zmiany są wstecznie kompatybilne.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Oczekiwanie na uruchomienie i testy uĹĽytkownika w Ĺ›rodowisku BricsCAD.
+- Oczekiwanie na uruchomienie i testy użytkownika w środowisku BricsCAD.
 
 ## [v2.20.14] 2026-06-03T11:42:24+02:00 - Poprawa importu System.Text.Encoding w LLMConfigDialog.cs
 ### [ZREALIZOWANO]
-- WdroĹĽono czytelny interfejs pomocy i podpowiedzi (ToolTips) dla wszystkich zaawansowanych parametrĂłw konfiguracji dostawcĂłw (Temperature, Max Tokens, Top-P, Top-K, Min-P, Repetition Penalty, Reasoning Effort).
-- PomyĹ›lnie skompilowano i przetestowano aplikacjÄ™.
+- Wdrożono czytelny interfejs pomocy i podpowiedzi (ToolTips) dla wszystkich zaawansowanych parametrów konfiguracji dostawców (Temperature, Max Tokens, Top-P, Top-K, Min-P, Repetition Penalty, Reasoning Effort).
+- Pomyślnie skompilowano i przetestowano aplikację.
 ### [STAN_SYSTEMU]
-- System w peĹ‚ni zaktualizowany o opisy parametrĂłw podpowiedzi tooltip. Stabilny i gotowy do uĹĽycia.
+- System w pełni zaktualizowany o opisy parametrów podpowiedzi tooltip. Stabilny i gotowy do użycia.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Oczekiwanie na dalsze wytyczne od uĹĽytkownika.
+- Oczekiwanie na dalsze wytyczne od użytkownika.
 
-## [v2.20.15] 2026-06-03T13:20:00+02:00 - Testowanie stabilnoĹ›ci Ĺ‚adowania modeli i integracji z CAD
+## [v2.20.15] 2026-06-03T13:20:00+02:00 - Testowanie stabilności ładowania modeli i integracji z CAD
 ### [ZREALIZOWANO]
-- Dodano twarde zabezpieczenia (safeguards) w `LLMClient.cs` zapobiegajÄ…ce doĹ‚Ä…czaniu zaawansowanych parametrĂłw samplingu (`top_k`, `min_p`, `repetition_penalty`) do ĹĽÄ…daĹ„ wysyĹ‚anych do oficjalnych API OpenAI (`api.openai.com`) i Azure OpenAI (`openai.azure.com`).
-- UsuniÄ™to bĹ‚Ä™dy kompilacji:
-  - RozwiÄ…zano konflikt nazw `config` w `SendMessageReActAsync` przez usuniÄ™cie redundancji sĹ‚owa kluczowego `var` przy re-definicji w pÄ™tli.
-  - Skorygowano rzutowanie typĂłw w `double.TryParse` dla `GpuOffload` w `LLMClient.cs` oraz `LLMConfigDialog.cs` poprzez uĹĽycie `System.Globalization.NumberStyles.Any`.
-  - Dodano peĹ‚ny namespace `System.Text.Encoding` dla `StringContent` w `LLMConfigDialog.cs` w celu wyeliminowania bĹ‚Ä™du braku nazwy `Encoding` w kontekĹ›cie.
-- Zweryfikowano poprawnoĹ›Ä‡ kompilacji - kompilacja zakoĹ„czyĹ‚a siÄ™ peĹ‚nym sukcesem (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Dodano twarde zabezpieczenia (safeguards) w `LLMClient.cs` zapobiegające dołączaniu zaawansowanych parametrów samplingu (`top_k`, `min_p`, `repetition_penalty`) do żądań wysyłanych do oficjalnych API OpenAI (`api.openai.com`) i Azure OpenAI (`openai.azure.com`).
+- Usunięto błędy kompilacji:
+  - Rozwiązano konflikt nazw `config` w `SendMessageReActAsync` przez usunięcie redundancji słowa kluczowego `var` przy re-definicji w pętli.
+  - Skorygowano rzutowanie typów w `double.TryParse` dla `GpuOffload` w `LLMClient.cs` oraz `LLMConfigDialog.cs` poprzez użycie `System.Globalization.NumberStyles.Any`.
+  - Dodano pełny namespace `System.Text.Encoding` dla `StringContent` w `LLMConfigDialog.cs` w celu wyeliminowania błędu braku nazwy `Encoding` w kontekście.
+- Zweryfikowano poprawność kompilacji - kompilacja zakończyła się pełnym sukcesem (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System jest stabilny, w peĹ‚ni kompatybilny wstecznie ze wszystkimi chmurowymi dostawcami (OpenRouter, OpenAI) oraz przystosowany do zaawansowanego sterowania i dynamicznego Ĺ‚adowania modeli lokalnych w LM Studio.
+- System jest stabilny, w pełni kompatybilny wstecznie ze wszystkimi chmurowymi dostawcami (OpenRouter, OpenAI) oraz przystosowany do zaawansowanego sterowania i dynamicznego ładowania modeli lokalnych w LM Studio.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie dziaĹ‚ania dynamicznego Ĺ‚adowania w Ĺ›rodowisku CAD po netloadzie wtyczki.
+- Testowanie działania dynamicznego ładowania w środowisku CAD po netloadzie wtyczki.
 
-## [v2.20.16] 2026-06-03T13:35:00+02:00 - UsuniÄ™cie nieobsĹ‚ugiwanych parametrĂłw z payloadu LM Studio API
+## [v2.20.16] 2026-06-03T13:35:00+02:00 - Usunięcie nieobsługiwanych parametrów z payloadu LM Studio API
 ### [ZREALIZOWANO]
-- RozwiÄ…zano bĹ‚Ä…d `unrecognized_keys` w LM Studio (`contextLength`, `flashAttention`, `offloadKvCacheToGpu`):
-  - UsuniÄ™to duplikowane camelCase parametry z payloadu Ĺ‚adowania w `LLMClient.cs` oraz `LLMConfigDialog.cs`. REST API LM Studio wspiera wyĹ‚Ä…cznie snake_case.
-  - UsuniÄ™to nieobsĹ‚ugiwany parametr `gpu` z payloadu REST API. GPU offload w LM Studio REST API jest konfigurowany i dziedziczony z domyĹ›lnego profilu modelu w GUI aplikacji LM Studio.
-  - Zaktualizowano podpowiedĹş (ToolTip) dla pola GPU w `LLMConfigDialog.cs`, aby jasno informowaÄ‡ o tym zachowaniu API LM Studio.
-- Ponownie przetestowano kompilacjÄ™ projektu (sukces, 0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Rozwiązano błąd `unrecognized_keys` w LM Studio (`contextLength`, `flashAttention`, `offloadKvCacheToGpu`):
+  - Usunięto duplikowane camelCase parametry z payloadu ładowania w `LLMClient.cs` oraz `LLMConfigDialog.cs`. REST API LM Studio wspiera wyłącznie snake_case.
+  - Usunięto nieobsługiwany parametr `gpu` z payloadu REST API. GPU offload w LM Studio REST API jest konfigurowany i dziedziczony z domyślnego profilu modelu w GUI aplikacji LM Studio.
+  - Zaktualizowano podpowiedź (ToolTip) dla pola GPU w `LLMConfigDialog.cs`, aby jasno informować o tym zachowaniu API LM Studio.
+- Ponownie przetestowano kompilację projektu (sukces, 0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System w peĹ‚ni zsynchronizowany ze Ĺ›cisĹ‚ym schematem REST API LM Studio (`POST /api/v1/models/load`), co eliminuje bĹ‚Ä™dy `unrecognized_keys` (BadRequest).
+- System w pełni zsynchronizowany ze ścisłym schematem REST API LM Studio (`POST /api/v1/models/load`), co eliminuje błędy `unrecognized_keys` (BadRequest).
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Czekanie na weryfikacjÄ™ ze strony uĹĽytkownika.
+- Czekanie na weryfikację ze strony użytkownika.
 
-## [v2.20.17] 2026-06-03T14:00:00+02:00 - WdroĹĽenie dynamicznego edytora system promptu w zakĹ‚adce Ustawienia
+## [v2.20.17] 2026-06-03T14:00:00+02:00 - Wdrożenie dynamicznego edytora system promptu w zakładce Ustawienia
 ### [ZREALIZOWANO]
-- WdroĹĽono dynamiczne zarzÄ…dzanie promptem systemowym z poziomu UI wtyczki BricsCAD:
-  - Dodano nowÄ…, ostatniÄ… zakĹ‚adkÄ™ "âš™ď¸Ź Ustawienia" w panelu gĹ‚Ăłwnym `AgentControl.cs`.
-  - Umieszczono na niej edytor tekstowy `txtSystemPromptEditor` (RichTextBox) wyĹ›wietlajÄ…cy aktualnÄ… treĹ›Ä‡ promptu.
-  - Zaimplementowano obsĹ‚ugÄ™ zapisu przez przycisk "đź’ľ Zapisz Prompt", ktĂłry nadpisuje plik `system_prompt.txt` na dysku i wywoĹ‚uje `RebuildSystemPrompt()`, odĹ›wieĹĽajÄ…c stan w pamiÄ™ci aktywnej sesji czatu.
-  - Zsynchronizowano edytor z metodÄ… `RebuildSystemPrompt()`, dziÄ™ki czemu przy kaĹĽdym resecie pamiÄ™ci lub wczytaniu ustawieĹ„ treĹ›Ä‡ w edytorze jest aktualizowana.
-  - Dodano peĹ‚ne wsparcie kolorystyczne (ApplyTheme) dla nowo dodanych kontrolek.
-- Zweryfikowano poprawnoĹ›Ä‡ kompilacji - kompilacja zakoĹ„czyĹ‚a siÄ™ peĹ‚nym sukcesem (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„), a plik DLL zostaĹ‚ pomyĹ›lnie przebudowany.
+- Wdrożono dynamiczne zarządzanie promptem systemowym z poziomu UI wtyczki BricsCAD:
+  - Dodano nową, ostatnią zakładkę "⚙️ Ustawienia" w panelu głównym `AgentControl.cs`.
+  - Umieszczono na niej edytor tekstowy `txtSystemPromptEditor` (RichTextBox) wyświetlający aktualną treść promptu.
+  - Zaimplementowano obsługę zapisu przez przycisk "💾 Zapisz Prompt", który nadpisuje plik `system_prompt.txt` na dysku i wywołuje `RebuildSystemPrompt()`, odświeżając stan w pamięci aktywnej sesji czatu.
+  - Zsynchronizowano edytor z metodą `RebuildSystemPrompt()`, dzięki czemu przy każdym resecie pamięci lub wczytaniu ustawień treść w edytorze jest aktualizowana.
+  - Dodano pełne wsparcie kolorystyczne (ApplyTheme) dla nowo dodanych kontrolek.
+- Zweryfikowano poprawność kompilacji - kompilacja zakończyła się pełnym sukcesem (0 błędów, 0 ostrzeżeń), a plik DLL został pomyślnie przebudowany.
 ### [STAN_SYSTEMU]
-- System stabilny, rozbudowany o kompletnÄ… zakĹ‚adkÄ™ ustawieĹ„ uĹ‚atwiajÄ…cÄ… dynamicznÄ… pracÄ™ z promptem systemowym w locie bez restartu BricsCAD i bez rekompilacji.
+- System stabilny, rozbudowany o kompletną zakładkę ustawień ułatwiającą dynamiczną pracę z promptem systemowym w locie bez restartu BricsCAD i bez rekompilacji.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Uruchomienie wtyczki w programie BricsCAD i weryfikacja nowej zakĹ‚adki "Ustawienia".
+- Uruchomienie wtyczki w programie BricsCAD i weryfikacja nowej zakładki "Ustawienia".
 
-## [v2.20.18] 2026-06-03T14:15:00+02:00 - Dodanie struktury podzakĹ‚adek (TabControl) w Ustawieniach
+## [v2.20.18] 2026-06-03T14:15:00+02:00 - Dodanie struktury podzakładek (TabControl) w Ustawieniach
 ### [ZREALIZOWANO]
-- Przebudowano strukturÄ™ zakĹ‚adki "âš™ď¸Ź Ustawienia" w `AgentControl.cs` w celu wdroĹĽenia architektury zagnieĹĽdĹĽonych podzakĹ‚adek (TabControl):
-  - Utworzono podzakĹ‚adkÄ™ "Prompt" przeznaczonÄ… do edycji promptu systemowego.
-  - Dodano do podzakĹ‚adki przycisk "đź“‚ OtwĂłrz folder" wywoĹ‚ujÄ…cy `System.Diagnostics.Process` z argumentem `/select` w celu otwarcia Eksploratora Windows i automatycznego zaznaczenia pliku `system_prompt.txt`.
-  - Dostosowano mechanizm `ApplyTheme` do aplikowania motywĂłw kolorystycznych (tĹ‚a i czcionek) rĂłwnieĹĽ dla nowo powstaĹ‚ego kontenera podzakĹ‚adek `tabSettingsSub` i jego dzieci.
-- Przeprowadzono pomyĹ›lnÄ… kompilacjÄ™ (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Przebudowano strukturę zakładki "⚙️ Ustawienia" w `AgentControl.cs` w celu wdrożenia architektury zagnieżdżonych podzakładek (TabControl):
+  - Utworzono podzakładkę "Prompt" przeznaczoną do edycji promptu systemowego.
+  - Dodano do podzakładki przycisk "📂 Otwórz folder" wywołujący `System.Diagnostics.Process` z argumentem `/select` w celu otwarcia Eksploratora Windows i automatycznego zaznaczenia pliku `system_prompt.txt`.
+  - Dostosowano mechanizm `ApplyTheme` do aplikowania motywów kolorystycznych (tła i czcionek) również dla nowo powstałego kontenera podzakładek `tabSettingsSub` i jego dzieci.
+- Przeprowadzono pomyślną kompilację (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System stabilny, zorganizowany pod kÄ…tem przyszĹ‚ej rozbudowy ustawieĹ„, z wygodnÄ… integracjÄ… z systemowym menedĹĽerem plikĂłw (Explorer).
+- System stabilny, zorganizowany pod kątem przyszłej rozbudowy ustawień, z wygodną integracją z systemowym menedżerem plików (Explorer).
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Czekanie na weryfikacjÄ™ ze strony uĹĽytkownika.
+- Czekanie na weryfikację ze strony użytkownika.
 
-## [v2.20.19] 2026-06-03T14:45:00+02:00 - Fix wczytywania parametrĂłw dostawcĂłw LLM w GUI
+## [v2.20.19] 2026-06-03T14:45:00+02:00 - Fix wczytywania parametrów dostawców LLM w GUI
 ### [ZREALIZOWANO]
-- Naprawiono bĹ‚Ä…d pustych/niewidocznych parametrĂłw aktywnego profilu przy otwarciu okna "Ustawienia DostawcĂłw LLM":
-  - W metodzie `LoadData` w pliku `LLMConfigDialog.cs` dodano reset `cbProviders.SelectedIndex = -1` przed przypisaniem docelowego indeksu dostawcy. Wymusza to poprawne wywoĹ‚anie zdarzenia `SelectedIndexChanged` w WinForms, kiedy domyĹ›lny indeks pokrywa siÄ™ z indeksem 0 (ktĂłry byĹ‚ automatycznie przypisywany przy bindowaniu DataSource).
-- Zweryfikowano poprawnoĹ›Ä‡ kompilacji (0 bĹ‚Ä™dĂłw).
+- Naprawiono błąd pustych/niewidocznych parametrów aktywnego profilu przy otwarciu okna "Ustawienia Dostawców LLM":
+  - W metodzie `LoadData` w pliku `LLMConfigDialog.cs` dodano reset `cbProviders.SelectedIndex = -1` przed przypisaniem docelowego indeksu dostawcy. Wymusza to poprawne wywołanie zdarzenia `SelectedIndexChanged` w WinForms, kiedy domyślny indeks pokrywa się z indeksem 0 (który był automatycznie przypisywany przy bindowaniu DataSource).
+- Zweryfikowano poprawność kompilacji (0 błędów).
 ### [STAN_SYSTEMU]
-- System stabilny, poprawione zachowanie UI konfiguracji dostawcĂłw. Parametry wczytujÄ… siÄ™ natychmiast po uruchomieniu okna dialogowego.
+- System stabilny, poprawione zachowanie UI konfiguracji dostawców. Parametry wczytują się natychmiast po uruchomieniu okna dialogowego.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Czekanie na weryfikacjÄ™ ze strony uĹĽytkownika.
+- Czekanie na weryfikację ze strony użytkownika.
 
 ## [v2.20.20] 2026-06-03T15:05:00+02:00 - Refaktoryzacja WykonajInteligentneZaznaczenie z Regex na Newtonsoft JSON
 ### [ZREALIZOWANO]
-- Zrefaktoryzowano metodÄ™ `WykonajInteligentneZaznaczenie` w pliku `AgentCommand.cs` (V1).
-- ZastÄ…piono 4 wywoĹ‚ania `Regex.Match`/`Regex.Matches` (EntityType, Mode, Scope, Conditions) parsowaniem strukturalnym przez `JObject.Parse(json)` z biblioteki `Newtonsoft.Json.Linq`.
-- Dodano blok `try-catch` dla `JsonReaderException` z komunikatem diagnostycznym, obsĹ‚ugujÄ…cy uszkodzony JSON generowany przez LLM.
-- Ekstrakcja `Conditions` wykonywana jest teraz przez iteracjÄ™ po `JArray`, a `Value` jest bezpiecznie konwertowane przez `JToken.ToString()` (obsĹ‚uguje string, liczby i bool bez problemĂłw z cudzysĹ‚owami).
-- Zachowano domyĹ›lne wartoĹ›ci: `Mode = "New"`, `Scope = "Model"` (operator `??`).
-- CaĹ‚a dolna logika metody (transakcje BricsCAD, refleksja, `AktywneZaznaczenie`) pozostaĹ‚a bez zmian.
+- Zrefaktoryzowano metodę `WykonajInteligentneZaznaczenie` w pliku `AgentCommand.cs` (V1).
+- Zastąpiono 4 wywołania `Regex.Match`/`Regex.Matches` (EntityType, Mode, Scope, Conditions) parsowaniem strukturalnym przez `JObject.Parse(json)` z biblioteki `Newtonsoft.Json.Linq`.
+- Dodano blok `try-catch` dla `JsonReaderException` z komunikatem diagnostycznym, obsługujący uszkodzony JSON generowany przez LLM.
+- Ekstrakcja `Conditions` wykonywana jest teraz przez iterację po `JArray`, a `Value` jest bezpiecznie konwertowane przez `JToken.ToString()` (obsługuje string, liczby i bool bez problemów z cudzysłowami).
+- Zachowano domyślne wartości: `Mode = "New"`, `Scope = "Model"` (operator `??`).
+- Cała dolna logika metody (transakcje BricsCAD, refleksja, `AktywneZaznaczenie`) pozostała bez zmian.
 ### [STAN_SYSTEMU]
-- Plik `AgentCommand.cs` zmodyfikowany, import `Newtonsoft.Json.Linq` juĹĽ istniaĹ‚. Metoda jest teraz odporna na warianty formatowania JSON z LLM.
+- Plik `AgentCommand.cs` zmodyfikowany, import `Newtonsoft.Json.Linq` już istniał. Metoda jest teraz odporna na warianty formatowania JSON z LLM.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Kompilacja i weryfikacja poprawnoĹ›ci dziaĹ‚ania w Ĺ›rodowisku BricsCAD.
+- Kompilacja i weryfikacja poprawności działania w środowisku BricsCAD.
 
 ## [v2.21.0] 2026-06-03T20:10:00+02:00 - Multi-Agent Krok 1: Refaktoring silnika ReAct i IExecutionContext
 ### [ZREALIZOWANO]
 - Wykonano Krok 1 z `12_Mulitagent_upgrade.md`: Refaktoring silnika ReAct (`LLMClient.cs`).
-- Utworzono interfejs `IExecutionContext` oraz `CadExecutionContext` aby uniezaleĹĽniÄ‡ Workery od sztywnego wymogu `Document doc`.
-- Utworzono strukturÄ™ `AgentExecutionResult` w `Models` dla zwracania spĂłjnych wynikĂłw wykonania Agenta.
-- Zmodyfikowano `LLMClient.cs`: usuniÄ™to z pÄ™tli obsĹ‚ugÄ™ `RequestAdditionalTools` (pulÄ… narzÄ™dzi zarzÄ…dza teraz Supervisor przed wywoĹ‚aniem pÄ™tli) oraz zmieniono logikÄ™ powrotnÄ… na uĹĽycie `AgentExecutionResult`.
-- Dostosowano `AgentTesterControl` i `AgentControl` do nowych zmian i kompilacja (dotnet build) zakoĹ„czyĹ‚a siÄ™ peĹ‚nym sukcesem.
+- Utworzono interfejs `IExecutionContext` oraz `CadExecutionContext` aby uniezależnić Workery od sztywnego wymogu `Document doc`.
+- Utworzono strukturę `AgentExecutionResult` w `Models` dla zwracania spójnych wyników wykonania Agenta.
+- Zmodyfikowano `LLMClient.cs`: usunięto z pętli obsługę `RequestAdditionalTools` (pulą narzędzi zarządza teraz Supervisor przed wywołaniem pętli) oraz zmieniono logikę powrotną na użycie `AgentExecutionResult`.
+- Dostosowano `AgentTesterControl` i `AgentControl` do nowych zmian i kompilacja (dotnet build) zakończyła się pełnym sukcesem.
 ### [STAN_SYSTEMU]
-- System jest stabilny. Silnik konwersacyjny gotowy na krok 2, czyli implementacjÄ™ `Blackboard` i wyizolowanie zarzÄ…dzania z wewnÄ…trz poszczegĂłlnych pÄ™tli.
+- System jest stabilny. Silnik konwersacyjny gotowy na krok 2, czyli implementację `Blackboard` i wyizolowanie zarządzania z wewnątrz poszczególnych pętli.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Krok 2: WdroĹĽenie Blackboard (wspĂłĹ‚dzielony stan).
+- Krok 2: Wdrożenie Blackboard (współdzielony stan).
 
-## [v2.21.1] 2026-06-03T20:12:00+02:00 - Multi-Agent Krok 2: SharedMemoryState i narzÄ™dzia Read/Write Blackboard
+## [v2.21.1] 2026-06-03T20:12:00+02:00 - Multi-Agent Krok 2: SharedMemoryState i narzędzia Read/Write Blackboard
 ### [ZREALIZOWANO]
-- Wykonano Krok 2 z `12_Mulitagent_upgrade.md`: WdroĹĽono Blackboard (WspĂłĹ‚dzielony Stan).
-- Utworzono klasÄ™ `SharedMemoryState` (`ConcurrentDictionary<string, string>`) dla bezpiecznej wymiany danych miÄ™dzy agentami.
-- Utworzono i podpiÄ™to do projektu narzÄ™dzia: `WriteToBlackboardTool` oraz `ReadFromBlackboardTool`.
-- Kompilacja przebiegĹ‚a pomyĹ›lnie.
+- Wykonano Krok 2 z `12_Mulitagent_upgrade.md`: Wdrożono Blackboard (Współdzielony Stan).
+- Utworzono klasę `SharedMemoryState` (`ConcurrentDictionary<string, string>`) dla bezpiecznej wymiany danych między agentami.
+- Utworzono i podpięto do projektu narzędzia: `WriteToBlackboardTool` oraz `ReadFromBlackboardTool`.
+- Kompilacja przebiegła pomyślnie.
 ### [STAN_SYSTEMU]
-- System posiada teraz tablicÄ™ ogĹ‚oszeĹ„ do trwaĹ‚ego przechowywania i przekazywania danych kontekstowych miÄ™dzy rĂłĹĽnymi izolowanymi sesjami konwersacyjnymi.
+- System posiada teraz tablicę ogłoszeń do trwałego przechowywania i przekazywania danych kontekstowych między różnymi izolowanymi sesjami konwersacyjnymi.
 ### [BLOKADY / PROBLEMY]
-- Drobne bĹ‚Ä™dy kompilacji (nieaktualne nazwy klas `ToolFunction` na `FunctionSchema` w nowych narzÄ™dziach) - bĹ‚yskawicznie naprawione.
+- Drobne błędy kompilacji (nieaktualne nazwy klas `ToolFunction` na `FunctionSchema` w nowych narzędziach) - błyskawicznie naprawione.
 ### [KOLEJNY_KROK]
-- Krok 3: Profile NarzÄ™dzi (`ToolConfigManager.cs`).
+- Krok 3: Profile Narzędzi (`ToolConfigManager.cs`).
 
-## [v2.21.2] 2026-06-03T20:14:00+02:00 - Multi-Agent Krok 3: Profile agentĂłw i konfiguracja ToolConfigRoot
+## [v2.21.2] 2026-06-03T20:14:00+02:00 - Multi-Agent Krok 3: Profile agentów i konfiguracja ToolConfigRoot
 ### [ZREALIZOWANO]
-- Wykonano Krok 3 z `12_Mulitagent_upgrade.md`: Restrukturyzacja zarzÄ…dzania narzÄ™dziami.
-- Wprowadzono nowÄ… strukturÄ™ konfiguracji JSON w `ToolConfigManager.cs` (`ToolConfigRoot`), grupujÄ…cÄ… definicje narzÄ™dzi oraz nowe Profile AgentĂłw.
-- Zdefiniowano profile (np. `SupervisorProfile`, `CadProfile`) ze zdefiniowanymi przypisaniami Ĺ›cieĹĽek do pliku promptu systemowego oraz dostÄ™pnych narzÄ™dzi (`AllowedTools`) i tagĂłw (`AllowedTags`).
-- Dodano wstecznÄ… kompatybilnoĹ›Ä‡ podczas Ĺ‚adowania (automatyczna migracja starej pĹ‚askiej struktury do nowej `ToolConfigRoot`).
-- Skorygowano UI w `AgentControl.cs` podpinajÄ…c przywrĂłconÄ… metodÄ™ `UpdateSettings`.
+- Wykonano Krok 3 z `12_Mulitagent_upgrade.md`: Restrukturyzacja zarządzania narzędziami.
+- Wprowadzono nową strukturę konfiguracji JSON w `ToolConfigManager.cs` (`ToolConfigRoot`), grupującą definicje narzędzi oraz nowe Profile Agentów.
+- Zdefiniowano profile (np. `SupervisorProfile`, `CadProfile`) ze zdefiniowanymi przypisaniami ścieżek do pliku promptu systemowego oraz dostępnych narzędzi (`AllowedTools`) i tagów (`AllowedTags`).
+- Dodano wsteczną kompatybilność podczas ładowania (automatyczna migracja starej płaskiej struktury do nowej `ToolConfigRoot`).
+- Skorygowano UI w `AgentControl.cs` podpinając przywróconą metodę `UpdateSettings`.
 ### [STAN_SYSTEMU]
-- Kompilacja przebiegĹ‚a pomyĹ›lnie. Nowy plik `tools_config.json` z profilami generuje siÄ™ bezbĹ‚Ä™dnie. Agenci mogÄ… byÄ‡ teraz instancjowani z okreĹ›lonym profilem kompetencji.
+- Kompilacja przebiegła pomyślnie. Nowy plik `tools_config.json` z profilami generuje się bezbłędnie. Agenci mogą być teraz instancjowani z określonym profilem kompetencji.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Krok 4: Implementacja Supervisora (NadrzÄ™dna pÄ™tla sterujÄ…ca).
+- Krok 4: Implementacja Supervisora (Nadrzędna pętla sterująca).
 
 ## [v2.21.3] 2026-06-03T20:20:00+02:00 - Multi-Agent Krok 4: Klasa SupervisorOrchestrator i DelegateTaskTool
 ### [ZREALIZOWANO]
-- Wykonano Krok 4 z `12_Mulitagent_upgrade.md`: Utworzenie Orchestratora GĹ‚Ăłwnego.
-- Utworzono klasÄ™ `SupervisorOrchestrator`, odpowiedzialnÄ… za przechowywanie globalnej historii i inicjalizacjÄ™ gĹ‚Ăłwnej pÄ™tli dla "SupervisorProfile".
-- Stworzono narzÄ™dzie `DelegateTaskTool` (IToolV2), dziÄ™ki ktĂłremu Supervisor moĹĽe delegowaÄ‡ konkretne instrukcje do sprofilowanych agentĂłw (np. `CadProfile`).
-- `DelegateTaskTool` poprawnie blokuje gĹ‚Ăłwny cykl Supervisora, spawnujÄ…c sub-agenta i przekazujÄ…c mu zadanie wraz z wstrzykniÄ™ciem kontekstu pamiÄ™ci z Blackboarda.
-- Zaktualizowano `AgentControl.cs` i usuniÄ™to obsĹ‚ugÄ™ lokalnej zmiennej `_conversationHistory`, przepinajÄ…c UI bezpoĹ›rednio pod `SupervisorOrchestrator`.
-- Kompilacja przebiegĹ‚a pomyĹ›lnie.
+- Wykonano Krok 4 z `12_Mulitagent_upgrade.md`: Utworzenie Orchestratora Głównego.
+- Utworzono klasę `SupervisorOrchestrator`, odpowiedzialną za przechowywanie globalnej historii i inicjalizację głównej pętli dla "SupervisorProfile".
+- Stworzono narzędzie `DelegateTaskTool` (IToolV2), dzięki któremu Supervisor może delegować konkretne instrukcje do sprofilowanych agentów (np. `CadProfile`).
+- `DelegateTaskTool` poprawnie blokuje główny cykl Supervisora, spawnując sub-agenta i przekazując mu zadanie wraz z wstrzyknięciem kontekstu pamięci z Blackboarda.
+- Zaktualizowano `AgentControl.cs` i usunięto obsługę lokalnej zmiennej `_conversationHistory`, przepinając UI bezpośrednio pod `SupervisorOrchestrator`.
+- Kompilacja przebiegła pomyślnie.
 ### [STAN_SYSTEMU]
-- Architektura opiera siÄ™ teraz o wzorzec Supervisor-Worker. Komunikacja przechodzi przez Agenta GĹ‚Ăłwnego (Supervisora), ktĂłry nastÄ™pnie deleguje pracÄ™ "w dĂłĹ‚" z ustandaryzowanymi profilami (Agent Ekspert).
+- Architektura opiera się teraz o wzorzec Supervisor-Worker. Komunikacja przechodzi przez Agenta Głównego (Supervisora), który następnie deleguje pracę "w dół" z ustandaryzowanymi profilami (Agent Ekspert).
 ### [BLOKADY / PROBLEMY]
-- WymagaĹ‚o kaskadowej refaktoryzacji we wszystkich narzÄ™dziach oraz kontrolkach ze wzglÄ™du na zmianÄ™ sygnatury `ExecuteTool` przyjmujÄ…cej teraz `IExecutionContext` zamiast `Document doc`. Sukces po iteracyjnych poprawkach i ponownych kompilacjach.
+- Wymagało kaskadowej refaktoryzacji we wszystkich narzędziach oraz kontrolkach ze względu na zmianę sygnatury `ExecuteTool` przyjmującej teraz `IExecutionContext` zamiast `Document doc`. Sukces po iteracyjnych poprawkach i ponownych kompilacjach.
 ### [KOLEJNY_KROK]
-- Krok 5: Propagacja i ZgodnoĹ›Ä‡ UX (Eventy z sub-pÄ™tli wysyĹ‚ane do AgentControl, obsĹ‚uga logowania wywoĹ‚aĹ„ w UI z zachowaniem informacji o roli Agenta wykonujÄ…cego).
+- Krok 5: Propagacja i Zgodność UX (Eventy z sub-pętli wysyłane do AgentControl, obsługa logowania wywołań w UI z zachowaniem informacji o roli Agenta wykonującego).
 
 ## [v2.21.4] 2026-06-03T20:25:00+02:00 - Multi-Agent Krok 5: Integracja ChatSession i SessionManager
 ### [ZREALIZOWANO]
-- Wykonano Krok 5 z `12_Mulitagent_upgrade.md`: Propagacja i ZgodnoĹ›Ä‡ UX.
-- Zmodyfikowano kontrolkÄ™ `AgentControl.cs`, upewniajÄ…c siÄ™, ĹĽe metody aktualizujÄ…ce HUD (`UpdateStatusHUD`, `UpdateStatsHUD`, `AppendToolLog`) sÄ… publiczne i gotowe do odbioru zdarzeĹ„ z zewnÄ…trz.
-- PodĹ‚Ä…czono w `DelegateTaskTool.cs` instancjÄ™ sub-klienta (`LLMClient`) do gĹ‚Ăłwnej instancji kontrolki UI (`AgentControl.Instance`).
-- Zdarzenia z sub-klienta (Eksperta) sÄ… teraz propagowane na gĹ‚Ăłwny ekran z prefiksem okreĹ›lajÄ…cym aktywny profil (np. `[CadProfile] Oczekiwanie na analizÄ™...`).
-- Wyniki dziaĹ‚ania sub-klienta (zwracane przez narzÄ™dzie) sÄ… natywnie dodawane przez Supervisora do `_globalHistory` jako wiadomoĹ›ci typu `tool`, co zamyka pÄ™tlÄ™ ReAct.
-- Kompilacja przebiegĹ‚a bezbĹ‚Ä™dnie.
+- Wykonano Krok 5 z `12_Mulitagent_upgrade.md`: Propagacja i Zgodność UX.
+- Zmodyfikowano kontrolkę `AgentControl.cs`, upewniając się, że metody aktualizujące HUD (`UpdateStatusHUD`, `UpdateStatsHUD`, `AppendToolLog`) są publiczne i gotowe do odbioru zdarzeń z zewnątrz.
+- Podłączono w `DelegateTaskTool.cs` instancję sub-klienta (`LLMClient`) do głównej instancji kontrolki UI (`AgentControl.Instance`).
+- Zdarzenia z sub-klienta (Eksperta) są teraz propagowane na główny ekran z prefiksem określającym aktywny profil (np. `[CadProfile] Oczekiwanie na analizę...`).
+- Wyniki działania sub-klienta (zwracane przez narzędzie) są natywnie dodawane przez Supervisora do `_globalHistory` jako wiadomości typu `tool`, co zamyka pętlę ReAct.
+- Kompilacja przebiegła bezbłędnie.
 ### [STAN_SYSTEMU]
-- Kompletne wdroĹĽenie architektury Multi-Agent (Supervisor-Worker) zostaĹ‚o zakoĹ„czone. CaĹ‚y projekt dziaĹ‚a w trybie hierarchicznym, odciÄ…ĹĽajÄ…c jeden gĹ‚Ăłwny system prompt od nadmiaru wiedzy, izolujÄ…c narzÄ™dzia i zapobiegajÄ…c halucynacjom wywoĹ‚anym zbyt duĹĽym kontekstem.
+- Kompletne wdrożenie architektury Multi-Agent (Supervisor-Worker) zostało zakończone. Cały projekt działa w trybie hierarchicznym, odciążając jeden główny system prompt od nadmiaru wiedzy, izolując narzędzia i zapobiegając halucynacjom wywołanym zbyt dużym kontekstem.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- RozpoczÄ™cie tworzenia konkretnych, wyspecjalizowanych narzÄ™dzi pod kÄ…tem nowych profili (np. dedykowany Agent do zarzÄ…dzania arkuszami).
+- Rozpoczęcie tworzenia konkretnych, wyspecjalizowanych narzędzi pod kątem nowych profili (np. dedykowany Agent do zarządzania arkuszami).
 
-## [v2.21.5] 2026-06-03T22:35:00+02:00 - Dostosowanie zakĹ‚adki Agenci i Tester V2 do Multi-Agent
+## [v2.21.5] 2026-06-03T22:35:00+02:00 - Dostosowanie zakładki Agenci i Tester V2 do Multi-Agent
 ### [ZREALIZOWANO]
-- Naprawiono regresjÄ™ routingu Supervisora i brakujÄ…cych profili w konfiguracji:
-  - Zaimplementowano funkcjÄ™ `EnsureSupervisorPromptFile()` w `ToolConfigManager.cs`, ktĂłra automatycznie tworzy plik `system_prompt_supervisor.txt` z rygorystycznymi wytycznymi dotyczÄ…cymi braku pogawÄ™dek i natychmiastowego delegowania do `CadProfile`.
-  - Zaktualizowano `SyncWithTools` w `ToolConfigManager.cs`, aby automatycznie synchronizowaĹ‚ i uzupeĹ‚niaĹ‚ brakujÄ…ce lub puste profile (`SupervisorProfile`, `CadProfile`) oraz ich domyĹ›lne dozwolone narzÄ™dzia w pliku `tools_config.json`.
-  - Mapowano `CadProfile` do `system_prompt.txt` zamiast `system_prompt_cad.txt`, co przywrĂłciĹ‚o peĹ‚nÄ… kompatybilnoĹ›Ä‡ z wbudowanym w UI edytorem promptu systemowego.
-  - Zmodyfikowano `GetToolsPayloadForProfile` w `ToolOrchestrator.cs`, umoĹĽliwiajÄ…c dynamicznÄ… aktywacjÄ™ narzÄ™dzi na podstawie tagĂłw sesji (`SessionDynamicTags`) oraz profili (`AllowedTags`), co przywrĂłciĹ‚o mechanizm Ĺ‚adowania dynamicznego w architekturze Multi-Agent.
-  - PomyĹ›lnie przebudowano i skompilowano wtyczkÄ™ bez bĹ‚Ä™dĂłw i ostrzeĹĽeĹ„.
+- Naprawiono regresję routingu Supervisora i brakujących profili w konfiguracji:
+  - Zaimplementowano funkcję `EnsureSupervisorPromptFile()` w `ToolConfigManager.cs`, która automatycznie tworzy plik `system_prompt_supervisor.txt` z rygorystycznymi wytycznymi dotyczącymi braku pogawędek i natychmiastowego delegowania do `CadProfile`.
+  - Zaktualizowano `SyncWithTools` w `ToolConfigManager.cs`, aby automatycznie synchronizował i uzupełniał brakujące lub puste profile (`SupervisorProfile`, `CadProfile`) oraz ich domyślne dozwolone narzędzia w pliku `tools_config.json`.
+  - Mapowano `CadProfile` do `system_prompt.txt` zamiast `system_prompt_cad.txt`, co przywróciło pełną kompatybilność z wbudowanym w UI edytorem promptu systemowego.
+  - Zmodyfikowano `GetToolsPayloadForProfile` w `ToolOrchestrator.cs`, umożliwiając dynamiczną aktywację narzędzi na podstawie tagów sesji (`SessionDynamicTags`) oraz profili (`AllowedTags`), co przywróciło mechanizm ładowania dynamicznego w architekturze Multi-Agent.
+  - Pomyślnie przebudowano i skompilowano wtyczkę bez błędów i ostrzeżeń.
 ### [STAN_SYSTEMU]
-- System jest stabilny. Supervisor poprawnie wykrywa narzÄ™dzia delegujÄ…ce, a Worker CAD posiada dostÄ™p do wszystkich dedykowanych komend i poprawnie reaguje na zmiany promptu w locie.
+- System jest stabilny. Supervisor poprawnie wykrywa narzędzia delegujące, a Worker CAD posiada dostęp do wszystkich dedykowanych komend i poprawnie reaguje na zmiany promptu w locie.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie zachowania asystenta w programie BricsCAD pod kÄ…tem masowych selekcji i edycji.
+- Testowanie zachowania asystenta w programie BricsCAD pod kątem masowych selekcji i edycji.
 
 ## [v2.21.6] 2026-06-03T22:52:00+02:00 - BielikLogger crash-safe diagnostics i logi w GUI
 ### [ZREALIZOWANO]
-- UporzÄ…dkowano i zsynchronizowano pozostaĹ‚e zakĹ‚adki aplikacji z architekturÄ… Multi-Agent:
-  - **Ustawienia (Prompt Editor)**: Dodano rozwijanÄ… listÄ™ `cbPromptFile` do wyboru pliku promptu (`system_prompt.txt` / `system_prompt_supervisor.txt`), umoĹĽliwiajÄ…c dynamicznÄ… edycjÄ™ i zapis promptĂłw CAD i Supervisora bezpoĹ›rednio z UI.
-  - **Tester V2**: WdroĹĽono ComboBox `cbProfiles` pozwalajÄ…cy na testowanie zapytaĹ„ w kontekĹ›cie konkretnego profilu (`CadProfile` / `SupervisorProfile` / Monolit). Zapytania sÄ… teraz wysyĹ‚ane z dedykowanymi promptami wczytywanymi z dysku dla danego profilu.
-  - **Benchmark**: Zmodyfikowano `SendMessageBenchmarkAsync` w `LLMClient.cs` tak, aby wczytywaĹ‚ peĹ‚nÄ… listÄ™ narzÄ™dzi (tag `#all`). UmoĹĽliwiĹ‚o to pomyĹ›lnÄ… walidacjÄ™ benchmarkĂłw testujÄ…cych nie-bazowe narzÄ™dzia CAD.
-  - **Dataset Studio & Tool Logs**: Dodano przechwytywanie logĂłw wykonania w `DelegateTaskTool.cs`. KaĹĽda izolowana pÄ™tla Workera (z jej tool calls i odpowiedziami) jest automatycznie rejestrowana jako osobny rekord sesji w Dataset Studio. RozwiÄ…zuje to problem utraty danych treningowych CAD w architekturze hierarchicznej.
-  - **LLM stats**: Dodano wĹ‚aĹ›ciwoĹ›Ä‡ `LastStats` do klasy `LLMClient.cs` w celu pobierania statystyk tokenĂłw na koniec wywoĹ‚aĹ„.
+- Uporządkowano i zsynchronizowano pozostałe zakładki aplikacji z architekturą Multi-Agent:
+  - **Ustawienia (Prompt Editor)**: Dodano rozwijaną listę `cbPromptFile` do wyboru pliku promptu (`system_prompt.txt` / `system_prompt_supervisor.txt`), umożliwiając dynamiczną edycję i zapis promptów CAD i Supervisora bezpośrednio z UI.
+  - **Tester V2**: Wdrożono ComboBox `cbProfiles` pozwalający na testowanie zapytań w kontekście konkretnego profilu (`CadProfile` / `SupervisorProfile` / Monolit). Zapytania są teraz wysyłane z dedykowanymi promptami wczytywanymi z dysku dla danego profilu.
+  - **Benchmark**: Zmodyfikowano `SendMessageBenchmarkAsync` w `LLMClient.cs` tak, aby wczytywał pełną listę narzędzi (tag `#all`). Umożliwiło to pomyślną walidację benchmarków testujących nie-bazowe narzędzia CAD.
+  - **Dataset Studio & Tool Logs**: Dodano przechwytywanie logów wykonania w `DelegateTaskTool.cs`. Każda izolowana pętla Workera (z jej tool calls i odpowiedziami) jest automatycznie rejestrowana jako osobny rekord sesji w Dataset Studio. Rozwiązuje to problem utraty danych treningowych CAD w architekturze hierarchicznej.
+  - **LLM stats**: Dodano właściwość `LastStats` do klasy `LLMClient.cs` w celu pobierania statystyk tokenów na koniec wywołań.
 ### [STAN_SYSTEMU]
-- Wszystkie zakĹ‚adki w panelu bocznym wtyczki zostaĹ‚y zintegrowane i przetestowane syntetycznie. System w peĹ‚ni wspiera hierarchiczne fine-tuning i diagnostykÄ™.
+- Wszystkie zakładki w panelu bocznym wtyczki zostały zintegrowane i przetestowane syntetycznie. System w pełni wspiera hierarchiczne fine-tuning i diagnostykę.
 ### [BLOKADY / PROBLEMY]
-- Blokowanie pliku DLL `bin\Debug\Bricscad_AgentAI_V2.dll` przez dziaĹ‚ajÄ…cÄ… instancjÄ™ BricsCAD przy prĂłbie skopiowania po kompilacji (kod ĹşrĂłdĹ‚owy kompiluje siÄ™ bez bĹ‚Ä™dĂłw w `obj\Debug`).
+- Blokowanie pliku DLL `bin\Debug\Bricscad_AgentAI_V2.dll` przez działającą instancję BricsCAD przy próbie skopiowania po kompilacji (kod źródłowy kompiluje się bez błędów w `obj\Debug`).
 ### [KOLEJNY_KROK]
 - Uruchomienie zaktualizowanego panelu w BricsCAD (po restarcie aplikacji CAD w celu zwolnienia blokady pliku DLL) i testy manualne.
 
 ## [v2.21.7] 2026-06-03T23:10:00+02:00 - Testy LISP generatora dla walidacji operacji na blokach
 ### [ZREALIZOWANO]
-- WdroĹĽono lekki, bezpieczny system logowania i diagnostyki `BielikLogger.cs` w celu monitorowania dziaĹ‚ania wtyczki w locie i diagnozowania nagĹ‚ych zamkniÄ™Ä‡ (crashy) programu BricsCAD:
-  - Stworzono klasÄ™ statycznÄ… `BielikLogger` piszÄ…cÄ… synchronicznie (dla bezpieczeĹ„stwa zapisu przed crashem) do pliku `bielik_debug.log` z rotacjÄ… po przekroczeniu rozmiaru 1 MB.
-  - Zarejestrowano unhandled exception i thread exception trap w `AgentStartup.cs` logujÄ…ce stack trace na sekundy przed zamkniÄ™ciem procesu.
-  - Zintegrowano logowanie zapytaĹ„ LLM w `LLMClient.cs` oraz wywoĹ‚aĹ„ narzÄ™dzi w `ToolOrchestrator.ExecuteTool` z doĹ‚Ä…czeniem identyfikacji wÄ…tkĂłw (`[UI]` / `[Worker]`).
-  - Dodano podzakĹ‚adkÄ™ "Diagnostyka" w zakĹ‚adce "Ustawienia" w `AgentControl.cs` z podglÄ…dem logu w czasie rzeczywistym, czyszczeniem logĂłw i bezpoĹ›rednim otwieraniem pliku w systemowym Notatniku.
+- Wdrożono lekki, bezpieczny system logowania i diagnostyki `BielikLogger.cs` w celu monitorowania działania wtyczki w locie i diagnozowania nagłych zamknięć (crashy) programu BricsCAD:
+  - Stworzono klasę statyczną `BielikLogger` piszącą synchronicznie (dla bezpieczeństwa zapisu przed crashem) do pliku `bielik_debug.log` z rotacją po przekroczeniu rozmiaru 1 MB.
+  - Zarejestrowano unhandled exception i thread exception trap w `AgentStartup.cs` logujące stack trace na sekundy przed zamknięciem procesu.
+  - Zintegrowano logowanie zapytań LLM w `LLMClient.cs` oraz wywołań narzędzi w `ToolOrchestrator.ExecuteTool` z dołączeniem identyfikacji wątków (`[UI]` / `[Worker]`).
+  - Dodano podzakładkę "Diagnostyka" w zakładce "Ustawienia" w `AgentControl.cs` z podglądem logu w czasie rzeczywistym, czyszczeniem logów i bezpośrednim otwieraniem pliku w systemowym Notatniku.
 - Dodano plik `BielikLogger.cs` do kompilacji w `Bricscad_AgentAI_V2.csproj`.
-- PomyĹ›lnie skompilowano projekt (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Pomyślnie skompilowano projekt (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System jest w peĹ‚ni stabilny, wyposaĹĽony w automatyczny trap bĹ‚Ä™dĂłw i bezpieczne logi diagnostyczne do Ĺ›ledzenia w BricsCAD.
+- System jest w pełni stabilny, wyposażony w automatyczny trap błędów i bezpieczne logi diagnostyczne do śledzenia w BricsCAD.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testy w Ĺ›rodowisku BricsCAD z otwartym podglÄ…dem Diagnostyki i przechwyceniem logĂłw w razie awarii.
+- Testy w środowisku BricsCAD z otwartym podglądem Diagnostyki i przechwyceniem logów w razie awarii.
 
-## [v2.21.8] 2026-06-03T23:25:00+02:00 - Integracja orkiestratora z wÄ…tkiem GUI BricsCAD
+## [v2.21.8] 2026-06-03T23:25:00+02:00 - Integracja orkiestratora z wątkiem GUI BricsCAD
 ### [ZREALIZOWANO]
-- Wprowadzono architekturÄ™ wieloagentowÄ… z trzema nowymi, wysoce wyspecjalizowanymi profilami pod-agentĂłw (Workers) w celu skrĂłcenia czasu reakcji, redukcji tokenĂłw i zwiÄ™kszenia precyzji:
-  - **`CadGeometryProfile`**: Dedykowany do rysowania, warstw, kolorĂłw, linii i tekstĂłw (narzÄ™dzia geometryczne).
+- Wprowadzono architekturę wieloagentową z trzema nowymi, wysoce wyspecjalizowanymi profilami pod-agentów (Workers) w celu skrócenia czasu reakcji, redukcji tokenów i zwiększenia precyzji:
+  - **`CadGeometryProfile`**: Dedykowany do rysowania, warstw, kolorów, linii i tekstów (narzędzia geometryczne).
   - **`CadBlocksProfile`**: Dedykowany do operacji na blokach i atrybutach.
-  - **`CadMetadataProfile`**: Dedykowany do pomiarĂłw, odczytu wĹ‚aĹ›ciwoĹ›ci i metadanych XData.
-  - **`CadProfile`**: Pozostawiony jako profil ogĂłlny/awaryjny.
-  - Zaktualizowano `ToolConfigManager.cs`, aby automatycznie synchronizowaĹ‚ i tworzyĹ‚ te profile w `tools_config.json`.
-  - WdroĹĽono automatyczny upgrade `system_prompt_supervisor.txt`, ktĂłry instruuje Supervisora o istnieniu 3 wyspecjalizowanych profilĂłw i zasadach kierowania zadaĹ„ (routingu).
-  - Rozbudowano okno **Tester V2** (`AgentTesterControl.cs`), dodajÄ…c nowe profile do listy wyboru w celach testowych.
-  - Zaimplementowano `VariableStore` w `AgentMemoryState.cs` w celu automatycznego replikowania zmiennych sesyjnych Agenta na globalny Blackboard (rozwiÄ…zanie problemu odczytu odczytanych atrybutĂłw przez workera).
-  - Dodano parametry `FilterTag` i `FilterValue` do `EditAttributesTool.cs` w celu umoĹĽliwienia modyfikacji konkretnego wystÄ…pienia bloku w zaznaczeniu.
-- Przygotowano AutoLISP-owy skrypt testowy **[generate_test_objects.lsp](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/generate_test_objects.lsp)** definiujÄ…cy komendÄ™ `GEN_BIELIK_TESTS`, ktĂłra tworzy warstwy, polilinie z XData BIELIK_APP, teksty oraz bloki z atrybutami, sĹ‚uĹĽÄ…ce do weryfikacji kaĹĽdego z 3 nowych profili.
-- PomyĹ›lnie skompilowano projekt (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+  - **`CadMetadataProfile`**: Dedykowany do pomiarów, odczytu właściwości i metadanych XData.
+  - **`CadProfile`**: Pozostawiony jako profil ogólny/awaryjny.
+  - Zaktualizowano `ToolConfigManager.cs`, aby automatycznie synchronizował i tworzył te profile w `tools_config.json`.
+  - Wdrożono automatyczny upgrade `system_prompt_supervisor.txt`, który instruuje Supervisora o istnieniu 3 wyspecjalizowanych profilów i zasadach kierowania zadań (routingu).
+  - Rozbudowano okno **Tester V2** (`AgentTesterControl.cs`), dodając nowe profile do listy wyboru w celach testowych.
+  - Zaimplementowano `VariableStore` w `AgentMemoryState.cs` w celu automatycznego replikowania zmiennych sesyjnych Agenta na globalny Blackboard (rozwiązanie problemu odczytu odczytanych atrybutów przez workera).
+  - Dodano parametry `FilterTag` i `FilterValue` do `EditAttributesTool.cs` w celu umożliwienia modyfikacji konkretnego wystąpienia bloku w zaznaczeniu.
+- Przygotowano AutoLISP-owy skrypt testowy **[generate_test_objects.lsp](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/generate_test_objects.lsp)** definiujący komendę `GEN_BIELIK_TESTS`, która tworzy warstwy, polilinie z XData BIELIK_APP, teksty oraz bloki z atrybutami, służące do weryfikacji każdego z 3 nowych profili.
+- Pomyślnie skompilowano projekt (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System posiada w peĹ‚ni sprofilowanÄ… strukturÄ™ hierarchicznÄ… z dedykowanymi agentami roboczymi. Gotowy do testowania w BricsCAD.
+- System posiada w pełni sprofilowaną strukturę hierarchiczną z dedykowanymi agentami roboczymi. Gotowy do testowania w BricsCAD.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- ZaĹ‚adowanie LISP-a w BricsCAD, uruchomienie generowania obiektĂłw i przeprowadzenie testĂłw routingu Supervisora oraz wykonania u poszczegĂłlnych agentĂłw.
+- Załadowanie LISP-a w BricsCAD, uruchomienie generowania obiektów i przeprowadzenie testów routingu Supervisora oraz wykonania u poszczególnych agentów.
 
 ## [v2.21.9] 2026-06-03T23:36:00+02:00 - Selekcja i filtrowanie BlockReference z wieloznacznikami w SelectEntitiesTool
 ### [ZREALIZOWANO]
-- Naprawiono bĹ‚Ä…d wyszukiwania instancji blokĂłw (`SelectEntitiesTool.cs`) podczas selekcji po `EntityType`:
-  - Przechwycono zapytania o wĹ‚aĹ›ciwoĹ›ci `"EntityType"` oraz `"Type"`, przekierowujÄ…c je bezpoĹ›rednio na pobranie nazwy typu C# (`ent.GetType().Name`) i tym samym omijajÄ…c refleksjÄ™ C#, ktĂłra zwracaĹ‚a `null` dla typu klasy `BlockReference`.
-  - WdroĹĽono obsĹ‚ugÄ™ dopasowaĹ„ z uĹĽyciem symboli wieloznacznych (Wildcard, np. `*BlockReference`) w metodzie `ValidateLogicCondition` za pomocÄ… mapowania na wyraĹĽenia regularne (`IsWildcardMatch`).
-  - Dodano asercje testowe w `SelectEntitiesToolTests.cs` weryfikujÄ…ce poprawnoĹ›Ä‡ dopasowaĹ„ wieloznacznych dla operatorĂłw `==` i `!=`.
-  - Zweryfikowano poprawnoĹ›Ä‡ kompilacji projektu (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Naprawiono błąd wyszukiwania instancji bloków (`SelectEntitiesTool.cs`) podczas selekcji po `EntityType`:
+  - Przechwycono zapytania o właściwości `"EntityType"` oraz `"Type"`, przekierowując je bezpośrednio na pobranie nazwy typu C# (`ent.GetType().Name`) i tym samym omijając refleksję C#, która zwracała `null` dla typu klasy `BlockReference`.
+  - Wdrożono obsługę dopasowań z użyciem symboli wieloznacznych (Wildcard, np. `*BlockReference`) w metodzie `ValidateLogicCondition` za pomocą mapowania na wyrażenia regularne (`IsWildcardMatch`).
+  - Dodano asercje testowe w `SelectEntitiesToolTests.cs` weryfikujące poprawność dopasowań wieloznacznych dla operatorów `==` i `!=`.
+  - Zweryfikowano poprawność kompilacji projektu (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- Filtrowanie i selekcja encji w pamiÄ™ci Agenta (w tym po typie `BlockReference` z uĹĽyciem symboli wieloznacznych) dziaĹ‚a w 100% stabilnie i niezawodnie, zapobiegajÄ…c bĹ‚Ä™dom pustej pamiÄ™ci w Scenario 2.
+- Filtrowanie i selekcja encji w pamięci Agenta (w tym po typie `BlockReference` z użyciem symboli wieloznacznych) działa w 100% stabilnie i niezawodnie, zapobiegając błędom pustej pamięci w Scenario 2.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
 - Uruchomienie BricsCAD i ponowne przetestowanie Scenario 2 w celu weryfikacji zmiany atrybutu biurka o ID A2 na "Wolne".
 
-## [v2.21.10] 2026-06-03T23:55:00+02:00 - ZĹ‚agodzenie restrykcji promptu systemowego Supervisora
+## [v2.21.10] 2026-06-03T23:55:00+02:00 - Złagodzenie restrykcji promptu systemowego Supervisora
 ### [ZREALIZOWANO]
-- ZĹ‚agodzono restrykcje promptu systemowego Supervisora (`system_prompt_supervisor.txt`):
-  - Zaktualizowano definicjÄ™ i generowanie promptu w `ToolConfigManager.cs`, aby jednoznacznie zezwalaÄ‡ na bezpoĹ›rednie, rzeczowe i przyjazne odpowiadanie na pytania ogĂłlne (matematyczne, historyczne, luĹşne rozmowy) bez delegowania ani odmawiania.
-  - Zaimplementowano automatyczny mechanizm wykrywania i nadpisywania (auto-upgrade) starych wersji promptu w `EnsureSupervisorPromptFile()` w oparciu o obecnoĹ›Ä‡ tagu `"PYTANIA OGĂ“LNE"`.
-  - PomyĹ›lnie przebudowano i skompilowano wtyczkÄ™ (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Złagodzono restrykcje promptu systemowego Supervisora (`system_prompt_supervisor.txt`):
+  - Zaktualizowano definicję i generowanie promptu w `ToolConfigManager.cs`, aby jednoznacznie zezwalać na bezpośrednie, rzeczowe i przyjazne odpowiadanie na pytania ogólne (matematyczne, historyczne, luźne rozmowy) bez delegowania ani odmawiania.
+  - Zaimplementowano automatyczny mechanizm wykrywania i nadpisywania (auto-upgrade) starych wersji promptu w `EnsureSupervisorPromptFile()` w oparciu o obecność tagu `"PYTANIA OGÓLNE"`.
+  - Pomyślnie przebudowano i skompilowano wtyczkę (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- Supervisor jest w stanie poprawnie kierowaÄ‡ zapytaniami: deleguje operacje CAD do dedykowanych workerĂłw, a na pytania ogĂłlne (niezwiÄ…zane z silnikiem CAD) odpowiada samodzielnie w zwykĹ‚ym tekĹ›cie.
+- Supervisor jest w stanie poprawnie kierować zapytaniami: deleguje operacje CAD do dedykowanych workerów, a na pytania ogólne (niezwiązane z silnikiem CAD) odpowiada samodzielnie w zwykłym tekście.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Weryfikacja dziaĹ‚ania przez uĹĽytkownika w programie BricsCAD (pytania ogĂłlne typu "kto byĹ‚ pierwszym krĂłlem Polski" lub obliczenia matematyczne powinny teraz uzyskiwaÄ‡ bezpoĹ›rednie odpowiedzi).
+- Weryfikacja działania przez użytkownika w programie BricsCAD (pytania ogólne typu "kto był pierwszym królem Polski" lub obliczenia matematyczne powinny teraz uzyskiwać bezpośrednie odpowiedzi).
 
-## [v2.22.0] 2026-06-04T00:15:00+02:00 - WdroĹĽenie CadMathProfile, promptu Math Experta i narzÄ™dzia CalculateRpn
+## [v2.22.0] 2026-06-04T00:15:00+02:00 - Wdrożenie CadMathProfile, promptu Math Experta i narzędzia CalculateRpn
 ### [ZREALIZOWANO]
-- WdroĹĽono wyspecjalizowany profil obliczeniowy `CadMathProfile` oraz narzÄ™dzie `CalculateRpn`:
-  - Utworzono klasÄ™ [CalculateRpnTool.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Tools/CalculateRpnTool.cs) implementujÄ…cÄ… interfejs `IToolV2`, umoĹĽliwiajÄ…cÄ… bezpieczne wykonywanie obliczeĹ„ RPN za pomocÄ… wewnÄ™trznego silnika wymiarowego `RpnCalculator`.
-  - Dodano automatycznÄ… generacjÄ™ promptu systemowego `system_prompt_math.txt` dla Math Experta.
-  - Zarejestrowano profil `CadMathProfile` w `ToolConfigManager.cs` ze Ĺ›cisĹ‚ym zakresem dopuszczalnych narzÄ™dzi (`CalculateRpn`, `ReadFromBlackboard`, `WriteToBlackboard`, `UserInput`, `UserChoice`) i powiÄ…zaniem z promptem obliczeniowym.
-  - Zaktualizowano prompt Supervisora, dodajÄ…c routowanie zadaĹ„ matematyczno-fizycznych i przeliczania jednostek bezpoĹ›rednio do `CadMathProfile`.
-  - Dodano `CadMathProfile` do dropdowna `cbProfiles` w **Tester V2** oraz do edytora promptĂłw w zakĹ‚adce **Ustawienia** w `AgentControl.cs`.
-  - Napisano testy jednostkowe w `CalculateRpnToolTests.cs` i zintegrowano je z gĹ‚Ăłwnym runnerem `TestRunner.cs`.
-  - PomyĹ›lnie skompilowano wtyczkÄ™ jako bibliotekÄ™ DLL (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Wdrożono wyspecjalizowany profil obliczeniowy `CadMathProfile` oraz narzędzie `CalculateRpn`:
+  - Utworzono klasę [CalculateRpnTool.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Tools/CalculateRpnTool.cs) implementującą interfejs `IToolV2`, umożliwiającą bezpieczne wykonywanie obliczeń RPN za pomocą wewnętrznego silnika wymiarowego `RpnCalculator`.
+  - Dodano automatyczną generację promptu systemowego `system_prompt_math.txt` dla Math Experta.
+  - Zarejestrowano profil `CadMathProfile` w `ToolConfigManager.cs` ze ścisłym zakresem dopuszczalnych narzędzi (`CalculateRpn`, `ReadFromBlackboard`, `WriteToBlackboard`, `UserInput`, `UserChoice`) i powiązaniem z promptem obliczeniowym.
+  - Zaktualizowano prompt Supervisora, dodając routowanie zadań matematyczno-fizycznych i przeliczania jednostek bezpośrednio do `CadMathProfile`.
+  - Dodano `CadMathProfile` do dropdowna `cbProfiles` w **Tester V2** oraz do edytora promptów w zakładce **Ustawienia** w `AgentControl.cs`.
+  - Napisano testy jednostkowe w `CalculateRpnToolTests.cs` i zintegrowano je z głównym runnerem `TestRunner.cs`.
+  - Pomyślnie skompilowano wtyczkę jako bibliotekę DLL (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System posiada 4 wyspecjalizowane profile robocze (Geometry, Blocks, Metadata, Math) zarzÄ…dzane przez Supervisora. Profil obliczeniowy posiada dedykowane narzÄ™dzie do precyzyjnych obliczeĹ„ w notacji RPN z analizÄ… wymiarowÄ… jednostek SI.
+- System posiada 4 wyspecjalizowane profile robocze (Geometry, Blocks, Metadata, Math) zarządzane przez Supervisora. Profil obliczeniowy posiada dedykowane narzędzie do precyzyjnych obliczeń w notacji RPN z analizą wymiarową jednostek SI.
 ### [BLOKADY / PROBLEMY]
-- Testy offline runnera `.exe` wymagajÄ… zaleĹĽnoĹ›ci native C++ od BricsCAD (`BrxMgd.dll`), dlatego peĹ‚na weryfikacja logiki RPN odbywa siÄ™ po zaĹ‚adowaniu wtyczki wewnÄ…trz CAD.
+- Testy offline runnera `.exe` wymagają zależności native C++ od BricsCAD (`BrxMgd.dll`), dlatego pełna weryfikacja logiki RPN odbywa się po załadowaniu wtyczki wewnątrz CAD.
 ### [KOLEJNY_KROK]
-- Testowanie w programie BricsCAD z uĹĽyciem nowego profilu obliczeniowego `CadMathProfile` i narzÄ™dzia `CalculateRpn`.
+- Testowanie w programie BricsCAD z użyciem nowego profilu obliczeniowego `CadMathProfile` i narzędzia `CalculateRpn`.
 
 ## [v2.22.1] 2026-06-04T00:17:00+02:00 - Zasady routingu matematyczno-fizycznego Supervisora
 ### [ZREALIZOWANO]
-- Skorygowano reguĹ‚y routingu nadrzÄ™dnego Supervisora w `ToolConfigManager.cs`:
-  - Rozgraniczono "LUĹąNÄ„ ROZMOWÄ I WIEDZÄ OGĂ“LNÄ„" (ktĂłrÄ… Supervisor obsĹ‚uguje sam w zwykĹ‚ym tekĹ›cie) od "OBLICZEĹ MATEMATYCZNYCH, FIZYCZNYCH I PRZELICZANIA JEDNOSTEK" (ktĂłre Supervisor musi bezwzglÄ™dnie delegowaÄ‡ do profilu `CadMathProfile` za pomocÄ… narzÄ™dzia `DelegateTask`).
-  - Dodano automatyczny upgrade (auto-upgrade) dla szablonĂłw promptu supervisora w oparciu o obecnoĹ›Ä‡ tagu `"LUĹąNA ROZMOWA"`.
-  - PomyĹ›lnie przebudowano i skompilowano wtyczkÄ™ (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Skorygowano reguły routingu nadrzędnego Supervisora w `ToolConfigManager.cs`:
+  - Rozgraniczono "LUŹNĄ ROZMOWĘ I WIEDZĘ OGÓLNĄ" (którą Supervisor obsługuje sam w zwykłym tekście) od "OBLICZEŃ MATEMATYCZNYCH, FIZYCZNYCH I PRZELICZANIA JEDNOSTEK" (które Supervisor musi bezwzględnie delegować do profilu `CadMathProfile` za pomocą narzędzia `DelegateTask`).
+  - Dodano automatyczny upgrade (auto-upgrade) dla szablonów promptu supervisora w oparciu o obecność tagu `"LUŹNA ROZMOWA"`.
+  - Pomyślnie przebudowano i skompilowano wtyczkę (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- Supervisor ma Ĺ›ciĹ›le zdefiniowane warunki brzegowe: luĹşne rozmowy prowadzi sam, a kaĹĽde fizyczne/matematyczne/inĹĽynieryjne obliczenie deleguje do eksperta `CadMathProfile` posiadajÄ…cego dostÄ™p do kalkulatora RPN.
+- Supervisor ma ściśle zdefiniowane warunki brzegowe: luźne rozmowy prowadzi sam, a każde fizyczne/matematyczne/inżynieryjne obliczenie deleguje do eksperta `CadMathProfile` posiadającego dostęp do kalkulatora RPN.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Weryfikacja delegowania obliczeĹ„ do `CadMathProfile` w programie BricsCAD.
+- Weryfikacja delegowania obliczeń do `CadMathProfile` w programie BricsCAD.
 
-## [v2.22.2] 2026-06-04T00:30:00+02:00 - Rozbudowa promptu Math Experta o notacjÄ™ RPN i wzory
+## [v2.22.2] 2026-06-04T00:30:00+02:00 - Rozbudowa promptu Math Experta o notację RPN i wzory
 ### [ZREALIZOWANO]
 - Skorygowano i rozbudowano prompt systemowy Math Experta (`system_prompt_math.txt`):
-  - Dodano szczegĂłĹ‚owe zasady dziaĹ‚ania notacji RPN na stosie i formatowania wartoĹ›ci z jednostkami (np. `10_m`, `11.34_g/cm3`).
-  - Nakazano podziaĹ‚ zĹ‚oĹĽonych obliczeĹ„ na mniejsze, precyzyjne kroki czÄ…stkowe (osobne wywoĹ‚ania `CalculateRpn`) zamiast jednego gigantycznego wyraĹĽenia, co eliminuje bĹ‚Ä™dy zapÄ™tlenia modelu i przekroczenia limitu tokenĂłw.
-  - Zaimplementowano instrukcje korzystania z parametrĂłw `SaveAs` i `@zmienna` do przechowywania wartoĹ›ci czÄ…stkowych.
-  - Dodano gotowe, poprawne wzory i przykĹ‚ady RPN dla obliczania pola koĹ‚a ($\pi r^2$), objÄ™toĹ›ci kuli ($\frac{4}{3} \pi r^3$), masy oĹ‚owiu oraz energii kinetycznej ($mgh$).
-  - Dodano automatyczny upgrade (auto-upgrade) szablonu promptu w oparciu o obecnoĹ›Ä‡ tagu `"WZORY I PRZYKĹADY RPN"`.
-  - PomyĹ›lnie przebudowano i skompilowano wtyczkÄ™ (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+  - Dodano szczegółowe zasady działania notacji RPN na stosie i formatowania wartości z jednostkami (np. `10_m`, `11.34_g/cm3`).
+  - Nakazano podział złożonych obliczeń na mniejsze, precyzyjne kroki cząstkowe (osobne wywołania `CalculateRpn`) zamiast jednego gigantycznego wyrażenia, co eliminuje błędy zapętlenia modelu i przekroczenia limitu tokenów.
+  - Zaimplementowano instrukcje korzystania z parametrów `SaveAs` i `@zmienna` do przechowywania wartości cząstkowych.
+  - Dodano gotowe, poprawne wzory i przykłady RPN dla obliczania pola koła ($\pi r^2$), objętości kuli ($\frac{4}{3} \pi r^3$), masy ołowiu oraz energii kinetycznej ($mgh$).
+  - Dodano automatyczny upgrade (auto-upgrade) szablonu promptu w oparciu o obecność tagu `"WZORY I PRZYKŁADY RPN"`.
+  - Pomyślnie przebudowano i skompilowano wtyczkę (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- Math Expert posiada kompletnÄ… i szczegĂłĹ‚owÄ… bazÄ™ wiedzy na temat skĹ‚adni RPN i strategii podziaĹ‚u obliczeĹ„ na kroki, co zabezpiecza go przed bĹ‚Ä™dnymi operacjami stosu i zapÄ™tleniami.
+- Math Expert posiada kompletną i szczegółową bazę wiedzy na temat składni RPN i strategii podziału obliczeń na kroki, co zabezpiecza go przed błędnymi operacjami stosu i zapętleniami.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Ponowne przetestowanie obliczeĹ„ (koĹ‚o i kula) w BricsCAD.
+- Ponowne przetestowanie obliczeń (koło i kula) w BricsCAD.
 
 
-## [v2.22.3] 2026-06-04T00:38:00+02:00 - Auto-upgrade promptu o wytyczne unikania zwisĂłw stosu (Dangled Stack)
+## [v2.22.3] 2026-06-04T00:38:00+02:00 - Auto-upgrade promptu o wytyczne unikania zwisów stosu (Dangled Stack)
 ### [ZREALIZOWANO]
-- Udoskonalono walidacjÄ™ i proces auto-upgrade dla szablonu promptu Math Experta (`system_prompt_math.txt`) w `ToolConfigManager.cs`, wprowadzajÄ…c sprawdzenie obecnoĹ›ci fraz `"CzÄ™sty bĹ‚Ä…d przy uĹ‚amkach"` oraz `"UNIKAJ DANGLED STACK"`.
-- Rozbudowano domyĹ›lny prompt systemowy dla profilu `CadMathProfile` o jasne wytyczne dotyczÄ…ce unikania zwisĂłw na stosie (Dangled Stack) oraz zasad zapisu uĹ‚amkĂłw i mnoĹĽenia uĹ‚amkĂłw (np. `4 3 / wyraĹĽenie *` lub `wyraĹĽenie 4 * 3 /` zamiast bĹ‚Ä™dnego `wyraĹĽenie 4 / 3`).
-- Dodano test jednostkowy dla objÄ™toĹ›ci kuli z konwersjÄ… jednostkowÄ… (`5_cm 3 ^ #PI * 4 * 3 / 'cm3' CONVE`) w `CalculateRpnToolTests.cs` w celu weryfikacji poprawnoĹ›ci obliczeĹ„ RPN.
-- PomyĹ›lnie skompilowano wtyczkÄ™ jako bibliotekÄ™ DLL (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Udoskonalono walidację i proces auto-upgrade dla szablonu promptu Math Experta (`system_prompt_math.txt`) w `ToolConfigManager.cs`, wprowadzając sprawdzenie obecności fraz `"Częsty błąd przy ułamkach"` oraz `"UNIKAJ DANGLED STACK"`.
+- Rozbudowano domyślny prompt systemowy dla profilu `CadMathProfile` o jasne wytyczne dotyczące unikania zwisów na stosie (Dangled Stack) oraz zasad zapisu ułamków i mnożenia ułamków (np. `4 3 / wyrażenie *` lub `wyrażenie 4 * 3 /` zamiast błędnego `wyrażenie 4 / 3`).
+- Dodano test jednostkowy dla objętości kuli z konwersją jednostkową (`5_cm 3 ^ #PI * 4 * 3 / 'cm3' CONVE`) w `CalculateRpnToolTests.cs` w celu weryfikacji poprawności obliczeń RPN.
+- Pomyślnie skompilowano wtyczkę jako bibliotekę DLL (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System stabilny, a prompt Math Experta zabezpieczony przed typowymi bĹ‚Ä™dami generowania wyraĹĽeĹ„ RPN dla uĹ‚amkĂłw i operacji trĂłjskĹ‚adnikowych (mgh).
+- System stabilny, a prompt Math Experta zabezpieczony przed typowymi błędami generowania wyrażeń RPN dla ułamków i operacji trójskładnikowych (mgh).
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Przetestowanie dziaĹ‚ania agenta Bielik (Supervisor + Math Expert) w BricsCAD po ponownym zaĹ‚adowaniu wtyczki z nowym promptem matematycznym.
+- Przetestowanie działania agenta Bielik (Supervisor + Math Expert) w BricsCAD po ponownym załadowaniu wtyczki z nowym promptem matematycznym.
 
 
-## [v2.22.4] 2026-06-04T00:43:00+02:00 - E2E testy profilu matematycznego w CAD i blokada profili jako narzÄ™dzi
+## [v2.22.4] 2026-06-04T00:43:00+02:00 - E2E testy profilu matematycznego w CAD i blokada profili jako narzędzi
 ### [ZREALIZOWANO]
-- Zdiagnozowano i pomyĹ›lnie przetestowano wywoĹ‚anie profilu matematycznego w programie BricsCAD. Agent poprawnie rozĹ‚oĹĽyĹ‚ i obliczyĹ‚ energiÄ™ kinetycznÄ… w 4 krokach: promieĹ„ (`0.1_m 2 /`), objÄ™toĹ›Ä‡ (`@Promien 3 ^ #PI * 4 * 3 /`), masÄ™ (`@Objetosc 11340_kg/m3 *`) oraz energiÄ™ kinetycznÄ… (`@Masa #G * 10_m *`). Wszystkie operacje stosu i staĹ‚e fizyczne zadziaĹ‚aĹ‚y bezbĹ‚Ä™dnie.
-- Zidentyfikowano pojedynczÄ… prĂłbÄ™ wywoĹ‚ania nazwy profilu `"CadMathProfile"` jako bezpoĹ›redniej nazwy funkcji przez model Supervisor.
-- Wprowadzono poprawkÄ™ w `ToolConfigManager.cs` (`EnsureSupervisorPromptFile`): dodano automatycznÄ… aktualizacjÄ™ pliku `system_prompt_supervisor.txt` sprawdzajÄ…cÄ… obecnoĹ›Ä‡ frazy `"Profile NIE sÄ… narzÄ™dziami"`.
-- Zaimplementowano nowÄ… reguĹ‚Ä™ w instrukcjach nadrzÄ™dnych Supervisora kategorycznie zabraniajÄ…cÄ… traktowania nazw profilĂłw (np. `CadMathProfile`, `CadGeometryProfile`) jako narzÄ™dzi i nakazujÄ…cÄ… bezwzglÄ™dne korzystanie z `DelegateTask`.
-- PomyĹ›lnie zrekompilowano wtyczkÄ™ jako bibliotekÄ™ DLL (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Zdiagnozowano i pomyślnie przetestowano wywołanie profilu matematycznego w programie BricsCAD. Agent poprawnie rozłożył i obliczył energię kinetyczną w 4 krokach: promień (`0.1_m 2 /`), objętość (`@Promien 3 ^ #PI * 4 * 3 /`), masę (`@Objetosc 11340_kg/m3 *`) oraz energię kinetyczną (`@Masa #G * 10_m *`). Wszystkie operacje stosu i stałe fizyczne zadziałały bezbłędnie.
+- Zidentyfikowano pojedynczą próbę wywołania nazwy profilu `"CadMathProfile"` jako bezpośredniej nazwy funkcji przez model Supervisor.
+- Wprowadzono poprawkę w `ToolConfigManager.cs` (`EnsureSupervisorPromptFile`): dodano automatyczną aktualizację pliku `system_prompt_supervisor.txt` sprawdzającą obecność frazy `"Profile NIE są narzędziami"`.
+- Zaimplementowano nową regułę w instrukcjach nadrzędnych Supervisora kategorycznie zabraniającą traktowania nazw profilów (np. `CadMathProfile`, `CadGeometryProfile`) jako narzędzi i nakazującą bezwzględne korzystanie z `DelegateTask`.
+- Pomyślnie zrekompilowano wtyczkę jako bibliotekę DLL (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System jest stabilny, zabezpieczony przed podwĂłjnym wywoĹ‚ywaniem profilu i gotowy do ostatecznych testĂłw.
+- System jest stabilny, zabezpieczony przed podwójnym wywoływaniem profilu i gotowy do ostatecznych testów.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Oczekiwanie na ostateczne potwierdzenie dziaĹ‚ania przez uĹĽytkownika w Ĺ›rodowisku BricsCAD.
+- Oczekiwanie na ostateczne potwierdzenie działania przez użytkownika w środowisku BricsCAD.
 
 
-## [v2.22.5] 2026-06-04T00:46:00+02:00 - Silnik benchmarkĂłw dla wyboru profilu i promptĂłw eksperckich
+## [v2.22.5] 2026-06-04T00:46:00+02:00 - Silnik benchmarków dla wyboru profilu i promptów eksperckich
 ### [ZREALIZOWANO]
-- Przebudowano system benchmarkowy pod kÄ…tem obsĹ‚ugi wyboru profilu i testowania konkretnego Agenta Eksperta:
-  - Rozszerzono metodÄ™ `SendMessageBenchmarkAsync` w `LLMClient.cs` o opcjonalny parametr `profileName`. Gdy profil jest podany, wywoĹ‚ywany jest orkiestrator z listÄ… dozwolonych narzÄ™dzi i tagĂłw zdefiniowanych dla tego profilu (zamiast standardowego `#all`).
-  - Rozszerzono metodÄ™ `RunBenchmarkAsync` w `AutoBenchmarkEngine.cs` o parametr `profileName`. Gdy profil jest wybrany, silnik benchmarkowy dynamicznie wczytuje wĹ‚aĹ›ciwy plik promptu systemowego dla tego agenta (np. `system_prompt_math.txt` dla `CadMathProfile` lub `system_prompt_supervisor.txt` dla `SupervisorProfile`) i automatycznie wstrzykuje go jako pierwszÄ… wiadomoĹ›Ä‡ roli `"system"` w historii konwersacji, w peĹ‚ni odtwarzajÄ…c rzeczywiste Ĺ›rodowisko wykonawcze agenta.
-  - Zmodyfikowano kontrolkÄ™ `AutoBenchmarkControl.cs`, wprowadzajÄ…c nowÄ… kontrolkÄ™ rozwijanÄ… `cbProfiles` w pasku gĂłrnym. Dropdown jest dynamicznie uzupeĹ‚niany profilami pobranymi z `ToolConfigManager` z opcjÄ… domyĹ›lnÄ… "(Brak profilu - wszystkie narzÄ™dzia)" dla zachowania peĹ‚nej kompatybilnoĹ›ci wstecznej.
-  - Zabezpieczono stan UI, blokujÄ…c moĹĽliwoĹ›Ä‡ zmiany profilu w trakcie trwania benchmarku i odblokowujÄ…c kontrolkÄ™ po zakoĹ„czeniu przebiegu.
-  - PomyĹ›lnie zrekompilowano wtyczkÄ™ jako bibliotekÄ™ DLL (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- Przebudowano system benchmarkowy pod kątem obsługi wyboru profilu i testowania konkretnego Agenta Eksperta:
+  - Rozszerzono metodę `SendMessageBenchmarkAsync` w `LLMClient.cs` o opcjonalny parametr `profileName`. Gdy profil jest podany, wywoływany jest orkiestrator z listą dozwolonych narzędzi i tagów zdefiniowanych dla tego profilu (zamiast standardowego `#all`).
+  - Rozszerzono metodę `RunBenchmarkAsync` w `AutoBenchmarkEngine.cs` o parametr `profileName`. Gdy profil jest wybrany, silnik benchmarkowy dynamicznie wczytuje właściwy plik promptu systemowego dla tego agenta (np. `system_prompt_math.txt` dla `CadMathProfile` lub `system_prompt_supervisor.txt` dla `SupervisorProfile`) i automatycznie wstrzykuje go jako pierwszą wiadomość roli `"system"` w historii konwersacji, w pełni odtwarzając rzeczywiste środowisko wykonawcze agenta.
+  - Zmodyfikowano kontrolkę `AutoBenchmarkControl.cs`, wprowadzając nową kontrolkę rozwijaną `cbProfiles` w pasku górnym. Dropdown jest dynamicznie uzupełniany profilami pobranymi z `ToolConfigManager` z opcją domyślną "(Brak profilu - wszystkie narzędzia)" dla zachowania pełnej kompatybilności wstecznej.
+  - Zabezpieczono stan UI, blokując możliwość zmiany profilu w trakcie trwania benchmarku i odblokowując kontrolkę po zakończeniu przebiegu.
+  - Pomyślnie zrekompilowano wtyczkę jako bibliotekę DLL (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System w peĹ‚ni zaktualizowany. Panel benchmarkowy umoĹĽliwia precyzyjne testowanie i walidacjÄ™ konkretnych profilĂłw agentĂłw (np. CadMathProfile, CadGeometryProfile) z wĹ‚aĹ›ciwymi promptami i pulami narzÄ™dzi bez wychodzenia z UI testowego.
+- System w pełni zaktualizowany. Panel benchmarkowy umożliwia precyzyjne testowanie i walidację konkretnych profilów agentów (np. CadMathProfile, CadGeometryProfile) z właściwymi promptami i pulami narzędzi bez wychodzenia z UI testowego.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Przetestowanie nova funkcjÄ™ wyboru profilu w zakĹ‚adce Benchmark systemu BricsCAD.
+- Przetestowanie nova funkcję wyboru profilu w zakładce Benchmark systemu BricsCAD.
 
 
-## [v2.22.6] 2026-06-04T00:49:00+02:00 - ZbiĂłr testowy benchmarku Benchmark_02_Math.json
+## [v2.22.6] 2026-06-04T00:49:00+02:00 - Zbiór testowy benchmarku Benchmark_02_Math.json
 ### [ZREALIZOWANO]
-- Utworzono dedykowany zestaw testowy benchmarku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) zawierajÄ…cy 5 reprezentatywnych zadaĹ„ matematycznych i fizycznych (Pole koĹ‚a, ObjÄ™toĹ›Ä‡ kuli, Masa oĹ‚owiu z gÄ™stoĹ›ci, Energia potencjalna, ObjÄ™toĹ›Ä‡ rury).
-- Skonfigurowano reguĹ‚y walidacji typu `EvaluateRPN_Argument` w celu precyzyjnego obliczania i weryfikowania wyjĹ›ciowej wartoĹ›ci RPN (np. asercja do `"7853.981634_mm2"` lub `"86.393798_L"`).
-- Skonfigurowano symulowane odpowiedzi CAD (`SimulatedCADResponses`) dla Kalkulatora RPN dla kaĹĽdego z 5 zadaĹ„, co umoĹĽliwia dwuetapowÄ… symulacjÄ™ konwersacji w pÄ™tli ReAct podczas dziaĹ‚ania benchmarku.
+- Utworzono dedykowany zestaw testowy benchmarku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) zawierający 5 reprezentatywnych zadań matematycznych i fizycznych (Pole koła, Objętość kuli, Masa ołowiu z gęstości, Energia potencjalna, Objętość rury).
+- Skonfigurowano reguły walidacji typu `EvaluateRPN_Argument` w celu precyzyjnego obliczania i weryfikowania wyjściowej wartości RPN (np. asercja do `"7853.981634_mm2"` lub `"86.393798_L"`).
+- Skonfigurowano symulowane odpowiedzi CAD (`SimulatedCADResponses`) dla Kalkulatora RPN dla każdego z 5 zadań, co umożliwia dwuetapową symulację konwersacji w pętli ReAct podczas działania benchmarku.
 ### [STAN_SYSTEMU]
-- Plik benchmarkowy utworzony w folderze `/tests`, w peĹ‚ni zgodny ze schematem V2 i gotowy do wczytania w UI testowym.
+- Plik benchmarkowy utworzony w folderze `/tests`, w pełni zgodny ze schematem V2 i gotowy do wczytania w UI testowym.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Wczytanie pliku `Benchmark_02_Math.json` w zakĹ‚adce Benchmark i uruchomienie testu z wybranym profilem `CadMathProfile`.
+- Wczytanie pliku `Benchmark_02_Math.json` w zakładce Benchmark i uruchomienie testu z wybranym profilem `CadMathProfile`.
 
 
-## [v2.22.7] 2026-06-04T00:54:00+02:00 - Optymalizacja wzoru objÄ™toĹ›ci kuli w promptach
+## [v2.22.7] 2026-06-04T00:54:00+02:00 - Optymalizacja wzoru objętości kuli w promptach
 ### [ZREALIZOWANO]
-- Naprawiono i uĹ›ciĹ›lono przykĹ‚ad obliczania objÄ™toĹ›ci kuli w `EnsureMathPromptFile` w `ToolConfigManager.cs` (dodano `'cm3' CONVE` do wzoru przykĹ‚adowego, aby model precyzyjnie konwertowaĹ‚ jednostki do oczekiwanego formatu).
-- Zmodyfikowano zapytania `UserPrompt` w pliku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json), doprecyzowujÄ…c wymĂłg wykonania obliczeĹ„ w pojedynczym kroku RPN z wyraĹşnym poleceniem konwersji jednostki (`CONVE`). RozwiÄ…zuje to problem przedwczesnego zatrzymania pÄ™tli ReAct po napotkaniu mockowanych odpowiedzi w teĹ›cie wieloetapowym.
-- UsuniÄ™to bĹ‚Ä™dy skĹ‚adniowe w `ToolConfigManager.cs` powstaĹ‚e podczas nakĹ‚adania zmian, a caĹ‚y projekt skompilowaĹ‚ siÄ™ bez ostrzeĹĽeĹ„.
+- Naprawiono i uściślono przykład obliczania objętości kuli w `EnsureMathPromptFile` w `ToolConfigManager.cs` (dodano `'cm3' CONVE` do wzoru przykładowego, aby model precyzyjnie konwertował jednostki do oczekiwanego formatu).
+- Zmodyfikowano zapytania `UserPrompt` w pliku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json), doprecyzowując wymóg wykonania obliczeń w pojedynczym kroku RPN z wyraźnym poleceniem konwersji jednostki (`CONVE`). Rozwiązuje to problem przedwczesnego zatrzymania pętli ReAct po napotkaniu mockowanych odpowiedzi w teście wieloetapowym.
+- Usunięto błędy składniowe w `ToolConfigManager.cs` powstałe podczas nakładania zmian, a cały projekt skompilował się bez ostrzeżeń.
 ### [STAN_SYSTEMU]
-- Pliki kodu i konfiguracji benchmarku sÄ… zsynchronizowane, a silnik benchmarkowy i model majÄ… precyzyjne dopasowanie pod kÄ…tem jednopoziomowych obliczeĹ„ RPN.
+- Pliki kodu i konfiguracji benchmarku są zsynchronizowane, a silnik benchmarkowy i model mają precyzyjne dopasowanie pod kątem jednopoziomowych obliczeń RPN.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Ponowne wykonanie testu benchmarkowego `Benchmark_02_Math.json` w BricsCAD i weryfikacja skutecznoĹ›ci.
+- Ponowne wykonanie testu benchmarkowego `Benchmark_02_Math.json` w BricsCAD i weryfikacja skuteczności.
 
 
-## [v2.22.8] 2026-06-04T01:05:00+02:00 - Uruchomienie rzeczywistych narzÄ™dzi obliczeniowych w benchmarku
+## [v2.22.8] 2026-06-04T01:05:00+02:00 - Uruchomienie rzeczywistych narzędzi obliczeniowych w benchmarku
 ### [ZREALIZOWANO]
-- **Realne wykonanie narzÄ™dzi obliczeniowych i pamiÄ™ciowych w benchmarku**: Zmodyfikowano metodÄ™ `SendMessageBenchmarkAsync` w [LLMClient.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/LLMClient.cs) tak, aby narzÄ™dzia `CalculateRpn`, `ReadFromBlackboard` oraz `WriteToBlackboard` byĹ‚y wykonywane naprawdÄ™ za pomocÄ… orkiestratora, zamiast zwracania mockowanych odpowiedzi z pliku JSON. RozwiÄ…zuje to problem przedwczesnego zakoĹ„czenia pÄ™tli ReAct (LLM przestaje koĹ„czyÄ‡ dziaĹ‚anie na pierwszym kroku obliczeĹ„ czÄ…stkowych po otrzymaniu mockowanego wyniku ostatecznego).
-- **Walidacja ostatniego wywoĹ‚ania RPN**: Zaktualizowano reguĹ‚Ä™ `EvaluateRPN_Argument` w [AutoBenchmarkEngine.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/AutoBenchmarkEngine.cs) do pobierania ostatniego wywoĹ‚ania `CalculateRpn` (`LastOrDefault`) zamiast pierwszego wywoĹ‚ania z argumentami (`FirstOrDefault`). Zapewnia to poprawnÄ… weryfikacjÄ™ koĹ„cowego wyniku w zadaniach wielokrokowych, w ktĂłrych LLM odwoĹ‚uje siÄ™ do zmiennych zapisanych w tablicy (blackboard).
-- **Kompilacja i stabilnoĹ›Ä‡**: PomyĹ›lnie zrekompilowano wtyczkÄ™ jako bibliotekÄ™ DLL (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- **Realne wykonanie narzędzi obliczeniowych i pamięciowych w benchmarku**: Zmodyfikowano metodę `SendMessageBenchmarkAsync` w [LLMClient.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/LLMClient.cs) tak, aby narzędzia `CalculateRpn`, `ReadFromBlackboard` oraz `WriteToBlackboard` były wykonywane naprawdę za pomocą orkiestratora, zamiast zwracania mockowanych odpowiedzi z pliku JSON. Rozwiązuje to problem przedwczesnego zakończenia pętli ReAct (LLM przestaje kończyć działanie na pierwszym kroku obliczeń cząstkowych po otrzymaniu mockowanego wyniku ostatecznego).
+- **Walidacja ostatniego wywołania RPN**: Zaktualizowano regułę `EvaluateRPN_Argument` w [AutoBenchmarkEngine.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/AutoBenchmarkEngine.cs) do pobierania ostatniego wywołania `CalculateRpn` (`LastOrDefault`) zamiast pierwszego wywołania z argumentami (`FirstOrDefault`). Zapewnia to poprawną weryfikację końcowego wyniku w zadaniach wielokrokowych, w których LLM odwołuje się do zmiennych zapisanych w tablicy (blackboard).
+- **Kompilacja i stabilność**: Pomyślnie zrekompilowano wtyczkę jako bibliotekę DLL (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System stabilny, poprawnie obsĹ‚uguje zadania wieloetapowe i obliczenia zmiennych blackboardowych w trybie benchmarkowym z wybranym profilowaniem.
+- System stabilny, poprawnie obsługuje zadania wieloetapowe i obliczenia zmiennych blackboardowych w trybie benchmarkowym z wybranym profilowaniem.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Wykonanie testu benchmarku w programie BricsCAD w celu weryfikacji 100% poprawnoĹ›ci.
+- Wykonanie testu benchmarku w programie BricsCAD w celu weryfikacji 100% poprawności.
 
 
-## [v2.22.9] 2026-06-04T01:10:00+02:00 - Uproszczenie zapytaĹ„ benchmarkowych dla Bielika 11B
+## [v2.22.9] 2026-06-04T01:10:00+02:00 - Uproszczenie zapytań benchmarkowych dla Bielika 11B
 ### [ZREALIZOWANO]
-- **Uproszczenie zapytaĹ„ w pliku benchmarkowym**: PrzywrĂłcono naturalne sformuĹ‚owania w zapytaniach `UserPrompt` w [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) (usunieto narzucony wymĂłg "wykonania obliczeĹ„ jako pojedyncze wyraĹĽenie RPN"). DziÄ™ki temu model nie otrzymuje sprzecznych instrukcji z system promptem (ktĂłry nakazuje dzielenie zadaĹ„ na logiczne kroki czÄ…stkowe) i poprawnie rozbija obliczenia na czytelne etapy, co eliminuje bĹ‚Ä™dy skĹ‚adniowe i matematyczne (takie jak bĹ‚Ä™dne potÄ™gowanie czy zbÄ™dne dzielenie przez 1000).
-- **Weryfikacja kompilacji**: Kompilacja wtyczki powiodĹ‚a siÄ™ bez ĹĽadnych bĹ‚Ä™dĂłw i ostrzeĹĽeĹ„.
+- **Uproszczenie zapytań w pliku benchmarkowym**: Przywrócono naturalne sformułowania w zapytaniach `UserPrompt` w [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) (usunieto narzucony wymóg "wykonania obliczeń jako pojedyncze wyrażenie RPN"). Dzięki temu model nie otrzymuje sprzecznych instrukcji z system promptem (który nakazuje dzielenie zadań na logiczne kroki cząstkowe) i poprawnie rozbija obliczenia na czytelne etapy, co eliminuje błędy składniowe i matematyczne (takie jak błędne potęgowanie czy zbędne dzielenie przez 1000).
+- **Weryfikacja kompilacji**: Kompilacja wtyczki powiodła się bez żadnych błędów i ostrzeżeń.
 ### [STAN_SYSTEMU]
-- System stabilny, zapytania benchmarkowe sÄ… w peĹ‚ni skoordynowane ze strategiÄ… obliczeniowÄ… zdefiniowanÄ… w system prompcie `CadMathProfile`.
+- System stabilny, zapytania benchmarkowe są w pełni skoordynowane ze strategią obliczeniową zdefiniowaną w system prompcie `CadMathProfile`.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Wykonanie testu benchmarku w BricsCAD i weryfikacja poprawnoĹ›ci.
+- Wykonanie testu benchmarku w BricsCAD i weryfikacja poprawności.
 
 
-## [v2.22.10] 2026-06-04T01:17:00+02:00 - Podniesienie precyzji RPN (12 miejsc) i fizyczne porĂłwnanie tolerancji
+## [v2.22.10] 2026-06-04T01:17:00+02:00 - Podniesienie precyzji RPN (12 miejsc) i fizyczne porównanie tolerancji
 ### [ZREALIZOWANO]
-- **Podniesienie precyzji kalkulatora RPN**: ZwiÄ™kszono precyzjÄ™ formatowania liczb zmiennoprzecinkowych w metodzie `ToString()` klasy `PhysicalValue` w [RpnCalculator.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/RpnCalculator.cs) z 6 do **12 miejsc po przecinku**. Zapobiega to utracie precyzji w obliczeniach wielokrokowych, gdy wyniki czÄ…stkowe sÄ… zapisywane jako tekst w pamiÄ™ci Agenta (np. maĹ‚e wartoĹ›ci w m2/m3 po konwersji do mm2/cm3/litrĂłw ulegaĹ‚y silnemu zaokrÄ…gleniu).
-- **Fizyczne porĂłwnywanie wartoĹ›ci w walidacji (AreValuesPhysicallyEqual)**: Dodano inteligentnÄ… metodÄ™ porĂłwnywania wielkoĹ›ci fizycznych w `RpnCalculator` i zintegrowano jÄ… w [AutoBenchmarkEngine.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/AutoBenchmarkEngine.cs). Zamiast porĂłwnywaÄ‡ sztywne napisy (np. `7853.981634_mm2` vs `7854_mm2`), silnik parsuje obie wartoĹ›ci, weryfikuje zgodnoĹ›Ä‡ wymiarowÄ… (Dimensions) i sprawdza wartoĹ›Ä‡ liczbowÄ… w granicach tolerancji `1e-4` (relative tolerance).
-- **Rozbudowa i uĹ›ciĹ›lenie przykĹ‚adĂłw w promptach systemowych**:
-  - Zaktualizowano prompt systemowy `system_prompt_math.txt` w [ToolConfigManager.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/ToolConfigManager.cs), dodajÄ…c precyzyjne przykĹ‚ady konwersji jednostek w locie za pomocÄ… `'jednostka' CONVE` oraz peĹ‚ny wzĂłr i przykĹ‚ad obliczania objÄ™toĹ›ci rury/walca w litrach (`r 2 ^ #PI * h * 'L' CONVE`).
-  - Rozszerzono mechanizm automatycznej aktualizacji (auto-upgrade) dla promptĂłw matematycznych i supervisora, aby poprawnie wymuszaĹ‚y zapis nowej wersji plikĂłw promptĂłw.
-- **Kompilacja**: Zrekompilowano projekt (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„).
+- **Podniesienie precyzji kalkulatora RPN**: Zwiększono precyzję formatowania liczb zmiennoprzecinkowych w metodzie `ToString()` klasy `PhysicalValue` w [RpnCalculator.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/RpnCalculator.cs) z 6 do **12 miejsc po przecinku**. Zapobiega to utracie precyzji w obliczeniach wielokrokowych, gdy wyniki cząstkowe są zapisywane jako tekst w pamięci Agenta (np. małe wartości w m2/m3 po konwersji do mm2/cm3/litrów ulegały silnemu zaokrągleniu).
+- **Fizyczne porównywanie wartości w walidacji (AreValuesPhysicallyEqual)**: Dodano inteligentną metodę porównywania wielkości fizycznych w `RpnCalculator` i zintegrowano ją w [AutoBenchmarkEngine.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/AutoBenchmarkEngine.cs). Zamiast porównywać sztywne napisy (np. `7853.981634_mm2` vs `7854_mm2`), silnik parsuje obie wartości, weryfikuje zgodność wymiarową (Dimensions) i sprawdza wartość liczbową w granicach tolerancji `1e-4` (relative tolerance).
+- **Rozbudowa i uściślenie przykładów w promptach systemowych**:
+  - Zaktualizowano prompt systemowy `system_prompt_math.txt` w [ToolConfigManager.cs](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/src/Core/ToolConfigManager.cs), dodając precyzyjne przykłady konwersji jednostek w locie za pomocą `'jednostka' CONVE` oraz pełny wzór i przykład obliczania objętości rury/walca w litrach (`r 2 ^ #PI * h * 'L' CONVE`).
+  - Rozszerzono mechanizm automatycznej aktualizacji (auto-upgrade) dla promptów matematycznych i supervisora, aby poprawnie wymuszały zapis nowej wersji plików promptów.
+- **Kompilacja**: Zrekompilowano projekt (0 błędów, 0 ostrzeżeń).
 ### [STAN_SYSTEMU]
-- System jest w peĹ‚ni odporny na drobne rozbieĹĽnoĹ›ci zaokrÄ…gleĹ„ double w RPN i posiada zaktualizowanÄ… bazÄ™ promptĂłw gwarantujÄ…cÄ… stabilne i powtarzalne wyniki obliczeĹ„ geometrycznych i fizycznych.
+- System jest w pełni odporny na drobne rozbieżności zaokrągleń double w RPN i posiada zaktualizowaną bazę promptów gwarantującą stabilne i powtarzalne wyniki obliczeń geometrycznych i fizycznych.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Uruchomienie zaktualizowanego benchmarku w Ĺ›rodowisku BricsCAD i weryfikacja przejĹ›cia wszystkich 5 testĂłw.
+- Uruchomienie zaktualizowanego benchmarku w środowisku BricsCAD i weryfikacja przejścia wszystkich 5 testów.
 
 
-## [v2.22.11] 2026-06-04T01:23:00+02:00 - Dodanie wskazĂłwek syntaktycznych RPN do pytaĹ„ benchmarku
+## [v2.22.11] 2026-06-04T01:23:00+02:00 - Dodanie wskazówek syntaktycznych RPN do pytań benchmarku
 ### [ZREALIZOWANO]
-- **Dodanie wskazĂłwek RPN do zapytaĹ„ benchmarkowych**: Wzbogacono pytania `UserPrompt` w pliku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) o wyraĹşne wskazĂłwki dotyczÄ…ce koniecznoĹ›ci stosowania kalkulatora RPN, dopisywania jednostek (np. `_mm`, `_cm3`) oraz uĹĽywania polecenia `CONVE` w pojedynczych cudzysĹ‚owach. Pomaga to mniejszemu modelowi (Bielik 11B) w utrzymaniu dyscypliny skĹ‚adniowej RPN bez zmuszania go do nienaturalnego upakowywania caĹ‚ego zadania w jedno wywoĹ‚anie.
-- **Weryfikacja kompilacji**: Kompilacja powiodĹ‚a siÄ™ bez ĹĽadnych bĹ‚Ä™dĂłw i ostrzeĹĽeĹ„.
+- **Dodanie wskazówek RPN do zapytań benchmarkowych**: Wzbogacono pytania `UserPrompt` w pliku [Benchmark_02_Math.json](file:///d:/GitHub/Bricscad_AgentAI/Bricscad_AgentAI_V2/tests/Benchmark_02_Math.json) o wyraźne wskazówki dotyczące konieczności stosowania kalkulatora RPN, dopisywania jednostek (np. `_mm`, `_cm3`) oraz używania polecenia `CONVE` w pojedynczych cudzysłowach. Pomaga to mniejszemu modelowi (Bielik 11B) w utrzymaniu dyscypliny składniowej RPN bez zmuszania go do nienaturalnego upakowywania całego zadania w jedno wywołanie.
+- **Weryfikacja kompilacji**: Kompilacja powiodła się bez żadnych błędów i ostrzeżeń.
 ### [STAN_SYSTEMU]
-- System stabilny, zapytania benchmarkowe sÄ… przystosowane pod kÄ…tem specyfiki mniejszych modeli LLM pracujÄ…cych w pÄ™tli ReAct.
+- System stabilny, zapytania benchmarkowe są przystosowane pod kątem specyfiki mniejszych modeli LLM pracujących w pętli ReAct.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
 - Wykonanie testu benchmarku w programie BricsCAD w celu weryfikacji.
 
 
-ŕ´€
+ഀ
 ##2026-06-04T02:23:00+02:00
 ###[ZREALIZOWANO]
 -Wdro|onofallbackwCreateObjectTool.csprzekierowujcydanedoRpnCalculatorwprzypadkubBduformatowanialiczb.
@@ -617,282 +634,282 @@ Ten dokument sĹ‚uĹĽy jako zewnÄ™trzna pamiÄ™Ä‡ dĹ‚ugotrwaĹ‚a
 
 ## [v2.25.2-pre.1] 2026-06-04T21:30:00+02:00 - Renderowanie LaTeX w czacie i testy jednostkowe
 ### [ZREALIZOWANO]
-- **Renderowanie LaTeX w czacie**: Zaimplementowano klasÄ™ `LatexToUnicodeConverter` konwertujÄ…cÄ… surowe formuĹ‚y LaTeX (`$...`, `$$...$$`) na czytelny tekst Unicode (indeksy gĂłrne/dolne, symbole matematyczne i litery greckie).
-- **Integracja UI**: Zintegrowano konwerter z metodÄ… `AppendToHistory` w `AgentControl.cs`, poprawiajÄ…c prezentacjÄ™ wynikĂłw obliczeĹ„ modelu w formancie `RichTextBox`.
-- **Testy jednostkowe**: Dodano zestaw testĂłw w `LatexToUnicodeConverterTests.cs` weryfikujÄ…cy poprawnoĹ›Ä‡ konwersji jednostek, notacji naukowej oraz wzorĂłw matematycznych. Testy zintegrowano z konsolowym `TestRunner.cs`.
+- **Renderowanie LaTeX w czacie**: Zaimplementowano klasę `LatexToUnicodeConverter` konwertującą surowe formuły LaTeX (`$...`, `$$...$$`) na czytelny tekst Unicode (indeksy górne/dolne, symbole matematyczne i litery greckie).
+- **Integracja UI**: Zintegrowano konwerter z metodą `AppendToHistory` w `AgentControl.cs`, poprawiając prezentację wyników obliczeń modelu w formancie `RichTextBox`.
+- **Testy jednostkowe**: Dodano zestaw testów w `LatexToUnicodeConverterTests.cs` weryfikujący poprawność konwersji jednostek, notacji naukowej oraz wzorów matematycznych. Testy zintegrowano z konsolowym `TestRunner.cs`.
 ### [STAN_SYSTEMU]
-- System kompiluje siÄ™ bez bĹ‚Ä™dĂłw. Nowy mechanizm automatycznie i w locie przeksztaĹ‚ca formuĹ‚y matematyczne generowane przez AI na czytelnÄ… formÄ™ tekstowÄ… Unicode.
+- System kompiluje się bez błędów. Nowy mechanizm automatycznie i w locie przekształca formuły matematyczne generowane przez AI na czytelną formę tekstową Unicode.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Weryfikacja dziaĹ‚ania wtyczki w Ĺ›rodowisku uruchomieniowym BricsCAD.
+- Weryfikacja działania wtyczki w środowisku uruchomieniowym BricsCAD.
 
 
 ## 2026-06-05T01:40:00+02:00
 ### [ZREALIZOWANO]
-- **Refaktoryzacja zakĹ‚adki agentĂłw (UI AgentControl)**: Przeprojektowano zakĹ‚adkÄ™ " Agenci\ w interfejsie uĹĽytkownika. ZastÄ…piono tabelÄ™ przypisywania skilli wygodnÄ… listÄ… typu CheckedListBox (chlbAgentTools) powiÄ…zanÄ… z wybranym profilem.
-- **Dodanie Leksykonu Skilli**: Wprowadzono listÄ™ wszystkich dostÄ™pnych w systemie narzÄ™dzi/skilli (lbAllTools) wraz z podglÄ…dem ich schematĂłw JSON (
-tbToolSchema) generowanych automatycznie na podstawie definicji parametrĂłw wysyĹ‚anych do LLM.
-- **Wsparcie dla konfiguracji profilowych w UI**: PowiÄ…zano listÄ™ wyboru promptĂłw systemowych bezpoĹ›rednio z wybranym agentem. Dodano przycisk umoĹĽliwiajÄ…cy natychmiastowe otwarcie powiÄ…zanego pliku promptu systemowego w Notatniku.
-- **Aktualizacja zapisu profilu**: Dodano logikÄ™ zapisu przypisanego pliku promptu i zestawu dozwolonych narzÄ™dzi do ools_config.json za pomocÄ… ToolConfigManager.UpdateAgentProfile.
+- **Refaktoryzacja zakładki agentów (UI AgentControl)**: Przeprojektowano zakładkę " Agenci\ w interfejsie użytkownika. Zastąpiono tabelę przypisywania skilli wygodną listą typu CheckedListBox (chlbAgentTools) powiązaną z wybranym profilem.
+- **Dodanie Leksykonu Skilli**: Wprowadzono listę wszystkich dostępnych w systemie narzędzi/skilli (lbAllTools) wraz z podglądem ich schematów JSON (
+tbToolSchema) generowanych automatycznie na podstawie definicji parametrów wysyłanych do LLM.
+- **Wsparcie dla konfiguracji profilowych w UI**: Powiązano listę wyboru promptów systemowych bezpośrednio z wybranym agentem. Dodano przycisk umożliwiający natychmiastowe otwarcie powiązanego pliku promptu systemowego w Notatniku.
+- **Aktualizacja zapisu profilu**: Dodano logikę zapisu przypisanego pliku promptu i zestawu dozwolonych narzędzi do ools_config.json za pomocą ToolConfigManager.UpdateAgentProfile.
 ### [STAN_SYSTEMU]
-- System kompiluje siÄ™ w peĹ‚ni poprawnie (0 bĹ‚Ä™dĂłw, 0 ostrzeĹĽeĹ„). UI poprawnie synchronizuje konfiguracje profili agentĂłw.
+- System kompiluje się w pełni poprawnie (0 błędów, 0 ostrzeżeń). UI poprawnie synchronizuje konfiguracje profili agentów.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie nowej zakĹ‚adki Agenci bezpoĹ›rednio w BricsCAD.
+- Testowanie nowej zakładki Agenci bezpośrednio w BricsCAD.
 
 ## 2026-06-05T09:51:00+02:00
 ### [ZREALIZOWANO]
-- **Naprawa bĹ‚Ä™du mscorlib recursive resource lookup / SEHException**: UsuniÄ™to problem z deadlockami oraz wywoĹ‚aniami aktualizacji UI z wÄ…tkĂłw tĹ‚a (tzw. cross-thread UI operations) w klasach AgentControl.cs oraz DatasetStudioControl.cs. Dodano mechanizmy sprawdzajÄ…ce istnienie uchwytu okna (IsHandleCreated) oraz bezpieczne delegowanie aktualizacji (np. z AgentTelemetry) na gĹ‚Ăłwny wÄ…tek przy uĹĽyciu BeginInvoke wywoĹ‚ywanego na gĹ‚Ăłwnej instancji AgentControl.Instance.
+- **Naprawa błędu mscorlib recursive resource lookup / SEHException**: Usunięto problem z deadlockami oraz wywołaniami aktualizacji UI z wątków tła (tzw. cross-thread UI operations) w klasach AgentControl.cs oraz DatasetStudioControl.cs. Dodano mechanizmy sprawdzające istnienie uchwytu okna (IsHandleCreated) oraz bezpieczne delegowanie aktualizacji (np. z AgentTelemetry) na główny wątek przy użyciu BeginInvoke wywoływanego na głównej instancji AgentControl.Instance.
 ### [STAN_SYSTEMU]
-- ZwiÄ™kszona stabilnoĹ›Ä‡ interfejsu WinForms osadzonego w BricsCAD. Aplikacja nie rzuca juĹĽ bĹ‚Ä™du System.Runtime.InteropServices.ExternalException przy dĹ‚ugotrwaĹ‚ym dziaĹ‚aniu w tle.
+- Zwiększona stabilność interfejsu WinForms osadzonego w BricsCAD. Aplikacja nie rzuca już błędu System.Runtime.InteropServices.ExternalException przy długotrwałym działaniu w tle.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Kompilacja i weryfikacja dziaĹ‚ania w programie BricsCAD.
+- Kompilacja i weryfikacja działania w programie BricsCAD.
 
 
 ## 2026-06-05T16:05:00+02:00
 ### [ZREALIZOWANO]
-- **Aktualizacja .gitignore**: Dodano reguĹ‚Ä™ \**/[Bb]enchmark_02_Math*\ ignorujÄ…cÄ… pliki wynikĂłw benchmarkĂłw matematycznych (pliki rozpoczynajÄ…ce siÄ™ od Benchmark_02_Math), co pozwala na zachowanie innych plikĂłw JSON w projekcie.
+- **Aktualizacja .gitignore**: Dodano regułę \**/[Bb]enchmark_02_Math*\ ignorującą pliki wyników benchmarków matematycznych (pliki rozpoczynające się od Benchmark_02_Math), co pozwala na zachowanie innych plików JSON w projekcie.
 ### [STAN_SYSTEMU]
-- Zaktualizowano reguĹ‚y ignorowania plikĂłw git.
+- Zaktualizowano reguły ignorowania plików git.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Kompilacja i weryfikacja dziaĹ‚ania w programie BricsCAD.
+- Kompilacja i weryfikacja działania w programie BricsCAD.
 
 ## 2026-06-05T16:55:00+02:00
 ### [ZREALIZOWANO]
-- **Migracja do PackageReference**: Przekonwertowano projekt z packages.config na format PackageReference. Zaktualizowano pakiety NuGet, w tym zabezpieczono lukÄ™ w System.Text.Json (wersja 8.0.5).
-- **System FormuĹ‚ i Makr**: Zaimplementowano DynamicFormulaManager (dynamiczna kompilacja w locie przez Roslyn/CSharpScript, piaskownica, ograniczony dostÄ™p do I/O) oraz MacroManager obsĹ‚ugujÄ…cy parsowanie i asynchroniczne wykonywanie wieloetapowych skryptĂłw JSON dla narzÄ™dzi CAD.
-- **NarzÄ™dzia Agentowe V2**: Dodano i zarejestrowano w profilach nowe narzÄ™dzia oparte o IToolV2: SearchKnowledgeBaseTool, SavePermanentFormulaTool, SaveMacroTool, ExecuteFormulaTool, ExecuteMacroTool. 
-- **Baza Wiedzy AI (UI)**: Utworzono nowÄ… zakĹ‚adkÄ™ w interfejsie (KnowledgeBaseControl.cs), integrujÄ…cÄ… listy zdefiniowanych makr i formuĹ‚ Roslyn, a takĹĽe udostÄ™pniajÄ…cÄ… podglÄ…d kodu i przyciski do przeĹ‚adowywania ("Hot Reload") i wykonywania makr asynchronicznie (Task.Run).
-- **Automatyczne Testy (QA)**: Dodano testy jednostkowe DynamicFormulaManagerTests, weryfikujÄ…ce dynamicznÄ… kompilacjÄ™, oraz zintegrowano je z istniejÄ…cym procesem TestRunner.
+- **Migracja do PackageReference**: Przekonwertowano projekt z packages.config na format PackageReference. Zaktualizowano pakiety NuGet, w tym zabezpieczono lukę w System.Text.Json (wersja 8.0.5).
+- **System Formuł i Makr**: Zaimplementowano DynamicFormulaManager (dynamiczna kompilacja w locie przez Roslyn/CSharpScript, piaskownica, ograniczony dostęp do I/O) oraz MacroManager obsługujący parsowanie i asynchroniczne wykonywanie wieloetapowych skryptów JSON dla narzędzi CAD.
+- **Narzędzia Agentowe V2**: Dodano i zarejestrowano w profilach nowe narzędzia oparte o IToolV2: SearchKnowledgeBaseTool, SavePermanentFormulaTool, SaveMacroTool, ExecuteFormulaTool, ExecuteMacroTool. 
+- **Baza Wiedzy AI (UI)**: Utworzono nową zakładkę w interfejsie (KnowledgeBaseControl.cs), integrującą listy zdefiniowanych makr i formuł Roslyn, a także udostępniającą podgląd kodu i przyciski do przeładowywania ("Hot Reload") i wykonywania makr asynchronicznie (Task.Run).
+- **Automatyczne Testy (QA)**: Dodano testy jednostkowe DynamicFormulaManagerTests, weryfikujące dynamiczną kompilację, oraz zintegrowano je z istniejącym procesem TestRunner.
 ### [STAN_SYSTEMU]
-- Projekt bezbĹ‚Ä™dnie kompiluje siÄ™ z uĹĽyciem Roslyn. Wprowadzono architekturÄ™ opartÄ… na asynchronicznoĹ›ci, uodparniajÄ…c UI (AgentControl) przed blokowaniem przez ciÄ™ĹĽkie skrypty C#. GotowoĹ›Ä‡ na testy dynamicznej wiedzy inĹĽynierskiej.
+- Projekt bezbłędnie kompiluje się z użyciem Roslyn. Wprowadzono architekturę opartą na asynchroniczności, uodparniając UI (AgentControl) przed blokowaniem przez ciężkie skrypty C#. Gotowość na testy dynamicznej wiedzy inżynierskiej.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- RozpoczÄ™cie tworzenia nowych narzÄ…dzi przy wykorzystaniu stworzonej Bazy Wiedzy lub testowanie manualne w BricsCAD.
+- Rozpoczęcie tworzenia nowych narządzi przy wykorzystaniu stworzonej Bazy Wiedzy lub testowanie manualne w BricsCAD.
 
 ## 2026-06-05T17:10:00+02:00
 ### [ZREALIZOWANO]
-- **Naprawa bĹ‚Ä™du PerTypeValues'1 (System.Runtime.CompilerServices.Unsafe)**: WdroĹĽono globalnÄ… obsĹ‚ugÄ™ zdarzenia AppDomain.CurrentDomain.AssemblyResolve w klasie AgentStartup.cs. Zapobiega to awariom kompilacji w locie (Roslyn) przez Ĺ›rodowisko BricsCAD, rÄ™cznie kierujÄ…c poszukiwania uszkodzonych referencji bezpoĹ›rednio do fizycznych plikĂłw .dll w katalogu wtyczki. Mechanizm ten rozwiÄ…zuje znane problemy z Ĺ‚adowaniem przestrzeni nazw w .NET Framework z zewnÄ™trznych plikĂłw w systemach wielowÄ…tkowych (takich jak kompilator CSharpScript).
+- **Naprawa błędu PerTypeValues'1 (System.Runtime.CompilerServices.Unsafe)**: Wdrożono globalną obsługę zdarzenia AppDomain.CurrentDomain.AssemblyResolve w klasie AgentStartup.cs. Zapobiega to awariom kompilacji w locie (Roslyn) przez środowisko BricsCAD, ręcznie kierując poszukiwania uszkodzonych referencji bezpośrednio do fizycznych plików .dll w katalogu wtyczki. Mechanizm ten rozwiązuje znane problemy z ładowaniem przestrzeni nazw w .NET Framework z zewnętrznych plików w systemach wielowątkowych (takich jak kompilator CSharpScript).
 ### [STAN_SYSTEMU]
-- Kompilator dynamicznych formuĹ‚ dziaĹ‚a stabilnie pod presjÄ… silnika BricsCAD. RozwiÄ…zano konflikt z zarzÄ…dzaniem pakietami Nuget/Roslyn na etapie wĹ‚Ä…czania wtyczki. W peĹ‚ni odblokowano zdolnoĹ›Ä‡ do tworzenia, zapisywania i korzystania z formuĹ‚ w czasie rzeczywistym.
+- Kompilator dynamicznych formuł działa stabilnie pod presją silnika BricsCAD. Rozwiązano konflikt z zarządzaniem pakietami Nuget/Roslyn na etapie włączania wtyczki. W pełni odblokowano zdolność do tworzenia, zapisywania i korzystania z formuł w czasie rzeczywistym.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- RozpoczÄ™cie tworzenia nowych narzÄ™dzi opartych o wiedzÄ™ inĹĽynierskÄ… przez UĹĽytkownika, wykorzystujÄ…cych poprawnie dziaĹ‚ajÄ…cy silnik Roslyn.
+- Rozpoczęcie tworzenia nowych narzędzi opartych o wiedzę inżynierską przez Użytkownika, wykorzystujących poprawnie działający silnik Roslyn.
 
 ## 2026-06-05T17:43:00+02:00
 ### [ZREALIZOWANO]
-- **WdroĹĽenie UnitsNet i rygoru wymiarowego (Faza 6 i 7)**: Rozbudowano system kompilacji formuĹ‚ (DynamicFormulaManager) o peĹ‚ne wsparcie dla UnitsNet. Zabezpieczono wymiary przesyĹ‚anych danych poprzez modyfikacjÄ™ IToolV2 na typ string zamiast goĹ‚ych double. Zaktualizowano profile AgentĂłw (ToolConfigManager), zapewniajÄ…c synchronizacjÄ™ uprawnieĹ„ dla starszych plikĂłw konfiguracyjnych, tak aby CadMathProfile mĂłgĹ‚ poprawnie korzystaÄ‡ z ExecuteFormulaTool.
+- **Wdrożenie UnitsNet i rygoru wymiarowego (Faza 6 i 7)**: Rozbudowano system kompilacji formuł (DynamicFormulaManager) o pełne wsparcie dla UnitsNet. Zabezpieczono wymiary przesyłanych danych poprzez modyfikację IToolV2 na typ string zamiast gołych double. Zaktualizowano profile Agentów (ToolConfigManager), zapewniając synchronizację uprawnień dla starszych plików konfiguracyjnych, tak aby CadMathProfile mógł poprawnie korzystać z ExecuteFormulaTool.
 ### [STAN_SYSTEMU]
-- Kompilator w locie dziaĹ‚a poprawnie. Agenci rozrĂłĹĽniajÄ… obliczenia interaktywne RPN od gotowych skryptĂłw formuĹ‚ inĹĽynierskich (.csx). Testy manualne (E2E) w BricsCAD zakoĹ„czone pomyĹ›lnie.
+- Kompilator w locie działa poprawnie. Agenci rozróżniają obliczenia interaktywne RPN od gotowych skryptów formuł inżynierskich (.csx). Testy manualne (E2E) w BricsCAD zakończone pomyślnie.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Ewentualna optymalizacja makr systemowych lub tworzenie pierwszych narzÄ™dzi specyficznych dla uĹĽytkownika przez interfejs CAD.
+- Ewentualna optymalizacja makr systemowych lub tworzenie pierwszych narzędzi specyficznych dla użytkownika przez interfejs CAD.
 
 ## 2026-06-05T18:02:00+02:00
 ### [ZREALIZOWANO]
-- **Zaawansowany Sanitizer jednostek HVAC**: W module ExecuteFormulaTool.cs wprowadzono kaskadowe czyszczenie Ĺ‚aĹ„cuchĂłw znakĂłw przed przekazaniem ich do UnitsNet. RozwiÄ…zano problem halucynacji LLM, ktĂłre generowaĹ‚y zapis algebraiczny (np. 1.5_W/(m^2*K)). Sanitizer wygĹ‚adza tekst konwertujÄ…c potÄ™gi, usuwajÄ…c nawiasy, redukujÄ…c podwĂłjne spacje, zamieniajÄ…c znaki mnoĹĽenia na Ĺ›rodkowe kropki oraz korygujÄ…c przecinki. Wymuszono takĹĽe stosowanie CultureInfo.InvariantCulture przy budowaniu skryptĂłw w SavePermanentFormulaTool.cs.
+- **Zaawansowany Sanitizer jednostek HVAC**: W module ExecuteFormulaTool.cs wprowadzono kaskadowe czyszczenie łańcuchów znaków przed przekazaniem ich do UnitsNet. Rozwiązano problem halucynacji LLM, które generowały zapis algebraiczny (np. 1.5_W/(m^2*K)). Sanitizer wygładza tekst konwertując potęgi, usuwając nawiasy, redukując podwójne spacje, zamieniając znaki mnożenia na środkowe kropki oraz korygując przecinki. Wymuszono także stosowanie CultureInfo.InvariantCulture przy budowaniu skryptów w SavePermanentFormulaTool.cs.
 ### [STAN_SYSTEMU]
-- System stabilny, kompilator ignoruje i naprawia bĹ‚Ä™dy wprowadzania jednostek fizycznych pochodzÄ…ce z naturalnego jÄ™zyka.
+- System stabilny, kompilator ignoruje i naprawia błędy wprowadzania jednostek fizycznych pochodzące z naturalnego języka.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Rozbudowa kolejnych mechanizmĂłw lub testowanie praktycznych makr przez uĹĽytkownika.
+- Rozbudowa kolejnych mechanizmów lub testowanie praktycznych makr przez użytkownika.
 
 ## 2026-06-05T21:17:00+02:00
 ### [ZREALIZOWANO]
-- **Konfigurowalne Ĺ›cieĹĽki Bazy Wiedzy (Faza 9)**: Wprowadzono centralnÄ… klasÄ™ `AppPaths`, ktĂłra pozwala na zdefiniowanie wĹ‚asnej Ĺ›cieĹĽki do folderu `CustomKnowledge` z poziomu nowej zakĹ‚adki "ĹšcieĹĽki i Dane" w ustawieniach interfejsu uĹĽytkownika. Zmiana ta umoĹĽliwia przetrzymywanie formuĹ‚ i makr w chmurze (np. OneDrive), z moĹĽliwoĹ›ciÄ… automatycznej migracji (kopiowania) plikĂłw ze starego folderu AppData. Zaktualizowano wszystkie powiÄ…zane menedĹĽery i narzÄ™dzia.
+- **Konfigurowalne ścieżki Bazy Wiedzy (Faza 9)**: Wprowadzono centralną klasę `AppPaths`, która pozwala na zdefiniowanie własnej ścieżki do folderu `CustomKnowledge` z poziomu nowej zakładki "Ścieżki i Dane" w ustawieniach interfejsu użytkownika. Zmiana ta umożliwia przetrzymywanie formuł i makr w chmurze (np. OneDrive), z możliwością automatycznej migracji (kopiowania) plików ze starego folderu AppData. Zaktualizowano wszystkie powiązane menedżery i narzędzia.
 ### [STAN_SYSTEMU]
-- System operuje na konfigurowalnych Ĺ›cieĹĽkach do zasobĂłw wiedzy inĹĽynierskiej. ĹšcieĹĽka jest zapisywana w `ui_settings.json` i zachowuje spĂłjnoĹ›Ä‡ systemu.
+- System operuje na konfigurowalnych ścieżkach do zasobów wiedzy inżynierskiej. Ścieżka jest zapisywana w `ui_settings.json` i zachowuje spójność systemu.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Dalszy rozwĂłj funkcji CAD i korzystanie przez uĹĽytkownika z chmurowej bazy wiedzy.
+- Dalszy rozwój funkcji CAD i korzystanie przez użytkownika z chmurowej bazy wiedzy.
 ## 2026-06-05T21:40:00+02:00
 ### [ZREALIZOWANO]
-- **FAZA 8: System ZarzÄ…dzania Zestawami Danych (DatasetManager)**: 
-  1. Stworzono `DatasetManager` operujÄ…cy na plikach JSON (`Newtonsoft.Json.Linq`), co pozwala na Ĺ‚atwe operacje na danych tabelarycznych.
-  2. Rozbudowano moduĹ‚ `AppPaths` o Ĺ›cieĹĽkÄ™ do `CustomKnowledge\Datasets`.
-  3. WstrzykniÄ™to obiekt bazy pod nazwÄ… `Data` bezpoĹ›rednio do `ScriptGlobals`, co pozwala wywoĹ‚ywaÄ‡ go z dynamicznych skryptĂłw formuĹ‚ `.csx`. Dodano dyrektywy Newtonsoft do kompilatora.
-  4. Utworzono nowe narzÄ™dzia w standardzie `IToolV2`: `QueryDatasetTool`, `ImportCsvDatasetTool`, `ManageDatasetTool`. NarzÄ™dzia te zarejestrowano w profilach agentĂłw (Supervisor, CadMath).
-  5. Rozbudowano interfejs UI (`KnowledgeBaseControl.cs`) o zakĹ‚adkÄ™ z widokiem tabelarycznym (`DataGridView`) uĹ‚atwiajÄ…cÄ… przeglÄ…d i proste edycje.
-  6. Skompilowano caĹ‚y projekt MSBuild, nie uzyskujÄ…c ĹĽadnych bĹ‚Ä™dĂłw.
+- **FAZA 8: System Zarządzania Zestawami Danych (DatasetManager)**: 
+  1. Stworzono `DatasetManager` operujący na plikach JSON (`Newtonsoft.Json.Linq`), co pozwala na łatwe operacje na danych tabelarycznych.
+  2. Rozbudowano moduł `AppPaths` o ścieżkę do `CustomKnowledge\Datasets`.
+  3. Wstrzyknięto obiekt bazy pod nazwą `Data` bezpośrednio do `ScriptGlobals`, co pozwala wywoływać go z dynamicznych skryptów formuł `.csx`. Dodano dyrektywy Newtonsoft do kompilatora.
+  4. Utworzono nowe narzędzia w standardzie `IToolV2`: `QueryDatasetTool`, `ImportCsvDatasetTool`, `ManageDatasetTool`. Narzędzia te zarejestrowano w profilach agentów (Supervisor, CadMath).
+  5. Rozbudowano interfejs UI (`KnowledgeBaseControl.cs`) o zakładkę z widokiem tabelarycznym (`DataGridView`) ułatwiającą przegląd i proste edycje.
+  6. Skompilowano cały projekt MSBuild, nie uzyskując żadnych błędów.
 ### [STAN_SYSTEMU]
-- System operacyjny i w peĹ‚ni stabilny. Agenci uzyskali elastyczny dostÄ™p do baz danych inĹĽynierskich w formacie JSON z moĹĽliwoĹ›ciÄ… dynamicznych zapytaĹ„ (Exact, NearestGreater, NearestLower).
+- System operacyjny i w pełni stabilny. Agenci uzyskali elastyczny dostęp do baz danych inżynierskich w formacie JSON z możliwością dynamicznych zapytań (Exact, NearestGreater, NearestLower).
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie moduĹ‚u baz danych w interakcji.
+- Testowanie modułu baz danych w interakcji.
 
-## [v2.23.0] 2026-06-05T21:42:00+02:00 - Faza 8.1 - Filtrowanie wielokryterialne dla podtypĂłw w DatasetManager
+## [v2.23.0] 2026-06-05T21:42:00+02:00 - Faza 8.1 - Filtrowanie wielokryterialne dla podtypów w DatasetManager
 ### [ZREALIZOWANO]
-- **FAZA 8.1: Filtrowanie wielokryterialne dla podtypĂłw w DatasetManager**: 
-  1. Zmodyfikowano interfejs `IDatasetProvider` by metody `GetExactMatch`, `GetNearestGreater`, `GetNearestLower` przyjmowaĹ‚y opcjonalny sĹ‚ownik `Dictionary<string, string> filters`.
-  2. W klasie `DatasetManager` dodano funkcjÄ™ pomocniczÄ… sprawdzajÄ…cÄ… podane klucze i wartoĹ›ci przed uruchomieniem algorytmĂłw szukajÄ…cych, optymalizujÄ…c wyciÄ…ganie np. rur konkretnego materiaĹ‚u z poĹ‚Ä…czonej tabeli JSON.
-  3. Zaktualizowano definicjÄ™ i ciaĹ‚o `QueryDatasetTool`, wprowadzajÄ…c i wyciÄ…gajÄ…c opcjonalny parametr `filters`. NarzÄ™dzie przekazuje poprawnie filtry (jako JTokenType.Object).
-  4. Projekt przebudowano z zerowÄ… iloĹ›ciÄ… bĹ‚Ä™dĂłw.
+- **FAZA 8.1: Filtrowanie wielokryterialne dla podtypów w DatasetManager**: 
+  1. Zmodyfikowano interfejs `IDatasetProvider` by metody `GetExactMatch`, `GetNearestGreater`, `GetNearestLower` przyjmowały opcjonalny słownik `Dictionary<string, string> filters`.
+  2. W klasie `DatasetManager` dodano funkcję pomocniczą sprawdzającą podane klucze i wartości przed uruchomieniem algorytmów szukających, optymalizując wyciąganie np. rur konkretnego materiału z połączonej tabeli JSON.
+  3. Zaktualizowano definicję i ciało `QueryDatasetTool`, wprowadzając i wyciągając opcjonalny parametr `filters`. Narzędzie przekazuje poprawnie filtry (jako JTokenType.Object).
+  4. Projekt przebudowano z zerową ilością błędów.
 ### [STAN_SYSTEMU]
-- System jest stabilny. ZarzÄ…dzanie danymi obsĹ‚uguje peĹ‚ne, kaskadowe filtrowanie wĹ‚aĹ›ciwoĹ›ci przed odnalezieniem wĹ‚aĹ›ciwych parametrĂłw. FormuĹ‚y i makra zyskaĹ‚y duĹĽÄ… elastycznoĹ›Ä‡ w szukaniu w bazach.
+- System jest stabilny. Zarządzanie danymi obsługuje pełne, kaskadowe filtrowanie właściwości przed odnalezieniem właściwych parametrów. Formuły i makra zyskały dużą elastyczność w szukaniu w bazach.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie w CAD / praca inĹĽynierska na bazach.
+- Testowanie w CAD / praca inżynierska na bazach.
 
-## [v2.24.0] 2026-06-05T22:05:00+02:00 - Faza 9 - Kategoryzacja, Tagowanie i Drzewo FolderĂłw
+## [v2.24.0] 2026-06-05T22:05:00+02:00 - Faza 9 - Kategoryzacja, Tagowanie i Drzewo Folderów
 ### [ZREALIZOWANO]
-- **FAZA 9: System Kategoryzacji, Tagowania i Drzewa FolderĂłw**: 
-  1. Dodano pola Category i Tags do metadanych formuĹ‚ i makr.
-  2. Zaktualizowano narzÄ™dzia SavePermanentFormulaTool i SaveMacroTool o obsĹ‚ugÄ™ kategorii, wĹ‚Ä…czajÄ…c sanityzacjÄ™ znakĂłw Windows oraz tworzenie fizycznych podfolderĂłw.
-  3. Zmodyfikowano menedĹĽery (DynamicFormulaManager, MacroManager, DatasetManager) do przeszukiwania rekurencyjnego (SearchOption.AllDirectories).
-  4. Rozbudowano wyszukiwarkÄ™ KnowledgeBase o opcjonalne parametry Category i Tags (filtrowanie LINQ).
-  5. Przebudowano interfejs UI (KnowledgeBaseControl) z uĹĽyciem TreeView do grupowania folderĂłw i elementĂłw.
-  6. Dodano automatyczne przeĹ‚adowywanie bazy po wejĹ›ciu w zakĹ‚adkÄ™ (zdarzenie VisibleChanged) oraz pasek tekstowy do dynamicznego filtrowania wyĹ›wietlanego drzewka po tagach.
+- **FAZA 9: System Kategoryzacji, Tagowania i Drzewa Folderów**: 
+  1. Dodano pola Category i Tags do metadanych formuł i makr.
+  2. Zaktualizowano narzędzia SavePermanentFormulaTool i SaveMacroTool o obsługę kategorii, włączając sanityzację znaków Windows oraz tworzenie fizycznych podfolderów.
+  3. Zmodyfikowano menedżery (DynamicFormulaManager, MacroManager, DatasetManager) do przeszukiwania rekurencyjnego (SearchOption.AllDirectories).
+  4. Rozbudowano wyszukiwarkę KnowledgeBase o opcjonalne parametry Category i Tags (filtrowanie LINQ).
+  5. Przebudowano interfejs UI (KnowledgeBaseControl) z użyciem TreeView do grupowania folderów i elementów.
+  6. Dodano automatyczne przeładowywanie bazy po wejściu w zakładkę (zdarzenie VisibleChanged) oraz pasek tekstowy do dynamicznego filtrowania wyświetlanego drzewka po tagach.
 ### [STAN_SYSTEMU]
-- System w peĹ‚ni stabilny i wspiera zaawansowanÄ… kategoryzacjÄ™ oraz filtrowanie tagami. Panel Bazy Wiedzy jest automatycznie aktualizowany po pokazaniu.
+- System w pełni stabilny i wspiera zaawansowaną kategoryzację oraz filtrowanie tagami. Panel Bazy Wiedzy jest automatycznie aktualizowany po pokazaniu.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Testowanie nowej struktury z uĹĽyciem narzÄ™dzi lub dalszy rozwĂłj bazy wiedzy.
+- Testowanie nowej struktury z użyciem narzędzi lub dalszy rozwój bazy wiedzy.
 
-## [v2.28.1] 2026-06-06T20:44:00+02:00 - Ujednolicenie pliku pamiÄ™ci i naprawa kodowania
+## [v2.28.1] 2026-06-06T20:44:00+02:00 - Ujednolicenie pliku pamięci i naprawa kodowania
 ### [ZREALIZOWANO]
-- Przeanalizowano pliki pamiÄ™ci i zidentyfikowano bĹ‚Ä™dy kodowania Mojibake (znaki UTF-8 zdekodowane jako Windows-1250 i zapisane ponownie) oraz bĹ‚Ä™dy zapisu UTF-16-BE (alternujÄ…ce spacje/NUL w pliku).
-- Stworzono kopiÄ™ zapasowÄ… pliku `memory.md` jako `memory.bak.md` w folderze gĹ‚Ăłwnym wtyczki V2.
-- Naprawiono wszystkie znieksztaĹ‚cenia kodowania, przywracajÄ…c czysty polski tekst UTF-8.
+- Przeanalizowano pliki pamięci i zidentyfikowano błędy kodowania Mojibake (znaki UTF-8 zdekodowane jako Windows-1250 i zapisane ponownie) oraz błędy zapisu UTF-16-BE (alternujące spacje/NUL w pliku).
+- Stworzono kopię zapasową pliku `memory.md` jako `memory.bak.md` w folderze głównym wtyczki V2.
+- Naprawiono wszystkie zniekształcenia kodowania, przywracając czysty polski tekst UTF-8.
 - Ponadawano numery wersji (v2.20.10 do v2.28.0) wszystkim krokom deweloperskim z datami od 2026-06-03.
-- Zaktualizowano i ujednolicono spis wersji (Changelog) na poczÄ…tku pliku o nowe wersje odpowiadajÄ…ce krokom deweloperskim i fazom V2.
-- Zsynchronizowano plik `memory.md` w katalogu gĹ‚Ăłwnym oraz w folderze `docs/`.
+- Zaktualizowano i ujednolicono spis wersji (Changelog) na początku pliku o nowe wersje odpowiadające krokom deweloperskim i fazom V2.
+- Zsynchronizowano plik `memory.md` w katalogu głównym oraz w folderze `docs/`.
 ### [STAN_SYSTEMU]
-- Pliki pamiÄ™ci sÄ… w peĹ‚ni ujednolicone, spĂłjne syntaktycznie i wolne od uszkodzeĹ„ kodowania.
+- Pliki pamięci są w pełni ujednolicone, spójne syntaktycznie i wolne od uszkodzeń kodowania.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Dalszy rozwĂłj projektu zgodnie z planem wdroĹĽenia w BricsCAD.
+- Dalszy rozwój projektu zgodnie z planem wdrożenia w BricsCAD.
 
-## [v2.28.2] 2026-06-06T19:11:00+02:00 - Implementacja narzÄ™dzia do zarzÄ…dzania receptami
+## [v2.28.2] 2026-06-06T19:11:00+02:00 - Implementacja narzędzia do zarządzania receptami
 ### [ZREALIZOWANO]
-- Przeniesiono przechowywanie recept z pojedynczego pliku 'AgentRecipes.json' do oddzielnych plikĂłw .json w dedykowanym folderze 'Recipes'.
-- Zaimplementowano logikÄ™ migracji do nowego formatu w 'RecipeManager.cs'.
-- Stworzono narzÄ™dzie 'ManageRecipesTool' umoĹĽliwiajÄ…ce agentom czytanie, tworzenie, edytowanie i usuwanie recept.
-- Zaktualizowano profile Supervisora i pozostaĹ‚e w 'ToolConfigManager.cs', umoĹĽliwiajÄ…c dostÄ™p do nowego narzÄ™dzia i zachowanie znacznikĂłw $trigger w TaskDescription podczas delegacji zadaĹ„.
+- Przeniesiono przechowywanie recept z pojedynczego pliku 'AgentRecipes.json' do oddzielnych plików .json w dedykowanym folderze 'Recipes'.
+- Zaimplementowano logikę migracji do nowego formatu w 'RecipeManager.cs'.
+- Stworzono narzędzie 'ManageRecipesTool' umożliwiające agentom czytanie, tworzenie, edytowanie i usuwanie recept.
+- Zaktualizowano profile Supervisora i pozostałe w 'ToolConfigManager.cs', umożliwiając dostęp do nowego narzędzia i zachowanie znaczników $trigger w TaskDescription podczas delegacji zadań.
 ### [STAN_SYSTEMU]
-- System umoĹĽliwia dynamiczne tworzenie i zarzÄ…dzanie zadaniami 'Few-Shot' przez agenta i odczytywanie ich z oddzielnych plikĂłw.
+- System umożliwia dynamiczne tworzenie i zarządzanie zadaniami 'Few-Shot' przez agenta i odczytywanie ich z oddzielnych plików.
 ### [BLOKADY / PROBLEMY]
-- Dotnet build z poziomu CLI wyrzucaĹ‚ bĹ‚Ä™dy o braku Newtonsoft.Json dla starych plikĂłw co moĹĽe wymagaÄ‡ weryfikacji .csproj.
+- Dotnet build z poziomu CLI wyrzucał błędy o braku Newtonsoft.Json dla starych plików co może wymagać weryfikacji .csproj.
 ### [KOLEJNY_KROK]
-- Oczekiwanie na testy interakcji agenta z nowym narzÄ™dziem.
+- Oczekiwanie na testy interakcji agenta z nowym narzędziem.
 
-## [v2.28.3] 2026-06-06T21:26:00+02:00 - Implementacja Centrum Pomocy (ZakĹ‚adka Pomoc)
+## [v2.28.3] 2026-06-06T21:26:00+02:00 - Implementacja Centrum Pomocy (Zakładka Pomoc)
 ### [ZREALIZOWANO]
-- Skopiowano dokumentacjÄ™ uĹĽytkownika (USER_GUIDE.md, TOOLS_REFERENCE.md, COMMANDS_REFERENCE.md) do nowej lokalizacji 'resources\help\'.
-- Utworzono plik indeksujÄ…cy 'index.json' sterujÄ…cy zawartoĹ›ciÄ… drzewa nawigacyjnego w module pomocy.
-- Zbudowano nowÄ… kontrolkÄ™ 'HelpCenterControl.cs' skĹ‚adajÄ…cÄ… siÄ™ z drzewka (TreeView) i przeglÄ…darki (WebBrowser).
-- Zaimplementowano wewnÄ™trz 'HelpCenterControl' dynamiczny silnik parsujÄ…cy na wyraĹĽeniach regularnych, ktĂłry w locie tĹ‚umaczy skĹ‚adniÄ™ Markdown na sformatowany, stylowy HTML (obsĹ‚ugujÄ…cy nagĹ‚Ăłwki, listy, pogrubienia, sekcje kodu i alerty).
-- WpiÄ™to nowÄ… kontrolkÄ™ jako zakĹ‚adkÄ™ '? Pomoc' do gĹ‚Ăłwnego obiektu 'tabControl' w 'AgentControl.cs'.
-- Zaktualizowano plik 'Bricscad_AgentAI_V2.csproj' do kompilacji nowej kontrolki i uwzglÄ™dnienia plikĂłw pomocy jako zasobĂłw (CopyToOutputDirectory).
+- Skopiowano dokumentację użytkownika (USER_GUIDE.md, TOOLS_REFERENCE.md, COMMANDS_REFERENCE.md) do nowej lokalizacji 'resources\help\'.
+- Utworzono plik indeksujący 'index.json' sterujący zawartością drzewa nawigacyjnego w module pomocy.
+- Zbudowano nową kontrolkę 'HelpCenterControl.cs' składającą się z drzewka (TreeView) i przeglądarki (WebBrowser).
+- Zaimplementowano wewnętrz 'HelpCenterControl' dynamiczny silnik parsujący na wyrażeniach regularnych, który w locie tłumaczy składnię Markdown na sformatowany, stylowy HTML (obsługujący nagłówki, listy, pogrubienia, sekcje kodu i alerty).
+- Wpięto nową kontrolkę jako zakładkę '? Pomoc' do głównego obiektu 'tabControl' w 'AgentControl.cs'.
+- Zaktualizowano plik 'Bricscad_AgentAI_V2.csproj' do kompilacji nowej kontrolki i uwzględnienia plików pomocy jako zasobów (CopyToOutputDirectory).
 ### [STAN_SYSTEMU]
-- Dodano centrum zintegrowanej wiedzy, ktĂłre uĹĽytkownik bÄ™dzie mĂłgĹ‚ Ĺ‚atwo edytowaÄ‡ przez pliki MD w resources\help.
+- Dodano centrum zintegrowanej wiedzy, które użytkownik będzie mógł łatwo edytować przez pliki MD w resources\help.
 ### [BLOKADY / PROBLEMY]
-- Dotnet CLI rzuca standardowe problemy z brakiem referencji z NuGet, wymagana manualna kompilacja u uĹĽytkownika z VS / MSBuild.
+- Dotnet CLI rzuca standardowe problemy z brakiem referencji z NuGet, wymagana manualna kompilacja u użytkownika z VS / MSBuild.
 ### [KOLEJNY_KROK]
-- Weryfikacja dziaĹ‚ania drzewka nawigacyjnego w GUI wtyczki w Ĺ›rodowisku natywnym BricsCAD.
+- Weryfikacja działania drzewka nawigacyjnego w GUI wtyczki w środowisku natywnym BricsCAD.
 
-## [v2.28.4] 2026-06-06T21:40:00+02:00 - ModuĹ‚ Agenta Pomocy (ReadHelpTool)
+## [v2.28.4] 2026-06-06T21:40:00+02:00 - Moduł Agenta Pomocy (ReadHelpTool)
 ### [ZREALIZOWANO]
-- Zbudowano narzÄ™dzie 'ReadHelpTool.cs' dla Agenta umoĹĽliwiajÄ…ce swobodny odczyt dokumentacji i listowanie zasobĂłw z folderu 'resources\help\'.
-- NarzÄ™dzie posiada mechanizm Path Traversal Prevention zabezpieczajÄ…cy przed odczytem zewnÄ™trznych plikĂłw systemu.
-- Uaktualniono domyĹ›lnÄ… konfiguracjÄ™ Supervisora w 'ToolConfigManager.cs' przypisujÄ…c mu bezpoĹ›redni dostÄ™p do narzÄ™dzia 'ReadHelp'.
-- Zmodyfikowano logikÄ™ generatora 'system_prompt_supervisor.txt', dodajÄ…c sekcjÄ™ 4 o nazwie WIEDZA O SYSTEMIE / POMOC.
-- Skompilowano caĹ‚y program upewniajÄ…c siÄ™, ĹĽe brak bĹ‚Ä™dĂłw Ĺ›rodowiskowych przy uĹĽyciu MSBuild.
+- Zbudowano narzędzie 'ReadHelpTool.cs' dla Agenta umożliwiające swobodny odczyt dokumentacji i listowanie zasobów z folderu 'resources\help\'.
+- Narzędzie posiada mechanizm Path Traversal Prevention zabezpieczający przed odczytem zewnętrznych plików systemu.
+- Uaktualniono domyślną konfigurację Supervisora w 'ToolConfigManager.cs' przypisując mu bezpośredni dostęp do narzędzia 'ReadHelp'.
+- Zmodyfikowano logikę generatora 'system_prompt_supervisor.txt', dodając sekcję 4 o nazwie WIEDZA O SYSTEMIE / POMOC.
+- Skompilowano cały program upewniając się, że brak błędów środowiskowych przy użyciu MSBuild.
 ### [STAN_SYSTEMU]
-- Agent potrafi dyskutowaÄ‡ z uĹĽytkownikiem na temat wĹ‚asnej wtyczki i procedur w niej opisanych, doĹ‚Ä…czajÄ…c instrukcje z plikĂłw MD.
+- Agent potrafi dyskutować z użytkownikiem na temat własnej wtyczki i procedur w niej opisanych, dołączając instrukcje z plików MD.
 ### [BLOKADY / PROBLEMY]
 - Brak blokad, wszystkie pliki w tym '.csproj' nadpisane i skompilowane z sukcesem.
 ### [KOLEJNY_KROK]
-- Test funkcjonalny narzÄ™dzia 'ReadHelp' w bezpoĹ›redniej rozmowie uĹĽytkownika z Supervisorem.
+- Test funkcjonalny narzędzia 'ReadHelp' w bezpośredniej rozmowie użytkownika z Supervisorem.
 
 ## [v2.28.5] 2026-06-06T22:15:00+02:00 - UI & UX Tweaks (Markdown & Commendy)
 ### [ZREALIZOWANO]
-- Zmieniono komendÄ™ wywoĹ‚awczÄ… panelu z AGENT_V2 na krĂłtkie i proste 'AI'.
-- Zaimplementowano w konsoli parser formatowania Markdown. Zamiast surowych gwiazdek, bot uĹĽywa teraz poprawnego pogrubienia, kursywy i dedykowanej czcionki z tĹ‚em dla blokĂłw kodu.
-- Poprawiono parser, usuwajÄ…c bĹ‚Ä…d 'rozlewania' siÄ™ formatowania na wiele akapitĂłw i naĹ‚oĹĽono auto-pogrubienie na wiersze z nagĹ‚Ăłwkami z prefiksem '#'.
+- Zmieniono komendę wywoławczą panelu z AGENT_V2 na krótkie i proste 'AI'.
+- Zaimplementowano w konsoli parser formatowania Markdown. Zamiast surowych gwiazdek, bot używa teraz poprawnego pogrubienia, kursywy i dedykowanej czcionki z tłem dla bloków kodu.
+- Poprawiono parser, usuwając błąd 'rozlewania' się formatowania na wiele akapitów i nałożono auto-pogrubienie na wiersze z nagłówkami z prefiksem '#'.
 ### [STAN_SYSTEMU]
-- OdĹ›wieĹĽona konsola z ulepszonym renderingiem tekstu.
+- Odświeżona konsola z ulepszonym renderingiem tekstu.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
 - Implementacja dynamicznego systemu Skilli.
 
-## [v2.28.6] 2026-06-06T23:18:51+02:00 - WdroĹĽenie systemu Skilli (Markdown+YAML)
+## [v2.28.6] 2026-06-06T23:18:51+02:00 - Wdrożenie systemu Skilli (Markdown+YAML)
 ### [ZREALIZOWANO]
-- Utworzono strukturÄ™ danych `AgentSkill.cs` i zaimplementowano menedĹĽer `SkillManager.cs` parsujÄ…cy bloki YAML Frontmatter z plikĂłw Markdown.
-- Zintegrowano obsĹ‚ugÄ™ plikĂłw `.md` w zakĹ‚adce Baza Wiedzy (nowa podzakĹ‚adka "Skille InĹĽynierskie").
-- Stworzono `ManageSkillsTool.cs` dajÄ…ce Agentowi moĹĽliwoĹ›Ä‡ interakcji ze skillami (akcje `list_skills`, `read_skill`, `create_skill`).
-- WdroĹĽono mechanizm Progressive Disclosure (poziom 1) w `AgentControl.cs` wstrzykujÄ…cy skille wywoĹ‚ane przez `#` w chatboxie prosto jako wiadomoĹ›ci systemowe (kontekst).
-- Zaktualizowano plik `Bricscad_AgentAI_V2.csproj` w celu prawidĹ‚owej kompilacji nowych klas.
+- Utworzono strukturę danych `AgentSkill.cs` i zaimplementowano menedżer `SkillManager.cs` parsujący bloki YAML Frontmatter z plików Markdown.
+- Zintegrowano obsługę plików `.md` w zakładce Baza Wiedzy (nowa podzakładka "Skille Inżynierskie").
+- Stworzono `ManageSkillsTool.cs` dające Agentowi możliwość interakcji ze skillami (akcje `list_skills`, `read_skill`, `create_skill`).
+- Wdrożono mechanizm Progressive Disclosure (poziom 1) w `AgentControl.cs` wstrzykujący skille wywołane przez `#` w chatboxie prosto jako wiadomości systemowe (kontekst).
+- Zaktualizowano plik `Bricscad_AgentAI_V2.csproj` w celu prawidłowej kompilacji nowych klas.
 ### [STAN_SYSTEMU]
-- System umoĹĽliwia wczytywanie i dynamiczne wstrzykiwanie skilli inĹĽynierskich z plikĂłw Markdown z YAML.
+- System umożliwia wczytywanie i dynamiczne wstrzykiwanie skilli inżynierskich z plików Markdown z YAML.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- UzupeĹ‚nienie dokumentacji o obsĹ‚ugÄ™ Skilli.
+- Uzupełnienie dokumentacji o obsługę Skilli.
 
-## [v2.28.7] 2026-06-06T23:21:53+02:00 - Aktualizacja Pomocy (USER_GUIDE) o obsĹ‚ugÄ™ Skilli (#) i PoleceĹ„ (/)
+## [v2.28.7] 2026-06-06T23:21:53+02:00 - Aktualizacja Pomocy (USER_GUIDE) o obsługę Skilli (#) i Poleceń (/)
 ### [ZREALIZOWANO]
-- Zaktualizowano plik `USER_GUIDE.md` w resources/help o instrukcje wywoĹ‚ywania skilli przy uĹĽyciu `#` oraz poleceĹ„ ukoĹ›nika `/` w chatboxie.
+- Zaktualizowano plik `USER_GUIDE.md` w resources/help o instrukcje wywoływania skilli przy użyciu `#` oraz poleceń ukośnika `/` w chatboxie.
 ### [STAN_SYSTEMU]
-- Zaktualizowana pomoc dla uĹĽytkownika.
+- Zaktualizowana pomoc dla użytkownika.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
 - Aktualizacja system promptu Supervisora.
 
-## [v2.28.8] 2026-06-06T23:36:12+02:00 - Aktualizacja Supervisor prompt: OdrĂłĹĽnienie Skilli (#) od Recept ($)
+## [v2.28.8] 2026-06-06T23:36:12+02:00 - Aktualizacja Supervisor prompt: Odróżnienie Skilli (#) od Recept ($)
 ### [ZREALIZOWANO]
-- Zaktualizowano system prompt w `ToolConfigManager.cs`, wprowadzajÄ…c precyzyjne wytyczne odrĂłĹĽniajÄ…ce dynamiczne Skille (`#`) od Recept (`$`).
+- Zaktualizowano system prompt w `ToolConfigManager.cs`, wprowadzając precyzyjne wytyczne odróżniające dynamiczne Skille (`#`) od Recept (`$`).
 ### [STAN_SYSTEMU]
-- Supervisor lepiej odrĂłĹĽnia i stosuje odpowiednie struktury meta-instrukcji.
+- Supervisor lepiej odróżnia i stosuje odpowiednie struktury meta-instrukcji.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- UdostÄ™pnienie narzÄ™dzia manage_skills dla Supervisora.
+- Udostępnienie narzędzia manage_skills dla Supervisora.
 
-## [v2.28.9] 2026-06-06T23:57:36+02:00 - Dodanie manage_skills do domyĹ›lnych narzÄ™dzi Supervisora
+## [v2.28.9] 2026-06-06T23:57:36+02:00 - Dodanie manage_skills do domyślnych narzędzi Supervisora
 ### [ZREALIZOWANO]
-- Dodano `ManageSkillsTool` (`manage_skills`) do domyĹ›lnej konfiguracji dostÄ™pnych narzÄ™dzi dla profilu Supervisora w `ToolConfigManager.cs`.
+- Dodano `ManageSkillsTool` (`manage_skills`) do domyślnej konfiguracji dostępnych narzędzi dla profilu Supervisora w `ToolConfigManager.cs`.
 ### [STAN_SYSTEMU]
-- Agent w roli Supervisora ma doĹ›wiadczenie i uprawnienia do zarzÄ…dzania skillami w locie.
+- Agent w roli Supervisora ma doświadczenie i uprawnienia do zarządzania skillami w locie.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- Uodpornienie narzÄ™dzia na bĹ‚Ä™dne wywoĹ‚ania przez LLM.
+- Uodpornienie narzędzia na błędne wywołania przez LLM.
 
 ## [v2.28.10] 2026-06-07T00:06:39+02:00 - Uodpornienie ManageSkillsTool na halucynacje LLM (Case Insensitivity & Aliases)
 ### [ZREALIZOWANO]
-- Zaimplementowano w `ManageSkillsTool.cs` tolerancjÄ™ na wielkoĹ›Ä‡ liter (case-insensitivity) przy wyszukiwaniu skilli.
-- Wprowadzono obsĹ‚ugÄ™ aliasĂłw i nazw alternatywnych, aby zapobiec bĹ‚Ä™dom przy wywoĹ‚aniach przez LLM.
+- Zaimplementowano w `ManageSkillsTool.cs` tolerancję na wielkość liter (case-insensitivity) przy wyszukiwaniu skilli.
+- Wprowadzono obsługę aliasów i nazw alternatywnych, aby zapobiec błędom przy wywołaniach przez LLM.
 ### [STAN_SYSTEMU]
-- ModuĹ‚ obsĹ‚ugi skilli jest odporny na drobne bĹ‚Ä™dy zapisu i wielkoĹ›ci liter ze strony modeli LLM.
+- Moduł obsługi skilli jest odporny na drobne błędy zapisu i wielkości liter ze strony modeli LLM.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
 - Zapis i ujednolicenie dziennika prac w memory.md.
 
 
-## Podsumowania UkoĹ„czonych Faz Deweloperskich V2
-### Faza 10: Multi-Modalne ZaĹ‚Ä…czniki (Tekst i Wizja) (ZakoĹ„czono)
-1. Zaimplementowano klasÄ™ FileExtractor.cs do obsĹ‚ugi zaĹ‚Ä…cznikĂłw tekstowych (TXT, PY, MD, LSP) oraz binarnych (PDF, XLS/XLSX).
-2. Wprowadzono kompresjÄ™ i skalowanie obrazĂłw (PNG, JPG) uĹĽywajÄ…c System.Drawing.Common do 1024x1024px z konwersjÄ… do Base64 dla wsparcia Vision API.
-3. Zaktualizowano AgentControl.cs - dodano przycisk zaĹ‚Ä…cznika (btnAttachFile), obsĹ‚ugÄ™ OpenFileDialog, logikÄ™ procesowania zaĹ‚Ä…cznika w ProcessInputAsync i wyĹ›wietlanie w UI (lblAttachedFile).
-4. Skompilowano kod z wynikiem pozytywnym bez bĹ‚Ä™dĂłw (MSBuild).
+## Podsumowania Ukończonych Faz Deweloperskich V2
+### Faza 10: Multi-Modalne Załączniki (Tekst i Wizja) (Zakończono)
+1. Zaimplementowano klasę FileExtractor.cs do obsługi załączników tekstowych (TXT, PY, MD, LSP) oraz binarnych (PDF, XLS/XLSX).
+2. Wprowadzono kompresję i skalowanie obrazów (PNG, JPG) używając System.Drawing.Common do 1024x1024px z konwersją do Base64 dla wsparcia Vision API.
+3. Zaktualizowano AgentControl.cs - dodano przycisk załącznika (btnAttachFile), obsługę OpenFileDialog, logikę procesowania załącznika w ProcessInputAsync i wyświetlanie w UI (lblAttachedFile).
+4. Skompilowano kod z wynikiem pozytywnym bez błędów (MSBuild).
 ### Faza 11: Standaryzacja Datasetow (Wzorzec Plikow Towarzyszacych i Normalizacja) (Zakonczono)
 1. Dodano plik Models/DatasetMetadata.cs aby zapewnic ustandaryzowana strukture bazy wiedzy.
 2. Rozdzielono zapis/odczyt plikow baz danych w DatasetManager.cs na [id].json (metadane) i [id].data.json (tablice z danymi).
@@ -900,77 +917,151 @@ tbToolSchema) generowanych automatycznie na podstawie definicji parametrĂłw wy
 4. Zaktualizowano KnowledgeBaseControl.cs - UI dla Bazy Danych pobiera kategorie, grupuje dane w TreeView, oraz obsluguje zapis wylacznie *.data.json z pominieciem nadpisywania metadanych.
 5. Zmodyfikowano ManageDatasetTool i ImportCsvDatasetTool aby przyjmowaly opis, tagi, kategorie z nowa rygorystyczna wytyczna dotyczaca plaskich tabel.
 ### Hotfix: Polskie znaki w UI
-Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np. "DoĹ‚Ä…czono plik" oraz upewniono sie, ze plik zapisany jest z kodowaniem UTF-8.
+Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np. "Dołączono plik" oraz upewniono sie, ze plik zapisany jest z kodowaniem UTF-8.
 ### Faza 12: Integracja Schowka Systemowego (Zakonczono)
 1. Dodano w FileExtractor.cs metode do obslugi obrazow bezposrednio z pamieci operacyjnej (obiekt Image), ktora zabezpiecza VRAM i automatycznie przelicza, skaluje oraz uwalnia pamiec za pomoca blokow using.
 2. Zaktualizowano AgentControl.cs wprowadzajac zdarzenie KeyDown dla pola tekstowego txtInput.
 3. Gdy uzytkownik wcisnie Ctrl+V i schowek zawiera obraz, agent automatycznie wyodrebni ten obraz do wewnetrznej zmiennej _attachedClipboardImage, podmieni label GUI i zablokuje typowe wklejenie tekstu. 
 4. Procesowanie obrazu za pomoca Vision API dziala natywnie i poprawnie konwertuje do binarnej bazy 64.
 
-### Faza 13: ZarzÄ…dzanie Sesjami, PamiÄ™ciÄ… Kontekstu i Kompresja (ZakoĹ„czono)
-1. Stworzono model ChatSession (z GUID, datami, wiadomoĹ›ciami i wyizolowanym Blackboardem) oraz SessionManager do zapisu/odczytu sesji w %APPDATA% (plik .json).
-2. Zaktualizowano SharedMemoryState, dodajÄ…c moĹĽliwoĹ›Ä‡ Ĺ‚adowania pamiÄ™ci z Dictionary i czyszczenia jej na potrzeby izolacji stanĂłw miÄ™dzy poszczegĂłlnymi sesjami.
-3. Zaktualizowano SupervisorOrchestrator, by korzystaĹ‚ wprost z historii wiadomoĹ›ci CurrentSession.Messages zamiast zmiennej globalnej, a nowy wÄ…tek wywoĹ‚uje Auto-Naming sesji gdy uzbierajÄ… siÄ™ 2 wiadomoĹ›ci.
-4. Wprowadzono logikÄ™ zliczania uĹĽycia tokenĂłw z API oraz pasek Context Bar w GUI (AgentControl.cs), ze wsparciem dla bezpiecznej aktualizacji miÄ™dzy-wÄ…tkowej (Invoke).
-5. Zbudowano i zintegrowano system kompresji kontekstu (Auto i RÄ™czna), podsumowujÄ…cy najstarsze logi, by ratowaÄ‡ miejsce w oknie kontekstowym.
+### Faza 13: Zarządzanie Sesjami, Pamięcią Kontekstu i Kompresja (Zakończono)
+1. Stworzono model ChatSession (z GUID, datami, wiadomościami i wyizolowanym Blackboardem) oraz SessionManager do zapisu/odczytu sesji w %APPDATA% (plik .json).
+2. Zaktualizowano SharedMemoryState, dodając możliwość ładowania pamięci z Dictionary i czyszczenia jej na potrzeby izolacji stanów między poszczególnymi sesjami.
+3. Zaktualizowano SupervisorOrchestrator, by korzystał wprost z historii wiadomości CurrentSession.Messages zamiast zmiennej globalnej, a nowy wątek wywołuje Auto-Naming sesji gdy uzbierają się 2 wiadomości.
+4. Wprowadzono logikę zliczania użycia tokenów z API oraz pasek Context Bar w GUI (AgentControl.cs), ze wsparciem dla bezpiecznej aktualizacji między-wątkowej (Invoke).
+5. Zbudowano i zintegrowano system kompresji kontekstu (Auto i Ręczna), podsumowujący najstarsze logi, by ratować miejsce w oknie kontekstowym.
 
-### Faza 14: ĹšwiadomoĹ›Ä‡ Kontekstu DWG i Notatki Projektowe (ZakoĹ„czono)
-1. Zmodyfikowano ChatMessage dodajÄ…c pole ActiveDocumentPath.
-2. Stworzono system Notatek Projektowych (Sidecar Markdown) z wykorzystaniem nowej klasy DrawingNoteManager, zapisujÄ…c notatki obok plikĂłw DWG lub w folderze Temp dla rysunkĂłw niezapisanych.
-3. Zaimplementowano w AgentControl.cs przechwytywacz komend (/notatka) oraz sub-agenta z zablokowanym narzÄ™dziownikiem (Tools) do generowania czystego Markdowna.
-4. UzupeĹ‚niono SupervisorOrchestrator o logikÄ™ RAG - notatki inĹĽynierskie sÄ… dynamicznie wstrzykiwane do Promptu Systemowego.
-5. Poprawiono bezpieczeĹ„stwo wyjÄ…tkĂłw I/O i wÄ…tkĂłw UI z uĹĽyciem blokĂłw try-catch.
+### Faza 14: Świadomość Kontekstu DWG i Notatki Projektowe (Zakończono)
+1. Zmodyfikowano ChatMessage dodając pole ActiveDocumentPath.
+2. Stworzono system Notatek Projektowych (Sidecar Markdown) z wykorzystaniem nowej klasy DrawingNoteManager, zapisując notatki obok plików DWG lub w folderze Temp dla rysunków niezapisanych.
+3. Zaimplementowano w AgentControl.cs przechwytywacz komend (/notatka) oraz sub-agenta z zablokowanym narzędziownikiem (Tools) do generowania czystego Markdowna.
+4. Uzupełniono SupervisorOrchestrator o logikę RAG - notatki inżynierskie są dynamicznie wstrzykiwane do Promptu Systemowego.
+5. Poprawiono bezpieczeństwo wyjątków I/O i wątków UI z użyciem bloków try-catch.
 
-### Faza 15: Bezpieczne NarzÄ™dzia Plikowe (ZakoĹ„czono)
-1. Utworzono nowe narzÄ™dzia (ReadProjectFileTool i WriteProjectFileTool) zabezpieczajÄ…ce operacje na plikach - dozwolone rozszerzenia (.txt, .md, .csv itd.) i lokalizacja wymuszona w folderze aktualnego rysunku DWG (lub %APPDATA%).
-2. Wprowadzono twardÄ… blokadÄ™ manipulowania notatkami inĹĽynierskimi (.ai_note.md) przez te narzÄ™dzia; zablokowane akcje wymuszajÄ… na Agencie uĹĽycie DelegateTaskTool.
-3. Zaktualizowano menedĹĽer konfiguracji profili (ToolConfigManager), wstrzykujÄ…c wygenerowany system prompt dla NotesProfile oraz aktualizujÄ…c systemowy prompt Supervisora o RAG-owÄ… obsĹ‚ugÄ™ plikĂłw notatek (w tym Ĺ›wiadomoĹ›Ä‡ braku pliku).
-4. Rozbudowano listÄ™ autouzupeĹ‚niania w AgentControl.cs (UI) - polecenia ze znakiem / (np. /notatka, /compress) otrzymaĹ‚y opisy wraz z autouzupeĹ‚nianiem; polecenia typu $ rĂłwnieĹĽ zyskaĹ‚y objaĹ›nienia.
+### Faza 15: Bezpieczne Narzędzia Plikowe (Zakończono)
+1. Utworzono nowe narzędzia (ReadProjectFileTool i WriteProjectFileTool) zabezpieczające operacje na plikach - dozwolone rozszerzenia (.txt, .md, .csv itd.) i lokalizacja wymuszona w folderze aktualnego rysunku DWG (lub %APPDATA%).
+2. Wprowadzono twardą blokadę manipulowania notatkami inżynierskimi (.ai_note.md) przez te narzędzia; zablokowane akcje wymuszają na Agencie użycie DelegateTaskTool.
+3. Zaktualizowano menedżer konfiguracji profili (ToolConfigManager), wstrzykując wygenerowany system prompt dla NotesProfile oraz aktualizując systemowy prompt Supervisora o RAG-ową obsługę plików notatek (w tym świadomość braku pliku).
+4. Rozbudowano listę autouzupełniania w AgentControl.cs (UI) - polecenia ze znakiem / (np. /notatka, /compress) otrzymały opisy wraz z autouzupełnianiem; polecenia typu $ również zyskały objaśnienia.
 
-### Faza 16: System Skilli (Markdown + YAML Frontmatter) (ZakoĹ„czono)
-1. Utworzono strukturÄ™ danych `AgentSkill.cs` i zaimplementowano menedĹĽer `SkillManager.cs` parsujÄ…cy bloki YAML Frontmatter z plikĂłw Markdown.
-2. Zintegrowano obsĹ‚ugÄ™ plikĂłw `.md` w zakĹ‚adce Baza Wiedzy (nowa podzakĹ‚adka "Skille InĹĽynierskie").
-3. Stworzono `ManageSkillsTool.cs` dajÄ…ce Agentowi moĹĽliwoĹ›Ä‡ interakcji ze skillami (akcje `list_skills`, `read_skill`, `create_skill`).
-5. Poprawiono zgodnoĹ›Ä‡ interfejsu narzÄ™dzia z wymogami projektu `IToolV2` i pomyĹ›lnie zrekompilowano system.
+### Faza 16: System Skilli (Markdown + YAML Frontmatter) (Zakończono)
+1. Utworzono strukturę danych `AgentSkill.cs` i zaimplementowano menedżer `SkillManager.cs` parsujący bloki YAML Frontmatter z plików Markdown.
+2. Zintegrowano obsługę plików `.md` w zakładce Baza Wiedzy (nowa podzakładka "Skille Inżynierskie").
+3. Stworzono `ManageSkillsTool.cs` dające Agentowi możliwość interakcji ze skillami (akcje `list_skills`, `read_skill`, `create_skill`).
+4. Wdrożono mechanizm Progressive Disclosure (poziom 1) w `AgentControl.cs` wstrzykujący skille wywołane przez `#` w chatboxie prosto jako wiadomości systemowe (kontekst).
+5. Poprawiono zgodność interfejsu narzędzia z wymogami projektu `IToolV2` i pomyślnie zrekompilowano system.
 
-### Faza 17: Rewident (QA Agent / AuditorProfile) i bezpieczne testowanie narzÄ™dzi (ZakoĹ„czono)
-1. WdroĹĽono nowy profil Agenta `AuditorProfile` (Rewident) odpowiedzialny za bezpieczne testowanie (QA) oraz diagnozowanie narzÄ™dzi na poziomie kodu.
-2. Dodano obsĹ‚ugÄ™ parametru `__MockResponse` do narzÄ™dzi interaktywnych blokujÄ…cych UI (`UserInputTool`, `UserChoiceTool`), aby umoĹĽliwiÄ‡ przeprowadzanie zautomatyzowanych testĂłw bez udziaĹ‚u uĹĽytkownika (symulacja).
-3. Dodano obsĹ‚ugÄ™ flagi `__DryRun` do narzÄ™dzi modyfikujÄ…cych stan oraz pliki (Side Effects): `WriteProjectFileTool`, `SaveMacroTool`, `SavePermanentFormulaTool`, `ManageRecipesTool`, `ManageSkillsTool`, ktĂłra waliduje parametry operacji i omija fizyczny zapis na dysku.
-4. Zaktualizowano `ToolConfigManager.cs` - dodano dedykowany prompt systemowy nakazujÄ…cy Rewidentowi korzystanie z tych flag w celu unikania zepsucia Ĺ›rodowiska, oraz ograniczono jego listÄ™ narzÄ™dzi tylko do weryfikacji.
-5. Poprawiono odpornoĹ›Ä‡ parsowania w `ManageSkillsTool` (obsĹ‚uga wariantĂłw Action/action).
+### Faza 17: Rewident (QA Agent / AuditorProfile) i bezpieczne testowanie narzędzi (Zakończono)
+1. Wdrożono nowy profil Agenta `AuditorProfile` (Rewident) odpowiedzialny za bezpieczne testowanie (QA) oraz diagnozowanie narzędzi na poziomie kodu.
+2. Dodano obsługę parametru `__MockResponse` do narzędzi interaktywnych blokujących UI (`UserInputTool`, `UserChoiceTool`), aby umożliwić przeprowadzanie zautomatyzowanych testów bez udziału użytkownika.
+3. Dodano obsługę flagi `__DryRun` do narzędzi modyfikujących stan oraz pliki: `WriteProjectFileTool`, `SaveMacroTool`, `SavePermanentFormulaTool`, `ManageRecipesTool`, `ManageSkillsTool`.
+4. Zaktualizowano `ToolConfigManager.cs`, dodając dedykowany prompt systemowy Rewidenta oraz ograniczony zestaw narzędzi weryfikacyjnych.
+5. Poprawiono odporność parsowania w `ManageSkillsTool` (warianty `Action`/`action`).
 
-### Faza 18: Zautomatyzowane Testowanie NarzÄ™dzi (Autotest) (ZakoĹ„czono)
-1. Rozbudowano interfejs graficzny `AgentTesterControl.cs` wykorzystujÄ…c komponent `TabControl`, z wdroĹĽeniem podzakĹ‚adki "Autotest NarzÄ™dzi".
-2. Dodano logikÄ™ dynamicznego wczytywania wszystkich dostÄ™pnych definicji narzÄ™dzi z poziomu `ToolOrchestrator` do kontrolki `CheckedListBox` ze wsparciem zbiorczej selekcji ("Zaznacz wszystko").
-3. Opracowano izolowanÄ… pÄ™tlÄ™ testowÄ… dla zaznaczonych narzÄ™dzi - dla kaĹĽdego polecenia uruchamiana jest "czysta karta" z profilem `AuditorProfile`, ĹĽÄ…daniem wykorzystania flag izolacyjnych (`__DryRun`, `__MockResponse`) oraz wĹ‚asnym systemowym promptem Rewidenta.
-4. Zaimplementowano mechanizm kolorowania logĂłw wyjĹ›ciowych na konsoli w UI (RichTextBox), umoĹĽliwiajÄ…cy Ĺ›ledzenie postÄ™pĂłw oraz identyfikacjÄ™ bĹ‚Ä™dĂłw/uwag (czerwony/zielony).
-5. WdroĹĽono generator kompleksowych raportĂłw wyjĹ›ciowych w formacie `.md` zbierajÄ…cy rezultaty ewaluacji, z systemowym oknem zachÄ™cajÄ…cym uĹĽytkownika do ich zapisu.
+### Faza 18: Zautomatyzowane Testowanie Narzędzi (Autotest) (Zakończono)
+1. Rozbudowano `AgentTesterControl.cs` o podzakładkę "Autotest Narzędzi".
+2. Dodano dynamiczne wczytywanie definicji narzędzi z `ToolOrchestrator` do listy testowej.
+3. Opracowano izolowaną pętlę testową z profilem `AuditorProfile`, flagami `__DryRun` i `__MockResponse` oraz osobnym promptem Rewidenta.
+4. Zaimplementowano kolorowanie logów w UI dla szybkiej identyfikacji sukcesów i błędów.
+5. Wdrożono generator raportów `.md` zbierających wyniki ewaluacji.
 
-## [v2.28.2] 2026-06-07T15:05:11+02:00 - Faza 16: Ekosystem LISP, Audyt kodu i Self-Healing
+## [v2.28.11] 2026-06-07T11:40:00+02:00 - FIX: Stabilizacja QA i dostęp do kodu źródłowego [QA-ACCESS]
 ### [ZREALIZOWANO]
-- WdroĹĽono profile agentĂłw dla Ĺ›rodowiska LISP: LispCoderProfile oraz LispAuditorProfile.
-- Zintegrowano natywnÄ… funkcjÄ™ LISP [LispFunction("agent-callback")] przechwytujÄ…cÄ… w C# wyniki z LISP.
-- Zaimplementowano cichÄ… pÄ™tlÄ™ samonaprawiajÄ…cÄ… (Self-Healing) - w przypadku napotkania przez LISP wartoĹ›ci "ERROR", sub-agent automatycznie podejmuje prĂłbÄ™ poprawy kodu i ponownego jego wywoĹ‚ania.
-- Zaktualizowano interfejs w AgentControl.cs poprzez dodanie funkcjonalnoĹ›ci wykrywania wygenerowanego kodu LISP z widoku markdown. Po wygenerowaniu uaktywniany jest nowy przycisk **[Wykonaj Skrypt LISP]**, uruchamiajÄ…cy kod w zintegrowanym Ĺ›rodowisku BricsCAD.
-- Przetestowano asynchronicznÄ… kompilacjÄ™ logiki C#. Projekt zbudowaĹ‚ siÄ™ prawidĹ‚owo.
+- Naprawiono krytyczny błąd kasowania historii konwersacji w oknie QA przez wywołanie `QASessionManager.SaveSession()` natychmiast po udanej odpowiedzi modelu, przed asynchronicznym odświeżeniem GUI (`LoadSessions()` i `LbSessions_SelectedIndexChanged`).
+- Rozszerzono `ToolConfigManager.cs` o narzędzia `ListSourceFiles` i `ReadSourceCode` w domyślnej białej liście (`AllowedTools`) profilu `AuditorProfile`.
+- Zaktualizowano generatory `system_prompt_auditor.txt` i plik awaryjny w `QASessionManager.cs`, nadając QA pełny odczyt warstwy C# w `BricsCAD_AgentAI_V2`.
 ### [STAN_SYSTEMU]
-- Ekosystem gotowy do dziaĹ‚ania w BricsCAD. Wymagany restart CAD.
+- UI QA jest stabilniejsze, a Agent QA ma narzędzia do czytania kodu źródłowego.
 ### [BLOKADY / PROBLEMY]
-- Blokada pliku .dll przez uruchomionÄ… aplikacjÄ™ BricsCAD. Kod skompilowaĹ‚ siÄ™ bezbĹ‚Ä™dnie (CoreCompile), lecz MSBuild nie byĹ‚ w stanie skopiowaÄ‡ plikĂłw binarnych do katalogu /bin. Wymagany restart BricsCAD.
+- Brak.
 ### [KOLEJNY_KROK]
-- Restart BricsCAD, kompilacja koĹ„cowa i testy manualne.
+- Testowanie kolejnych narzędzi przez Rewidenta.
 
-## [v2.28.3] 2026-06-07T15:22:52+02:00 - Bugfix: Utrata sesji oraz delegacja kodu LISP
+## [v2.28.12] 2026-06-07T12:03:19+02:00 - FEAT: Statyczne autotesty QA i integracja z Antigravity [QA-ANTIGRAVITY]
 ### [ZREALIZOWANO]
-- Naprawiono błąd "ucinania" pytania (utraty historii czatu po ponownym uruchomieniu programu) przez wymuszenie natychmiastowego zapisu sesji SessionManager.SaveSession() od razu po otrzymaniu pytania w SupervisorOrchestrator.cs.
-- Zaktualizowano system prompt agenta SupervisorProfile (system_prompt_supervisor.txt), ucząc go o istnieniu profilu LispCoderProfile. Rozwiązuje to problem, w którym Supervisor samodzielnie pisał LISP bez wymaganej wstrzykniętej obsługi błędu *error*, co wcześniej uniemożliwiało wystartowanie pętli samonaprawiającej w środowisku CAD.
+- Wdrożono `RunToolTestTool.cs`, pozwalające Agentowi QA bezpiecznie uruchamiać statyczne testy narzędzi CAD przez kontrolowany JSON i przechwytywanie wyjątków.
+- Rozszerzono `ToolConfigManager.cs`, dodając do `AuditorProfile` narzędzia `RunToolTest`, `WriteQAReport` oraz `DelegateTaskToAntigravity`.
+- Zaktualizowano prompty Supervisora i Auditora: Supervisor wie, że może po zgodzie użytkownika przekazać problem do QA, a QA może przygotować zlecenie dla zewnętrznego agenta kodowania.
+- Wprowadzono delegowanie zadań do Antigravity przez zapisywanie zleceń w folderze `Autotesty/TasksForAntigravity/`.
 ### [STAN_SYSTEMU]
-- Kompilacja przebiegła pomyślnie. Nowe zasady LISP w pełni zintegrowane.
+- System potrafi diagnozować własne narzędzia, generować raporty QA i wystawiać zadania dla zewnętrznego agenta kodowania.
+### [BLOKADY / PROBLEMY]
+- Kompilacja przez `dotnet build` może nadal zgłaszać problemy z pakietami NuGet/Newtonsoft.Json; wiarygodna ścieżka w tym projekcie to natywne MSBuild/Visual Studio/środowisko BricsCAD.
+### [KOLEJNY_KROK]
+- Testy produkcyjne oraz budowa powtarzalnych scenariuszy QA.
 
+## [v2.28.13] 2026-06-07T12:54:00+02:00 - FEAT: SearchFileContentTool jako grep dla kodu i folderu rysunku [SEARCH-FILE-CONTENT]
+### [ZREALIZOWANO]
+- Utworzono `SearchFileContentTool`, uniwersalne narzędzie do szybkiego przeszukiwania tekstu w wielu plikach z limitowaniem wyników i ochroną przed path traversal.
+- Dodano tryby `DirectoryType`: `SourceCode` dla Auditora oraz `DrawingFolder` dla Supervisora.
+- Zaktualizowano `ToolConfigManager.cs`, rozdzielając uprawnienia do narzędzia między Supervisora i QA.
+- Uzupełniono dokumentację pomocy o opis nowego narzędzia.
+### [STAN_SYSTEMU]
+- System ma szybki odpowiednik `grep`, ograniczający koszt tokenowy względem pełnego czytania plików.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Dalsze testy wydajnościowe i dopracowanie limitów wyników, jeśli zajdzie potrzeba.
 
-## [2026-06-07] Faza 16: Integracja LISP z Bazą Wiedzy
-- Zakończono wdrażanie zakładki Skrypty LISP w oknie Knowledge Base.
-- Uzupełniono system prompts o poinstruowanie agentów o narzędziu manage_lisps.
-- Podłączono LispManager do AgentControl, by umożliwić bezpośrednie wywołania LISPa (ExecuteLispFromExternal).
+## [v2.28.14] 2026-06-07T15:05:11+02:00 - FEAT: Ekosystem LISP, audyt kodu i self-healing [LISP-SELF-HEALING]
+### [ZREALIZOWANO]
+- Wdrożono profile agentów dla środowiska LISP: `LispCoderProfile` oraz `LispAuditorProfile`.
+- Zintegrowano natywną funkcję LISP `[LispFunction("agent-callback")]`, przechwytującą w C# wyniki ze skryptów LISP.
+- Zaimplementowano cichą pętlę samonaprawiającą: po napotkaniu przez LISP wartości `ERROR` sub-agent może poprawić kod i ponownie go wywołać.
+- Zaktualizowano `AgentControl.cs`, dodając wykrywanie wygenerowanego kodu LISP w widoku Markdown i przycisk `Wykonaj Skrypt LISP`.
+- Przetestowano asynchroniczną kompilację logiki C#; etap CoreCompile przeszedł poprawnie.
+### [STAN_SYSTEMU]
+- Ekosystem LISP jest gotowy do pracy w BricsCAD po restarcie aplikacji i zwolnieniu blokady DLL.
+### [BLOKADY / PROBLEMY]
+- Uruchomiony BricsCAD może blokować kopiowanie plików binarnych do `bin`; wymagany restart CAD przy finalnym buildzie.
+### [KOLEJNY_KROK]
+- Restart BricsCAD, kompilacja końcowa i testy manualne.
 
+## [v2.28.15] 2026-06-07T15:22:52+02:00 - FIX: Utrata sesji i delegacja kodu LISP [LISP-ROUTING]
+### [ZREALIZOWANO]
+- Naprawiono błąd ucinania pytania po ponownym uruchomieniu programu przez natychmiastowy zapis sesji `SessionManager.SaveSession()` po otrzymaniu pytania w `SupervisorOrchestrator.cs`.
+- Zaktualizowano prompt `SupervisorProfile`, ucząc go o profilu `LispCoderProfile`.
+- Wymuszono zasadę, że Supervisor nie pisze kodu LISP samodzielnie, tylko deleguje go do profilu z obsługą `*error*` i pętlą samonaprawiającą.
+### [STAN_SYSTEMU]
+- Nowe zasady LISP są zintegrowane, a kompilacja przebiegła pomyślnie w natywnej ścieżce projektu.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Testowanie scenariuszy LISP w GUI i z poziomu czatu.
+
+## [v2.28.16] 2026-06-07T15:35:00+02:00 - FEAT: Integracja LISP z Bazą Wiedzy [LISP-KB]
+### [ZREALIZOWANO]
+- Zakończono wdrażanie zakładki `Skrypty LISP` w oknie Knowledge Base.
+- Uzupełniono prompty systemowe o narzędzie `manage_lisps`.
+- Podłączono `LispManager` do `AgentControl`, umożliwiając bezpośrednie wywołania LISPa przez `ExecuteLispFromExternal`.
+### [STAN_SYSTEMU]
+- Skrypty LISP są dostępne jako zasoby Bazy Wiedzy i mogą być wykonywane przez agenta lub UI.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Testy praktyczne na zapisanych skryptach i dopracowanie autouzupełniania.
+
+## [v2.28.17] 2026-06-08T00:30:00+02:00 - FIX: Autouzupełnianie i pełne wykonywanie skryptów LISP [LISP-UI-EXECUTION]
+### [ZREALIZOWANO]
+- Wdrożono autouzupełnianie UI w `AgentControl.cs` dla skryptów LISP po wpisaniu znaku `%`, z bezpośrednim wczytywaniem opcji przez `LispManager.LoadAllLisps()`.
+- Zmieniono `ExecuteLispFromTemp` w `AgentControl.cs`: aplikacja najpierw wczytuje plik LISP przez `(load ...)`, a następnie automatycznie uruchamia właściwą komendę (`lispId`).
+- Zaktualizowano `USER_GUIDE.md`, dodając informacje o podpowiadaniu skryptów w interfejsie.
+### [STAN_SYSTEMU]
+- `%skrypt` uruchamia właściwą akcję w rysunku bez konieczności ręcznego dopisywania komendy po `load`.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na dyspozycje użytkownika.
+
+## [v2.28.18] 2026-06-08T11:58:00+02:00 - DOC: Kanonizacja pliku pamięci i usunięcie rozjazdu docs/memory.md [MEMORY-CANON]
+### [ZREALIZOWANO]
+- Scalono rozbieżne wpisy z `Bricscad_AgentAI_V2/memory.md` oraz `Bricscad_AgentAI_V2/docs/memory.md` do jednego kanonicznego pliku `Bricscad_AgentAI_V2/memory.md`.
+- Renumerowano kolizyjne wpisy `v2.28.x` z 2026-06-07 i 2026-06-08 na zakres `v2.28.11`-`v2.28.18`.
+- Poprawiono widoczne uszkodzenia kodowania w scalonych wpisach QA, Antigravity, SearchFileContent i LISP.
+- Zastąpiono `docs/memory.md` krótkim wskaźnikiem do kanonicznej pamięci, aby kolejni agenci nie traktowali go jako drugiego źródła prawdy.
+### [STAN_SYSTEMU]
+- Jedynym źródłem prawdy dla historii projektu jest `Bricscad_AgentAI_V2/memory.md`.
+### [BLOKADY / PROBLEMY]
+- Starsze historyczne fragmenty mogą nadal zawierać lokalne ślady dawnego mojibake; bieżąca końcówka historii została uporządkowana ręcznie.
+### [KOLEJNY_KROK]
+- Przyszłe wpisy należy dopisywać wyłącznie do `Bricscad_AgentAI_V2/memory.md`.

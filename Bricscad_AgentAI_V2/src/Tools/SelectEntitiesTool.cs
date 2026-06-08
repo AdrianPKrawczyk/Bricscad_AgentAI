@@ -88,6 +88,13 @@ namespace Bricscad_AgentAI_V2.Tools
             
             string trybStr = args["Mode"]?.ToString() ?? "New";
             string scopeStr = args["Scope"]?.ToString() ?? "Model";
+
+            if (AgentMemoryState.IsSelectionScopeLocked &&
+                trybStr.Equals("New", StringComparison.OrdinalIgnoreCase) &&
+                scopeStr.Equals("Model", StringComparison.OrdinalIgnoreCase))
+            {
+                return "BŁĄD: To zadanie jest ograniczone do aktualnego zaznaczenia użytkownika. Nie wolno zastępować go nowym wyszukiwaniem w całym modelu.";
+            }
             
             var warunki = new List<(string Prop, string Op, string Val)>();
             

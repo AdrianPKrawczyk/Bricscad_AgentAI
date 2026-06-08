@@ -136,7 +136,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     modifiedCount++;
                     break;
                 case "Replace":
-                    if (!string.IsNullOrEmpty(findText))
+                    if (!string.IsNullOrEmpty(findText) && dbText.TextString.Contains(findText))
                     {
                         dbText.TextString = dbText.TextString.Replace(findText, replaceWith);
                         modifiedCount++;
@@ -164,7 +164,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     modifiedCount++;
                     break;
                 case "Replace":
-                    if (!string.IsNullOrEmpty(findText))
+                    if (!string.IsNullOrEmpty(findText) && mText.Contents.Contains(findText))
                     {
                         mText.Contents = mText.Contents.Replace(findText, replaceWith);
                         modifiedCount++;
