@@ -315,3 +315,57 @@ Bielik V2 potrafi generować, walidować i zapisywać skrypty AutoLISP bezpośre
 
 ### Autouzupełnianie LISP (%)
 Możesz szybko wywołać skrypt LISP wpisując znak `%` w polu tekstowym Agenta (np. `%test_srodowiska`). Po wpisaniu `%` wyświetli się rozwijana lista podpowiedzi z dostępnymi skryptami, wczytywana dynamicznie z bazy wiedzy. Agent załaduje wybrany skrypt i automatycznie go wykona.
+
+---
+
+## 13. Profile i Prompty
+
+Od wersji v2.28.20+ system rozdziela dwa poziomy instrukcji dla agentow:
+
+- **Prompt systemowy** - bazowy plik techniczny przypisany do profilu i utrzymywany w repo.
+- **User Prompt** - opcjonalne lokalne doprecyzowanie zachowania profilu, edytowane z poziomu BricsCAD.
+
+### 13.1. Co mozna zmieniac z poziomu BricsCAD
+
+W zakladce **Agenci -> Prompt**:
+- gorne okno pokazuje prompt systemowy profilu w trybie tylko do odczytu,
+- dolne okno pozwala zapisac lokalny `User Prompt`,
+- przycisk czyszczenia usuwa tylko lokalne doprecyzowanie profilu.
+
+Oznacza to, ze zmiany robione w BricsCAD nie nadpisuja juz promptow systemowych zapisanych w repo.
+
+### 13.2. Gdzie sa prompty systemowe
+
+Glowne pliki promptow znajduja sie w:
+
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_supervisor.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_cad.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_geometry.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_blocks.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_metadata.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_math.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_notes.txt`
+- `Bricscad_AgentAI_V2/resources/prompts/system_prompt_auditor.txt`
+
+Jesli chcesz zmienic bazowe zachowanie profilu na stale, edytuj odpowiedni plik w repo i przebuduj wtyczke.
+
+### 13.3. Do czego sluzy User Prompt
+
+`User Prompt` jest przeznaczony do:
+- testowego doprecyzowania zachowania profilu,
+- lokalnych zasad pracy dla konkretnego stanowiska,
+- szybkich eksperymentow przed przeniesieniem zmian do promptu systemowego w repo.
+
+Jesli takie doprecyzowanie okazuje sie trafne i stale potrzebne, najlepiej przeniesc je potem do promptu systemowego.
+
+### 13.4. Agent-Czat do testow subagentow
+
+Zakladka **Testy -> Agent-Czat** sluzy do bezposredniego testowania wybranego profilu bez przechodzenia przez Supervisora.
+
+Mozesz tam:
+- wybrac profil subagenta,
+- prowadzic rozmowe testowa,
+- podgladac `TOOL JSON`,
+- eksportowac historie czatu i log wywolan narzedzi do plikow.
+
+To jest tryb diagnostyczny. Szczegolnie dobrze nadaje sie do testowania promptu, selekcji, RPN i zachowania konkretnych profili narzedziowych.

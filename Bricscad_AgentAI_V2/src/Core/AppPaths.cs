@@ -50,6 +50,32 @@ namespace Bricscad_AgentAI_V2.Core
             return Path.Combine(GetCustomKnowledgePath(), "Lisp");
         }
 
+        public static string GetPromptOverridesPath()
+        {
+            return Path.Combine(GetCustomKnowledgePath(), "PromptOverrides");
+        }
+
+        public static string GetPromptOverrideFilePath(string profileName)
+        {
+            if (string.IsNullOrWhiteSpace(profileName))
+            {
+                profileName = "default";
+            }
+
+            string safeName = profileName
+                .Replace("\\", "_")
+                .Replace("/", "_")
+                .Replace(":", "_")
+                .Replace("*", "_")
+                .Replace("?", "_")
+                .Replace("\"", "_")
+                .Replace("<", "_")
+                .Replace(">", "_")
+                .Replace("|", "_");
+
+            return Path.Combine(GetPromptOverridesPath(), $"{safeName}.txt");
+        }
+
         public static void EnsureDirectoriesExist()
         {
             string formulas = GetFormulasPath();
@@ -81,6 +107,11 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(lisp))
             {
                 Directory.CreateDirectory(lisp);
+            }
+            string promptOverrides = GetPromptOverridesPath();
+            if (!Directory.Exists(promptOverrides))
+            {
+                Directory.CreateDirectory(promptOverrides);
             }
         }
     }

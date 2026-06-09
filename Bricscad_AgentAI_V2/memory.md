@@ -1079,3 +1079,68 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 - Pełny `dotnet build` nadal nie przechodzi w tym repo z powodu istniejących braków referencji/pakietów (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet`, `ExcelDataReader`, `UglyToad.PdfPig`) niezwiązanych z nową zakładką.
 ### [KOLEJNY_KROK]
 - Przetestować ergonomię `Agent-Czat` w BricsCAD i ewentualnie rozszerzyć eksport o pojedynczy pakiet `.zip` z promptem, transcriptami i logami narzędzi.
+
+## [v2.28.27] 2026-06-08T21:10:00+02:00 - CHORE: Uporzadkowanie kontraktu RPN vs CalculateMath [RPN-MATH-CONTRACT]
+### [ZREALIZOWANO]
+- Uporzadkowano prompty Supervisora, Math i fallbackowy prompt CAD pod nowy podzial odpowiedzialnosci: `CadMathProfile` + `CalculateMath` odpowiadaja za pelne obliczenia inzynierskie, a profile CAD uzywaja RPN lokalnie wewnatrz narzedzi.
+- Doprecyzowano, ze `ReplaceWith` nalezy tylko do `TextEditTool` i nie jest skladnia RPN ani `EditAttributes`.
+- Usunieto `CalculateRpn` z aktywnej synchronizacji dozwolonych narzedzi `CadMathProfile`, pozostawiajac `CalculateMath` jako oficjalny tor obliczeniowy.
+### [STAN_SYSTEMU]
+- Warstwa instrukcji powinna byc wyraznie mniej podatna na mieszanie pelnej matematyki z lokalnym RPN oraz na przenoszenie `ReplaceWith` do edycji atrybutow.
+### [BLOKADY / PROBLEMY]
+- Istniejace pliki promptow na dysku moga wymagac auto-upgrade przy kolejnym zaladowaniu wtyczki; embedded fallback i generatory sa juz zsynchronizowane.
+### [KOLEJNY_KROK]
+- Przetestowac w BricsCAD scenariusze: 1) prosta transformacja RPN w narzedziu CAD, 2) obliczenie inzynierskie przez `CadMathProfile`, 3) tekstowy replace w `EditAttributes` bez halucynacji `ReplaceWith`.
+
+## [v2.28.28] 2026-06-08T22:20:00+02:00 - Repozytoryjne prompty per profil i lokalny User Prompt [PROMPT-SOURCE-OF-TRUTH]
+### [ZREALIZOWANO]
+- Uporzadkowano architekture promptow tak, aby system prompt przestal byc edytowalnym stanem runtime.
+- Wprowadzono osobne pliki promptow systemowych per profil w `Bricscad_AgentAI_V2/resources/prompts/`:
+  - `system_prompt_supervisor.txt`
+  - `system_prompt_cad.txt`
+  - `system_prompt_geometry.txt`
+  - `system_prompt_blocks.txt`
+  - `system_prompt_metadata.txt`
+  - `system_prompt_math.txt`
+  - `system_prompt_notes.txt`
+  - `system_prompt_auditor.txt`
+- Podpieto `.csproj`, aby te pliki byly kopiowane do outputu przy buildzie.
+- `ToolConfigManager` sklada teraz efektywny prompt profilu jako:
+  1. prompt systemowy z repo/outputu,
+  2. opcjonalny `User Prompt` zapisany lokalnie w AppData (`PromptOverrides`).
+- `AgentControl` zostal przebudowany tak, aby:
+  - pokazywac prompt systemowy tylko do odczytu,
+  - pozwalac edytowac tylko `User Prompt`,
+  - nie tworzyc ani nie nadpisywac juz promptow systemowych z UI.
+- `SubAgentChatControl`, `SupervisorOrchestrator`, benchmarki i sesje QA zostaly przepiete na wspolne `LoadEffectivePromptForProfile(...)`.
+### [STAN_SYSTEMU]
+- Zrodlo prawdy dla promptow systemowych znajduje sie w repo, a nie w stanie lokalnym BricsCAD.
+- Runtime moze dopisac tylko warstwe doprecyzowujaca zachowanie profilu, bez ryzyka przypadkowego "dryfu" glownego promptu.
+### [BLOKADY / PROBLEMY]
+- Pelna kompilacja `dotnet build` w tym srodowisku nadal zatrzymuje sie na brakujacych referencjach zewnetrznych (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet` itd.), co nie wyglada na regresje tej zmiany.
+### [KOLEJNY_KROK]
+- Przywrocic komplet referencji/pakietow projektu i wykonac pelny build end-to-end.
+
+## [v2.28.29] 2026-06-09T00:10:00+02:00 - Hardening EditAttributes i tekstowego RPN [ATTR-RPN-HARDENING]
+### [ZREALIZOWANO]
+- Uscislono kontrakt `EditAttributes`:
+  - `Attributes` musi byc tablica plaskich obiektow `{Tag, Value}`,
+  - dodano walidacje zagniezdzonego `Attributes`, pseudo-pola `RPN` i brakujacego `Tag` / `Value`.
+- Rozszerzono opis schematu i prompt blokow o zasady dla tekstowego RPN:
+  - `REPLACE` i `CONCAT` jako prawdziwy postfix,
+  - zakaz skladni pseudo-Lispowej `replace(...)`.
+- Naprawiono tokenizer `RpnCalculator`, aby poprawnie rozroznial apostrof i cudzyslow jako dwa rozne typy cytowania.
+- Dodano tolerancje na przypadki, gdy model wysyla do `RPN:` zwykla notacje infix; `EditAttributes` tlumaczy takie wyrazenie przez `ConvertInfixToRpn(...)` przed ewaluacja.
+- Doprecyzowano zasady filtrowania blokow:
+  - identyfikacja celu ma opierac sie o stabilny atrybut identyfikujacy,
+  - nie wolno filtrowac lancuchowych aktualizacji po wartosci, ktora sama jest wlasnie zmieniana.
+- `LLMClient` przestal przycinac pelne odczyty narzedziowe `Read`, aby agent widzial komplet tagow i wartosci przy pracy na atrybutach.
+### [STAN_SYSTEMU]
+- Scenariusze tekstowego `REPLACE` na atrybutach przestaly produkowac smieciowe wartosci wynikajace z blednego tokenizowania cudzyslowow.
+- System jest wyraznie odporniejszy na dwa typy halucynacji modelu:
+  1. zly ksztalt JSON dla `EditAttributes`,
+  2. mylenie postfix RPN z notacja infix lub pseudo-Lisp.
+### [BLOKADY / PROBLEMY]
+- Nadal pozostaje warstwa rozumowania agentowego przy zadaniach wieloobiektowych: jesli w `ActiveSelection` brakuje czesci celow, agent moze wymagac dalszych guardraili decyzyjnych lub lepszego wykorzystania `Foreach` po etapie identyfikacji.
+### [KOLEJNY_KROK]
+- Przetestowac sekwencje wieloblokowe z rozdzialem na obiekt bazowy i cele aktualizacji oraz rozstrzygnac, czy dodac twarda blokade aktualizacji po filtrze wskazujacym atrybut docelowy.

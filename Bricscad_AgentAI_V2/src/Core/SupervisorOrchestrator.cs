@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -7,8 +7,8 @@ using Bricscad_AgentAI_V2.Models;
 namespace Bricscad_AgentAI_V2.Core
 {
     /// <summary>
-    /// Nadrzędny koordynator systemu. Utrzymuje Pamięć Globalną (Semantic History)
-    /// i deleguje wyspecjalizowane zadania do Workerów (przy pomocy DelegateTaskTool).
+    /// NadrzÄ™dny koordynator systemu. Utrzymuje PamiÄ™Ä‡ GlobalnÄ… (Semantic History)
+    /// i deleguje wyspecjalizowane zadania do WorkerĂłw (przy pomocy DelegateTaskTool).
     /// </summary>
     public class SupervisorOrchestrator
     {
@@ -33,39 +33,34 @@ namespace Bricscad_AgentAI_V2.Core
 
             if (history.Count == 0)
             {
-                var profiles = ToolConfigManager.GetProfiles();
-                string sysPrompt = "Jesteś Głównym Menedżerem (Supervisorem). Przeanalizuj problem i zidentyfikuj jakiego Agenta Eksperta wezwać. Nie wykonujesz pracy sam.";
-                
-                if (profiles.TryGetValue("SupervisorProfile", out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
+                string sysPrompt = "Jestes Glownym Menedzerem (Supervisorem). Przeanalizuj problem i zidentyfikuj najlepszego Agenta Eksperta. Nie wykonujesz pracy sam.";
+                string loadedPrompt = ToolConfigManager.LoadEffectivePromptForProfile("SupervisorProfile");
+                if (!string.IsNullOrWhiteSpace(loadedPrompt))
                 {
-                    string path = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
-                    if (File.Exists(path))
-                    {
-                        sysPrompt = File.ReadAllText(path);
-                    }
+                    sysPrompt = loadedPrompt;
                 }
-                
-                // RAG: Doklejamy notatkę do promptu systemowego
+
+                // RAG: Doklejamy notatke do promptu systemowego
                 string note = DrawingNoteManager.ReadNote(activeDwgPath);
                 if (string.IsNullOrWhiteSpace(note))
                 {
-                    note = "[Brak notatki. Użytkownik nie stworzył jeszcze notatki inżynierskiej dla tego rysunku. Możesz ją wygenerować delegując zadanie do agenta NotesProfile używając narzędzia DelegateTask, albo powiedzieć użytkownikowi o komendzie /notatka]";
+                    note = "[Brak notatki. Uzytkownik nie stworzyl jeszcze notatki inzynierskiej dla tego rysunku. Mozesz ja wygenerowac delegujac zadanie do agenta NotesProfile uzywajac narzedzia DelegateTask, albo powiedziec uzytkownikowi o komendzie /notatka]";
                 }
-                
+
                 sysPrompt += $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
-                
+
                 history.Add(new ChatMessage { Role = "system", Content = sysPrompt });
             }
             else
             {
-                // Jeśli mamy już system prompt w historii, szukamy go i aktualizujemy notatkę jeśli to potrzebne
+                // JeĹ›li mamy juĹĽ system prompt w historii, szukamy go i aktualizujemy notatkÄ™ jeĹ›li to potrzebne
                 var sysMsg = history.Find(m => m.Role == "system");
                 if (sysMsg != null && sysMsg.Content is string sysContent)
                 {
                     string note = DrawingNoteManager.ReadNote(activeDwgPath);
                     if (string.IsNullOrWhiteSpace(note))
                     {
-                        note = "[Brak notatki. Użytkownik nie stworzył jeszcze notatki inżynierskiej dla tego rysunku. Możesz ją wygenerować delegując zadanie do agenta NotesProfile używając narzędzia DelegateTask, albo powiedzieć użytkownikowi o komendzie /notatka]";
+                        note = "[Brak notatki. UĹĽytkownik nie stworzyĹ‚ jeszcze notatki inĹĽynierskiej dla tego rysunku. MoĹĽesz jÄ… wygenerowaÄ‡ delegujÄ…c zadanie do agenta NotesProfile uĹĽywajÄ…c narzÄ™dzia DelegateTask, albo powiedzieÄ‡ uĹĽytkownikowi o komendzie /notatka]";
                     }
                     
                     // Zabezpieczenie przed dublowaniem
@@ -90,9 +85,9 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             history.Add(new ChatMessage { Role = "user", Content = finalContent, ActiveDocumentPath = activeDwgPath });
-            SessionManager.SaveSession(); // Natychmiastowy zapis zapobiegający utracie pytania ("ucieło moje pytanie")
+            SessionManager.SaveSession(); // Natychmiastowy zapis zapobiegajÄ…cy utracie pytania ("ucieĹ‚o moje pytanie")
             
-            // Trigger auto-naming w tle, jeśli mamy już co najmniej 2 wiadomości (np. system + user)
+            // Trigger auto-naming w tle, jeĹ›li mamy juĹĽ co najmniej 2 wiadomoĹ›ci (np. system + user)
             SessionManager.TriggerAutoNaming(_client, SessionManager.CurrentSession);
 
             AgentExecutionResult result = await _client.SendMessageReActAsync(history, context, null, true, 10, "SupervisorProfile");

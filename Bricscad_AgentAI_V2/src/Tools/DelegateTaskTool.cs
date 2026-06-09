@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -20,7 +20,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "DelegateTask",
-                    Description = "Deleguje zadanie do wyspecjalizowanego Agenta Eksperta. Użyj tego, gdy zadanie wykracza poza twoje kompetencje. Po zakończeniu zadania, ekspert zwróci wynik.",
+                    Description = "Deleguje zadanie do wyspecjalizowanego Agenta Eksperta. UĹĽyj tego, gdy zadanie wykracza poza twoje kompetencje. Po zakoĹ„czeniu zadania, ekspert zwrĂłci wynik.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -28,7 +28,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         {
                             { "TargetProfile", new ToolParameter { Type = "string", Description = "Nazwa profilu docelowego eksperta (np. 'CadProfile', 'NotesProfile')." } },
                             { "SelectionScopeLock", new ToolParameter { Type = "boolean", Description = "Ustaw true, gdy zadanie ma operowac wylacznie na aktualnie zaznaczonych/wybranych obiektach uzytkownika. Blokuje Workerowi zastapienie selekcji globalnym wyszukiwaniem po modelu." } },
-                            { "TaskDescription", new ToolParameter { Type = "string", Description = "Szczegółowa instrukcja dla eksperta." } }
+                            { "TaskDescription", new ToolParameter { Type = "string", Description = "SzczegĂłĹ‚owa instrukcja dla eksperta." } }
                         },
                         Required = new List<string> { "TargetProfile", "TaskDescription" }
                     }
@@ -43,23 +43,23 @@ namespace Bricscad_AgentAI_V2.Tools
 
             if (string.IsNullOrEmpty(targetProfile) || string.IsNullOrEmpty(taskDescription))
             {
-                return "BŁĄD: Parametry 'TargetProfile' i 'TaskDescription' są wymagane.";
+                return "BĹÄ„D: Parametry 'TargetProfile' i 'TaskDescription' sÄ… wymagane.";
             }
 
             var profiles = ToolConfigManager.GetProfiles();
             if (!profiles.TryGetValue(targetProfile, out var profileConfig))
             {
-                return $"BŁĄD: Nie znaleziono profilu '{targetProfile}'. Zawsze weryfikuj nazwę profilu.";
+                return $"BĹÄ„D: Nie znaleziono profilu '{targetProfile}'. Zawsze weryfikuj nazwÄ™ profilu.";
             }
 
-            // 1. Ładowanie system promptu eksperta
-            string systemPrompt = LoadSystemPrompt(profileConfig.SystemPromptFile);
+            // 1. Ĺadowanie system promptu eksperta
+            string systemPrompt = ToolConfigManager.LoadEffectivePromptForProfile(targetProfile);
 
             bool explicitSelectionScopeLock = args["SelectionScopeLock"]?.Value<bool>() ?? false;
             bool isSelectionScopedTask = explicitSelectionScopeLock || IsSelectionScopedTask(taskDescription);
             if (isSelectionScopedTask && AgentMemoryState.ActiveSelection.Length == 0)
             {
-                return "BŁĄD: Zadanie dotyczy aktualnie zaznaczonych obiektów, ale pamięć Agenta nie zawiera żadnego zaznaczenia. Zaznacz obiekty ponownie albo najpierw zsynchronizuj SelectionSet.";
+                return "BĹÄ„D: Zadanie dotyczy aktualnie zaznaczonych obiektĂłw, ale pamiÄ™Ä‡ Agenta nie zawiera ĹĽadnego zaznaczenia. Zaznacz obiekty ponownie albo najpierw zsynchronizuj SelectionSet.";
             }
 
             bool lockSelectionScope = isSelectionScopedTask;
@@ -75,21 +75,21 @@ namespace Bricscad_AgentAI_V2.Tools
                 new ChatMessage { Role = "user", Content = taskDescription }
             };
 
-            // 3. Wstrzyknięcie zawartości Blackboard jako kontekstu
+            // 3. WstrzykniÄ™cie zawartoĹ›ci Blackboard jako kontekstu
             var blackboardState = SharedMemoryState.GetAll();
             if (blackboardState.Count > 0)
             {
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("=== DOSTĘPNE ZMIENNE W PAMIĘCI (BLACKBOARD) ===");
-                sb.AppendLine("Użyj odpowiedniego narzędzia (np. ReadFromBlackboardTool) lub wstrzykiwania zmiennych ($KLUCZ), aby odczytać pełne wartości.");
+                sb.AppendLine("=== DOSTÄPNE ZMIENNE W PAMIÄCI (BLACKBOARD) ===");
+                sb.AppendLine("UĹĽyj odpowiedniego narzÄ™dzia (np. ReadFromBlackboardTool) lub wstrzykiwania zmiennych ($KLUCZ), aby odczytaÄ‡ peĹ‚ne wartoĹ›ci.");
                 foreach (var kvp in blackboardState)
                 {
-                    sb.AppendLine($"- {kvp.Key} (Długość: {kvp.Value?.Length ?? 0} znaków)");
+                    sb.AppendLine($"- {kvp.Key} (DĹ‚ugoĹ›Ä‡: {kvp.Value?.Length ?? 0} znakĂłw)");
                 }
                 localHistory.Add(new ChatMessage { Role = "system", Content = sb.ToString() });
             }
 
-            // 4. Inicjalizacja klienta i synchroniczne oczekiwanie (działamy w Task.Run w LLMClient)
+            // 4. Inicjalizacja klienta i synchroniczne oczekiwanie (dziaĹ‚amy w Task.Run w LLMClient)
             var client = new LLMClient(ToolOrchestrator.Instance);
             
             client.OnStatusUpdate += (msg) => {
@@ -107,7 +107,7 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
-                // Musimy zablokować wątek i poczekać na wynik z eksperta, chroniąc główny wątek przed Deadlockiem
+                // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ăłwny wÄ…tek przed Deadlockiem
                 AgentExecutionResult result = Task.Run(async () => {
                     return await client.SendMessageReActAsync(
                         conversationHistory: localHistory, 
@@ -134,16 +134,16 @@ namespace Bricscad_AgentAI_V2.Tools
 
                 if (result.IsSuccess)
                 {
-                    return $"Zadanie zakończone przez '{targetProfile}'. Zwrócony wynik: {result.DisplayMessage}";
+                    return $"Zadanie zakoĹ„czone przez '{targetProfile}'. ZwrĂłcony wynik: {result.DisplayMessage}";
                 }
                 else
                 {
-                    return $"BŁĄD: '{targetProfile}' zgłosił awarię: {result.DisplayMessage}";
+                    return $"BĹÄ„D: '{targetProfile}' zgĹ‚osiĹ‚ awariÄ™: {result.DisplayMessage}";
                 }
             }
             catch (Exception ex)
             {
-                return $"BŁĄD KRYTYCZNY podczas delegowania do '{targetProfile}': {ex.Message}";
+                return $"BĹÄ„D KRYTYCZNY podczas delegowania do '{targetProfile}': {ex.Message}";
             }
             finally
             {
@@ -167,21 +167,10 @@ namespace Bricscad_AgentAI_V2.Tools
                    text.Contains("obecnym wybor");
         }
 
-        private string LoadSystemPrompt(string filename)
-        {
-            if (string.IsNullOrEmpty(filename)) return "Jesteś ekspertem zadanym przez system.";
-            
-            string path = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), filename);
-            if (File.Exists(path))
-            {
-                return File.ReadAllText(path);
-            }
-            return "Jesteś ekspertem zadanym przez system. (Nie znaleziono pliku promptu)";
-        }
 
         public List<string> Examples => new List<string>
         {
-            "{ \"TargetProfile\": \"CadProfile\", \"TaskDescription\": \"Narysuj okrąg o promieniu 50\" }"
+            "{ \"TargetProfile\": \"CadProfile\", \"TaskDescription\": \"Narysuj okrÄ…g o promieniu 50\" }"
         };
     }
 }

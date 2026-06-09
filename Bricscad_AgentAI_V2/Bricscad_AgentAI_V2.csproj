@@ -95,6 +95,7 @@
     <Compile Include="src\Tools\ListSourceFilesTool.cs" />
     <Compile Include="src\Tools\ReadSourceCodeTool.cs" />
     <Compile Include="src\Tools\WriteQAReportTool.cs" />
+    <Compile Include="src\Tools\ReadSelectedBlockInfoTool.cs" />
     <Compile Include="src\UI\AgentQAChatControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -222,6 +223,38 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
+    <Content Include="resources\prompts\system_prompt_supervisor.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_supervisor.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_cad.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_cad.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_geometry.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_geometry.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_blocks.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_blocks.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_metadata.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_metadata.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_math.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_math.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_notes.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_notes.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_auditor.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_auditor.txt</TargetPath>
+    </Content>
     <Content Include="resources\help\USER_GUIDE.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

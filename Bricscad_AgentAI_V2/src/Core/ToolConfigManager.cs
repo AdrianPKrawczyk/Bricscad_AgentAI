@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,13 +28,21 @@ namespace Bricscad_AgentAI_V2.Core
     }
 
     /// <summary>
-    /// Zarządza dynamiczną konfiguracją narzędzi (IsCore, Tagi) zapisaną w JSON.
-    /// Zapobiega twardemu kodowaniu tagów wewnątrz klas IToolV2.
+    /// ZarzÄ…dza dynamicznÄ… konfiguracjÄ… narzÄ™dzi (IsCore, Tagi) zapisanÄ… w JSON.
+    /// Zapobiega twardemu kodowaniu tagĂłw wewnÄ…trz klas IToolV2.
     /// </summary>
     public static class ToolConfigManager
     {
         private static ToolConfigRoot _config = new ToolConfigRoot();
         private static string _configPath;
+        private const string SupervisorPromptFile = @"prompts\system_prompt_supervisor.txt";
+        private const string CadPromptFile = @"prompts\system_prompt_cad.txt";
+        private const string GeometryPromptFile = @"prompts\system_prompt_geometry.txt";
+        private const string BlocksPromptFile = @"prompts\system_prompt_blocks.txt";
+        private const string MetadataPromptFile = @"prompts\system_prompt_metadata.txt";
+        private const string MathPromptFile = @"prompts\system_prompt_math.txt";
+        private const string NotesPromptFile = @"prompts\system_prompt_notes.txt";
+        private const string AuditorPromptFile = @"prompts\system_prompt_auditor.txt";
 
         public static HashSet<string> SessionDynamicTags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -54,11 +62,15 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         /// <summary>
-        /// Inicjalizuje konfigurację. Jeśli plik nie istnieje, generuje domyślny 
-        /// na podstawie zarejestrowanych narzędzi.
+        /// Inicjalizuje konfiguracjÄ™. JeĹ›li plik nie istnieje, generuje domyĹ›lny 
+        /// na podstawie zarejestrowanych narzÄ™dzi.
         /// </summary>
         public static void Initialize(IEnumerable<IToolV2> registeredTools)
         {
+            EnsureCadPromptFile();
+            EnsureGeometryPromptFile();
+            EnsureBlocksPromptFile();
+            EnsureMetadataPromptFile();
             EnsureSupervisorPromptFile();
             EnsureMathPromptFile();
             EnsureNotesPromptFile();
@@ -69,7 +81,7 @@ namespace Bricscad_AgentAI_V2.Core
                 try
                 {
                     string json = File.ReadAllText(ConfigPath);
-                    // Próba deserializacji do nowego formatu
+                    // PrĂłba deserializacji do nowego formatu
                     var root = JsonConvert.DeserializeObject<ToolConfigRoot>(json);
                     if (root != null && root.Tools != null)
                     {
@@ -85,7 +97,7 @@ namespace Bricscad_AgentAI_V2.Core
                         }
                     }
                     
-                    // Uzupełnij o ewentualne nowe narzędzia, których nie ma w JSON
+                    // UzupeĹ‚nij o ewentualne nowe narzÄ™dzia, ktĂłrych nie ma w JSON
                     SyncWithTools(registeredTools);
                 }
                 catch
@@ -99,216 +111,145 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
-        private static void EnsureSupervisorPromptFile()
+        public static string GetDefaultSystemPromptFile(string profileName)
         {
-            try
+            switch (profileName)
             {
-                string supervisorPromptPath = Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                    "system_prompt_supervisor.txt"
-                );
-                bool needsWrite = !File.Exists(supervisorPromptPath);
-                if (!needsWrite)
-                {
-                    try
-                    {
-                        string currentText = File.ReadAllText(supervisorPromptPath);
-                        if (!currentText.Contains("ZAKRES: ZAZNACZONE") || !currentText.Contains("SelectionScopeLock"))
-                        {
-                            needsWrite = true;
-                        }
-                        if (!currentText.Contains("CadGeometryProfile") || 
-                            !currentText.Contains("LUŹNA ROZMOWA") || 
-                            !currentText.Contains("AuditorProfile") ||
-                            currentText.Contains("BŁĘDY LOGICZNE")) 
-                        if (!currentText.Contains("ZASADY OBSŁUGI ZAPYTAŃ") || !currentText.Contains("LispCoderProfile") || !currentText.Contains("modyfikacjami \\\"w locie\\\"") || !currentText.Contains("ZAKRES: ZAZNACZONE") || !currentText.Contains("SelectionScopeLock"))
-                        {
-                            needsWrite = true;
-                        }
-                    }
-                    catch { }
-                }
-
-                if (needsWrite)
-                {
-                    string defaultSupervisorPrompt = 
-                        "Jesteś uniwersalnym Asystentem i Głównym Menedżerem (Supervisorem) systemu Bielik V2 w BricsCAD.\n" +
-                        "Twoim zadaniem jest pomoc użytkownikowi – zarówno w zadaniach CAD, jak i w ogólnych pytaniach i obliczeniach.\n\n" +
-                        "ZASADY OBSŁUGI ZAPYTAŃ:\n" +
-                        "1. LUŹNA ROZMOWA I WIEDZA OGÓLNA (np. \"kto był pierwszym królem Polski?\", \"jak się czujesz?\", pytania o ogólną historię, geografię, literaturę):\n" +
-                        "   - Odpowiedz na nie bezpośrednio, zwięźle i przyjaźnie w zwykłym tekście. Nie używaj żadnych narzędzi ani DelegateTask.\n" +
-                        "2. OBLICZENIA MATEMATYCZNE, FIZYCZNE I PRZELICZANIE JEDNOSTEK (np. \"policz energię kinetyczną kuli...\", \"jaka jest objętość rury...\", \"przelicz 10 cali na mm\"):\n" +
-                        "   - Nie wykonuj ich samodzielnie w swoim oknie kontekstowym, aby zapobiec czeskim błędom i niedokładnościom.\n" +
-                        "   - MUSISZ natychmiast wydelegować to zadanie do profilu `CadMathProfile` przy użyciu narzędzia DelegateTask.\n" +
-                        "   - Przed wywołaniem DelegateTask nie pisz żadnego tekstu objaśniającego ani zapowiadającego.\n" +
-                        "3. ZADANIA CAD / OPERACJE NA RYSUNKU (np. rysowanie, zaznaczanie, zmiana kolorów, warstw, odczyt atrybutów lub XData):\n" +
-                        "   - Nie wykonuj ich samodzielnie. MUSISZ natychmiast wydelegować zadanie do odpowiedniego eksperta za pomocą narzędzia DelegateTask.\n" +
-                        "   - Jeśli polecenie użytkownika zawiera nazwy recept ze znakiem dolara (np. `$moja_recepta`), MUSISZ przenieść ten tekst dosłownie (wraz ze znakiem `$`) do opisu zadania (TaskDescription) dla Workera, aby Worker wiedział jakiego schematu użyć.\n" +
-                        "   - ZAKRES: ZAZNACZONE. Jesli uzytkownik mowi: zaznaczone, w zaznaczonych, wybrane, aktualny wybor albo podobnie, wywoluj DelegateTask z SelectionScopeLock=true oraz w TaskDescription jasno nakazuj: operuj WYLACZNIE na obecnym ActiveSelection/SelectionSet. Nie wolno Workerowi ponownie wyszukiwac obiektow w modelu, uzywac SelectEntities z Mode=New ani rozszerzac zakresu na caly rysunek bez osobnej zgody uzytkownika.\n" +
-                        "   - Dla polecen typu \"zamien X na Y\" w zaznaczonych tekstach przekazuj intencje jako podmiane fragmentu tekstu w aktualnie zaznaczonych obiektach, np. TextEditTool Replace: FindText=X, ReplaceWith=Y. Nie opisuj tego jako warunku, ze cala zawartosc tekstu ma byc dokladnie rowna X, chyba ze uzytkownik wyraznie tak powiedzial.\n" +
-                        "   - Przed wywołaniem DelegateTask nie pisz żadnego tekstu objaśniającego ani zapowiadającego.\n" +
-                        "   - Po zakończeniu pracy przez eksperta przedstaw krótko i rzeczowo wynik użytkownikowi.\n" +
-                        "4. WIEDZA O SYSTEMIE / POMOC:\n" +
-                        "   - Jeśli użytkownik pyta Cię jak użyć jakiegoś narzędzia, co oznacza komenda, w jaki sposób napisać receptę, lub ogólnie jak działa wtyczka, użyj narzędzia ReadHelp, aby przeczytać zintegrowane pliki dokumentacji.\n" +
-                        "   - Jeśli musisz odszukać wzmiankę tekstową (np. o konkretnym detalu) w notatkach projektu, użyj narzędzia SearchFileContent (ustawiając DirectoryType='DrawingFolder').\n" +
-                        "   - Po pobraniu treści z pomocy, połącz tę wiedzę ze znajomością Twojego promptu systemowego oraz listą ekspertów/narzędzi, po czym odpowiedz użytkownikowi rzeczowo i precyzyjnie.\n" +
-                        "5. SKILLE INŻYNIERSKIE (Pliki Markdown, tagi ze znakiem #):\n" +
-                        "   - Skille to procedury zapisane w języku naturalnym (Markdown) z YAML Frontmatter. Wstrzykiwane są do Twojego kontekstu gdy użytkownik użyje tagu #.\n" +
-                        "   - Jeśli użytkownik prosi o \"utworzenie skilla\", absolutnie NIE używaj narzędzia SaveMacro (Makra to co innego!). Użyj dedykowanego narzędzia manage_skills (akcja create_skill), aby wygenerować plik .md.\n" +
-                        "   - Jeśli użytkownik wspomni o wczytaniu/przeczytaniu skilla, użyj manage_skills z akcją read_skill.\n" +
-                        "   - Kiedy otrzymasz wstrzykniętego skilla do kontekstu, po prostu wykonuj jego instrukcje zlecając zadania do odpowiednich profili przez DelegateTask.\n" +
-                        "6. SKRYPTY LISP (Baza Wiedzy):\n" +
-                        "   - Jeśli użytkownik prosi o uruchomienie istniejącego skryptu (np. `%test`), ale z modyfikacjami \"w locie\" (np. zmiana koloru, liczby elementów), NIE ODRZUCAJ ZADANIA i NIE PYTAJ o zgodę.\n" +
-                        "   - Od razu użyj narzędzia `manage_lisps` (akcja: `read_lisp`), aby pobrać jego kod, następnie zlec `LispCoderProfile` modyfikację kodu według wymogów, a gdy ją otrzymasz - użyj `manage_lisps` (akcja: `create_lisp` by nadpisać lub utworzyć nowy) i na koniec wykonaj skrypt (`execute_lisp`).\n\n" +
-                        "UWAGA KRYTYCZNA: Profile NIE są narzędziami! Nigdy nie wywołuj nazwy profilu (np. CadMathProfile, CadGeometryProfile) jako nazwy funkcji w tool_calls. Jedynym narzędziem do delegowania jest DelegateTask, w którym podajesz TargetProfile jako parametr. Wywołanie profilu bezpośrednio jako funkcji spowoduje błąd krytyczny i nie zostanie wykonane!\n\n" +
-                        "Dostępne profile ekspertów do zadań (wybierz najbardziej optymalny):\n" +
-                        "- DelegateTaskTool(ProfileName: \"CadGeometryProfile\", ...) -> ekspert od tworzenia i modyfikacji geometrii (linie, polilinie, kreskowania, warstwy, wymiary, teksty, właściwości obiektów, np. kolory, grubość linii).\n" +
-                        "- DelegateTaskTool(ProfileName: \"CadBlocksProfile\", ...) -> Przekaż tutaj wszystko co dotyczy BLOKÓW i ATRYBUTÓW.\n" +
-                        "- DelegateTaskTool(ProfileName: \"CadMetadataProfile\", ...) -> Przekaż tutaj prośby o odczyt właściwości, XData, pomiary, zestawienia, analizę rysunku.\n" +
-                        "- DelegateTaskTool(ProfileName: \"CadProfile\", ...) -> Profil ogólny, używaj tylko gdy zadanie nie pasuje do żadnego z 3 powyższych.\n" +
-                        "- DelegateTaskTool(ProfileName: \"AuditorProfile\", ...) -> [AGENT QA / MÓZG] Użyj TEGO profilu, gdy aplikacja zachowuje się dziwnie, zwraca błędy C# lub gdy użytkownik prosi o testy/debugowanie/wyjaśnienie kodu źródłowego systemu Bielik V2. Agent QA ma pełny odczyt rdzenia aplikacji, potrafi debugować, testować narzędzia statycznie (RunToolTest) i analizować system. PAMIĘTAJ: Zanim oddelegujesz problem do AuditorProfile, powiadom o tym użytkownika i uzyskaj jego zgodę.\n" +
-                        "- DelegateTaskTool(ProfileName: \"LispCoderProfile\", ...) -> [EKSPERT AutoLISP] Użyj tego profilu KIEDYKOLWIEK użytkownik poprosi o napisanie, wygenerowanie lub zmodyfikowanie kodu LISP (np. .lsp). Nigdy nie pisz kodu LISP samodzielnie, deleguj zadanie tutaj, ponieważ ten profil posiada instrukcje wymuszające użycie funkcji *error* i obsługę pętli samonaprawiającej (Self-Healing).\n" +
-                        "- DelegateTaskTool(ProfileName: \"LispAuditorProfile\", ...) -> [KRYTYK AutoLISP] Użyj tego profilu, gdy użytkownik poprosi o przegląd (audyt), znalezienie błędów lub krytykę w gotowym skrypcie LISP.\n\n" +
-                        "- NotesProfile: system przechowuje notatki inżynierskie dla każdego rysunku w plikach [Nazwa].ai_note.md. Masz do dyspozycji wyspecjalizowanego sub-agenta 'NotesProfile'. Jeśli użytkownik wyraźnie prosi Cię o zapisanie czegoś w notatce, ZAWSZE używaj narzędzia DelegateTask przekazując mu to zadanie, lub poinformuj użytkownika o możliwości użycia komendy /notatka.";
-                    File.WriteAllText(supervisorPromptPath, defaultSupervisorPrompt, System.Text.Encoding.UTF8);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_supervisor.txt: {ex.Message}");
+                case "SupervisorProfile": return SupervisorPromptFile;
+                case "CadProfile": return CadPromptFile;
+                case "CadGeometryProfile": return GeometryPromptFile;
+                case "CadBlocksProfile": return BlocksPromptFile;
+                case "CadMetadataProfile": return MetadataPromptFile;
+                case "CadMathProfile": return MathPromptFile;
+                case "NotesProfile": return NotesPromptFile;
+                case "AuditorProfile": return AuditorPromptFile;
+                default: return CadPromptFile;
             }
         }
 
-        private static void EnsureMathPromptFile()
+        public static string GetRuntimePromptPath(string fileName)
         {
-            try
+            if (string.IsNullOrWhiteSpace(fileName))
             {
-                string mathPromptPath = Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                    "system_prompt_math.txt"
-                );
-                bool needsWrite = !File.Exists(mathPromptPath);
-                if (!needsWrite)
-                {
-                    try
-                    {
-                        string currentText = File.ReadAllText(mathPromptPath);
-                        if (!currentText.Contains("WZORY I PRZYKŁADY RPN") || 
-                            !currentText.Contains("Częsty błąd przy ułamkach") || 
-                            !currentText.Contains("UNIKAJ DANGLED STACK") ||
-                            !currentText.Contains("Wyrażenie RPN z konwersją do cm3") ||
-                            !currentText.Contains("ExecuteFormula"))
-                        {
-                            needsWrite = true; // Auto-upgrade starych wersji promptu
-                        }
-                    }
-                    catch { }
-                }
+                fileName = CadPromptFile;
+            }
 
-                if (needsWrite)
-                {
-                    string defaultMathPrompt =
-                        "Jesteś ekspert-analitykiem i kalkulatorem systemu Bielik V2 (CadMathProfile).\n" +
-                        "Twoim zadaniem jest wykonywanie precyzyjnych obliczeń inżynieryjnych, fizycznych i geometrycznych.\n\n" +
-                        "Masz do dyspozycji DWA GŁÓWNE PODEJŚCIA do obliczeń:\n" +
-                        "PODEJŚCIE A: Baza Wiedzy (ExecuteFormula)\n" +
-                        "- Jeśli użytkownik prosi o użycie lub uruchomienie konkretnej 'formuły' (np. 'Cisnienie_Hydrostatyczne'), ZAWSZE używaj narzędzia `ExecuteFormula`.\n" +
-                        "- Nie przeliczaj tego ręcznie ani nie używaj narzędzia RPN w tym przypadku.\n\n" +
-                        "PODEJŚCIE B: Kalkulator RPN (CalculateRpn / CalculateMath)\n" +
-                        "- Używaj, gdy nie ma gotowej formuły.\n" +
-                        "ZASADY NOTACJI ALGEBRAICZNEJ Z JEDNOSTKAMI DLA RPN:\n" +
-                        "1. Zapisuj wyrażenia w sposób naturalny, zawsze oddzielając operatory spacjami, np. `( 10_cm / 2 ) ^ 2`.\n" +
-                        "2. Format zapisu wartości: `wartość_jednostka` (np. `100_mm`, `10_m`, `5_cm`, `11.34_g/cm3`, `5.94_kg`). Znak '_' łączy wartość z jednostką.\n" +
-                        "   - KRYTYCZNE: ZAWSZE dodawaj jednostkę nawet do podstawowych danych wejściowych! Jeśli napiszesz `100` zamiast `100_mm`, system błędnie założy, że to metry!\n" +
-                        "3. Podstawowe operatory: `+`, `-`, `*`, `/`, `^`.\n" +
-                        "   - Zawsze pamiętaj o kolejności działań i nawiasach.\n" +
-                        "   - Aby podnieść do kwadratu, użyj np. `50_mm ^ 2`.\n" +
-                        "4. Stałe:\n" +
-                        "   - `#PI` (pi wynosi ok. 3.141592)\n" +
-                        "   - `#G` (przyspieszenie ziemskie wynosi ok. 9.81_m/s2)\n" +
-                        "5. Konwersja jednostek:\n" +
-                        "   - Używaj parametru `TargetUnit` w narzędziu `CalculateMath`, np. `TargetUnit='cm3'`, zamiast wpisywać konwersje ręcznie.\n\n" +
-                        "STRATEGIA ROZWIĄZYWANIA ZADAŃ:\n" +
-                        "- ZABRANIA SIĘ wykonywania złożonych obliczeń we własnej pamięci LLM, aby zapobiec czeskim błędom. Zamiast tego ZAWSZE używaj narzędzia CalculateMath.\n" +
-                        "- Dziel duże zadania na pojedyncze, logiczne kroki (osobne wywołania narzędzia CalculateMath) zamiast tworzyć jedno ogromne, skomplikowane wyrażenie.\n" +
-                        "- Zapisuj cząstkowe wyniki przy użyciu parametru `SaveAs` (np. `SaveAs='Promien'`, `SaveAs='Masa'`), a potem odwołuj się do nich w kolejnych krokach za pomocą `@zmienna` (np. `@Promien ^ 2 * #PI`).\n\n" +
-                        "WZORY I PRZYKŁADY:\n\n" +
-                        "1. Pole koła (P = pi * r^2 dla d = 100 mm):\n" +
-                        "   - Krok 1 (promień): `100_mm / 2` (zapisz jako `Promien` -> SaveAs='Promien')\n" +
-                        "   - Krok 2 (pole w mm2): `@Promien ^ 2 * #PI` (TargetUnit='mm2' -> SaveAs='Pole')\n\n" +
-                        "2. Objętość kuli (V = 4/3 * pi * r^3 dla średnicy 10 cm => r = 5 cm):\n" +
-                        "   - `( 4 / 3 ) * #PI * ( 5_cm ^ 3 )` (TargetUnit='cm3')\n\n" +
-                        "3. Masa kuli z ołowiu (gęstość = 11.34 g/cm3, V = 523.6 cm3):\n" +
-                        "   - `523.598776_cm3 * 11.34_g/cm3` (TargetUnit='kg' -> SaveAs='MasaKg')\n\n" +
-                        "4. Energia kinetyczna/potencjalna (Ek = Ep = mgh dla m = 5.94 kg i h = 10 m):\n" +
-                        "   - `5.937609_kg * #G * 10_m` (jednostka J zostanie przypisana automatycznie!)\n\n" +
-                        "5. Objętość rury/walca (V = pi * r^2 * h dla wewn. 10 cm i dł. 11 m):\n" +
-                        "   - Krok 1 (promień): `10_cm / 2` (zapisz jako `Promien` -> SaveAs='Promien')\n" +
-                        "   - Krok 2 (objętość w litrach): `@Promien ^ 2 * #PI * 11_m` (TargetUnit='L' -> SaveAs='ObjetoscLitry')";
-                    File.WriteAllText(mathPromptPath, defaultMathPrompt, System.Text.Encoding.UTF8);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_math.txt: {ex.Message}");
-            }
+            return Path.Combine(
+                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                fileName
+            );
         }
 
-        private static void EnsureNotesPromptFile()
+        public static string LoadSystemPromptText(string fileName)
         {
-            try
+            string path = GetRuntimePromptPath(fileName);
+            if (File.Exists(path))
             {
-                string notesPromptPath = Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                    "system_prompt_notes.txt"
-                );
-                if (!File.Exists(notesPromptPath))
-                {
-                    string defaultNotesPrompt = 
-                        "Jesteś Sub-Agentem ds. Notatek Projektowych (NotesProfile).\n" +
-                        "Twoim jedynym zadaniem jest generowanie i zwracanie czystej treści notatki w formacie Markdown na podstawie poleceń użytkownika.\n" +
-                        "Nie używaj żadnych narzędzi poza wygenerowaniem tekstu i przekazaniem go jako końcowy wynik. Twoja odpowiedź nadpisze plik [Nazwa].ai_note.md w głównym systemie.";
-                    File.WriteAllText(notesPromptPath, defaultNotesPrompt, System.Text.Encoding.UTF8);
-                }
+                return File.ReadAllText(path, System.Text.Encoding.UTF8);
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_notes.txt: {ex.Message}");
-            }
+
+            return "Jestes wyspecjalizowanym agentem systemu Bielik V2. Brak pliku promptu systemowego.";
         }
 
-        private static void EnsureAuditorPromptFile()
+        public static string GetUserPromptOverride(string profileName)
+        {
+            AppPaths.EnsureDirectoriesExist();
+
+            string path = AppPaths.GetPromptOverrideFilePath(profileName);
+            if (!File.Exists(path))
+            {
+                return string.Empty;
+            }
+
+            return File.ReadAllText(path, System.Text.Encoding.UTF8);
+        }
+
+        public static void SaveUserPromptOverride(string profileName, string text)
+        {
+            AppPaths.EnsureDirectoriesExist();
+
+            string path = AppPaths.GetPromptOverrideFilePath(profileName);
+            string normalized = text ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+                return;
+            }
+
+            File.WriteAllText(path, normalized, System.Text.Encoding.UTF8);
+        }
+
+        public static string LoadEffectivePromptForProfile(string profileName)
+        {
+            string systemPrompt;
+            if (_config.Profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrWhiteSpace(profile.SystemPromptFile))
+            {
+                systemPrompt = LoadSystemPromptText(profile.SystemPromptFile);
+            }
+            else
+            {
+                systemPrompt = LoadSystemPromptText(GetDefaultSystemPromptFile(profileName));
+            }
+
+            string userOverride = GetUserPromptOverride(profileName).Trim();
+            if (string.IsNullOrWhiteSpace(userOverride))
+            {
+                return systemPrompt;
+            }
+
+            return systemPrompt +
+                "\n\n--- DODATKOWE WYTYCZNE UZYTKOWNIKA ---\n" +
+                "Ponizsze instrukcje doprecyzowuja zachowanie profilu, ale nie uniewazniaja kontraktu narzedzi, zasad bezpieczenstwa ani ograniczen architektury.\n" +
+                userOverride;
+        }
+
+        private static void EnsurePromptFile(string fileName, string fallbackContent)
         {
             try
             {
-                string path = Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                    "system_prompt_auditor.txt"
-                );
+                string path = GetRuntimePromptPath(fileName);
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
                 if (!File.Exists(path))
                 {
-                    string prompt = 
-                        "Jesteś Rewidentem (QA Agentem / AuditorProfile) systemu Bielik V2.\n" +
-                        "Twoim zadaniem jest testowanie, weryfikacja poprawności narzędzi oraz debugowanie ich w przypadku błędu.\n\n" +
-                        "ZASADY TESTOWANIA:\n" +
-                        "1. ZABRANIA SIĘ fizycznego blokowania interfejsu BricsCAD podczas testów. Jeśli testujesz narzędzia interaktywne (np. UserInput, UserChoice), bezwzględnie przekaż parametr `__MockResponse` symulujący wybór człowieka.\n" +
-                        "2. ZABRANIA SIĘ zmiany stanu środowiska użytkownika podczas testów. Jeśli testujesz narzędzia mutujące (np. SaveMacro, SavePermanentFormula, WriteProjectFile, ManageRecipes, manage_skills), bezwzględnie używaj flagi `__DryRun: true`.\n" +
-                        "3. BŁĘDY C#: Gdy testowane narzędzie zwróci błąd, użyj `ReadProjectFile` aby odczytać zawartość klasy tego narzędzia z folderu `src/Tools/` (lub odpowiedniego podfolderu).\n" +
-                        "4. TESTY STATYCZNE: Masz do dyspozycji narzędzie `RunToolTest`, które pozwala Ci na samodzielne, statyczne testowanie narzędzi. Przygotuj prawidłowy JSON (koniecznie z parametrem `__DryRun: true` lub `__MockResponse`) i przetestuj narzędzie.\n" +
-                        "5. RAPORTY QA I KODOWANIE: Gdy zakończysz audyt lub znajdziesz błąd w C#, którego nie powinieneś sam ryzykownie edytować: \n" +
-                        "   - użyj `WriteQAReport`, aby napisać notatkę z testów dla Supervisora.\n" +
-                        "   - użyj `DelegateTaskToAntigravity`, aby wygenerować zlecenie wgrania poprawki w kodzie źródłowym. Antigravity AI (Zewnętrzny Agent Kodowania) zobaczy ten plik i naprawi program!\n" +
-                        "6. READ-ONLY: Masz całkowity zakaz bezpośredniej modyfikacji plików kodu C# za pomocą `WriteProjectFile` (chyba że użytkownik na to zezwoli). Zawsze używaj zlecenia do Antigravity.\n" +
-                        "7. ANALIZA RDZENIA (CORE): Masz pełny dostęp (Read-Only) do całego kodu źródłowego systemu Bielik V2. Używaj narzędzi `ListSourceFiles` oraz `ReadSourceCode` aby eksplorować architekturę systemu, pętlę agentową, komunikację z BricsCAD oraz inne pliki C# z katalogu `src/Core/`, `src/UI/` itd. Możesz też przeszukać zawartość wszystkich plików w poszukiwaniu frazy (np. nazwy metody) za pomocą narzędzia `SearchFileContent` (DirectoryType='SourceCode').\n" +
-                        "8. Po zakończeniu audytu zrób czytelne podsumowanie dla Supervisora (lub użytkownika).";
-                    File.WriteAllText(path, prompt, System.Text.Encoding.UTF8);
+                    File.WriteAllText(path, fallbackContent, System.Text.Encoding.UTF8);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Błąd podczas generowania system_prompt_auditor.txt: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Blad podczas generowania pliku promptu '{fileName}': {ex.Message}");
             }
         }
+
+        public static string GetDefaultCadPromptText()
+        {
+            return LoadSystemPromptText(CadPromptFile);
+        }
+
+        private static void EnsureCadPromptFile() => EnsurePromptFile(CadPromptFile, "Jestes glownym profilem CAD systemu Bielik V2. Realizuj ogolne zadania CAD narzedziami i nie wymyslaj skladni spoza kontraktu narzedzi.");
+
+        private static void EnsureGeometryPromptFile() => EnsurePromptFile(GeometryPromptFile, "Jestes profilem geometrii CAD. Specjalizujesz sie w tworzeniu i modyfikacji geometrii, tekstow, warstw i podstawowych wlasciwosci obiektow.");
+
+        private static void EnsureBlocksPromptFile() => EnsurePromptFile(BlocksPromptFile, "Jestes profilem blokow CAD. Specjalizujesz sie w blokach, atrybutach, definicjach blokow, wstawianiu i edycji wystapien.");
+
+        private static void EnsureMetadataPromptFile() => EnsurePromptFile(MetadataPromptFile, "Jestes profilem metadanych CAD. Specjalizujesz sie w odczycie i analizie wlasciwosci, XData, selekcji, pomiarow i zestawien.");
+
+        private static void EnsureSupervisorPromptFile() => EnsurePromptFile(SupervisorPromptFile, "Jestes Supervisorem systemu Bielik V2. Rozpoznaj intencje uzytkownika, deleguj zadania do najlepszych profili i sam odpowiadaj tylko na luzna rozmowe oraz pytania ogolne.");
+
+        private static void EnsureMathPromptFile() => EnsurePromptFile(MathPromptFile, "Jestes profilem CadMathProfile. Wykonujesz pelne obliczenia przez CalculateMath i nie zastepujesz wyniku zgadywaniem.");
+
+        private static void EnsureNotesPromptFile() => EnsurePromptFile(NotesPromptFile, "Jestes profilem NotesProfile. Tworzysz czysta tresc notatek projektowych w Markdown i nie wykonujesz innych operacji.");
+
+        private static void EnsureAuditorPromptFile() => EnsurePromptFile(AuditorPromptFile, "Jestes profilem AuditorProfile. Analizujesz, testujesz i raportujesz problemy w systemie Bielik V2, dbajac o bezpieczne testy i diagnostyke.");
+
 
         private static void SyncWithTools(IEnumerable<IToolV2> registeredTools)
         {
@@ -332,8 +273,13 @@ namespace Bricscad_AgentAI_V2.Core
             // 1. Zabezpieczenie/Synchronizacja SupervisorProfile
             if (!_config.Profiles.TryGetValue("SupervisorProfile", out var supervisorProf))
             {
-                supervisorProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_supervisor.txt" };
+                supervisorProf = new AgentProfileConfig { SystemPromptFile = SupervisorPromptFile };
                 _config.Profiles["SupervisorProfile"] = supervisorProf;
+                changed = true;
+            }
+            if (supervisorProf.SystemPromptFile != SupervisorPromptFile)
+            {
+                supervisorProf.SystemPromptFile = SupervisorPromptFile;
                 changed = true;
             }
             var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps" };
@@ -354,13 +300,13 @@ namespace Bricscad_AgentAI_V2.Core
             // 2. Zabezpieczenie/Synchronizacja CadProfile
             if (!_config.Profiles.TryGetValue("CadProfile", out var cadProf))
             {
-                cadProf = new AgentProfileConfig { SystemPromptFile = "system_prompt.txt", AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" } };
+                cadProf = new AgentProfileConfig { SystemPromptFile = CadPromptFile, AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" } };
                 _config.Profiles["CadProfile"] = cadProf;
                 changed = true;
             }
-            if (cadProf.SystemPromptFile != "system_prompt.txt")
+            if (cadProf.SystemPromptFile != CadPromptFile)
             {
-                cadProf.SystemPromptFile = "system_prompt.txt";
+                cadProf.SystemPromptFile = CadPromptFile;
                 changed = true;
             }
             var cadDefaults = new List<string> 
@@ -391,11 +337,16 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 geomProf = new AgentProfileConfig 
                 { 
-                    SystemPromptFile = "system_prompt.txt", 
+                    SystemPromptFile = GeometryPromptFile, 
                     AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool", "manage_lisps" },
                     AllowedTags = new List<string> { "#cad" }
                 };
                 _config.Profiles["CadGeometryProfile"] = geomProf;
+                changed = true;
+            }
+            if (geomProf.SystemPromptFile != GeometryPromptFile)
+            {
+                geomProf.SystemPromptFile = GeometryPromptFile;
                 changed = true;
             }
 
@@ -404,11 +355,16 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 blocksProf = new AgentProfileConfig 
                 { 
-                    SystemPromptFile = "system_prompt.txt", 
+                    SystemPromptFile = BlocksPromptFile, 
                     AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps" },
                     AllowedTags = new List<string> { "#bloki" }
                 };
                 _config.Profiles["CadBlocksProfile"] = blocksProf;
+                changed = true;
+            }
+            if (blocksProf.SystemPromptFile != BlocksPromptFile)
+            {
+                blocksProf.SystemPromptFile = BlocksPromptFile;
                 changed = true;
             }
 
@@ -417,27 +373,32 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 metadataProf = new AgentProfileConfig 
                 { 
-                    SystemPromptFile = "system_prompt.txt", 
+                    SystemPromptFile = MetadataPromptFile, 
                     AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "manage_lisps" },
                     AllowedTags = new List<string> { "#xdata" }
                 };
                 _config.Profiles["CadMetadataProfile"] = metadataProf;
                 changed = true;
             }
+            if (metadataProf.SystemPromptFile != MetadataPromptFile)
+            {
+                metadataProf.SystemPromptFile = MetadataPromptFile;
+                changed = true;
+            }
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
             {
-                mathProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_math.txt", AllowedTags = new List<string> { "#math", "#obliczenia" } };
+                mathProf = new AgentProfileConfig { SystemPromptFile = MathPromptFile, AllowedTags = new List<string> { "#math", "#obliczenia" } };
                 _config.Profiles["CadMathProfile"] = mathProf;
                 changed = true;
             }
-            if (mathProf.SystemPromptFile != "system_prompt_math.txt")
+            if (mathProf.SystemPromptFile != MathPromptFile)
             {
-                mathProf.SystemPromptFile = "system_prompt_math.txt";
+                mathProf.SystemPromptFile = MathPromptFile;
                 changed = true;
             }
-            var mathDefaults = new List<string> { "CalculateMath", "CalculateRpn", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "manage_lisps" };
+            var mathDefaults = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "manage_lisps" };
             if (mathProf.AllowedTools == null)
             {
                 mathProf.AllowedTools = new List<string>();
@@ -451,20 +412,34 @@ namespace Bricscad_AgentAI_V2.Core
                     changed = true;
                 }
             }
+            if (mathProf.AllowedTools.RemoveAll(t => string.Equals(t, "CalculateRpn", StringComparison.OrdinalIgnoreCase)) > 0)
+            {
+                changed = true;
+            }
 
             // 7. Zabezpieczenie/Synchronizacja NotesProfile
             if (!_config.Profiles.TryGetValue("NotesProfile", out var notesProf))
             {
-                notesProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_notes.txt" };
+                notesProf = new AgentProfileConfig { SystemPromptFile = NotesPromptFile };
                 _config.Profiles["NotesProfile"] = notesProf;
+                changed = true;
+            }
+            if (notesProf.SystemPromptFile != NotesPromptFile)
+            {
+                notesProf.SystemPromptFile = NotesPromptFile;
                 changed = true;
             }
 
             // 8. Zabezpieczenie/Synchronizacja AuditorProfile
             if (!_config.Profiles.TryGetValue("AuditorProfile", out var auditorProf))
             {
-                auditorProf = new AgentProfileConfig { SystemPromptFile = "system_prompt_auditor.txt" };
+                auditorProf = new AgentProfileConfig { SystemPromptFile = AuditorPromptFile };
                 _config.Profiles["AuditorProfile"] = auditorProf;
+                changed = true;
+            }
+            if (auditorProf.SystemPromptFile != AuditorPromptFile)
+            {
+                auditorProf.SystemPromptFile = AuditorPromptFile;
                 changed = true;
             }
             var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent", "manage_lisps" };
@@ -507,14 +482,14 @@ namespace Bricscad_AgentAI_V2.Core
             
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt_supervisor.txt",
+                SystemPromptFile = SupervisorPromptFile,
                 AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps" },
                 AllowedTags = new List<string>()
             };
             
             _config.Profiles["CadProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt.txt",
+                SystemPromptFile = CadPromptFile,
                 AllowedTools = new List<string> 
                 { 
                     "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", 
@@ -529,47 +504,47 @@ namespace Bricscad_AgentAI_V2.Core
 
             _config.Profiles["CadGeometryProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt.txt",
+                SystemPromptFile = GeometryPromptFile,
                 AllowedTools = new List<string> { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool" },
                 AllowedTags = new List<string> { "#cad" }
             };
 
             _config.Profiles["CadBlocksProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt.txt",
+                SystemPromptFile = BlocksPromptFile,
                 AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
                 AllowedTags = new List<string> { "#bloki" }
             };
 
             _config.Profiles["CadMetadataProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt.txt",
+                SystemPromptFile = MetadataPromptFile,
                 AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea" },
                 AllowedTags = new List<string> { "#xdata" }
             };
 
             _config.Profiles["CadMathProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt_math.txt",
+                SystemPromptFile = MathPromptFile,
                 AllowedTools = new List<string> { "CalculateMath", "ReadFromBlackboard", "WriteToBlackboard", "UserInput", "UserChoice", "SearchKnowledgeBase", "ExecuteFormula", "SavePermanentFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset" },
                 AllowedTags = new List<string> { "#math", "#obliczenia" }
             };
 
             _config.Profiles["NotesProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt_notes.txt",
+                SystemPromptFile = NotesPromptFile,
                 AllowedTools = new List<string>(),
                 AllowedTags = new List<string>()
             };
 
             _config.Profiles["AuditorProfile"] = new AgentProfileConfig
             {
-                SystemPromptFile = "system_prompt_auditor.txt",
+                SystemPromptFile = AuditorPromptFile,
                 AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent" },
                 AllowedTags = new List<string>()
             };
 
-            // BEZWZGLĘDNY ZAPIS PO WYGENEROWANIU
+            // BEZWZGLÄDNY ZAPIS PO WYGENEROWANIU
             SaveConfig();
         }
 
@@ -593,15 +568,15 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (_config.Profiles.TryGetValue(profileName, out var profile))
             {
-                profile.SystemPromptFile = promptFile;
+                profile.SystemPromptFile = GetDefaultSystemPromptFile(profileName);
                 profile.AllowedTools = allowedTools;
                 SaveConfig();
             }
         }
 
         /// <summary>
-        /// Sprawdza, czy narzędzie o podanej nazwie klasy powinno być aktywne 
-        /// dla zestawu żądanych tagów.
+        /// Sprawdza, czy narzÄ™dzie o podanej nazwie klasy powinno byÄ‡ aktywne 
+        /// dla zestawu ĹĽÄ…danych tagĂłw.
         /// </summary>
         public static bool IsToolActive(string apiName, IEnumerable<string> requestedTags)
         {
@@ -610,23 +585,23 @@ namespace Bricscad_AgentAI_V2.Core
 
             if (!_config.Tools.TryGetValue(apiName, out var s)) return false;
 
-            // Narzędzia Core są ZAWSZE aktywne
+            // NarzÄ™dzia Core sÄ… ZAWSZE aktywne
             if (s.IsCore) return true;
 
-            // Jeśli to nie Core, a użytkownik poprosił o #all, ładuj wszystko
+            // JeĹ›li to nie Core, a uĹĽytkownik poprosiĹ‚ o #all, Ĺ‚aduj wszystko
             if (requestedTags != null && requestedTags.Any(rt => rt.Equals("#all", StringComparison.OrdinalIgnoreCase))) return true;
 
-            // Logika filtrowania tagów dla Tool Pools
+            // Logika filtrowania tagĂłw dla Tool Pools
             if (requestedTags == null || !requestedTags.Any()) return false;
 
-            // ZMIANA: Aktywacja bezpośrednio po nazwie narzędzia (fallback dla braku tagów)
+            // ZMIANA: Aktywacja bezpoĹ›rednio po nazwie narzÄ™dzia (fallback dla braku tagĂłw)
             if (requestedTags.Any(rt => rt.Equals(apiName, StringComparison.OrdinalIgnoreCase))) return true;
             var toolTags = s.Tags.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim().ToLower());
             return requestedTags.Any(rt => toolTags.Contains(rt.ToLower()));
         }
 
         /// <summary>
-        /// Zwraca listę unikalnych tagów (spoza core) dostępnych w systemie.
+        /// Zwraca listÄ™ unikalnych tagĂłw (spoza core) dostÄ™pnych w systemie.
         /// </summary>
         public static IEnumerable<string> GetAvailableCategories()
         {
@@ -638,7 +613,7 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         /// <summary>
-        /// Zwraca listę narzędzi przypisanych do danej kategorii.
+        /// Zwraca listÄ™ narzÄ™dzi przypisanych do danej kategorii.
         /// </summary>
         public static IEnumerable<string> GetToolsInCategory(string category)
         {

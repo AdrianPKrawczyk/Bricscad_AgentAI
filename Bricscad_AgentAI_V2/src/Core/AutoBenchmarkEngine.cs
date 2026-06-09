@@ -1,4 +1,4 @@
-using Bricscad.ApplicationServices;
+﻿using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace Bricscad_AgentAI_V2.Core
 {
     // ==========================================
-    // EVENTY POSTĘPU (dla UI)
+    // EVENTY POSTÄPU (dla UI)
     // ==========================================
     public class BenchmarkProgressEventArgs : EventArgs
     {
@@ -31,13 +31,13 @@ namespace Bricscad_AgentAI_V2.Core
     }
 
     // ==========================================
-    // GŁÓWNY SILNIK BENCHMARKU V2
+    // GĹĂ“WNY SILNIK BENCHMARKU V2
     // ==========================================
 
     /// <summary>
-    /// Izolowane laboratorium analityczne do testowania modeli LLM z architekturą Tool Calling.
-    /// Mierzy zdolność modelu do wybierania poprawnych narzędzi i konstruowania prawidłowego JSON-a argumentów.
-    /// WAŻNE: Celowo nie eksportuje do JSONL — stanowi wyizolowany Test Set (brak Data Leakage).
+    /// Izolowane laboratorium analityczne do testowania modeli LLM z architekturÄ… Tool Calling.
+    /// Mierzy zdolnoĹ›Ä‡ modelu do wybierania poprawnych narzÄ™dzi i konstruowania prawidĹ‚owego JSON-a argumentĂłw.
+    /// WAĹ»NE: Celowo nie eksportuje do JSONL â€” stanowi wyizolowany Test Set (brak Data Leakage).
     /// </summary>
     public class AutoBenchmarkEngine
     {
@@ -57,8 +57,8 @@ namespace Bricscad_AgentAI_V2.Core
         // ==========================================
         
         /// <summary>
-        /// Weryfikuje integralność schematów wszystkich zarejestrowanych narzędzi.
-        /// Jeśli choćby jedno narzędzie ma wadliwy schemat, rzuca wyjątek blokujący cały benchmark.
+        /// Weryfikuje integralnoĹ›Ä‡ schematĂłw wszystkich zarejestrowanych narzÄ™dzi.
+        /// JeĹ›li choÄ‡by jedno narzÄ™dzie ma wadliwy schemat, rzuca wyjÄ…tek blokujÄ…cy caĹ‚y benchmark.
         /// </summary>
         private void RunPreflightCheck()
         {
@@ -82,7 +82,7 @@ namespace Bricscad_AgentAI_V2.Core
 
                     if (schema == null)
                     {
-                        errors.Add($"[{type.Name}] GetToolSchema() zwrócił null.");
+                        errors.Add($"[{type.Name}] GetToolSchema() zwrĂłciĹ‚ null.");
                         continue;
                     }
                     if (string.IsNullOrWhiteSpace(schema.Function?.Name))
@@ -90,11 +90,11 @@ namespace Bricscad_AgentAI_V2.Core
                     if (string.IsNullOrWhiteSpace(schema.Function?.Description))
                         errors.Add($"[{type.Name}] Brakuje pola 'Function.Description' w schemacie.");
 
-                    OnLogMessage?.Invoke(this, $"  ✓ {type.Name}: OK (Name='{schema.Function?.Name}')");
+                    OnLogMessage?.Invoke(this, $"  âś“ {type.Name}: OK (Name='{schema.Function?.Name}')");
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"[{type.Name}] Błąd instancjonowania: {ex.Message}");
+                    errors.Add($"[{type.Name}] BĹ‚Ä…d instancjonowania: {ex.Message}");
                 }
             }
 
@@ -105,11 +105,11 @@ namespace Bricscad_AgentAI_V2.Core
                 throw new InvalidOperationException(errorReport);
             }
 
-            OnLogMessage?.Invoke(this, $"Pre-flight zakończony sukcesem. Zweryfikowano {types.Count} narzędzi.");
+            OnLogMessage?.Invoke(this, $"Pre-flight zakoĹ„czony sukcesem. Zweryfikowano {types.Count} narzÄ™dzi.");
         }
 
         // ==========================================
-        // GŁÓWNA METODA URUCHOMIENIA
+        // GĹĂ“WNA METODA URUCHOMIENIA
         // ==========================================
         public async Task<BenchmarkConfig> RunBenchmarkAsync(
             string jsonFilePath,
@@ -137,12 +137,12 @@ namespace Bricscad_AgentAI_V2.Core
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
-            // --- FAZA 1: Pętla Testowa ---
+            // --- FAZA 1: PÄ™tla Testowa ---
             foreach (var test in config.Tests)
             {
                 if (ct.IsCancellationRequested)
                 {
-                    OnLogMessage?.Invoke(this, "PRZERWANO przez użytkownika.");
+                    OnLogMessage?.Invoke(this, "PRZERWANO przez uĹĽytkownika.");
                     isCancelled = true;
                     break;
                 }
@@ -150,11 +150,11 @@ namespace Bricscad_AgentAI_V2.Core
                 currentIndex++;
                 OnLogMessage?.Invoke(this, $"\n--- Test {currentIndex}/{config.Tests.Count}: [{test.Category}] {test.TestName} ---");
 
-                // SANDBOX: Reset pamięci Agenta przed każdym testem
+                // SANDBOX: Reset pamiÄ™ci Agenta przed kaĹĽdym testem
                 AgentMemoryState.Variables.Clear();
                 AgentMemoryState.Clear();
 
-                // Wstrzyknięcie MockMemoryVariables
+                // WstrzykniÄ™cie MockMemoryVariables
                 if (test.MockMemoryVariables != null)
                 {
                     foreach (var kvp in test.MockMemoryVariables)
@@ -166,19 +166,14 @@ namespace Bricscad_AgentAI_V2.Core
 
                 // Budowanie historii konwersacji
                 var history = new List<ChatMessage>();
-                
-                // Dodanie system promptu profilu jeśli wybrano
+
+                // Dodanie system promptu profilu jesli wybrano
                 if (!string.IsNullOrEmpty(profileName))
                 {
-                    var profiles = ToolConfigManager.GetProfiles();
-                    if (profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
+                    string systemPromptContent = ToolConfigManager.LoadEffectivePromptForProfile(profileName);
+                    if (!string.IsNullOrWhiteSpace(systemPromptContent))
                     {
-                        string sysPromptPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
-                        if (File.Exists(sysPromptPath))
-                        {
-                            string systemPromptContent = File.ReadAllText(sysPromptPath, System.Text.Encoding.UTF8);
-                            history.Add(new ChatMessage { Role = "system", Content = systemPromptContent });
-                        }
+                        history.Add(new ChatMessage { Role = "system", Content = systemPromptContent });
                     }
                 }
 
@@ -186,10 +181,10 @@ namespace Bricscad_AgentAI_V2.Core
                 test.RecordedToolCalls = new List<RecordedToolCall>();
                 test.FailedRulesErrors = new List<string>();
 
-                // ⏱️ START STOPERA
+                // âŹ±ď¸Ź START STOPERA
                 var sw = Stopwatch.StartNew();
 
-                // Wywołanie LLM w trybie Benchmark
+                // WywoĹ‚anie LLM w trybie Benchmark
                 await _llmClient.SendMessageBenchmarkAsync(
                     history,
                     test.SimulatedCADResponses,
@@ -198,7 +193,7 @@ namespace Bricscad_AgentAI_V2.Core
                     profileName,
                     ct: ct);
 
-                // ⏱️ STOP STOPERA
+                // âŹ±ď¸Ź STOP STOPERA
                 sw.Stop();
                 test.ExecutionTimeMs = sw.ElapsedMilliseconds;
                 totalTimeMs += test.ExecutionTimeMs;
@@ -214,11 +209,11 @@ namespace Bricscad_AgentAI_V2.Core
                 if (test.Passed)
                 {
                     passedCount++;
-                    OnLogMessage?.Invoke(this, $"  ✓ ZALICZONY ({test.ExecutionTimeMs}ms)");
+                    OnLogMessage?.Invoke(this, $"  âś“ ZALICZONY ({test.ExecutionTimeMs}ms)");
                 }
                 else
                 {
-                    OnLogMessage?.Invoke(this, $"  ✗ OBLANY ({test.ExecutionTimeMs}ms). Błędy:");
+                    OnLogMessage?.Invoke(this, $"  âś— OBLANY ({test.ExecutionTimeMs}ms). BĹ‚Ä™dy:");
                     foreach (var err in test.FailedRulesErrors)
                         OnLogMessage?.Invoke(this, $"    - {err}");
                 }
@@ -231,7 +226,7 @@ namespace Bricscad_AgentAI_V2.Core
                 });
             }
 
-            // --- FAZA 3: Obliczenia Końcowe i Raportowanie ---
+            // --- FAZA 3: Obliczenia KoĹ„cowe i Raportowanie ---
             if (config.Tests.Count > 0 && !isCancelled)
             {
                 config.RunMetadata.GlobalScore = Math.Round((double)passedCount / config.Tests.Count * 100, 2);
@@ -245,7 +240,7 @@ namespace Bricscad_AgentAI_V2.Core
 
             SaveReports(config, jsonFilePath, saveErrors);
 
-            OnLogMessage?.Invoke(this, $"\n=== ZAKOŃCZONO. Wynik: {config.RunMetadata.GlobalScore}% ({passedCount}/{currentIndex}) | Czas śr.: {config.RunMetadata.AverageExecutionTimeMs}ms ===");
+            OnLogMessage?.Invoke(this, $"\n=== ZAKOĹCZONO. Wynik: {config.RunMetadata.GlobalScore}% ({passedCount}/{currentIndex}) | Czas Ĺ›r.: {config.RunMetadata.AverageExecutionTimeMs}ms ===");
             OnBenchmarkCompleted?.Invoke(this, new BenchmarkCompletedEventArgs
             {
                 FinalConfig = config,
@@ -257,7 +252,7 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         // ==========================================
-        // WALIDATOR (AUTO-SĘDZIA V2)
+        // WALIDATOR (AUTO-SÄDZIA V2)
         // ==========================================
         private bool ValidateTest(BenchmarkTest test)
         {
@@ -266,28 +261,28 @@ namespace Bricscad_AgentAI_V2.Core
             foreach (var rule in test.ValidationRules)
             {
                 bool rulePassed = true;
-                string ruleError = rule.ErrorMessage ?? $"Reguła '{rule.RuleType}' nie przeszła.";
+                string ruleError = rule.ErrorMessage ?? $"ReguĹ‚a '{rule.RuleType}' nie przeszĹ‚a.";
 
                 try
                 {
                     switch (rule.RuleType)
                     {
-                        // --- Sprawdzenie, czy LLM w ogóle wywołał narzędzie ---
+                        // --- Sprawdzenie, czy LLM w ogĂłle wywoĹ‚aĹ‚ narzÄ™dzie ---
                         case "ToolCalled":
                             rulePassed = test.RecordedToolCalls.Any(c =>
                                 string.Equals(c.ToolName, rule.TargetValue, StringComparison.OrdinalIgnoreCase));
                             break;
 
-                        // --- Sprawdzenie wartości konkretnego argumentu JSON ---
+                        // --- Sprawdzenie wartoĹ›ci konkretnego argumentu JSON ---
                         case "ArgumentMatch":
-                            // Szukamy ostatniego wywołania narzędzia, które faktycznie posiada szukany argument
+                            // Szukamy ostatniego wywoĹ‚ania narzÄ™dzia, ktĂłre faktycznie posiada szukany argument
                             var callForMatch = test.RecordedToolCalls
                                 .LastOrDefault(c => c.Arguments != null && ResolveJsonPath(c.Arguments, rule.TargetArgument) != null);
 
                             if (callForMatch == null)
                             {
                                 rulePassed = false;
-                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie został znaleziony w żadnym wywołaniu)";
+                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie zostaĹ‚ znaleziony w ĹĽadnym wywoĹ‚aniu)";
                                 break;
                             }
 
@@ -297,7 +292,7 @@ namespace Bricscad_AgentAI_V2.Core
                                 ruleError = $"{ruleError} (Znaleziono: '{actualValue}', Oczekiwano: '{rule.TargetValue}')";
                             break;
 
-                        // --- Sprawdzenie kolejności wywołań narzędzi ---
+                        // --- Sprawdzenie kolejnoĹ›ci wywoĹ‚aĹ„ narzÄ™dzi ---
                         case "SequenceMatch":
                             var expectedSequence = rule.TargetValue
                                 .Split(',')
@@ -326,7 +321,7 @@ namespace Bricscad_AgentAI_V2.Core
                             }
                             break;
 
-                        // --- Weryfikacja poprawności formuły algebry w argumencie ---
+                        // --- Weryfikacja poprawnoĹ›ci formuĹ‚y algebry w argumencie ---
                         case "EvaluateMath_Argument":
                             var callForMath = test.RecordedToolCalls
                                 .LastOrDefault(c => string.Equals(c.ToolName, "CalculateMath", StringComparison.OrdinalIgnoreCase)
@@ -336,7 +331,7 @@ namespace Bricscad_AgentAI_V2.Core
                             if (callForMath == null)
                             {
                                 rulePassed = false;
-                                ruleError = "Brak zarejestrowanych wywołań narzędzia CalculateMath z podanym argumentem.";
+                                ruleError = "Brak zarejestrowanych wywoĹ‚aĹ„ narzÄ™dzia CalculateMath z podanym argumentem.";
                                 break;
                             }
 
@@ -344,7 +339,7 @@ namespace Bricscad_AgentAI_V2.Core
                             if (string.IsNullOrEmpty(mathFormula))
                             {
                                 rulePassed = false;
-                                ruleError = $"Nie znaleziono formuły pod ścieżką '{rule.TargetArgument}'.";
+                                ruleError = $"Nie znaleziono formuĹ‚y pod Ĺ›cieĹĽkÄ… '{rule.TargetArgument}'.";
                                 break;
                             }
 
@@ -367,27 +362,27 @@ namespace Bricscad_AgentAI_V2.Core
                                 if (!RpnCalculator.AreValuesPhysicallyEqual(rule.ExpectedOutput, mathResult))
                                 {
                                     rulePassed = false;
-                                    ruleError = $"Błąd obliczeń. Oczekiwano '{rule.ExpectedOutput}', obliczono '{mathResult}' (wzór: {mathFormula})";
+                                    ruleError = $"BĹ‚Ä…d obliczeĹ„. Oczekiwano '{rule.ExpectedOutput}', obliczono '{mathResult}' (wzĂłr: {mathFormula})";
                                 }
                             }
                             catch (Exception ex)
                             {
                                 rulePassed = false;
-                                ruleError = $"Silnik odrzucił formułę: {ex.Message} (wzór: {mathFormula})";
+                                ruleError = $"Silnik odrzuciĹ‚ formuĹ‚Ä™: {ex.Message} (wzĂłr: {mathFormula})";
                             }
                             break;
 
                         default:
-                            ruleError = $"Nieznany typ reguły: '{rule.RuleType}'.";
+                            ruleError = $"Nieznany typ reguĹ‚y: '{rule.RuleType}'.";
                             rulePassed = false;
                             break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    // Walidator jest defensywny – nie wysadza aplikacji
+                    // Walidator jest defensywny â€“ nie wysadza aplikacji
                     rulePassed = false;
-                    ruleError = $"Wyjątek podczas walidacji reguły '{rule.RuleType}': {ex.Message}";
+                    ruleError = $"WyjÄ…tek podczas walidacji reguĹ‚y '{rule.RuleType}': {ex.Message}";
                 }
 
                 if (!rulePassed)
@@ -401,11 +396,11 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         // ==========================================
-        // HELPER: Resolver ścieżki JSON
+        // HELPER: Resolver Ĺ›cieĹĽki JSON
         // ==========================================
         /// <summary>
-        /// Rozwiązuje prostą ścieżkę do wartości w JObject (np. "Properties[0].PropertyName").
-        /// Defensywny – zwraca null przy błędzie zamiast rzucać wyjątek.
+        /// RozwiÄ…zuje prostÄ… Ĺ›cieĹĽkÄ™ do wartoĹ›ci w JObject (np. "Properties[0].PropertyName").
+        /// Defensywny â€“ zwraca null przy bĹ‚Ä™dzie zamiast rzucaÄ‡ wyjÄ…tek.
         /// </summary>
         private string ResolveJsonPath(JObject obj, string path)
         {
@@ -414,7 +409,7 @@ namespace Bricscad_AgentAI_V2.Core
             try
             {
                 JToken current = obj;
-                // Rozbijamy ścieżkę na segmenty (klucze i indeksy tablic)
+                // Rozbijamy Ĺ›cieĹĽkÄ™ na segmenty (klucze i indeksy tablic)
                 var segments = path.Replace("[", ".[").Split('.');
                 foreach (var seg in segments)
                 {
@@ -475,7 +470,7 @@ namespace Bricscad_AgentAI_V2.Core
             }
             catch (Exception ex)
             {
-                OnLogMessage?.Invoke(this, $"Błąd zapisu raportu: {ex.Message}");
+                OnLogMessage?.Invoke(this, $"BĹ‚Ä…d zapisu raportu: {ex.Message}");
             }
         }
     }

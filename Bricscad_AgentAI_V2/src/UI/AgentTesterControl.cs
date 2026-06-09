@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Bricscad.ApplicationServices;
 using System.Collections.Generic;
 using System.Drawing;
@@ -74,10 +74,10 @@ namespace Bricscad_AgentAI_V2.UI
             this.Font = new Font("Segoe UI", 9.5f);
             this.BackColor = Color.FromArgb(30, 30, 30);
 
-            // --- PANEL GÓRNY (Statystyki i Postęp) ---
+            // --- PANEL GĂ“RNY (Statystyki i PostÄ™p) ---
             Panel panTop = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(40, 40, 40), Padding = new Padding(10) };
             lblScore = new Label { Text = "Wynik: 0/0 pkt", Dock = DockStyle.Left, Width = 150, ForeColor = Color.Gold, Font = new Font(this.Font, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
-            lblTotalTime = new Label { Text = "Łączny Czas: 0.0 s", Dock = DockStyle.Left, Width = 180, ForeColor = Color.LightSkyBlue, Font = new Font(this.Font, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
+            lblTotalTime = new Label { Text = "ĹÄ…czny Czas: 0.0 s", Dock = DockStyle.Left, Width = 180, ForeColor = Color.LightSkyBlue, Font = new Font(this.Font, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
             
             pbProgress = new ProgressBar { Dock = DockStyle.Fill, Height = 20, Style = ProgressBarStyle.Continuous };
             panTop.Controls.Add(pbProgress);
@@ -87,11 +87,11 @@ namespace Bricscad_AgentAI_V2.UI
             // --- PASEK STATYSTYK DOLNY (HUD) ---
             Panel panHUD = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = Color.FromArgb(45, 45, 45), Padding = new Padding(5, 2, 5, 2) };
             lblStatus = new Label { Dock = DockStyle.Top, Height = 20, ForeColor = Color.Cyan, Font = new Font("Segoe UI", 8, FontStyle.Bold), Text = "Gotowy." };
-            lblStats = new Label { Dock = DockStyle.Top, Height = 20, ForeColor = Color.LightGray, Font = new Font("Consolas", 8), Text = "⏱ 0.0s | 🧠 0 tkn | ⚡ 0 t/s" };
+            lblStats = new Label { Dock = DockStyle.Top, Height = 20, ForeColor = Color.LightGray, Font = new Font("Consolas", 8), Text = "âŹ± 0.0s | đź§  0 tkn | âšˇ 0 t/s" };
             panHUD.Controls.Add(lblStats);
             panHUD.Controls.Add(lblStatus);
 
-            // --- GŁÓWNY KONTENER (PODZIAŁ PIONOWY) ---
+            // --- GĹĂ“WNY KONTENER (PODZIAĹ PIONOWY) ---
             SplitContainer splitMain = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterDistance = 300 };
 
             // PANEL LEWY (LISTA)
@@ -99,10 +99,10 @@ namespace Bricscad_AgentAI_V2.UI
             lbTests = new ListBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(45, 45, 48), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle, ItemHeight = 25 };
             lbTests.SelectedIndexChanged += LbTests_SelectedIndexChanged;
             
-            btnLoad = new Button { Text = "📂 Wczytaj JSON", Dock = DockStyle.Bottom, Height = 35, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(60, 60, 60), Cursor = Cursors.Hand };
+            btnLoad = new Button { Text = "đź“‚ Wczytaj JSON", Dock = DockStyle.Bottom, Height = 35, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(60, 60, 60), Cursor = Cursors.Hand };
             btnLoad.Click += BtnLoad_Click;
             
-            btnSaveReport = new Button { Text = "💾 Zapisz Raport", Dock = DockStyle.Bottom, Height = 35, FlatStyle = FlatStyle.Flat, ForeColor = Color.PaleGreen, BackColor = Color.FromArgb(50, 70, 50), Cursor = Cursors.Hand, Margin = new Padding(0, 5, 0, 0) };
+            btnSaveReport = new Button { Text = "đź’ľ Zapisz Raport", Dock = DockStyle.Bottom, Height = 35, FlatStyle = FlatStyle.Flat, ForeColor = Color.PaleGreen, BackColor = Color.FromArgb(50, 70, 50), Cursor = Cursors.Hand, Margin = new Padding(0, 5, 0, 0) };
             btnSaveReport.Click += BtnSaveReport_Click;
 
             panLeft.Controls.Add(lbTests);
@@ -121,26 +121,26 @@ namespace Bricscad_AgentAI_V2.UI
             Panel panProfile = new Panel { Dock = DockStyle.Top, Height = 30, Margin = new Padding(0, 5, 0, 5) };
             Label lblProfile = new Label { Text = "Profil Agenta:", Dock = DockStyle.Left, Width = 100, ForeColor = Color.LightSkyBlue, TextAlign = ContentAlignment.MiddleLeft };
             cbProfiles = new ComboBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
-            cbProfiles.Items.Add("Brak (Wszystkie Narzędzia / Monolit)");
+            cbProfiles.Items.Add("Brak (Wszystkie NarzÄ™dzia / Monolit)");
             cbProfiles.Items.Add("CadProfile");
             cbProfiles.Items.Add("SupervisorProfile");
             cbProfiles.Items.Add("CadGeometryProfile");
             cbProfiles.Items.Add("CadBlocksProfile");
             cbProfiles.Items.Add("CadMetadataProfile");
             cbProfiles.Items.Add("CadMathProfile");
-            cbProfiles.SelectedIndex = 1; // CadProfile domyślnie
+            cbProfiles.SelectedIndex = 1; // CadProfile domyĹ›lnie
             panProfile.Controls.Add(cbProfiles);
             panProfile.Controls.Add(lblProfile);
             panRight.Controls.Add(panProfile);
             
-            btnTest = new Button { Text = "🚀 TESTUJ INTENCJĘ I WYKONAJ (V2)", Dock = DockStyle.Top, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 10, 0, 10) };
+            btnTest = new Button { Text = "đźš€ TESTUJ INTENCJÄ I WYKONAJ (V2)", Dock = DockStyle.Top, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 10, 0, 10) };
             btnTest.Click += BtnTest_Click;
             panRight.Controls.Add(btnTest);
 
             // Panel Odpowiedzi
             Panel panReply = new Panel { Dock = DockStyle.Top, Height = 35, Padding = new Padding(0, 5, 0, 5) };
             txtUserReply = new TextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, Font = new Font(this.Font, FontStyle.Italic) };
-            btnReply = new Button { Text = "Wyślij Odpowiedź", Dock = DockStyle.Right, Width = 120, FlatStyle = FlatStyle.Flat, ForeColor = Color.Black, BackColor = Color.Khaki, Cursor = Cursors.Hand };
+            btnReply = new Button { Text = "WyĹ›lij OdpowiedĹş", Dock = DockStyle.Right, Width = 120, FlatStyle = FlatStyle.Flat, ForeColor = Color.Black, BackColor = Color.Khaki, Cursor = Cursors.Hand };
             btnReply.Click += BtnReply_Click;
             panReply.Controls.Add(txtUserReply);
             panReply.Controls.Add(btnReply);
@@ -151,7 +151,7 @@ namespace Bricscad_AgentAI_V2.UI
             txtGeneratedV2.BackColor = Color.Black;
             txtGeneratedV2.Font = new Font("Consolas", 10f);
 
-            txtComment = CreateLabelledTextBox(panRight, "Mój Komentarz / Analiza:", Color.White);
+            txtComment = CreateLabelledTextBox(panRight, "MĂłj Komentarz / Analiza:", Color.White);
             txtComment.Multiline = true;
             txtComment.Height = 50;
             txtComment.TextChanged += (s, e) => { if (!_isUpdating && lbTests.SelectedIndex >= 0) _currentTests[lbTests.SelectedIndex].Comment = txtComment.Text; };
@@ -205,7 +205,7 @@ namespace Bricscad_AgentAI_V2.UI
                         RefreshTestList();
                         RefreshScore();
                     }
-                    catch (Exception ex) { MessageBox.Show("Błąd wczytywania: " + ex.Message); }
+                    catch (Exception ex) { MessageBox.Show("BĹ‚Ä…d wczytywania: " + ex.Message); }
                 }
             }
         }
@@ -217,7 +217,7 @@ namespace Bricscad_AgentAI_V2.UI
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
                     try { File.WriteAllText(sfd.FileName, JsonConvert.SerializeObject(_currentTests, Newtonsoft.Json.Formatting.Indented)); MessageBox.Show("Raport zapisany!"); }
-                    catch (Exception ex) { MessageBox.Show("Błąd zapisu: " + ex.Message); }
+                    catch (Exception ex) { MessageBox.Show("BĹ‚Ä…d zapisu: " + ex.Message); }
                 }
             }
         }
@@ -252,7 +252,7 @@ namespace Bricscad_AgentAI_V2.UI
             int tested = _currentTests.Count(t => t.IsTested);
 
             lblScore.Text = $"Wynik: {score}/{total} pkt";
-            lblTotalTime.Text = $"Łączny Czas: {time:F1} s";
+            lblTotalTime.Text = $"ĹÄ…czny Czas: {time:F1} s";
             pbProgress.Maximum = _currentTests.Count;
             pbProgress.Value = tested;
         }
@@ -272,16 +272,10 @@ namespace Bricscad_AgentAI_V2.UI
 
         private string LoadSystemPromptForProfile(string profileName)
         {
-            var profiles = ToolConfigManager.GetProfiles();
-            if (profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
-            {
-                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
-                if (File.Exists(path))
-                {
-                    return File.ReadAllText(path, System.Text.Encoding.UTF8);
-                }
-            }
-            return "Jesteś asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie.";
+            string prompt = ToolConfigManager.LoadEffectivePromptForProfile(profileName);
+            return string.IsNullOrWhiteSpace(prompt)
+                ? "Jestes asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie."
+                : prompt;
         }
 
         private async void BtnTest_Click(object sender, EventArgs e)
@@ -290,7 +284,7 @@ namespace Bricscad_AgentAI_V2.UI
             var t = _currentTests[lbTests.SelectedIndex];
             
             btnTest.Enabled = false;
-            btnTest.Text = "⏳ WYKONYWANIE...";
+            btnTest.Text = "âŹł WYKONYWANIE...";
             txtGeneratedV2.Clear();
 
             try
@@ -300,7 +294,7 @@ namespace Bricscad_AgentAI_V2.UI
 
                 string selectedProfile = cbProfiles.SelectedItem?.ToString();
                 string profileName = null;
-                string systemPrompt = "Jesteś asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie.";
+                string systemPrompt = "JesteĹ› asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie.";
 
                 if (selectedProfile == "CadProfile")
                 {
@@ -328,8 +322,8 @@ namespace Bricscad_AgentAI_V2.UI
                 
                 t.GeneratedTag = response; // Uproszczone zapisanie intencji
             }
-            catch (Exception ex) { txtGeneratedV2.AppendText("BŁĄD: " + ex.Message); }
-            finally { btnTest.Enabled = true; btnTest.Text = "🚀 TESTUJ INTENCJĘ I WYKONAJ (V2)"; }
+            catch (Exception ex) { txtGeneratedV2.AppendText("BĹÄ„D: " + ex.Message); }
+            finally { btnTest.Enabled = true; btnTest.Text = "đźš€ TESTUJ INTENCJÄ I WYKONAJ (V2)"; }
         }
 
         private async void BtnReply_Click(object sender, EventArgs e)
@@ -353,7 +347,7 @@ namespace Bricscad_AgentAI_V2.UI
                 string response = result.DisplayMessage;
                 txtGeneratedV2.AppendText($"\n[REPLY RESPONSE]: {response}\n");
             }
-            catch (Exception ex) { txtGeneratedV2.AppendText("\nBŁĄD REPLy: " + ex.Message); }
+            catch (Exception ex) { txtGeneratedV2.AppendText("\nBĹÄ„D REPLy: " + ex.Message); }
             finally { btnReply.Enabled = true; }
         }
 
@@ -376,7 +370,7 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (this.InvokeRequired) { this.Invoke(new Action(() => UpdateStats(stats))); return; }
             double sec = stats.TotalTimeMs / 1000.0;
-            lblStats.Text = $"⏱ {sec:F1}s | 🧠 {stats.TotalTokens} tkn | ⚡ {stats.TokensPerSecond:F1} t/s";
+            lblStats.Text = $"âŹ± {sec:F1}s | đź§  {stats.TotalTokens} tkn | âšˇ {stats.TokensPerSecond:F1} t/s";
             
             if (lbTests.SelectedIndex >= 0) {
                 _currentTests[lbTests.SelectedIndex].ResponseTimeSec = sec;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,29 +27,19 @@ namespace Bricscad_AgentAI_V2.Core
         {
             CurrentSession = new ChatSession();
             
-            // Wstrzyknięcie profilu systemowego QA
+            // WstrzykniÄ™cie profilu systemowego QA
             string systemPrompt = LoadSystemPromptForProfile("AuditorProfile");
             if (string.IsNullOrEmpty(systemPrompt))
             {
-                systemPrompt = "Jesteś ekspertem QA i Audytorem Kodu w BricsCAD_AgentAI. Twoim zadaniem jest testowanie narzędzi C#, analizowanie logów i przeglądanie struktury projektu. Masz pełny dostęp do kodu źródłowego całego systemu Bielik V2 (katalog src). Masz do dyspozycji narzędzia ListSourceFiles oraz ReadSourceCode do eksplorowania pętli agentowej, rdzenia programu i komunikacji z BricsCAD, a także narzędzia do zapisu raportów.";
+                systemPrompt = "JesteĹ› ekspertem QA i Audytorem Kodu w BricsCAD_AgentAI. Twoim zadaniem jest testowanie narzÄ™dzi C#, analizowanie logĂłw i przeglÄ…danie struktury projektu. Masz peĹ‚ny dostÄ™p do kodu ĹşrĂłdĹ‚owego caĹ‚ego systemu Bielik V2 (katalog src). Masz do dyspozycji narzÄ™dzia ListSourceFiles oraz ReadSourceCode do eksplorowania pÄ™tli agentowej, rdzenia programu i komunikacji z BricsCAD, a takĹĽe narzÄ™dzia do zapisu raportĂłw.";
             }
             CurrentSession.Messages.Add(new ChatMessage { Role = "system", Content = systemPrompt });
             
             SaveSession(CurrentSession);
         }
-
         private static string LoadSystemPromptForProfile(string profileName)
         {
-            var profiles = ToolConfigManager.GetProfiles();
-            if (profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
-            {
-                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
-                if (File.Exists(path))
-                {
-                    return File.ReadAllText(path, System.Text.Encoding.UTF8);
-                }
-            }
-            return null;
+            return ToolConfigManager.LoadEffectivePromptForProfile(profileName);
         }
 
         public static void LoadSession(string sessionId)
@@ -96,7 +86,7 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 catch (Exception ex)
                 {
-                    BielikLogger.LogWarn($"Nie udało się załadować sesji QA {file}: {ex.Message}");
+                    BielikLogger.LogWarn($"Nie udaĹ‚o siÄ™ zaĹ‚adowaÄ‡ sesji QA {file}: {ex.Message}");
                 }
             }
             return sessions.OrderByDescending(s => s.UpdatedAt).ToList();
@@ -126,7 +116,7 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     var msgs = new List<ChatMessage>
                     {
-                        new ChatMessage { Role = "system", Content = "Podsumuj temat tej sesji QA w maksymalnie 3-4 słowach. Odpowiedz samym podsumowaniem, bez komentarza." },
+                        new ChatMessage { Role = "system", Content = "Podsumuj temat tej sesji QA w maksymalnie 3-4 sĹ‚owach. Odpowiedz samym podsumowaniem, bez komentarza." },
                         new ChatMessage { Role = "user", Content = string.Join("\n", session.Messages.Where(m => m.Role != "system" && m.Content != null).Select(m => m.Content.ToString()).Take(3)) }
                     };
                     
@@ -139,7 +129,7 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 catch (Exception ex)
                 {
-                    BielikLogger.LogWarn($"Nie udało się nadać nazwy sesji QA: {ex.Message}");
+                    BielikLogger.LogWarn($"Nie udaĹ‚o siÄ™ nadaÄ‡ nazwy sesji QA: {ex.Message}");
                 }
             });
         }

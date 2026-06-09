@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Bricscad.ApplicationServices;
 using System.Collections.Generic;
 using System.Drawing;
@@ -36,10 +36,10 @@ namespace Bricscad_AgentAI_V2.UI
 
             SplitContainer splitAuto = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 300 };
             
-            // PANEL LEWY (Lista narzędzi)
+            // PANEL LEWY (Lista narzÄ™dzi)
             Panel panLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
             
-            Label lblTools = new Label { Text = "Dostępne narzędzia (IToolV2):", Dock = DockStyle.Top, Height = 25, ForeColor = Color.LightSkyBlue, TextAlign = ContentAlignment.MiddleLeft };
+            Label lblTools = new Label { Text = "DostÄ™pne narzÄ™dzia (IToolV2):", Dock = DockStyle.Top, Height = 25, ForeColor = Color.LightSkyBlue, TextAlign = ContentAlignment.MiddleLeft };
             panLeft.Controls.Add(lblTools);
 
             lvAutoTools = new ListView {
@@ -53,12 +53,12 @@ namespace Bricscad_AgentAI_V2.UI
                 GridLines = true,
                 HeaderStyle = ColumnHeaderStyle.Nonclickable
             };
-            lvAutoTools.Columns.Add("Narzędzie", 250);
+            lvAutoTools.Columns.Add("NarzÄ™dzie", 250);
             lvAutoTools.Columns.Add("Statyczne", 85);
             lvAutoTools.Columns.Add("Interaktywne", 100);
             lvAutoTools.Columns.Add("Status", 180);
             ContextMenuStrip ctxMenu = new ContextMenuStrip();
-            var showHistoryItem = ctxMenu.Items.Add("Pokaż historię testów");
+            var showHistoryItem = ctxMenu.Items.Add("PokaĹĽ historiÄ™ testĂłw");
             showHistoryItem.Click += (s, e) => {
                 if (lvAutoTools.SelectedItems.Count > 0)
                 {
@@ -67,10 +67,10 @@ namespace Bricscad_AgentAI_V2.UI
                     if (File.Exists(logPath))
                         System.Diagnostics.Process.Start(logPath);
                     else
-                        MessageBox.Show("Brak historii dla tego narzędzia.");
+                        MessageBox.Show("Brak historii dla tego narzÄ™dzia.");
                 }
             };
-            var markFixedItem = ctxMenu.Items.Add("Oznacz jako poprawione (Ręcznie)");
+            var markFixedItem = ctxMenu.Items.Add("Oznacz jako poprawione (RÄ™cznie)");
             markFixedItem.Click += (s, e) => {
                 if (lvAutoTools.SelectedItems.Count > 0)
                 {
@@ -78,7 +78,7 @@ namespace Bricscad_AgentAI_V2.UI
                     AutotestRegistry.MarkAsFixed(toolName);
                     string logPath = Path.Combine(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "..", "..")), "Autotesty", "Logs", $"{toolName}_History.md");
                     if (!Directory.Exists(Path.GetDirectoryName(logPath))) Directory.CreateDirectory(Path.GetDirectoryName(logPath));
-                    File.AppendAllText(logPath, $"\n\n## [USER FIX] - {DateTime.Now:yyyy-MM-dd HH:mm:ss}\nUżytkownik ręcznie oznaczył narzędzie jako poprawione.\n---\n");
+                    File.AppendAllText(logPath, $"\n\n## [USER FIX] - {DateTime.Now:yyyy-MM-dd HH:mm:ss}\nUĹĽytkownik rÄ™cznie oznaczyĹ‚ narzÄ™dzie jako poprawione.\n---\n");
                     LoadAutotestTools();
                 }
             };
@@ -97,7 +97,7 @@ namespace Bricscad_AgentAI_V2.UI
             panButtons.Controls.Add(btnSelectAll);
             panLeft.Controls.Add(panButtons);
 
-            btnRunAutotest = new Button { Text = "🚀 URUCHOM AUTOTEST", Dock = DockStyle.Bottom, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 5, 0, 0) };
+            btnRunAutotest = new Button { Text = "đźš€ URUCHOM AUTOTEST", Dock = DockStyle.Bottom, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 5, 0, 0) };
             btnRunAutotest.Click += BtnRunAutotest_Click;
             panLeft.Controls.Add(btnRunAutotest);
 
@@ -163,30 +163,24 @@ namespace Bricscad_AgentAI_V2.UI
 
         private string LoadSystemPromptForProfile(string profileName)
         {
-            var profiles = ToolConfigManager.GetProfiles();
-            if (profiles.TryGetValue(profileName, out var profile) && !string.IsNullOrEmpty(profile.SystemPromptFile))
-            {
-                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), profile.SystemPromptFile);
-                if (File.Exists(path))
-                {
-                    return File.ReadAllText(path, System.Text.Encoding.UTF8);
-                }
-            }
-            return "Jesteś asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie.";
+            string prompt = ToolConfigManager.LoadEffectivePromptForProfile(profileName);
+            return string.IsNullOrWhiteSpace(prompt)
+                ? "Jestes asystentem BricsCAD V2. Odpowiadaj z Tool Calling. Wykonuj zadania precyzyjnie."
+                : prompt;
         }
 
         private async void BtnRunAutotest_Click(object sender, EventArgs e)
         {
             if (lvAutoTools.CheckedItems.Count == 0)
             {
-                MessageBox.Show("Zaznacz co najmniej jedno narzędzie do przetestowania.");
+                MessageBox.Show("Zaznacz co najmniej jedno narzÄ™dzie do przetestowania.");
                 return;
             }
 
             btnRunAutotest.Enabled = false;
-            btnRunAutotest.Text = "⏳ TRWA AUTOTEST...";
+            btnRunAutotest.Text = "âŹł TRWA AUTOTEST...";
             txtAutoConsole.Clear();
-            AppendAutoLog($"[SYSTEM] Rozpoczynanie autotestu dla {lvAutoTools.CheckedItems.Count} narzędzi o godzinie {DateTime.Now:HH:mm:ss}...", Color.Cyan);
+            AppendAutoLog($"[SYSTEM] Rozpoczynanie autotestu dla {lvAutoTools.CheckedItems.Count} narzÄ™dzi o godzinie {DateTime.Now:HH:mm:ss}...", Color.Cyan);
 
             string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
@@ -198,15 +192,15 @@ namespace Bricscad_AgentAI_V2.UI
                 foreach (ListViewItem item in lvAutoTools.CheckedItems)
                 {
                     string toolName = item.Text;
-                    AppendAutoLog($"\n[TEST] ---> Narzędzie: {toolName}", Color.Yellow);
+                    AppendAutoLog($"\n[TEST] ---> NarzÄ™dzie: {toolName}", Color.Yellow);
                     
                     AgentMemoryState.Clear();
                     AgentMemoryState.Variables.Clear();
 
                     string systemPrompt = LoadSystemPromptForProfile("AuditorProfile");
-                    if (string.IsNullOrEmpty(systemPrompt) || systemPrompt.Contains("Jesteś asystentem BricsCAD"))
+                    if (string.IsNullOrEmpty(systemPrompt) || systemPrompt.Contains("JesteĹ› asystentem BricsCAD"))
                     {
-                        systemPrompt = "Jesteś Rewidentem (QA Agent). Twoim zadaniem jest przeprowadzenie rygorystycznego testu logiki narzędzia.";
+                        systemPrompt = "JesteĹ› Rewidentem (QA Agent). Twoim zadaniem jest przeprowadzenie rygorystycznego testu logiki narzÄ™dzia.";
                     }
 
                     string prompt = "";
@@ -215,24 +209,24 @@ namespace Bricscad_AgentAI_V2.UI
                     if (rbStatic.Checked)
                     {
                         string sourceCode = GetToolSourceCode(toolName);
-                        prompt = $@"Przeprowadź pełny audyt statyczny (Static Analysis) dla narzędzia: {toolName}.
+                        prompt = $@"PrzeprowadĹş peĹ‚ny audyt statyczny (Static Analysis) dla narzÄ™dzia: {toolName}.
 
-Oto kod źródłowy C# tego narzędzia:
+Oto kod ĹşrĂłdĹ‚owy C# tego narzÄ™dzia:
 ```csharp
 {sourceCode}
 ```
 
 Zadanie:
-1. Przeanalizuj logikę, walidację parametrów i bezpieczeństwo.
-2. Zidentyfikuj ewentualne błędy i luki.
-3. Wygeneruj krótki Raport Audytu (Markdown).
-UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi #all), więc testuj wyłącznie statycznie.";
-                        toolsPayload = new string[0]; // Brak narzędzi do wykonania
+1. Przeanalizuj logikÄ™, walidacjÄ™ parametrĂłw i bezpieczeĹ„stwo.
+2. Zidentyfikuj ewentualne bĹ‚Ä™dy i luki.
+3. Wygeneruj krĂłtki Raport Audytu (Markdown).
+UWAGA: ZablokowaĹ‚em Ci moĹĽliwoĹ›Ä‡ fizycznego wywoĹ‚ania narzÄ™dzi (brak flagi #all), wiÄ™c testuj wyĹ‚Ä…cznie statycznie.";
+                        toolsPayload = new string[0]; // Brak narzÄ™dzi do wykonania
                     }
                     else
                     {
-                        prompt = $"Zleć Rewidentowi przetestowanie logiki polecenia {toolName}. Zwaliduj jego parametry i wywołaj je. UWAGA: To jest TEST INTERAKTYWNY, możesz fizycznie modyfikować rysunek lub wywołać monity w konsoli. Wygeneruj krótki raport.";
-                        toolsPayload = new[] { "#all" }; // Pełen dostęp
+                        prompt = $"ZleÄ‡ Rewidentowi przetestowanie logiki polecenia {toolName}. Zwaliduj jego parametry i wywoĹ‚aj je. UWAGA: To jest TEST INTERAKTYWNY, moĹĽesz fizycznie modyfikowaÄ‡ rysunek lub wywoĹ‚aÄ‡ monity w konsoli. Wygeneruj krĂłtki raport.";
+                        toolsPayload = new[] { "#all" }; // PeĹ‚en dostÄ™p
                     }
 
                     var history = new List<ChatMessage> {
@@ -246,37 +240,37 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
                     string response = result.DisplayMessage;
                     
                     bool passed = true;
-                    if (response.ToLower().Contains("błąd") || response.ToLower().Contains("error") || response.ToLower().Contains("niepowodzenie") || response.Contains("FAILED"))
+                    if (response.ToLower().Contains("bĹ‚Ä…d") || response.ToLower().Contains("error") || response.ToLower().Contains("niepowodzenie") || response.Contains("FAILED"))
                     {
-                        AppendAutoLog($"[WYNIK] {toolName}: Znaleziono potencjalne błędy.", Color.OrangeRed);
+                        AppendAutoLog($"[WYNIK] {toolName}: Znaleziono potencjalne bĹ‚Ä™dy.", Color.OrangeRed);
                         passed = false;
                     }
                     else
                     {
-                        AppendAutoLog($"[WYNIK] {toolName}: Zakończono pomyślnie.", Color.LimeGreen);
+                        AppendAutoLog($"[WYNIK] {toolName}: ZakoĹ„czono pomyĹ›lnie.", Color.LimeGreen);
                     }
                     AppendAutoLog(response, Color.LightGray);
 
                     AutotestRegistry.UpdateRecord(toolName, rbStatic.Checked, passed);
 
                     string logPath = Path.Combine(logsDir, $"{toolName}_History.md");
-                    string logContent = $"\n\n## Raport Autotestu - {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n**Tryb:** {(rbStatic.Checked ? "Statyczny" : "Interaktywny")}\n**Wynik:** {(passed ? "Sukces" : "Błędy")}\n\n{response}\n---";
+                    string logContent = $"\n\n## Raport Autotestu - {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n**Tryb:** {(rbStatic.Checked ? "Statyczny" : "Interaktywny")}\n**Wynik:** {(passed ? "Sukces" : "BĹ‚Ä™dy")}\n\n{response}\n---";
                     File.AppendAllText(logPath, logContent);
                 }
 
-                // Odśwież tabelę po zakończeniu testów
+                // OdĹ›wieĹĽ tabelÄ™ po zakoĹ„czeniu testĂłw
                 LoadAutotestTools();
 
-                AppendAutoLog($"\n[SYSTEM] Zakończono wszystkie testy. Logi zapisane w folderze Autotesty/Logs/", Color.Cyan);
+                AppendAutoLog($"\n[SYSTEM] ZakoĹ„czono wszystkie testy. Logi zapisane w folderze Autotesty/Logs/", Color.Cyan);
             }
             catch (Exception ex)
             {
-                AppendAutoLog($"\n[KRYTYCZNY BŁĄD AUTOTESTU]: {ex.Message}", Color.Red);
+                AppendAutoLog($"\n[KRYTYCZNY BĹÄ„D AUTOTESTU]: {ex.Message}", Color.Red);
             }
             finally
             {
                 btnRunAutotest.Enabled = true;
-                btnRunAutotest.Text = "🚀 URUCHOM AUTOTEST";
+                btnRunAutotest.Text = "đźš€ URUCHOM AUTOTEST";
             }
         }
 
@@ -285,7 +279,7 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
             try
             {
                 string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                // Szukamy w folderze src (wyżej w drzewie katalogów z bin/Debug)
+                // Szukamy w folderze src (wyĹĽej w drzewie katalogĂłw z bin/Debug)
                 string rootDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..")); 
                 string toolsDir = Path.Combine(rootDir, "src", "Tools");
                 
@@ -304,11 +298,11 @@ UWAGA: Zablokowałem Ci możliwość fizycznego wywołania narzędzi (brak flagi
                         return File.ReadAllText(match);
                     }
                 }
-                return "// NIE ZNALEZIONO KODU ŹRÓDŁOWEGO NARZĘDZIA W FOLDERZE SRC/TOOLS";
+                return "// NIE ZNALEZIONO KODU ĹąRĂ“DĹOWEGO NARZÄDZIA W FOLDERZE SRC/TOOLS";
             }
             catch (Exception ex)
             {
-                return $"// BŁĄD PODCZAS ODCZYTU KODU ŹRÓDŁOWEGO: {ex.Message}";
+                return $"// BĹÄ„D PODCZAS ODCZYTU KODU ĹąRĂ“DĹOWEGO: {ex.Message}";
             }
         }
     }

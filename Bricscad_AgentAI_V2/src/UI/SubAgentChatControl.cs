@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Bricscad.ApplicationServices;
+using Bricscad.EditorInput;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json;
@@ -126,10 +127,10 @@ namespace Bricscad_AgentAI_V2.UI
                 Padding = new Padding(8, 0, 0, 0)
             };
 
-            btnSend = CreateButton("Wyślij", Color.FromArgb(0, 122, 204));
+            btnSend = CreateButton("WyĹ›lij", Color.FromArgb(0, 122, 204));
             btnSend.Click += BtnSend_Click;
 
-            btnClear = CreateButton("Wyczyść", Color.FromArgb(90, 90, 90));
+            btnClear = CreateButton("WyczyĹ›Ä‡", Color.FromArgb(90, 90, 90));
             btnClear.Click += BtnClear_Click;
 
             panInputButtons.Controls.Add(btnSend);
@@ -274,14 +275,14 @@ namespace Bricscad_AgentAI_V2.UI
                 return;
             }
 
-            string systemPrompt = LoadSystemPrompt(profile.SystemPromptFile);
+            string systemPrompt = ToolConfigManager.LoadEffectivePromptForProfile(profileName);
             _history.Add(new ChatMessage { Role = "system", Content = systemPrompt });
 
             int toolCount = _orchestrator.GetToolsPayloadForProfile(profileName).Count;
-            lblProfileInfo.Text = $"Prompt: {profile.SystemPromptFile} | Tools: {toolCount}";
-
+            bool hasUserOverride = !string.IsNullOrWhiteSpace(ToolConfigManager.GetUserPromptOverride(profileName));
+            lblProfileInfo.Text = $"Prompt: {profile.SystemPromptFile} | UserPrompt: {(hasUserOverride ? "Tak" : "Nie")} | Tools: {toolCount}";
             AppendSystemMessage($"Tryb testowy aktywny dla profilu `{profileName}`.");
-            AppendSystemMessage($"Załadowano prompt `{profile.SystemPromptFile}` i {toolCount} narzędzi.");
+            AppendSystemMessage($"ZaĹ‚adowano prompt `{profile.SystemPromptFile}` i {toolCount} narzÄ™dzi.");
             AppendToolSection(BuildProfileSnapshot(profileName, profile, toolCount));
             UpdateStatus("Gotowy.");
         }
@@ -292,6 +293,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 Profile = profileName,
                 profile.SystemPromptFile,
+                UserPromptOverride = !string.IsNullOrWhiteSpace(ToolConfigManager.GetUserPromptOverride(profileName)),
                 ToolCount = toolCount,
                 AllowedTools = profile.AllowedTools ?? new List<string>(),
                 AllowedTags = profile.AllowedTags ?? new List<string>()
@@ -305,22 +307,6 @@ namespace Bricscad_AgentAI_V2.UI
             return cbProfiles.SelectedItem?.ToString();
         }
 
-        private string LoadSystemPrompt(string fileName)
-        {
-            if (string.IsNullOrWhiteSpace(fileName))
-            {
-                return "Jesteś wyspecjalizowanym subagentem systemu Bielik V2.";
-            }
-
-            string baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            string fullPath = Path.Combine(baseDir, fileName);
-            if (!File.Exists(fullPath))
-            {
-                return $"Jesteś wyspecjalizowanym subagentem systemu Bielik V2. Nie znaleziono pliku promptu: {fileName}.";
-            }
-
-            return File.ReadAllText(fullPath, Encoding.UTF8);
-        }
 
         private async void BtnSend_Click(object sender, EventArgs e)
         {
@@ -335,7 +321,6 @@ namespace Bricscad_AgentAI_V2.UI
             AppendUserMessage(text);
 
             int historyStartIndex = _history.Count;
-            _history.Add(new ChatMessage { Role = "user", Content = text });
 
             btnSend.Enabled = false;
             UpdateStatus($"Przetwarzanie przez {profileName}...");
@@ -343,6 +328,11 @@ namespace Bricscad_AgentAI_V2.UI
             try
             {
                 Document doc = Application.DocumentManager.MdiActiveDocument;
+                SyncImpliedSelectionToAgentMemory(doc);
+
+                string payload = BuildContextualPayload(text, doc);
+                _history.Add(new ChatMessage { Role = "user", Content = payload });
+
                 var result = await Task.Run(async () =>
                     await _client.SendMessageReActAsync(
                         _history,
@@ -361,12 +351,76 @@ namespace Bricscad_AgentAI_V2.UI
             }
             catch (Exception ex)
             {
-                AppendSystemMessage($"Błąd: {ex.Message}");
+                AppendSystemMessage($"BĹ‚Ä…d: {ex.Message}");
             }
             finally
             {
                 btnSend.Enabled = true;
                 UpdateStatus("Gotowy.");
+            }
+        }
+
+        private string BuildContextualPayload(string userText, Document doc)
+        {
+            int selectionCount = AgentMemoryState.ActiveSelection?.Length ?? 0;
+            string drawingPath = doc?.Name ?? string.Empty;
+            string lowerText = userText.ToLowerInvariant();
+
+            bool selectionScopedIntent =
+                lowerText.Contains("zaznaczon") ||
+                lowerText.Contains("wybran") ||
+                lowerText.Contains("selection") ||
+                lowerText.Contains("active") ||
+                lowerText.Contains("ten blok") ||
+                lowerText.Contains("tego bloku") ||
+                lowerText.Contains("tym bloku") ||
+                lowerText.Contains("ten obiekt") ||
+                lowerText.Contains("tego obiektu") ||
+                lowerText.Contains("tym obiekcie");
+
+            var sb = new StringBuilder();
+            if (!string.IsNullOrWhiteSpace(drawingPath))
+            {
+                sb.Append($"[Kontekst: aktywny plik to {drawingPath}; ActiveSelection zawiera {selectionCount} obiekt(Ăłw)]");
+            }
+            else
+            {
+                sb.Append($"[Kontekst: ActiveSelection zawiera {selectionCount} obiekt(Ăłw)]");
+            }
+
+            if (selectionScopedIntent)
+            {
+                sb.Append(" [ReguĹ‚a: uĹĽytkownik odnosi siÄ™ do zaznaczonych lub wybranych obiektĂłw. Operuj wyĹ‚Ä…cznie na obecnym ActiveSelection. Nie uĹĽywaj SelectEntities z Mode=New i nie rozszerzaj zakresu na caĹ‚y model, chyba ĹĽe uĹĽytkownik wyraĹşnie poprosi o nowe wyszukiwanie.]");
+            }
+
+            sb.AppendLine();
+            sb.Append(userText);
+            return sb.ToString();
+        }
+
+        private void SyncImpliedSelectionToAgentMemory(Document doc)
+        {
+            if (doc == null)
+            {
+                AgentMemoryState.Clear();
+                return;
+            }
+
+            try
+            {
+                PromptSelectionResult selRes = doc.Editor.SelectImplied();
+                if (selRes.Status == PromptStatus.OK && selRes.Value != null)
+                {
+                    AgentMemoryState.Update(selRes.Value.GetObjectIds());
+                }
+                else
+                {
+                    AgentMemoryState.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogError("BĹ‚Ä…d synchronizacji zaznaczenia BricsCAD w Agent-Czat", ex);
             }
         }
 
