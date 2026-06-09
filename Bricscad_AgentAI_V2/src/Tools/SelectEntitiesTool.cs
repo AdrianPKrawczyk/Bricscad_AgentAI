@@ -45,14 +45,14 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "EntityType", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Klasa obiektu CAD jakiego poszukujesz. Obsługuje filtry Wildcard zaczynające się gwiazdką np. '*Line' dopasuje zarowno Line jak i Polyline. Użyj '*' albo '*Entity' w poszukiwaniu wszystkich klas."
+                                    Description = "Klasa obiektu CAD jakiego poszukujesz. Obsluguje filtry Wildcard zaczynajace sie gwiazdka, np. '*Line' dopasuje zarowno Line jak i Polyline. Dla wyszukiwania blokow po nazwie zwykle uzywaj EntityType='*BlockReference' oraz Conditions z Prop='Name'. Uzyj '*' albo '*Entity' w poszukiwaniu wszystkich klas."
                                 }
                             },
                             {
                                 "Conditions", new ToolParameter
                                 {
                                     Type = "array",
-                                    Description = "Tablica słowników warunków. Przykładowa konwencja: [ { \"Prop\": \"Layer\", \"Op\": \"==\", \"Val\": \"ściany_nośne\" }, { \"Prop\": \"Length\", \"Op\": \">=\", \"Val\": \"25.0\" } ]. Operator op = \"in\" działa dla Val postaci po przecinku np. \"1,2,3\""
+                                    Description = "Tablica slownikow warunkow. Przykladowa konwencja: [ { \"Prop\": \"Layer\", \"Op\": \"==\", \"Val\": \"sciany_nosne\" }, { \"Prop\": \"Length\", \"Op\": \">=\", \"Val\": \"25.0\" } ]. Dla blokow po nazwie uzywaj np. [ { \"Prop\": \"Name\", \"Op\": \"==\", \"Val\": \"CPHS_255\" } ]. Operator op = \"in\" dziala dla Val postaci po przecinku np. \"1,2,3\""
                                 }
                             },
                             {

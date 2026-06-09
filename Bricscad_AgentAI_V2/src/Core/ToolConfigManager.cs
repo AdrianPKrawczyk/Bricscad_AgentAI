@@ -250,6 +250,26 @@ namespace Bricscad_AgentAI_V2.Core
 
         private static void EnsureAuditorPromptFile() => EnsurePromptFile(AuditorPromptFile, "Jestes profilem AuditorProfile. Analizujesz, testujesz i raportujesz problemy w systemie Bielik V2, dbajac o bezpieczne testy i diagnostyke.");
 
+        private static bool EnsureAllowedTools(AgentProfileConfig profile, IEnumerable<string> defaults)
+        {
+            bool changed = false;
+            if (profile.AllowedTools == null)
+            {
+                profile.AllowedTools = new List<string>();
+                changed = true;
+            }
+
+            foreach (var tool in defaults)
+            {
+                if (!profile.AllowedTools.Contains(tool))
+                {
+                    profile.AllowedTools.Add(tool);
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
 
         private static void SyncWithTools(IEnumerable<IToolV2> registeredTools)
         {
@@ -288,14 +308,7 @@ namespace Bricscad_AgentAI_V2.Core
                 supervisorProf.AllowedTools = new List<string>();
                 changed = true;
             }
-            foreach (var tool in supervisorDefaults)
-            {
-                if (!supervisorProf.AllowedTools.Contains(tool))
-                {
-                    supervisorProf.AllowedTools.Add(tool);
-                    changed = true;
-                }
-            }
+            if (EnsureAllowedTools(supervisorProf, supervisorDefaults)) changed = true;
 
             // 2. Zabezpieczenie/Synchronizacja CadProfile
             if (!_config.Profiles.TryGetValue("CadProfile", out var cadProf))
@@ -323,14 +336,7 @@ namespace Bricscad_AgentAI_V2.Core
                 cadProf.AllowedTools = new List<string>();
                 changed = true;
             }
-            foreach (var tool in cadDefaults)
-            {
-                if (!cadProf.AllowedTools.Contains(tool))
-                {
-                    cadProf.AllowedTools.Add(tool);
-                    changed = true;
-                }
-            }
+            if (EnsureAllowedTools(cadProf, cadDefaults)) changed = true;
 
             // 3. Zabezpieczenie/Synchronizacja CadGeometryProfile
             if (!_config.Profiles.TryGetValue("CadGeometryProfile", out var geomProf))
@@ -349,6 +355,7 @@ namespace Bricscad_AgentAI_V2.Core
                 geomProf.SystemPromptFile = GeometryPromptFile;
                 changed = true;
             }
+            if (EnsureAllowedTools(geomProf, new[] { "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "DimensionEditTool", "TextEditTool", "manage_lisps" })) changed = true;
 
             // 4. Zabezpieczenie/Synchronizacja CadBlocksProfile
             if (!_config.Profiles.TryGetValue("CadBlocksProfile", out var blocksProf))
@@ -356,7 +363,7 @@ namespace Bricscad_AgentAI_V2.Core
                 blocksProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = BlocksPromptFile, 
-                    AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps" },
+                    AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps" },
                     AllowedTags = new List<string> { "#bloki" }
                 };
                 _config.Profiles["CadBlocksProfile"] = blocksProf;
@@ -367,6 +374,7 @@ namespace Bricscad_AgentAI_V2.Core
                 blocksProf.SystemPromptFile = BlocksPromptFile;
                 changed = true;
             }
+            if (EnsureAllowedTools(blocksProf, new[] { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps" })) changed = true;
 
             // 5. Zabezpieczenie/Synchronizacja CadMetadataProfile
             if (!_config.Profiles.TryGetValue("CadMetadataProfile", out var metadataProf))
@@ -385,6 +393,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf.SystemPromptFile = MetadataPromptFile;
                 changed = true;
             }
+            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "manage_lisps" })) changed = true;
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
@@ -404,14 +413,7 @@ namespace Bricscad_AgentAI_V2.Core
                 mathProf.AllowedTools = new List<string>();
                 changed = true;
             }
-            foreach (var tool in mathDefaults)
-            {
-                if (!mathProf.AllowedTools.Contains(tool))
-                {
-                    mathProf.AllowedTools.Add(tool);
-                    changed = true;
-                }
-            }
+            if (EnsureAllowedTools(mathProf, mathDefaults)) changed = true;
             if (mathProf.AllowedTools.RemoveAll(t => string.Equals(t, "CalculateRpn", StringComparison.OrdinalIgnoreCase)) > 0)
             {
                 changed = true;
@@ -448,14 +450,7 @@ namespace Bricscad_AgentAI_V2.Core
                 auditorProf.AllowedTools = new List<string>();
                 changed = true;
             }
-            foreach (var tool in auditorDefaults)
-            {
-                if (!auditorProf.AllowedTools.Contains(tool))
-                {
-                    auditorProf.AllowedTools.Add(tool);
-                    changed = true;
-                }
-            }
+            if (EnsureAllowedTools(auditorProf, auditorDefaults)) changed = true;
 
             if (changed) SaveConfig();
         }
@@ -512,7 +507,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["CadBlocksProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = BlocksPromptFile,
-                AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
+                AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
                 AllowedTags = new List<string> { "#bloki" }
             };
 

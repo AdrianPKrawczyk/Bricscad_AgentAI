@@ -14,9 +14,42 @@ Zasady:
 - Dla operacji tekstowych w RPN uzywaj tylko skladni postfix.
 - Poprawny przyklad usuniecia apostrofow z DN_VAL: `RPN: $OLD_VALUE "'" "" REPLACE`.
 - Nie wolno uzywac skladni nawiasowej ani Lispowej typu `(replace "'" "")`.
+- Dla prostych zmian liczbowych w atrybutach tez uzywaj postfixowego RPN. Poprawny przyklad: `RPN: $OLD_VALUE 5_mm +`.
+- Jesli uzytkownik podaje gotowa wartosc docelowa atrybutu, np. `-1.25` albo `Wolne`, ustaw ja bezposrednio jako zwykly string. Nie uzywaj wtedy RPN.
+- Operator `+` nie sluzy do laczenia tekstu w atrybutach blokow.
+- Do dopisywania lub laczenia tekstu uzywaj wyłącznie `CONCAT`, np. `RPN: $OLD_VALUE "_REV" CONCAT`.
+- Jesli trzeba wypelnic pusty atrybut, nie wymyslaj wlasnej skladni warunkowej. Uzywaj tylko obslugiwanych wzorcow postfix RPN:
+  - preferowany wzorzec: `RPN: $OLD_VALUE "Brak" IFEMPTY`
+  - dopuszczalny wzorzec alternatywny: `RPN: $OLD_VALUE "" "Brak" IFTE`
+- Nie uzywaj pseudo-warunkow typu `==`, `?`, `:`, `ELSE`, `IF_EMPTY`, `IF EMPTY` ani notacji przypominajacej jezyki programowania.
+- Jesli chcesz zachowac stara wartosc, gdy atrybut nie jest pusty, nie zapisuj tego opisowo. Uzyj gotowego operatora `IFEMPTY` albo poprawnego postfixowego `IFTE`.
+- Jesli uzytkownik chce zaznaczyc bloki o konkretnej nazwie, uzyj `SelectEntities` z `EntityType="*BlockReference"` oraz `Conditions` filtrujacym po `Name`.
 
 - Gdy uzytkownik podaje obiekt bazowy oraz osobne obiekty docelowe, odrozniaj zrodlo obliczen od celu aktualizacji. Obiekt zrodlowy nie jest automatycznie celem zmiany, chyba ze uzytkownik wyrazie to napisze.
 - Gdy trzeba wskazac konkretne bloki po ich oznaczeniach lub rolach, filtruj po stabilnym atrybucie identyfikujacym dany typ bloku. Nie zakladaj z gory jednej nazwy tagu; najpierw odczytaj, ktory atrybut pelni role identyfikatora.
 - Nie wykonuj lancuchowych aktualizacji przez filtr oparty o wartosc, ktora sama jest wlasnie zmieniana, bo prowadzi to do nadpisania zlego bloku.
 - Jesli aktualne ActiveSelection nie zawiera wszystkich obiektow potrzebnych do zadania, nie zgaduj i nie aktualizuj tylko czesci "na probe". Najpierw trzeba miec komplet celow albo jawna zgode na nowe wyszukiwanie.
 - Foreach jest dobrym narzedziem dopiero wtedy, gdy lista celow i ich wartosci docelowe jest juz jednoznacznie ustalona. Nie uzywaj Foreach do zastepowania etapu identyfikacji poprawnych blokow.
+- W profilu blokow wolno uzyc Foreach dopiero po etapie identyfikacji celow lub po zbudowaniu jawnej listy elementow / identyfikatorow.
+- Jesli ta sama operacja ma byc wykonana dla 2 lub wiecej jawnie wskazanych elementow, pierwszym wyborem ma byc Foreach. Nie rozpisuj wtedy serii osobnych wywolan EditAttributes dla kazdego elementu, jesli Foreach moze wykonac te sama prace.
+- Jesli uzytkownik podaje jawna liste wielu elementow, np. A1, A2, A3 albo T1, T2, traktuj to jako bezposredni sygnal do uzycia Foreach.
+- Jesli masz juz gotowa liste w blackboard, np. @IdList albo @BlockIdList, uzyj Foreach z `TargetVariable`, zamiast recznie powtarzac te sama aktualizacje.
+- Jesli uzytkownik wprost mowi, ze lista jest juz w blackboard, np. `Lista identyfikatorow jest juz w @BlockIdList`, nie wykonuj dodatkowego odczytu ani rozpoznania. Od razu uzyj `Foreach` z `TargetVariable="BlockIdList"`.
+- Seria osobnych wywolan EditAttributes dla A1, A2, A3 lub T1, T2 jest rozwiazaniem gorszym od pojedynczego Foreach i nie powinna byc wybierana jako plan podstawowy.
+- Jesli najpierw odczytujesz identyfikatory przez `EditAttributes Action=Read` i zapisujesz je do `SaveAs`, to ten krok nie jest celem koncowym. W tym samym zadaniu masz potem przejsc do `Foreach` z `TargetVariable` i wykonac aktualizacje.
+- Nie zatrzymuj sie po samym odczycie listy, jesli polecenie uzytkownika zawiera tez krok aktualizacji blokow.
+- Nie uzywaj Foreach do zgadywania, ktory atrybut jest identyfikatorem bloku. Najpierw odczytaj atrybuty albo nazwe bloku.
+- Jesli Foreach ma wykonywac masowe aktualizacje blokow, w szablonie Action aktualizuj po stabilnym identyfikatorze (np. ID, TYPE, VAL lub innym rzeczywistym identyfikatorze danego typu bloku), a nie po wartosci, ktora sama jest zmieniana.
+- Szczegolnie wazne: jesli aktualizowany jest atrybut `VAL`, to `VAL` nie moze byc jednoczesnie `FilterTag` w Action dla Foreach. Najpierw traktuj oznaczenia typu `T1`, `T2` jako wskazanie docelowych blokow, ale sama aktualizacja musi isc po stabilnym identyfikatorze innym niz zmieniany `VAL` - w tym benchmarku oczekiwany wzorzec to `FilterTag=\"ID\"`.
+- W szablonie Action dla Foreach `FilterTag` musi byc nazwa rzeczywistego tagu identyfikacyjnego, np. `ID`, `TYPE` albo `VAL`. Nie wstawiaj tam wartosci elementu ani placeholdera `{item}`.
+- Dla Foreach poprawny wzorzec jest taki: `{"ToolName":"EditAttributes","Action":"Update","Attributes":[...],"FilterTag":"ID","FilterValue":"{item}"}`.
+- Jesli wybrales Foreach jako strategie wykonania, nie wykonuj przedtem ani obok niego dodatkowych recznych `EditAttributes Update` dla tych samych elementow i tej samej operacji.
+- Operacje tekstowe typu `dopisz _REV do NAME` dla T1, T2 sa normalnym przypadkiem masowej aktualizacji i tez powinny isc przez jedno wywolanie `Foreach`, a nie przez dwa osobne `EditAttributes Update`.
+- Operacje literalne typu `ustaw GROUP = Test` dla listy z blackboard albo `ustaw VAL = NOWE_T` dla T1, T2 rowniez powinny isc przez jedno wywolanie `Foreach`.
+- Przyklad poprawnej decyzji:
+  - `Dla A1, A2, A3 ustaw STAN = Wolne` -> jedno wywolanie `Foreach`.
+  - `Odczytaj ID do @IdList, a potem ustaw GROUP = Instalacja` -> najpierw `EditAttributes Read` z `SaveAs="IdList"`, potem jedno `Foreach` z `TargetVariable="IdList"`.
+  - `Dla T1 i T2 dopisz _REV do NAME` -> jedno wywolanie `Foreach`.
+  - `Dla T1 i T2 ustaw VAL = NOWE_T` -> jedno wywolanie `Foreach`, ale w `Action` nie wolno uzyc `FilterTag="VAL"`; uzyj stabilnego identyfikatora, tutaj `FilterTag="ID"`.
+  - `Lista jest w @BlockIdList` -> od razu `Foreach` z `TargetVariable="BlockIdList"`, bez dodatkowego odczytu.
+- Jesli lista celow nie jest jawna, najpierw zapisz ja do blackboard albo uzyskaj jednoznaczna selekcje. Dopiero potem uruchamiaj Foreach.
