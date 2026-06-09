@@ -1144,3 +1144,69 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 - Nadal pozostaje warstwa rozumowania agentowego przy zadaniach wieloobiektowych: jesli w `ActiveSelection` brakuje czesci celow, agent moze wymagac dalszych guardraili decyzyjnych lub lepszego wykorzystania `Foreach` po etapie identyfikacji.
 ### [KOLEJNY_KROK]
 - Przetestowac sekwencje wieloblokowe z rozdzialem na obiekt bazowy i cele aktualizacji oraz rozstrzygnac, czy dodac twarda blokade aktualizacji po filtrze wskazujacym atrybut docelowy.
+
+## [v2.28.30] 2026-06-09T22:20:00+02:00 - Benchmark metadata i scalony zestaw blokow [BENCHMARK-METADATA]
+### [ZREALIZOWANO]
+- Rozszerzono `RunMetadata` benchmarkow o realne dane uruchomienia:
+  - `BenchmarkName`,
+  - `ProviderName`,
+  - `ProviderEndpoint`,
+  - `ProfileName`,
+  - `ModelName`,
+  - parametry samplingu i ladowania (`Temperature`, `TopP`, `TopK`, `MinP`, `RepetitionPenalty`, `ReasoningEffort`, `MaxTokens`, `LoadContextLength`, `AutoLoadModel`, `GpuOffload`, `TtlSeconds`, `FlashAttention`, `OffloadKvCache`),
+  - limity kontekstu (`MaxContextTokens`, `ContextCompressionThreshold`).
+- `AutoBenchmarkEngine` wypelnia teraz te pola na starcie benchmarku z aktywnego providera `llm_providers.json`, zamiast zostawiac stale `LLM-Benchmark-V2` jako jedyna informacje o modelu.
+- Dodano nowy scalony zestaw `Bricscad_AgentAI_V2/tests/Benchmark_06_BlockAttributes_Complete.json`, laczacy benchmarki `03`, `04` i `05` w jeden duzy test 26-zadaniowy.
+### [STAN_SYSTEMU]
+- Raport FULL/ERRORS zapisuje teraz nie tylko wynik, ale tez rzeczywisty kontekst uruchomienia modelu i ustawien, co ulatwia porownania miedzy Gemma/Qwen oraz profilami.
+- Stare benchmarki `03/04/05` pozostaja bez zmian jako mniejsze, wyspecjalizowane zestawy; `06` jest nowym benchmarkiem zbiorczym.
+### [BLOKADY / PROBLEMY]
+- UI benchmarkow nadal ma miejscami stare slady zlego kodowania tekstow, wiec ewentualne dalsze kosmetyczne poprawki warto robic ostroznie i osobnym ruchem.
+### [KOLEJNY_KROK]
+- Uruchomic ponownie benchmark po stronie BricsCAD i potwierdzic w nowym raporcie, ze `RunMetadata.ModelName` i pozostale pola odpowiadaja faktycznie zaladowanemu modelowi.
+
+## [v2.28.31] 2026-06-09T22:35:00+02:00 - Szlif promptu IFEMPTY dla CadBlocksProfile [BLOCKS-IFEMPTY-PROMPT]
+### [ZREALIZOWANO]
+- Doprecyzowano `resources/prompts/system_prompt_blocks.txt` w obszarze warunkowego wypelniania pustych atrybutow.
+- Dodano twarda preferencje dla wzorca `RPN: $OLD_VALUE "Brak" IFEMPTY` oraz dopuszczalny wariant `RPN: $OLD_VALUE "" "Brak" IFTE`.
+- Wprost zabroniono pseudo-skladni warunkowej halucynowanej przez modele, takiej jak `==`, `?`, `:`, `ELSE`, `IF_EMPTY` i podobnych skrotow spoza postfixowego kontraktu RPN.
+### [STAN_SYSTEMU]
+- Prompt blokow powinien teraz lepiej domykac ostatni trudny przypadek z benchmarku `Benchmark_06`, gdzie silny model rozumial intencje zadania, ale generowal nieobslugiwany wariant skladni warunkowej.
+### [KOLEJNY_KROK]
+- Powtorzyc test `Benchmark_06` na `gemma-4-31b` i sprawdzic, czy test `Fill_Empty_Attribute_With_IfEmpty` przechodzi bez zmian w kodzie narzedzi.
+
+## [v2.28.32] 2026-06-09T22:55:00+02:00 - Zakladka Analiza benchmarkow [BENCHMARK-ANALYTICS]
+### [ZREALIZOWANO]
+- Dodano nowa kontrolke `BenchmarkAnalyticsControl.cs` jako osobna zakladke `Analiza` w sekcji `Testy`, obok istniejacego runnera `Benchmark`.
+- Kontrolka skanuje raporty `*_FULL_*.json`, laduje je do widoku zbiorczego i pokazuje:
+  - ranking modeli po srednim wyniku,
+  - liste pojedynczych przebiegow z czasem, profilem, liczba tool calls i konfiguracja inferencji,
+  - najczestsze porazki testow,
+  - podsumowanie zbiorcze i szczegoly wybranego przebiegu.
+- Domyslny folder raportow jest ustalany automatycznie na podstawie ostatnio uzytego benchmarku z rejestru albo heurystyki folderu `Bricscad_AgentAI_V2/tests`.
+### [STAN_SYSTEMU]
+- Benchmark runner i benchmark analytics sa rozdzielone: uruchamianie testow pozostaje proste, a porownania modeli maja osobny dashboard.
+- Nowa zakladka nadaje sie do porownywania modeli, wersji `qat` / bez `qat`, analizowania hotspotow testowych oraz wychwytywania awarii tool-calling typu `0 tool calls`.
+### [BLOKADY / PROBLEMY]
+- Pelny `dotnet build` nadal jest zablokowany przez istniejace globalne braki zaleznosci repo (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet` itd.), wiec weryfikacja tej funkcji byla wykonana przez review kodu i realne raporty benchmarkowe, a nie pelna kompilacje end-to-end.
+### [KOLEJNY_KROK]
+- Po uruchomieniu w BricsCAD sprawdzic ergonomie zakladki `Analiza` i zdecydowac, czy nastepny etap ma dodac eksport CSV / Markdown, wykresy trendu oraz ranking per benchmark.
+
+## [v2.28.33] 2026-06-10T00:20:00+02:00 - Szlif ergonomii zakladki Analiza [BENCHMARK-ANALYTICS-UX]
+### [ZREALIZOWANO]
+- Przebudowano uklad `BenchmarkAnalyticsControl`, aby zamiast ciasnego widoku split pokazac dane w podzakladkach:
+  - `Modele`,
+  - `Przebiegi`,
+  - `Porazki`,
+  - `Podsumowanie`.
+- Dodano ciemny, czytelny styl `DataGridView` z poprawionym kontrastem tekstu, zaznaczenia i naglowkow.
+- Dodano przycisk `Dopasuj kolumny` oraz proporcjonalne przeliczanie szerokosci kolumn dla tabel modeli, przebiegow i porazek.
+- Automatyczne dopasowanie kolumn jest wywolywane przy zaladowaniu kontrolki, pokazaniu zakladki, zmianie podzakladki, zmianie rozmiaru okna oraz po odswiezeniu raportow.
+- Inicjalizacja zakladki `Analiza` w `AgentControl` pozostaje lazy-loadowana, co ogranicza ryzyko wywalenia calego glownego UI przez blad jednej kontrolki.
+### [STAN_SYSTEMU]
+- Zakladka `Analiza` jest wyraznie bardziej czytelna przy duzej liczbie raportow i szerokich tabelach.
+- Uzytkownik ma teraz zarowno automatyczne dopasowanie do aktualnego okna, jak i reczne wymuszenie ponownego przeliczenia kolumn.
+### [BLOKADY / PROBLEMY]
+- Pelny build projektu w tym srodowisku nadal blokuje niezalezny problem brakujacych zaleznosci NuGet / referencji, wiec ocena tej iteracji dalej opiera sie na testach runtime w BricsCAD.
+### [KOLEJNY_KROK]
+- Jesli ergonomia danych okaże sie wystarczajaca, kolejnym naturalnym ruchem jest dodanie eksportu analiz (CSV / Markdown) albo lekkiego rankingu per benchmark / per profil.
