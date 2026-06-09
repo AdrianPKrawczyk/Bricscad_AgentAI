@@ -383,3 +383,10 @@ FodyWeavers.xsd
 
 # Pliki benchmarków matematycznych (np. Benchmark_02_Math...)
 **/[Bb]enchmark_02_Math*
+
+# Wyniki benchmarkow V2 - definicje benchmarkow w tests/*.json zostaja w repo,
+# ignorujemy tylko raporty wykonania oraz nowe katalogi per model.
+Bricscad_AgentAI_V2/tests/**/Benchmark_*_FULL_*.json
+Bricscad_AgentAI_V2/tests/**/Benchmark_*_ERRORS_*.json
+Bricscad_AgentAI_V2/tests/google_*/
+Bricscad_AgentAI_V2/tests/qwen*/
