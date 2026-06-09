@@ -177,6 +177,9 @@
     <Compile Include="src\UI\AutoBenchmarkControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="src\UI\BenchmarkAnalyticsControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="src\UI\AgentTesterControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

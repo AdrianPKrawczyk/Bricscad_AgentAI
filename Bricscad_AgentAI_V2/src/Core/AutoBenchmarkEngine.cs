@@ -128,7 +128,40 @@ namespace Bricscad_AgentAI_V2.Core
 
             string jsonContent = File.ReadAllText(jsonFilePath);
             BenchmarkConfig config = JsonConvert.DeserializeObject<BenchmarkConfig>(jsonContent);
+            if (config.RunMetadata == null)
+            {
+                config.RunMetadata = new RunMetadata();
+            }
+
+            var activeProvider = LLMConfigManager.GetActiveProvider();
+            string benchmarkName = !string.IsNullOrWhiteSpace(config.RunMetadata.BenchmarkName)
+                ? config.RunMetadata.BenchmarkName
+                : (!string.IsNullOrWhiteSpace(config.RunMetadata.ModelName)
+                    ? config.RunMetadata.ModelName
+                    : Path.GetFileNameWithoutExtension(jsonFilePath));
+
+            config.RunMetadata.BenchmarkName = benchmarkName;
+            config.RunMetadata.ProfileName = profileName ?? string.Empty;
+            config.RunMetadata.ProviderName = activeProvider?.Name ?? string.Empty;
+            config.RunMetadata.ProviderEndpoint = activeProvider?.EndpointUrl ?? string.Empty;
+            config.RunMetadata.ModelName = activeProvider?.ModelName ?? config.RunMetadata.ModelName;
+            config.RunMetadata.Temperature = activeProvider?.Temperature ?? 0.0;
+            config.RunMetadata.MaxTokens = activeProvider?.MaxTokens ?? 0;
+            config.RunMetadata.TopP = activeProvider?.TopP ?? 0.0;
+            config.RunMetadata.TopK = activeProvider?.TopK ?? 0;
+            config.RunMetadata.MinP = activeProvider?.MinP ?? 0.0;
+            config.RunMetadata.RepetitionPenalty = activeProvider?.RepetitionPenalty ?? 0.0;
+            config.RunMetadata.ReasoningEffort = activeProvider?.ReasoningEffort ?? string.Empty;
+            config.RunMetadata.AutoLoadModel = activeProvider?.AutoLoadModel ?? false;
+            config.RunMetadata.GpuOffload = activeProvider?.GpuOffload ?? string.Empty;
+            config.RunMetadata.LoadContextLength = activeProvider?.LoadContextLength ?? 0;
+            config.RunMetadata.TtlSeconds = activeProvider?.TtlSeconds ?? 0;
+            config.RunMetadata.FlashAttention = activeProvider?.FlashAttention ?? false;
+            config.RunMetadata.OffloadKvCache = activeProvider?.OffloadKvCache ?? false;
+            config.RunMetadata.MaxContextTokens = LLMConfigManager.Current?.MaxContextTokens ?? 0;
+            config.RunMetadata.ContextCompressionThreshold = LLMConfigManager.Current?.ContextCompressionThreshold ?? 0;
             config.RunMetadata.RunDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            OnLogMessage?.Invoke(this, $"Model benchmarku: {config.RunMetadata.ModelName} | Provider: {config.RunMetadata.ProviderName}");
 
             int passedCount = 0;
             long totalTimeMs = 0;
@@ -287,9 +320,72 @@ namespace Bricscad_AgentAI_V2.Core
                             }
 
                             string actualValue = ResolveJsonPath(callForMatch.Arguments, rule.TargetArgument);
-                            rulePassed = string.Equals(actualValue, rule.TargetValue, StringComparison.OrdinalIgnoreCase);
+                            rulePassed = ValuesMatch(actualValue, rule.TargetValue);
                             if (!rulePassed)
                                 ruleError = $"{ruleError} (Znaleziono: '{actualValue}', Oczekiwano: '{rule.TargetValue}')";
+                            break;
+
+                        case "AnyArgumentMatch":
+                            var matchingValues = test.RecordedToolCalls
+                                .Where(c => c.Arguments != null)
+                                .Select(c => ResolveJsonPath(c.Arguments, rule.TargetArgument))
+                                .Where(v => v != null)
+                                .ToList();
+
+                            if (matchingValues.Count == 0)
+                            {
+                                rulePassed = false;
+                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie zostal znaleziony w zadnym wywolaniu)";
+                                break;
+                            }
+
+                            rulePassed = matchingValues.Any(v => ValuesMatch(v, rule.TargetValue));
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", matchingValues)}', Oczekiwano: '{rule.TargetValue}')";
+                            break;
+
+                        case "AnyOfArgumentMatch":
+                            var candidateValues = test.RecordedToolCalls
+                                .Where(c => c.Arguments != null)
+                                .Select(c => ResolveJsonPath(c.Arguments, rule.TargetArgument))
+                                .Where(v => v != null)
+                                .ToList();
+
+                            if (candidateValues.Count == 0)
+                            {
+                                rulePassed = false;
+                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie zostal znaleziony w zadnym wywolaniu)";
+                                break;
+                            }
+
+                            var expectedVariants = (rule.TargetValue ?? string.Empty)
+                                .Split(new[] { " || " }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(v => v.Trim())
+                                .Where(v => !string.IsNullOrWhiteSpace(v))
+                                .ToList();
+
+                            rulePassed = candidateValues.Any(actual =>
+                                expectedVariants.Any(expected =>
+                                    ValuesMatch(actual, expected)));
+
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", candidateValues)}', Dozwolone: '{string.Join(" || ", expectedVariants)}')";
+                            break;
+
+                        case "ToolCallCountMax":
+                            if (!int.TryParse(rule.ExpectedOutput, out int maxAllowedCalls))
+                            {
+                                rulePassed = false;
+                                ruleError = $"{ruleError} (Niepoprawny limit ExpectedOutput='{rule.ExpectedOutput}')"; 
+                                break;
+                            }
+
+                            int matchingCallCount = test.RecordedToolCalls.Count(c =>
+                                string.Equals(c.ToolName, rule.TargetValue, StringComparison.OrdinalIgnoreCase));
+
+                            rulePassed = matchingCallCount <= maxAllowedCalls;
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono {matchingCallCount} wywolan narzedzia '{rule.TargetValue}', limit: {maxAllowedCalls})";
                             break;
 
                         // --- Sprawdzenie kolejnoĹ›ci wywoĹ‚aĹ„ narzÄ™dzi ---
@@ -431,6 +527,47 @@ namespace Bricscad_AgentAI_V2.Core
             catch
             {
                 return null;
+            }
+        }
+
+        private bool ValuesMatch(string actual, string expected)
+        {
+            if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (TryParseJsonToken(actual, out var actualToken) && TryParseJsonToken(expected, out var expectedToken))
+            {
+                return JToken.DeepEquals(actualToken, expectedToken);
+            }
+
+            return false;
+        }
+
+        private bool TryParseJsonToken(string value, out JToken token)
+        {
+            token = null;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            string trimmed = value.Trim();
+            if (!(trimmed.StartsWith("{") && trimmed.EndsWith("}")) &&
+                !(trimmed.StartsWith("[") && trimmed.EndsWith("]")))
+            {
+                return false;
+            }
+
+            try
+            {
+                token = JToken.Parse(trimmed);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

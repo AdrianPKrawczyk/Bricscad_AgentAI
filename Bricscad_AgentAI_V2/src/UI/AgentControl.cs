@@ -67,6 +67,8 @@ namespace Bricscad_AgentAI_V2.UI
         private string _activeModel = "LM Studio / local-model"; // DomyÄÄ…Ă˘â‚¬Ĺźlny model
         private AutoBenchmarkEngine _benchmarkEngine;
         private TabPage tabBenchmark;
+        private TabPage tabBenchmarkAnalytics;
+        private bool _benchmarkAnalyticsInitialized;
         private TabPage tabDebug;
         private LLMStats _lastStats;
 
@@ -200,6 +202,36 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             _supervisor?.ClearHistory();
+        }
+
+        private void TabBenchmarkAnalytics_Enter(object sender, EventArgs e)
+        {
+            if (_benchmarkAnalyticsInitialized || tabBenchmarkAnalytics == null)
+            {
+                return;
+            }
+
+            _benchmarkAnalyticsInitialized = true;
+            try
+            {
+                tabBenchmarkAnalytics.Controls.Clear();
+                tabBenchmarkAnalytics.Controls.Add(new BenchmarkAnalyticsControl());
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogError("Błąd inicjalizacji zakładki Analiza benchmarków", ex);
+
+                var errorLabel = new Label
+                {
+                    Dock = DockStyle.Fill,
+                    ForeColor = Color.OrangeRed,
+                    BackColor = Color.FromArgb(30, 30, 30),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Text = "Nie udało się załadować zakładki Analiza.\nSprawdź bielik_debug.log."
+                };
+
+                tabBenchmarkAnalytics.Controls.Add(errorLabel);
+            }
         }
 
         private void LoadEmbeddedSystemPrompt()
@@ -438,6 +470,9 @@ namespace Bricscad_AgentAI_V2.UI
             // ==========================================
             tabBenchmark = new TabPage("Benchmark");
             tabBenchmark.Controls.Add(new AutoBenchmarkControl(_benchmarkEngine));
+
+            tabBenchmarkAnalytics = new TabPage("Analiza");
+            tabBenchmarkAnalytics.Enter += TabBenchmarkAnalytics_Enter;
 
             // ==========================================
             // ZAKÄÄ… ADKA 4: TESTER (WORKBENCH V2)
@@ -711,6 +746,7 @@ namespace Bricscad_AgentAI_V2.UI
             var tabTestsSub = new TabControl { Dock = DockStyle.Fill };
             tabTests.Controls.Add(tabTestsSub);
             tabTestsSub.TabPages.Add(tabBenchmark);
+            tabTestsSub.TabPages.Add(tabBenchmarkAnalytics);
             tabTestsSub.TabPages.Add(tabTester);
             tabTestsSub.TabPages.Add(tabAutotest);
             tabTestsSub.TabPages.Add(tabAutotestChat);

@@ -1,0 +1,192 @@
+{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-06-09",
+    "Comment": "Benchmark dla bezpiecznego uzycia Foreach w CadBlocksProfile. Sprawdza, czy agent uzywa petli dopiero po identyfikacji celow i czy nie zastepuje Foreach etapu rozpoznania poprawnych blokow."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "ForeachBlocks",
+      "Difficulty": 3,
+      "TestName": "Use_Foreach_With_Explicit_Items",
+      "Description": "Agent dostaje jawna liste identyfikatorow i moze bezpiecznie uzyc Foreach do seryjnych aktualizacji.",
+      "UserPrompt": "Dla identyfikatorow A1, A2, A3 ustaw atrybut STAN na Wolne.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "ErrorMessage": "BLAD: Model nie uzyl Foreach mimo jawnej listy celow."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Items[0]",
+          "TargetValue": "A1",
+          "ErrorMessage": "BLAD: Model nie przekazal listy jawnych identyfikatorow do Foreach."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"STAN\",\"Value\":\"Wolne\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"}",
+          "ErrorMessage": "BLAD: Foreach powinien aktualizowac STAN po stabilnym identyfikatorze ID."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "EditAttributes",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Przy jawnej liscie A1, A2, A3 agent nie powinien wykonywac dodatkowych recznych wywolan EditAttributes poza Foreach."
+        }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "ForeachBlocks",
+      "Difficulty": 4,
+      "TestName": "Read_List_First_Then_Foreach",
+      "Description": "Najpierw odczyt lub pobranie listy, potem Foreach. Nie wolno zaczynac od petli bez listy celow.",
+      "UserPrompt": "Odczytaj liste identyfikatorow z zaznaczonych blokow, zapisz ja do @IdList, a potem ustaw dla nich atrybut GROUP na Instalacja.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Read): Odczytano 3 wartosci z 3 blokow. Zapisano w @IdList",
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "EditAttributes, Foreach",
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji identyfikacja listy -> Foreach."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "SaveAs",
+          "TargetValue": "IdList",
+          "ErrorMessage": "BLAD: Model nie zapisal listy identyfikatorow do @IdList."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "TargetVariable",
+          "TargetValue": "IdList",
+          "ErrorMessage": "BLAD: Foreach powinien iterowac po @IdList."
+        }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "ForeachBlocks",
+      "Difficulty": 4,
+      "TestName": "Do_Not_Use_Foreach_For_Identifier_Guess",
+      "Description": "Jesli identyfikator nie jest znany, agent powinien najpierw wykonac odczyt, a nie od razu petle.",
+      "UserPrompt": "Ustaw status Wolne dla wszystkich odpowiednich blokow, ale najpierw sprawdz, ktory atrybut jest ich identyfikatorem.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Read): Odczytano 4 wartosci z 1 blokow. Tresc: ID: A2 | TYPE: BIURKO | STAN: Zajete | NAME: Biurko projektowe"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model powinien najpierw odczytac atrybuty identyfikujace."
+        }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "ForeachBlocks",
+      "Difficulty": 4,
+      "TestName": "Foreach_With_Concat_Update",
+      "Description": "Foreach moze wykonywac bezpieczne tekstowe RPN po stabilnym identyfikatorze.",
+      "UserPrompt": "Dla identyfikatorow T1 i T2 dopisz _REV do atrybutu NAME.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy T1, T2."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"}",
+          "ErrorMessage": "BLAD: Foreach powinien uzyc CONCAT i stabilnego filtra ID."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "EditAttributes",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Przy jawnej liscie T1, T2 agent nie powinien wykonywac dodatkowych recznych wywolan EditAttributes poza Foreach."
+        }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "ForeachBlocks",
+      "Difficulty": 5,
+      "TestName": "Foreach_Should_Not_Filter_By_Changing_Target",
+      "Description": "Petla nie moze identyfikowac celu po wartosci, ktora sama wlasnie zmienia.",
+      "UserPrompt": "Dla blokow T1 i T2 ustaw atrybut VAL na NOWE_T.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy blokow."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"VAL\",\"Value\":\"NOWE_T\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"}",
+          "ErrorMessage": "BLAD: Foreach nie powinien filtrowac po zmienianym VAL; oczekiwano stabilnego identyfikatora w Action."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "EditAttributes",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Przy jawnej liscie T1, T2 agent nie powinien wykonywac dodatkowych recznych wywolan EditAttributes poza Foreach."
+        }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "ForeachBlocks",
+      "Difficulty": 5,
+      "TestName": "Foreach_After_Blackboard_Items",
+      "Description": "Agent moze skorzystac z jawnej listy w blackboard i wykonac seryjna literalna aktualizacje.",
+      "UserPrompt": "Lista identyfikatorow jest juz w @BlockIdList. Ustaw dla nich GROUP na Test.",
+      "MockMemoryVariables": {
+        "BlockIdList": "A1 | A2 | A3"
+      },
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "ErrorMessage": "BLAD: Model nie uzyl Foreach mimo gotowej listy @BlockIdList."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "TargetVariable",
+          "TargetValue": "BlockIdList",
+          "ErrorMessage": "BLAD: Foreach powinien korzystac z @BlockIdList."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"GROUP\",\"Value\":\"Test\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"}",
+          "ErrorMessage": "BLAD: Foreach powinien budowac poprawne Action z filtrem po stabilnym tagu ID i FilterValue={item}."
+        }
+      ]
+    }
+  ]
+}

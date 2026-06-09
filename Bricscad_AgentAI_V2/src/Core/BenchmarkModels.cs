@@ -22,7 +22,26 @@ namespace Bricscad_AgentAI_V2.Core
     /// </summary>
     public class RunMetadata
     {
+        public string BenchmarkName { get; set; }
         public string ModelName { get; set; }
+        public string ProviderName { get; set; }
+        public string ProviderEndpoint { get; set; }
+        public string ProfileName { get; set; }
+        public double Temperature { get; set; }
+        public int MaxTokens { get; set; }
+        public double TopP { get; set; }
+        public int TopK { get; set; }
+        public double MinP { get; set; }
+        public double RepetitionPenalty { get; set; }
+        public string ReasoningEffort { get; set; }
+        public bool AutoLoadModel { get; set; }
+        public string GpuOffload { get; set; }
+        public int LoadContextLength { get; set; }
+        public int TtlSeconds { get; set; }
+        public bool FlashAttention { get; set; }
+        public bool OffloadKvCache { get; set; }
+        public int MaxContextTokens { get; set; }
+        public int ContextCompressionThreshold { get; set; }
         public string RunDate { get; set; }
         public string Comment { get; set; }
 

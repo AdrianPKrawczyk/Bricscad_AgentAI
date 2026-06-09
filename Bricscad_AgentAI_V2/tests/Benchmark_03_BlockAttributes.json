@@ -1,0 +1,371 @@
+{
+  "RunMetadata": {
+    "ModelName": "LLM-Benchmark-V2",
+    "RunDate": "2026-06-09",
+    "Comment": "Benchmark 10 pytan dla CadBlocksProfile. Skupia sie na odczycie, selekcji, filtrowaniu i aktualizacji atrybutow blokow, w tym na skladni RPN dla operacji tekstowych."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "BlockAttributes",
+      "Difficulty": 1,
+      "TestName": "Read_All_Attributes_From_Current_Selection",
+      "Description": "Podstawowy odczyt wszystkich atrybutow z aktualnie zaznaczonego bloku.",
+      "UserPrompt": "Wypisz wszystkie atrybuty w zaznaczonym bloku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Read): Odczytano 18 wartosci z 1 blokow. Tresc: VAL: T4 | DN_VAL: '-1.27' | NAME [Ukryty]: Oznaczenie pionu"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt narzedzia EditAttributes do odczytu atrybutow."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "Read",
+          "ErrorMessage": "BLAD: Oczekiwano EditAttributes z Action='Read'."
+        }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "BlockAttributes",
+      "Difficulty": 1,
+      "TestName": "Read_Specific_Tag_DN_VAL",
+      "Description": "Odczyt pojedynczego wskazanego tagu atrybutu.",
+      "UserPrompt": "Pokaz tylko atrybut DN_VAL w zaznaczonym bloku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Read): Odczytano 1 wartosci z 1 blokow. Tresc: DN_VAL: '-1.27'"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes do odczytu jednego tagu."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "Read",
+          "ErrorMessage": "BLAD: Oczekiwano Action='Read'."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "DN_VAL",
+          "ErrorMessage": "BLAD: Model nie wskazal tagu DN_VAL."
+        }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "BlockAttributes",
+      "Difficulty": 2,
+      "TestName": "Read_Save_Then_Display_Blackboard",
+      "Description": "Agent powinien zapisac wynik odczytu do zmiennej i nastepnie odczytac te zmienna z blackboard.",
+      "UserPrompt": "Odczytaj atrybuty zaznaczonego bloku, zapisz je do @AttrList, a potem pokaz zawartosc @AttrList.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Read): Odczytano 3 wartosci z 1 blokow. Zapisano w @AttrList"
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie odczytal atrybutow."
+        },
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ReadFromBlackboard",
+          "ErrorMessage": "BLAD: Model nie odczytal zapisanej zmiennej z blackboard."
+        },
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "EditAttributes, ReadFromBlackboard",
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji EditAttributes -> ReadFromBlackboard."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "SaveAs",
+          "TargetValue": "AttrList",
+          "ErrorMessage": "BLAD: Model nie zapisal wyniku do @AttrList."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Key",
+          "TargetValue": "AttrList",
+          "ErrorMessage": "BLAD: Model nie odczytal klucza AttrList z blackboard."
+        }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "BlockSelection",
+      "Difficulty": 2,
+      "TestName": "Select_BlockReferences_By_Name",
+      "Description": "Selekcja blokow po nazwie definicji lub instancji.",
+      "UserPrompt": "Zaznacz bloki o nazwie CPHS_255.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "SUKCES: Aktywne zaznaczenie w pamieci (Twarda relacja 'New'): 37 obiekt(ow)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "SelectEntities",
+          "ErrorMessage": "BLAD: Model nie uzyt SelectEntities."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "EntityType",
+          "TargetValue": "*BlockReference",
+          "ErrorMessage": "BLAD: Oczekiwano EntityType='*BlockReference'."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "New",
+          "ErrorMessage": "BLAD: Oczekiwano Mode='New' dla nowej selekcji."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Conditions[0].Prop",
+          "TargetValue": "Name",
+          "ErrorMessage": "BLAD: Model nie filtrowal po wlasciwosci Name."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Conditions[0].Val",
+          "TargetValue": "CPHS_255",
+          "ErrorMessage": "BLAD: Model nie wskazal nazwy bloku CPHS_255."
+        }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "BlockAttributes",
+      "Difficulty": 1,
+      "TestName": "Update_Single_Attribute_Literal_Value",
+      "Description": "Prosta podmiana jednego atrybutu literalna wartoscia.",
+      "UserPrompt": "Dla zaznaczonego bloku ustaw atrybut STAN na Wolne.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Update): Zaktualizowano 1 atrybutow w 1 blokach."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes do aktualizacji."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "Update",
+          "ErrorMessage": "BLAD: Oczekiwano Action='Update'."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "STAN",
+          "ErrorMessage": "BLAD: Model nie wskazal tagu STAN."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "Wolne",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci Wolne."
+        }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "BlockAttributes",
+      "Difficulty": 3,
+      "TestName": "Update_Using_Stable_Filter_ID",
+      "Description": "Aktualizacja tylko jednego bloku wskazanego przez stabilny atrybut identyfikujacy ID.",
+      "UserPrompt": "Zmien atrybut STAN na Wolne tylko dla bloku o ID A2 w biezacym zaznaczeniu.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Update): Zaktualizowano 1 atrybutow w 1 blokach."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "Update",
+          "ErrorMessage": "BLAD: Oczekiwano Action='Update'."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "FilterTag",
+          "TargetValue": "ID",
+          "ErrorMessage": "BLAD: Model nie uzyl stabilnego filtra ID."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "A2",
+          "ErrorMessage": "BLAD: Model nie wskazal wartosci filtra A2."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "STAN",
+          "ErrorMessage": "BLAD: Model nie aktualizowal tagu STAN."
+        }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "BlockAttributes",
+      "Difficulty": 3,
+      "TestName": "Update_Other_Tag_Filtered_By_VAL",
+      "Description": "Aktualizacja atrybutu docelowego przy filtrowaniu po innym atrybucie identyfikujacym.",
+      "UserPrompt": "Zmien atrybut DN_VAL na -1.25 tylko dla tego bloku, w ktorym atrybut VAL ma wartosc T4.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Update): Zaktualizowano 1 atrybutow w 1 blokach."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "FilterTag",
+          "TargetValue": "VAL",
+          "ErrorMessage": "BLAD: Model nie filtrowal po VAL."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "T4",
+          "ErrorMessage": "BLAD: Model nie wskazal wartosci T4 jako filtra."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "DN_VAL",
+          "ErrorMessage": "BLAD: Model nie aktualizowal tagu DN_VAL."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "-1.25",
+          "ErrorMessage": "BLAD: Model nie ustawil nowej wartosci -1.25."
+        }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "BlockAttributesRpn",
+      "Difficulty": 4,
+      "TestName": "Remove_Apostrophes_With_Rpn_Replace",
+      "Description": "Tekstowa transformacja RPN bez pseudo-notacji typu replace(...).",
+      "UserPrompt": "W zaznaczonym bloku usun apostrofy z atrybutu DN_VAL, zostawiajac pozostala tresc bez zmian.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Update): Zaktualizowano 1 atrybutow w 1 blokach."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Action",
+          "TargetValue": "Update",
+          "ErrorMessage": "BLAD: Oczekiwano Action='Update'."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "DN_VAL",
+          "ErrorMessage": "BLAD: Model nie wskazal tagu DN_VAL."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "RPN: $OLD_VALUE \"'\" \"\" REPLACE",
+          "ErrorMessage": "BLAD: Model nie uzyt poprawnej postfixowej skladni RPN dla REPLACE."
+        }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "BlockAttributesRpn",
+      "Difficulty": 3,
+      "TestName": "Append_Suffix_With_Rpn_Concat",
+      "Description": "Dopisanie sufiksu tekstowego do istniejącej wartosci atrybutu.",
+      "UserPrompt": "Dopisz sufiks _REV do atrybutu NAME w zaznaczonym bloku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Update): Zaktualizowano 1 atrybutow w 1 blokach."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "NAME",
+          "ErrorMessage": "BLAD: Model nie wskazal tagu NAME."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "RPN: $OLD_VALUE \"_REV\" CONCAT",
+          "ErrorMessage": "BLAD: Model nie uzyt poprawnego CONCAT na starej wartosci."
+        }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "BlockAttributesRpn",
+      "Difficulty": 4,
+      "TestName": "Increase_Numeric_Attribute_With_Units",
+      "Description": "Prosty przyrost liczbowy z jednostka dla atrybutu tekstowego interpretowanego przez RPN.",
+      "UserPrompt": "Zwieksz atrybut DLUGOSC w zaznaczonym bloku o 5_mm.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditAttributes": "WYNIK (Update): Zaktualizowano 1 atrybutow w 1 blokach."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "EditAttributes",
+          "ErrorMessage": "BLAD: Model nie uzyt EditAttributes."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Tag",
+          "TargetValue": "DLUGOSC",
+          "ErrorMessage": "BLAD: Model nie wskazal tagu DLUGOSC."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "RPN: $OLD_VALUE 5_mm +",
+          "ErrorMessage": "BLAD: Model nie uzyt prostego dodawania RPN z jednostka 5_mm."
+        }
+      ]
+    }
+  ]
+}
