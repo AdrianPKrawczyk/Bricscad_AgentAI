@@ -23,7 +23,8 @@ namespace Bricscad_AgentAI_V2.UI.Forms
         private ComboBox cbGpu;
         private NumericUpDown numLoadCtx, numTtl;
         private CheckBox chkAutoLoad, chkFlashAtt, chkOffloadKv;
-        private Button btnLoadModel;
+        private Button btnLoadModel, btnUnloadModel;
+        private Label lblLoadedModelStatus;
 
         private ComboBox cbModels;
         private Button btnSave, btnAdd, btnRemove, btnFetchModels;
@@ -41,7 +42,7 @@ namespace Bricscad_AgentAI_V2.UI.Forms
         private void InitializeComponent()
         {
             this.Text = "⚙️ Ustawienia Dostawców LLM";
-            this.Size = new Size(500, 840);
+            this.Size = new Size(540, 900);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -115,8 +116,11 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             };
             btnLoadModel = new Button { Text = "⚡ Załaduj do VRAM", Location = new Point(100, 0), Width = 150, Height = 28, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold) };
             btnLoadModel.Click += BtnLoadModel_Click;
+            btnUnloadModel = new Button { Text = "⏏ Rozładuj", Location = new Point(255, 0), Width = 100, Height = 28, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(150, 60, 60), Font = new Font(this.Font, FontStyle.Bold), ForeColor = Color.White };
+            btnUnloadModel.Click += BtnUnloadModel_Click;
             panAutoLoad.Controls.Add(chkAutoLoad);
             panAutoLoad.Controls.Add(btnLoadModel);
+            panAutoLoad.Controls.Add(btnUnloadModel);
             panForm.Controls.Add(panAutoLoad, 1, 12);
 
             // Wiersz 13: GPU Offload
@@ -185,7 +189,19 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             btnSave.Click += BtnSave_Click;
             panBottom.Controls.Add(btnSave);
 
+            var panStatus = new Panel { Dock = DockStyle.Bottom, Height = 32, Padding = new Padding(10, 4, 10, 4) };
+            lblLoadedModelStatus = new Label
+            {
+                Dock = DockStyle.Fill,
+                Text = "(status modelu – wybierz providera)",
+                ForeColor = Color.LightSkyBlue,
+                Font = new Font("Segoe UI", 9f, FontStyle.Italic),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            panStatus.Controls.Add(lblLoadedModelStatus);
+
             this.Controls.Add(panForm);
+            this.Controls.Add(panStatus);
             this.Controls.Add(panTop);
             this.Controls.Add(panBottom);
         }
@@ -253,6 +269,7 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             if (_isUpdatingUI) return;
             _currentEditing = cbProviders.SelectedItem as LLMProviderConfig;
             UpdateFormFromCurrent();
+            _ = RefreshLoadedModelLabelAsync();
         }
 
         private void UpdateFormFromCurrent()
@@ -375,73 +392,16 @@ namespace Bricscad_AgentAI_V2.UI.Forms
 
             try
             {
-                // Safeguard przed wysłaniem do chmury
-                string url = _currentEditing.EndpointUrl;
-                if (url.Contains("openrouter.ai") || url.Contains("api.openai.com"))
+                var client = new LLMClient(null);
+                var (ok, message) = await client.LoadModelAsync(_currentEditing);
+                if (ok)
                 {
-                    MessageBox.Show("Dostawcy chmurowi (np. OpenRouter, OpenAI) nie obsługują dynamicznego ładowania modeli przez API.", "Wskazówka", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    MessageBox.Show(message, "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await RefreshLoadedModelLabelAsync();
                 }
-
-                if (url.Contains("/v1/chat/completions"))
+                else
                 {
-                    url = url.Replace("/v1/chat/completions", "");
-                }
-                else if (url.Contains("/chat/completions"))
-                {
-                    url = url.Replace("/chat/completions", "");
-                }
-
-                string loadUrl = url.TrimEnd('/') + "/api/v1/models/load";
-
-                var loadPayload = new Dictionary<string, object>
-                {
-                    { "model", _currentEditing.ModelName }
-                };
-
-                if (_currentEditing.LoadContextLength > 0)
-                {
-                    loadPayload["context_length"] = _currentEditing.LoadContextLength;
-                }
-
-                if (_currentEditing.TtlSeconds > 0)
-                {
-                    loadPayload["ttl"] = _currentEditing.TtlSeconds;
-                }
-
-                if (_currentEditing.FlashAttention)
-                {
-                    loadPayload["flash_attention"] = true;
-                }
-
-                if (_currentEditing.OffloadKvCache)
-                {
-                    loadPayload["offload_kv_cache_to_gpu"] = true;
-                }
-
-                string jsonContent = Newtonsoft.Json.JsonConvert.SerializeObject(loadPayload);
-
-                using (var client = new HttpClient())
-                {
-                    client.Timeout = TimeSpan.FromMinutes(3);
-                    if (!string.IsNullOrEmpty(_currentEditing.ApiKey) && _currentEditing.ApiKey != "not-needed")
-                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_currentEditing.ApiKey}");
-
-                    var request = new HttpRequestMessage(HttpMethod.Post, loadUrl)
-                    {
-                        Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json")
-                    };
-
-                    var response = await client.SendAsync(request);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Model został pomyślnie załadowany do pamięci VRAM w LM Studio.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        string responseBody = await response.Content.ReadAsStringAsync();
-                        MessageBox.Show($"Błąd serwera LM Studio ({response.StatusCode}): {responseBody}\n\nUpewnij się, że model o podanej nazwie jest zainstalowany.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    MessageBox.Show(message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
@@ -452,6 +412,79 @@ namespace Bricscad_AgentAI_V2.UI.Forms
             {
                 btnLoadModel.Enabled = true;
                 btnLoadModel.Text = "⚡ Załaduj do VRAM";
+            }
+        }
+
+        private async void BtnUnloadModel_Click(object sender, EventArgs e)
+        {
+            if (_currentEditing == null) return;
+
+            btnUnloadModel.Enabled = false;
+            btnUnloadModel.Text = "Rozładowywanie...";
+
+            try
+            {
+                var client = new LLMClient(null);
+                var (ok, message) = await client.UnloadModelAsync(_currentEditing);
+                if (ok)
+                {
+                    MessageBox.Show(message, "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await RefreshLoadedModelLabelAsync();
+                }
+                else
+                {
+                    MessageBox.Show(message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Wyjątek komunikacji: {ex.Message}", "Błąd połączenia", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnUnloadModel.Enabled = true;
+                btnUnloadModel.Text = "⏏ Rozładuj";
+            }
+        }
+
+        private async System.Threading.Tasks.Task RefreshLoadedModelLabelAsync()
+        {
+            if (lblLoadedModelStatus == null) return;
+            if (_currentEditing == null)
+            {
+                lblLoadedModelStatus.Text = "(brak providera)";
+                return;
+            }
+
+            if (!LLMClient.SupportsLocalModelManagement(_currentEditing))
+            {
+                lblLoadedModelStatus.Text = $"Aktualny model: {_currentEditing.ModelName}  (remote – brak VRAM API)";
+                lblLoadedModelStatus.ForeColor = Color.Gray;
+                return;
+            }
+
+            lblLoadedModelStatus.Text = "Sprawdzanie stanu LM Studio...";
+            lblLoadedModelStatus.ForeColor = Color.LightSkyBlue;
+
+            try
+            {
+                var client = new LLMClient(null);
+                var desc = await client.GetLoadedModelInfoAsync(_currentEditing);
+                if (desc != null)
+                {
+                    lblLoadedModelStatus.Text = "Załadowany: " + desc.FormatStatusLine();
+                    lblLoadedModelStatus.ForeColor = Color.LightGreen;
+                }
+                else
+                {
+                    lblLoadedModelStatus.Text = "Aktualny model: " + (_currentEditing.ModelName ?? "(brak)") + "  (żaden nie załadowany w LM Studio)";
+                    lblLoadedModelStatus.ForeColor = Color.Khaki;
+                }
+            }
+            catch
+            {
+                lblLoadedModelStatus.Text = "Aktualny model: " + (_currentEditing.ModelName ?? "(brak)");
+                lblLoadedModelStatus.ForeColor = Color.Gray;
             }
         }
 

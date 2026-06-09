@@ -609,72 +609,265 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         /// <summary>
-        /// Wysyła żądanie ładowania modelu do LM Studio REST API.
+        /// Wysyła żądanie ładowania modelu do LM Studio REST API (wywoływane automatycznie przed czatem, gdy AutoLoadModel=true).
         /// </summary>
         private async Task TryLoadModelAsync(LLMProviderConfig config)
         {
+            var (ok, message) = await LoadModelAsync(config);
+            if (ok)
+                OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} załadowany pomyślnie. {message}");
+            else if (!string.IsNullOrEmpty(message))
+                OnStatusUpdate?.Invoke($"[Auto-Load] {message}");
+        }
+
+        /// <summary>
+        /// Zwraca true, jeśli dany provider obsługuje natywne LM Studio load/unload API
+        /// (czyli jest lokalnym serwerem, nie OpenAI/OpenRouter/Azure).
+        /// </summary>
+        public static bool SupportsLocalModelManagement(LLMProviderConfig config)
+        {
+            if (config == null || string.IsNullOrEmpty(config.EndpointUrl)) return false;
+            string u = config.EndpointUrl.ToLowerInvariant();
+            if (u.Contains("openrouter.ai") || u.Contains("api.openai.com") || u.Contains("openai.azure.com"))
+                return false;
+            return true;
+        }
+
+        /// <summary>
+        /// Zwraca bazowy URL providera (bez /v1/chat/completions itp.).
+        /// </summary>
+        public static string GetBaseUrl(LLMProviderConfig config)
+        {
+            string url = config.EndpointUrl ?? string.Empty;
+            if (url.Contains("/v1/chat/completions"))
+                url = url.Replace("/v1/chat/completions", "");
+            else if (url.Contains("/chat/completions"))
+                url = url.Replace("/chat/completions", "");
+            return url.TrimEnd('/');
+        }
+
+        /// <summary>
+        /// Buduje słownik payload dla POST /api/v1/models/load (LM Studio) na podstawie config providera.
+        /// </summary>
+        public static Dictionary<string, object> BuildLoadPayload(LLMProviderConfig config)
+        {
+            var loadPayload = new Dictionary<string, object>
+            {
+                { "model", config.ModelName }
+            };
+            if (config.LoadContextLength > 0)
+                loadPayload["context_length"] = config.LoadContextLength;
+            if (config.TtlSeconds > 0)
+                loadPayload["ttl"] = config.TtlSeconds;
+            if (config.FlashAttention)
+                loadPayload["flash_attention"] = true;
+            if (config.OffloadKvCache)
+                loadPayload["offload_kv_cache_to_gpu"] = true;
+            return loadPayload;
+        }
+
+        /// <summary>
+        /// Ładuje model do VRAM w LM Studio (POST {baseUrl}/api/v1/models/load).
+        /// Zwraca (sukces, komunikat). Odmawia dla providerów chmurowych.
+        /// </summary>
+        public async Task<(bool ok, string message)> LoadModelAsync(LLMProviderConfig config, CancellationToken ct = default)
+        {
+            if (config == null) return (false, "Brak konfiguracji providera.");
+            if (!SupportsLocalModelManagement(config))
+                return (false, "Dostawcy chmurowi (OpenRouter, OpenAI, Azure) nie obsługują dynamicznego ładowania modeli przez API.");
+
             try
             {
-                string baseUrl = config.EndpointUrl;
-                if (baseUrl.Contains("/v1/chat/completions"))
-                {
-                    baseUrl = baseUrl.Replace("/v1/chat/completions", "");
-                }
-                else if (baseUrl.Contains("/chat/completions"))
-                {
-                    baseUrl = baseUrl.Replace("/chat/completions", "");
-                }
-                
-                string loadUrl = baseUrl.TrimEnd('/') + "/api/v1/models/load";
+                string loadUrl = GetBaseUrl(config) + "/api/v1/models/load";
+                string jsonContent = JsonConvert.SerializeObject(BuildLoadPayload(config));
 
-                var loadPayload = new Dictionary<string, object>
+                using (var request = new HttpRequestMessage(HttpMethod.Post, loadUrl))
                 {
-                    { "model", config.ModelName }
-                };
-                if (config.LoadContextLength > 0)
-                {
-                    loadPayload["context_length"] = config.LoadContextLength;
-                }
+                    if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                        request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                    request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                if (config.TtlSeconds > 0)
-                {
-                    loadPayload["ttl"] = config.TtlSeconds;
-                }
-
-                if (config.FlashAttention)
-                {
-                    loadPayload["flash_attention"] = true;
-                }
-
-                if (config.OffloadKvCache)
-                {
-                    loadPayload["offload_kv_cache_to_gpu"] = true;
-                }
-
-                string jsonContent = JsonConvert.SerializeObject(loadPayload);
-                var request = new HttpRequestMessage(HttpMethod.Post, loadUrl);
-                
-                if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
-                {
-                    request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
-                }
-
-                request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-                
-                var response = await _httpClient.SendAsync(request);
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errorMsg = await response.Content.ReadAsStringAsync();
-                    OnStatusUpdate?.Invoke($"[Auto-Load] Błąd ładowania: {response.StatusCode} - {errorMsg}");
-                }
-                else
-                {
-                    OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} załadowany pomyślnie.");
+                    var response = await _httpClient.SendAsync(request, ct);
+                    string body = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string extra = "";
+                        try
+                        {
+                            var jo = JObject.Parse(body);
+                            var loadTime = jo["load_time_seconds"]?.Value<double?>();
+                            if (loadTime.HasValue) extra = $" (czas: {loadTime.Value:F1}s)";
+                        }
+                        catch { }
+                        return (true, $"Model '{config.ModelName}' załadowany{extra}.");
+                    }
+                    return (false, $"Błąd serwera ({(int)response.StatusCode}): {body}");
                 }
             }
             catch (Exception ex)
             {
-                OnStatusUpdate?.Invoke($"[Auto-Load] Wyjątek podczas ładowania: {ex.Message}");
+                return (false, $"Wyjątek komunikacji: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Rozładowuje model z VRAM w LM Studio (POST {baseUrl}/api/v1/models/unload).
+        /// Najpierw pobiera aktualny stan (/api/v1/models), wyciąga `instance_id` z `loaded_instances`
+        /// (dla modelu pasującego do config.ModelName, a jeśli brak — dla pierwszego załadowanego)
+        /// i wysyła unload z `instance_id`. LM Studio wymaga pola `instance_id`, nie `model`.
+        /// Jeśli żaden model nie jest załadowany, zwraca sukces (nic do zrobienia).
+        /// Odmawia dla providerów chmurowych.
+        /// </summary>
+        public async Task<(bool ok, string message)> UnloadModelAsync(LLMProviderConfig config, CancellationToken ct = default)
+        {
+            if (config == null) return (false, "Brak konfiguracji providera.");
+            if (!SupportsLocalModelManagement(config))
+                return (false, "Dostawcy chmurowi nie obsługują unload.");
+
+            try
+            {
+                // 1) Pobierz aktualny stan - potrzebujemy instance_id
+                var loaded = await GetLoadedModelInfoAsync(config, ct);
+                if (loaded == null || string.IsNullOrEmpty(loaded.Id))
+                {
+                    return (true, "Brak załadowanego modelu w LM Studio (nic do zwolnienia).");
+                }
+
+                // 2) Wyślij unload z instance_id
+                string unloadUrl = GetBaseUrl(config) + "/api/v1/models/unload";
+                var payload = new Dictionary<string, object> { { "instance_id", loaded.Id } };
+                string jsonContent = JsonConvert.SerializeObject(payload);
+
+                using (var request = new HttpRequestMessage(HttpMethod.Post, unloadUrl))
+                {
+                    if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                        request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                    request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                    var response = await _httpClient.SendAsync(request, ct);
+                    if (response.IsSuccessStatusCode)
+                        return (true, $"Model '{loaded.DisplayName ?? loaded.Id}' rozładowany.");
+                    string body = await response.Content.ReadAsStringAsync();
+                    return (false, $"Błąd serwera ({(int)response.StatusCode}): {body}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Wyjątek komunikacji: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Pobiera listę modeli dostępnych u providera (OpenAI-compat GET /v1/models).
+        /// Dla zdalnych providerów zwraca pustą listę.
+        /// </summary>
+        public async Task<List<string>> GetAvailableModelsAsync(LLMProviderConfig config, CancellationToken ct = default)
+        {
+            var result = new List<string>();
+            if (config == null || string.IsNullOrEmpty(config.EndpointUrl)) return result;
+
+            try
+            {
+                string url = config.EndpointUrl.Replace("/chat/completions", "/models");
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(10);
+                    if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
+
+                    var response = await client.GetAsync(url, ct);
+                    response.EnsureSuccessStatusCode();
+                    var body = await response.Content.ReadAsStringAsync();
+                    var json = JObject.Parse(body);
+                    var modelsArray = json["data"] as JArray;
+                    if (modelsArray != null)
+                    {
+                        foreach (var m in modelsArray)
+                        {
+                            var id = m["id"]?.ToString();
+                            if (!string.IsNullOrEmpty(id)) result.Add(id);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnStatusUpdate?.Invoke($"[ListModels] Błąd pobierania listy modeli: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Pobiera informacje o aktualnie załadowanym modelu z LM Studio (GET {baseUrl}/api/v1/models).
+        /// Szuka modelu, którego pole 'loaded_instances' jest niepuste i pasuje do config.ModelName.
+        /// Zwraca null, jeśli żaden model nie jest załadowany lub provider nie jest lokalny.
+        /// </summary>
+        public async Task<LlmModelDescriptor> GetLoadedModelInfoAsync(LLMProviderConfig config, CancellationToken ct = default)
+        {
+            if (config == null) return null;
+            if (!SupportsLocalModelManagement(config)) return null;
+
+            try
+            {
+                string url = GetBaseUrl(config) + "/api/v1/models";
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(5);
+                    if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
+
+                    var response = await client.GetAsync(url, ct);
+                    if (!response.IsSuccessStatusCode) return null;
+                    var body = await response.Content.ReadAsStringAsync();
+                    var json = JObject.Parse(body);
+                    var modelsArray = json["models"] as JArray;
+                    if (modelsArray == null) return null;
+
+                    LlmModelDescriptor firstLoaded = null;
+                    LlmModelDescriptor match = null;
+                    foreach (var m in modelsArray)
+                    {
+                        if (m["type"]?.ToString() != "llm") continue;
+                        var loadedArr = m["loaded_instances"] as JArray;
+                        bool isLoaded = loadedArr != null && loadedArr.Count > 0;
+                        if (!isLoaded) continue;
+
+                        // instance_id (z loaded_instances[0].id) jest wymagane do unload.
+                        // Jeśli brak, fallback do key/id modelu.
+                        string instanceId = loadedArr[0]?["id"]?.ToString();
+                        string modelKey = m["key"]?.ToString() ?? m["id"]?.ToString();
+
+                        var desc = new LlmModelDescriptor
+                        {
+                            Id = !string.IsNullOrEmpty(instanceId) ? instanceId : modelKey,
+                            DisplayName = m["display_name"]?.ToString(),
+                            Quantization = m["quantization"]?["name"]?.ToString(),
+                            ParamsString = m["params_string"]?.ToString(),
+                            SizeBytes = m["size_bytes"]?.Value<long>() ?? 0,
+                            IsLoaded = true,
+                            Architecture = m["architecture"]?.ToString(),
+                            Publisher = m["publisher"]?.ToString()
+                        };
+                        if (loadedArr.Count > 0)
+                        {
+                            desc.LoadedContextLength = loadedArr[0]["config"]?["context_length"]?.Value<int>() ?? 0;
+                        }
+
+                        if (firstLoaded == null) firstLoaded = desc;
+                        if (!string.IsNullOrEmpty(config.ModelName) &&
+                            string.Equals(desc.Id, config.ModelName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            match = desc;
+                            break;
+                        }
+                    }
+                    return match ?? firstLoaded;
+                }
+            }
+            catch (Exception ex)
+            {
+                OnStatusUpdate?.Invoke($"[GetLoaded] Błąd: {ex.Message}");
+                return null;
             }
         }
 

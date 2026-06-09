@@ -106,6 +106,7 @@
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
     <Compile Include="src\Models\LLMConfigModels.cs" />
+    <Compile Include="src\Models\LlmApiModels.cs" />
     <Compile Include="src\Models\AgentExecutionResult.cs" />
     <Compile Include="src\Core\IToolV2.cs" />
     <Compile Include="src\Models\AutotestRecord.cs" />

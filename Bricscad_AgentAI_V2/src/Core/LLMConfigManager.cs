@@ -72,6 +72,34 @@ namespace Bricscad_AgentAI_V2.Core
                 ?? GenerateDefaultConfig().Providers.First();
         }
 
+        /// <summary>
+        /// Ustawia aktywnego providera po Id i zapisuje konfigurację.
+        /// </summary>
+        public static void SetActiveProvider(Guid id)
+        {
+            if (_config == null) return;
+            if (!_config.Providers.Any(p => p.Id == id)) return;
+            if (_config.ActiveProviderId == id) return;
+            _config.ActiveProviderId = id;
+            Save();
+        }
+
+        /// <summary>
+        /// Modyfikuje aktywnego providera przez mutator i zapisuje konfigurację.
+        /// Mutator powinien zwrócić zmieniony obiekt (lub ten sam, jeśli nie było zmian).
+        /// </summary>
+        public static void UpdateActiveProvider(Func<LLMProviderConfig, LLMProviderConfig> mutator)
+        {
+            if (_config == null || mutator == null) return;
+            var active = _config.Providers.FirstOrDefault(p => p.Id == _config.ActiveProviderId);
+            if (active == null) return;
+            var updated = mutator(active);
+            if (updated == null) return;
+            int idx = _config.Providers.IndexOf(active);
+            _config.Providers[idx] = updated;
+            Save();
+        }
+
         private static LLMConfig GenerateDefaultConfig()
         {
             var config = new LLMConfig();

@@ -28,6 +28,14 @@ namespace Bricscad_AgentAI_V2.UI
         private ProgressBar progressBar;
         private Label lblGlobalStatus;
         private TabControl tabLogs;
+
+        // Provider/Model picker
+        private ComboBox cbProviders, cbModels;
+        private Button btnRefreshModels, btnUnloadModel;
+        private CheckBox chkLiveStatus;
+        private Label lblModelStatus;
+        private System.Windows.Forms.Timer liveStatusTimer;
+        private bool _suppressModelChangedEvent;
         private const string REG_PATH = @"Software\BricscadAgentAI";
         private const string REG_KEY = "LastBenchmarkPath";
 
@@ -40,6 +48,11 @@ namespace Bricscad_AgentAI_V2.UI
 
             InitializeUI();
             LoadLastPath();
+
+            // Subskrybuj zmiany konfiguracji z innych części UI (np. okno Ustawień)
+            LLMConfigManager.OnConfigChanged += OnExternalConfigChanged;
+            // Początkowe wypełnienie dropdownów
+            this.HandleCreated += (s, e) => BeginInvoke(new Action(RefreshProviderDropdown));
         }
 
         private void InitializeUI()
@@ -51,7 +64,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Pasek górny (Przyciski)
             Panel panTop = new Panel { Dock = DockStyle.Top, Height = 50, Padding = new Padding(5) };
-            
+
             Label lblProfile = new Label { Text = "Profil:", ForeColor = Color.White, Dock = DockStyle.Left, Width = 50, TextAlign = ContentAlignment.MiddleLeft };
             cbProfiles = new ComboBox
             {
@@ -76,10 +89,10 @@ namespace Bricscad_AgentAI_V2.UI
             panTop.Controls.Add(cbProfiles);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
             panTop.Controls.Add(lblProfile);
-            
+
             btnLoadJson = CreateStyledButton("📂 Wczytaj JSON", Color.FromArgb(60, 60, 60));
             btnLoadJson.Click += BtnLoadJson_Click;
-            
+
             btnStart = CreateStyledButton("▶ Start", Color.FromArgb(0, 122, 204));
             btnStart.Enabled = false;
             btnStart.Click += BtnStart_Click;
@@ -93,6 +106,92 @@ namespace Bricscad_AgentAI_V2.UI
             panTop.Controls.Add(btnStart);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panTop.Controls.Add(btnLoadJson);
+
+            // === Drugi pasek: Provider / Model / Live status ===
+            Panel panModelPicker = new Panel { Dock = DockStyle.Top, Height = 38, Padding = new Padding(5, 2, 5, 2) };
+
+            Label lblProvider = new Label { Text = "Provider:", ForeColor = Color.White, Dock = DockStyle.Left, Width = 60, TextAlign = ContentAlignment.MiddleLeft };
+            cbProviders = new ComboBox
+            {
+                Dock = DockStyle.Left,
+                Width = 180,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cbProviders.SelectedIndexChanged += CbProviders_SelectedIndexChanged;
+
+            Label lblModel = new Label { Text = "Model:", ForeColor = Color.White, Dock = DockStyle.Left, Width = 50, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0) };
+            cbModels = new ComboBox
+            {
+                Dock = DockStyle.Left,
+                Width = 250,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cbModels.SelectedIndexChanged += CbModels_SelectedIndexChanged;
+
+            btnRefreshModels = new Button
+            {
+                Text = "🔄",
+                Dock = DockStyle.Left,
+                Width = 32,
+                Height = 26,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                Margin = new Padding(2, 0, 2, 0)
+            };
+            btnRefreshModels.Click += BtnRefreshModels_Click;
+
+            btnUnloadModel = new Button
+            {
+                Text = "⏏ Rozładuj",
+                Dock = DockStyle.Left,
+                Width = 80,
+                Height = 26,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(150, 60, 60),
+                ForeColor = Color.White,
+                Margin = new Padding(2, 0, 2, 0)
+            };
+            btnUnloadModel.Click += BtnUnloadModel_Click;
+
+            chkLiveStatus = new CheckBox
+            {
+                Text = "🔴 Live",
+                Dock = DockStyle.Left,
+                Width = 80,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Padding = new Padding(6, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            chkLiveStatus.CheckedChanged += ChkLiveStatus_CheckedChanged;
+
+            lblModelStatus = new Label
+            {
+                Dock = DockStyle.Fill,
+                ForeColor = Color.LightGreen,
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = new Font("Segoe UI", 9f, FontStyle.Italic),
+                Padding = new Padding(0, 0, 5, 0)
+            };
+
+            panModelPicker.Controls.Add(lblModelStatus);
+            panModelPicker.Controls.Add(chkLiveStatus);
+            panModelPicker.Controls.Add(btnRefreshModels);
+            panModelPicker.Controls.Add(btnUnloadModel);
+            panModelPicker.Controls.Add(cbModels);
+            panModelPicker.Controls.Add(lblModel);
+            panModelPicker.Controls.Add(cbProviders);
+            panModelPicker.Controls.Add(lblProvider);
+
+            liveStatusTimer = new System.Windows.Forms.Timer { Interval = 3000 };
+            liveStatusTimer.Tick += LiveStatusTimer_Tick;
 
             // Stopka (Progres)
             Panel panFooter = new Panel { Dock = DockStyle.Bottom, Height = 45, Padding = new Padding(5) };
@@ -160,6 +259,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             this.Controls.Add(tabLogs);
             this.Controls.Add(panFooter);
+            this.Controls.Add(panModelPicker);
             this.Controls.Add(panTop);
         }
 
@@ -480,6 +580,313 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 AgentControl.Instance.SwitchToChat();
                 _ = AgentControl.Instance.ProcessInputAsync(prompt);
+            }
+        }
+
+        // ========== Provider / Model picker logic ==========
+
+        private void OnExternalConfigChanged()
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(OnExternalConfigChanged));
+                return;
+            }
+            RefreshProviderDropdown();
+            _ = RefreshModelsForCurrentProviderAsync();
+            _ = UpdateLiveStatusAsync();
+        }
+
+        private void RefreshProviderDropdown()
+        {
+            if (cbProviders == null) return;
+            try
+            {
+                _suppressModelChangedEvent = true;
+                var config = LLMConfigManager.Current;
+                if (config == null) return;
+                var active = LLMConfigManager.GetActiveProvider();
+
+                cbProviders.DataSource = null;
+                cbProviders.DataSource = config.Providers;
+                cbProviders.DisplayMember = "Name";
+                if (active != null)
+                {
+                    int idx = config.Providers.FindIndex(p => p.Id == active.Id);
+                    if (idx >= 0) cbProviders.SelectedIndex = idx;
+                }
+            }
+            finally
+            {
+                _suppressModelChangedEvent = false;
+            }
+        }
+
+        private void CbProviders_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_suppressModelChangedEvent) return;
+            if (cbProviders.SelectedItem is LLMProviderConfig selected)
+            {
+                LLMConfigManager.SetActiveProvider(selected.Id);
+                _ = RefreshModelsForCurrentProviderAsync();
+                _ = UpdateLiveStatusAsync();
+            }
+        }
+
+        private async System.Threading.Tasks.Task RefreshModelsForCurrentProviderAsync()
+        {
+            if (cbModels == null) return;
+            var active = LLMConfigManager.GetActiveProvider();
+            if (active == null) return;
+
+            _suppressModelChangedEvent = true;
+            try
+            {
+                if (!LLMClient.SupportsLocalModelManagement(active))
+                {
+                    cbModels.Visible = false;
+                    btnRefreshModels.Visible = false;
+                    chkLiveStatus.Visible = false;
+                    btnUnloadModel.Visible = false;
+                    lblModelStatus.Text = $"Aktualny: {active.ModelName ?? "(brak)"}  (remote – brak VRAM API)";
+                    lblModelStatus.ForeColor = Color.Gray;
+                    lblModelStatus.Visible = true;
+                    cbModels.Items.Clear();
+                    return;
+                }
+
+                cbModels.Visible = true;
+                btnRefreshModels.Visible = true;
+                chkLiveStatus.Visible = true;
+                btnUnloadModel.Visible = true;
+                cbModels.Items.Clear();
+                cbModels.Items.Add("(pobieranie listy...)");
+                cbModels.SelectedIndex = 0;
+                btnRefreshModels.Enabled = false;
+                btnRefreshModels.Text = "⏳";
+
+                var client = new LLMClient(ToolOrchestrator.Instance);
+                var models = await client.GetAvailableModelsAsync(active);
+
+                btnRefreshModels.Enabled = true;
+                btnRefreshModels.Text = "🔄";
+
+                _suppressModelChangedEvent = true;
+                cbModels.Items.Clear();
+                if (models.Count == 0)
+                {
+                    cbModels.Items.Add("(brak modeli – kliknij 🔄)");
+                    cbModels.SelectedIndex = 0;
+                }
+                else
+                {
+                    foreach (var m in models) cbModels.Items.Add(m);
+                    if (!string.IsNullOrEmpty(active.ModelName) && cbModels.Items.Contains(active.ModelName))
+                        cbModels.Text = active.ModelName;
+                    else
+                        cbModels.SelectedIndex = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                cbModels.Items.Clear();
+                cbModels.Items.Add("(błąd pobierania)");
+                cbModels.SelectedIndex = 0;
+                btnRefreshModels.Text = "🔄";
+                btnRefreshModels.Enabled = true;
+                Engine_OnLogMessage(this, $"[ModelPicker] Błąd: {ex.Message}");
+            }
+            finally
+            {
+                _suppressModelChangedEvent = false;
+            }
+        }
+
+        private void BtnRefreshModels_Click(object sender, EventArgs e)
+        {
+            _ = RefreshModelsForCurrentProviderAsync();
+        }
+
+        private async void BtnUnloadModel_Click(object sender, EventArgs e)
+        {
+            var active = LLMConfigManager.GetActiveProvider();
+            if (active == null) return;
+            if (!LLMClient.SupportsLocalModelManagement(active))
+            {
+                MessageBox.Show("Dostawcy chmurowi nie obsługują unload.",
+                    "Wskazówka", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            btnUnloadModel.Enabled = false;
+            btnUnloadModel.Text = "⏳";
+            lblModelStatus.Text = "Rozładowywanie modelu...";
+            lblModelStatus.ForeColor = Color.Khaki;
+
+            try
+            {
+                var client = new LLMClient(ToolOrchestrator.Instance);
+                var (ok, message) = await client.UnloadModelAsync(active);
+                if (ok)
+                {
+                    Engine_OnLogMessage(this, $"[Unload] {message}");
+                }
+                else
+                {
+                    Engine_OnLogMessage(this, $"[Unload] {message}");
+                    MessageBox.Show(message, "Błąd rozładowania", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                await UpdateLiveStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                Engine_OnLogMessage(this, $"[Unload] Wyjątek: {ex.Message}");
+                MessageBox.Show(ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnUnloadModel.Enabled = true;
+                btnUnloadModel.Text = "⏏ Rozładuj";
+            }
+        }
+
+        private void CbModels_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_suppressModelChangedEvent) return;
+            if (cbModels.SelectedItem is string modelName && !string.IsNullOrEmpty(modelName)
+                && !modelName.StartsWith("(") && modelName != activeProviderModelName())
+            {
+                _ = SwitchToModelAsync(modelName);
+            }
+        }
+
+        private string activeProviderModelName()
+        {
+            return LLMConfigManager.GetActiveProvider()?.ModelName;
+        }
+
+        private async System.Threading.Tasks.Task SwitchToModelAsync(string newModelName)
+        {
+            if (string.IsNullOrEmpty(newModelName)) return;
+
+            var active = LLMConfigManager.GetActiveProvider();
+            if (active == null) return;
+            if (!LLMClient.SupportsLocalModelManagement(active))
+            {
+                MessageBox.Show("Dostawcy chmurowi nie obsługują dynamicznego ładowania modeli.",
+                    "Wskazówka", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string previousModel = active.ModelName;
+            cbModels.Enabled = false;
+            cbProviders.Enabled = false;
+            btnRefreshModels.Enabled = false;
+            lblModelStatus.Text = "Przeładowanie modelu...";
+            lblModelStatus.ForeColor = Color.Khaki;
+
+            try
+            {
+                var client = new LLMClient(ToolOrchestrator.Instance);
+
+                // 1) Unload poprzedniego
+                if (!string.IsNullOrEmpty(previousModel) && previousModel != newModelName)
+                {
+                    var (okU, msgU) = await client.UnloadModelAsync(active);
+                    if (okU)
+                        Engine_OnLogMessage(this, $"[ModelSwitch] {msgU}");
+                    else
+                        Engine_OnLogMessage(this, $"[ModelSwitch] Unload: {msgU} (kontynuuję)");
+                }
+
+                // 2) Zapis nowego ModelName w configu
+                string modelToLoad = newModelName;
+                LLMConfigManager.UpdateActiveProvider(p => { p.ModelName = modelToLoad; return p; });
+
+                // 3) Load nowego
+                var fresh = LLMConfigManager.GetActiveProvider();
+                var (okL, msgL) = await client.LoadModelAsync(fresh);
+                if (okL)
+                {
+                    Engine_OnLogMessage(this, $"[ModelSwitch] {msgL}");
+                }
+                else
+                {
+                    Engine_OnLogMessage(this, $"[ModelSwitch] Błąd load: {msgL}");
+                    // Cofnij ModelName
+                    LLMConfigManager.UpdateActiveProvider(p => { p.ModelName = previousModel; return p; });
+                    _suppressModelChangedEvent = true;
+                    cbModels.Text = previousModel;
+                    _suppressModelChangedEvent = false;
+                    MessageBox.Show(msgL, "Błąd ładowania", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+
+                // 4) Odśwież etykietę statusu
+                await UpdateLiveStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                Engine_OnLogMessage(this, $"[ModelSwitch] Wyjątek: {ex.Message}");
+                MessageBox.Show(ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                cbModels.Enabled = true;
+                cbProviders.Enabled = true;
+                btnRefreshModels.Enabled = true;
+            }
+        }
+
+        private void ChkLiveStatus_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkLiveStatus.Checked)
+            {
+                liveStatusTimer.Start();
+                _ = UpdateLiveStatusAsync();
+            }
+            else
+            {
+                liveStatusTimer.Stop();
+            }
+        }
+
+        private void LiveStatusTimer_Tick(object sender, EventArgs e)
+        {
+            _ = UpdateLiveStatusAsync();
+        }
+
+        private async System.Threading.Tasks.Task UpdateLiveStatusAsync()
+        {
+            if (lblModelStatus == null) return;
+            var active = LLMConfigManager.GetActiveProvider();
+            if (active == null) return;
+
+            if (!LLMClient.SupportsLocalModelManagement(active))
+            {
+                lblModelStatus.Text = $"Aktualny: {active.ModelName ?? "(brak)"}  (remote)";
+                lblModelStatus.ForeColor = Color.Gray;
+                return;
+            }
+
+            try
+            {
+                var client = new LLMClient(ToolOrchestrator.Instance);
+                var desc = await client.GetLoadedModelInfoAsync(active);
+                if (desc != null)
+                {
+                    lblModelStatus.Text = "Załadowany: " + desc.FormatStatusLine();
+                    lblModelStatus.ForeColor = Color.LightGreen;
+                }
+                else
+                {
+                    lblModelStatus.Text = "Brak załadowanego modelu (oczekuje na wybór)";
+                    lblModelStatus.ForeColor = Color.Khaki;
+                }
+            }
+            catch
+            {
+                lblModelStatus.Text = "Aktualny: " + (active.ModelName ?? "(brak)");
+                lblModelStatus.ForeColor = Color.Gray;
             }
         }
     }
