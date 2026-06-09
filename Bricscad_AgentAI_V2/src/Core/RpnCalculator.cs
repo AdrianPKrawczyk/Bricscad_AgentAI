@@ -968,14 +968,39 @@ namespace Bricscad_AgentAI_V2.Core
 
         private static List<string> Tokenize(string expr)
         {
-            List<string> ts = new List<string>(); StringBuilder sb = new StringBuilder(); bool q = false;
+            List<string> ts = new List<string>();
+            StringBuilder sb = new StringBuilder();
+            char? activeQuote = null;
             foreach (char c in expr)
             {
-                if (c == '\'' || c == '\"') { q = !q; sb.Append(c); }
-                else if (char.IsWhiteSpace(c) && !q) { if (sb.Length > 0) { ts.Add(sb.ToString()); sb.Clear(); } }
-                else sb.Append(c);
+                if (c == '\'' || c == '\"')
+                {
+                    if (activeQuote == null)
+                    {
+                        activeQuote = c;
+                    }
+                    else if (activeQuote == c)
+                    {
+                        activeQuote = null;
+                    }
+
+                    sb.Append(c);
+                }
+                else if (char.IsWhiteSpace(c) && activeQuote == null)
+                {
+                    if (sb.Length > 0)
+                    {
+                        ts.Add(sb.ToString());
+                        sb.Clear();
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
             }
-            if (sb.Length > 0) ts.Add(sb.ToString()); return ts;
+            if (sb.Length > 0) ts.Add(sb.ToString());
+            return ts;
         }
 
         public static bool AreValuesPhysicallyEqual(string expected, string actual, double tolerance = 1e-4)

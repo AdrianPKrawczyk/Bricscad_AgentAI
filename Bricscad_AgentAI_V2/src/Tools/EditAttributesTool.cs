@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Teigha.DatabaseServices;
 
 namespace Bricscad_AgentAI_V2.Tools
@@ -23,7 +24,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "EditAttributes",
-                    Description = "Narzędzie do odczytu i edycji atrybutów w blokach CAD. ZASADA KRYTYCZNA: Jeśli musisz zmienić wartość atrybutu X tylko dla bloków, w których atrybut Y ma konkretną wartość (np. VAL = T1), ABSOLUTNIE NIE UŻYWAJ instrukcji warunkowych w RPN (zakaz używania IFTE). Zamiast tego, wykonaj osobne wywołania Action: Update, używając parametrów 'FilterTag' (np. VAL) oraz 'FilterValue' (np. T1). Zmienna $OLD_VALUE w RPN zwraca ZAWSZE wartość edytowanego atrybutu, a nie atrybutu z filtra!",
+                    Description = "Narzedzie do odczytu i edycji atrybutow w blokach CAD. ZASADA KRYTYCZNA: Jesli musisz zmienic wartosc atrybutu X tylko dla blokow, w ktorych atrybut Y ma konkretna wartosc, nie uzywaj IFTE w RPN. Zamiast tego wykonuj osobne wywolania Action: Update z parametrami FilterTag i FilterValue. Zmienna $OLD_VALUE w RPN zwraca zawsze wartosc edytowanego atrybutu, a nie atrybutu z filtra. Do wskazywania konkretnego elementu uzywaj stabilnego atrybutu identyfikujacego, a nie wartosci, ktora sama bedzie aktualizowana. Nie uzywaj atrybutu docelowego jako identyfikatora lancuchowych aktualizacji, jesli jego wartosc zmienia sie w trakcie sekwencji.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -41,7 +42,8 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Attributes", new ToolParameter
                                 {
                                     Type = "array",
-                                    Description = "Lista atrybutów do zmiany. Wspiera stałe teksty oraz operacje matematyczne przy użyciu zmiennej $OLD_VALUE i notacji RPN, np: [{\"Tag\": \"DN_VAL\", \"Value\": \"RPN: $OLD_VALUE 1 +\"}]. PAMIĘTAJ: Jako 'Tag' podawaj zawsze czystą nazwę etykiety, bezwzględnie usuwając z niej wszelkie metadane w nawiasach kwadratowych z odczytu (np. pomiń [Ukryty] lub [Wieloliniowy])."
+                                    Description = "Lista wpisow atrybutow. Kazdy element tablicy musi byc plaskim obiektem w postaci {\"Tag\":\"...\",\"Value\":\"...\"}. Nie wolno tworzyc zagniezdzonego pola Attributes ani osobnego pola RPN. Jesli chcesz uzyc RPN, umiesc caly zapis w polu Value, np. {\"Tag\":\"DN_VAL\",\"Value\":\"RPN: $OLD_VALUE \\\"'\\\" \\\"\\\" REPLACE\"}. Dla odczytu mozna podac samo {\"Tag\":\"DN_VAL\"}. Jako Tag podawaj zawsze czysta nazwe etykiety, bez metadanych typu [Ukryty] lub [Wieloliniowy].",
+                                    Items = JObject.Parse("{\"type\":\"object\",\"properties\":{\"Tag\":{\"type\":\"string\",\"description\":\"Czysta nazwa tagu atrybutu, np. DN_VAL.\"},\"Value\":{\"type\":\"string\",\"description\":\"Nowa wartosc albo transformacja RPN zapisana w calosci jako string, np. RPN: $OLD_VALUE \\\"'\\\" \\\"\\\" REPLACE.\"}},\"required\":[\"Tag\"]}")
                                 }
                             },
                             {
@@ -55,14 +57,14 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "FilterTag", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Opcjonalnie: Tag atrybutu służący do filtrowania (np. 'ID')."
+                                    Description = "Opcjonalnie: Tag atrybutu sluzacy do filtrowania (np. ID, TYPE, NAME, VAL lub inny stabilny identyfikator wystepujacy w danym typie bloku). Nie uzywaj jako filtra atrybutu, ktory sam jest wlasnie zmieniany w sekwencji aktualizacji."
                                 }
                             },
                             {
                                 "FilterValue", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Opcjonalnie: Wartość atrybutu filtrującego (np. 'A2')."
+                                    Description = "Opcjonalnie: Wartosc atrybutu filtrujacego (np. konkretne oznaczenie, typ albo nazwa). Jesli aktualizujesz wiele roznych blokow, wykonuj osobne wywolania dla kazdego celu po stabilnym identyfikatorze."
                                 }
                             }
                         },
@@ -79,6 +81,34 @@ namespace Bricscad_AgentAI_V2.Tools
             string filterTag = args["FilterTag"]?.ToString();
             string filterValue = args["FilterValue"]?.ToString();
             JArray attrList = args["Attributes"] as JArray;
+
+            if (attrList != null)
+            {
+                foreach (var token in attrList)
+                {
+                    JObject attrObj = token as JObject;
+                    if (attrObj == null)
+                    {
+                        return "BLAD KRYTYCZNY EDYCJI ATRYBUTOW: Parametr Attributes musi byc tablica plaskich obiektow.";
+                    }
+
+                    if (attrObj["Attributes"] != null || attrObj["RPN"] != null)
+                    {
+                        return "BLAD KRYTYCZNY EDYCJI ATRYBUTOW: Niepoprawny ksztalt JSON. Kazdy element Attributes musi miec pola Tag oraz opcjonalnie Value. Nie uzywaj zagniezdzonego pola Attributes ani osobnego pola RPN.";
+                    }
+
+                    if (string.IsNullOrWhiteSpace(attrObj["Tag"]?.ToString()))
+                    {
+                        return "BLAD KRYTYCZNY EDYCJI ATRYBUTOW: Kazdy element Attributes musi zawierac pole Tag.";
+                    }
+
+                    if (string.Equals(action, "Update", StringComparison.OrdinalIgnoreCase) &&
+                        attrObj["Value"] == null)
+                    {
+                        return "BLAD KRYTYCZNY EDYCJI ATRYBUTOW: Dla Action='Update' kazdy element Attributes musi zawierac pole Value.";
+                    }
+                }
+            }
 
             var ids = AgentMemoryState.ActiveSelection;
             if (ids == null || ids.Length == 0)
@@ -184,6 +214,30 @@ namespace Bricscad_AgentAI_V2.Tools
                                     if (finalVal.StartsWith("RPN:"))
                                     {
                                         string rpnExpression = finalVal.Replace("RPN:", "").Trim();
+                                        string normalizedRpn = rpnExpression.ToLowerInvariant();
+                                        if (normalizedRpn.Contains("(replace") || normalizedRpn.Contains("replace("))
+                                        {
+                                            throw new Exception("Wykryto nieprawidlowa skladnie pseudo-RPN. Uzyj postfix, np. RPN: $OLD_VALUE \"'\" \"\" REPLACE");
+                                        }
+
+                                        bool looksLikeTextRpn =
+                                            normalizedRpn.Contains("replace") ||
+                                            normalizedRpn.Contains("concat") ||
+                                            normalizedRpn.Contains("ifempty") ||
+                                            normalizedRpn.Contains("split") ||
+                                            normalizedRpn.Contains("num_add");
+
+                                        bool looksLikeInfixMath =
+                                            !looksLikeTextRpn &&
+                                            (rpnExpression.Contains("(") ||
+                                             rpnExpression.Contains(")") ||
+                                             Regex.IsMatch(rpnExpression, @"\s[\+\-\*/\^]\s"));
+
+                                        if (looksLikeInfixMath)
+                                        {
+                                            rpnExpression = Bricscad_AgentAI_V2.Core.RpnCalculator.ConvertInfixToRpn(rpnExpression);
+                                        }
+
                                         try
                                         {
                                             // Wykorzystanie silnika RpnCalculator z Core (zwraca obliczony wynik jako string)
@@ -191,10 +245,9 @@ namespace Bricscad_AgentAI_V2.Tools
                                         }
                                         catch
                                         {
-                                            // W razie błędu obliczeń zostawiamy surowy tekst
+                                            // W razie bledu obliczen zostawiamy surowy tekst
                                         }
                                     }
-
                                     if (attRef.IsMTextAttribute)
                                     {
                                         MText mtxt = attRef.MTextAttribute;

@@ -433,6 +433,16 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 if (message.Role == "tool" && message.Content is string contentStr && contentStr.Length > maxLength)
                 {
+                    // Odczyty narzędziowe (np. atrybuty bloków, właściwości) muszą pozostać wierne,
+                    // bo kolejne kroki agenta mogą polegać na pełnej liście tagów i wartości.
+                    if (contentStr.StartsWith("WYNIK (Read):", StringComparison.OrdinalIgnoreCase) ||
+                        contentStr.StartsWith("WYNIK ODCZYTU", StringComparison.OrdinalIgnoreCase) ||
+                        contentStr.StartsWith("Wartość dla klucza", StringComparison.OrdinalIgnoreCase) ||
+                        contentStr.StartsWith("Zawartość Blackboard", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     int originalLength = contentStr.Length;
                     message.Content = $"{contentStr.Substring(0, 100)}... [PRZYCIĘTO {originalLength - 100} znaków dla oszczędności tokenów]";
                 }
