@@ -122,6 +122,8 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.28.17 FIX [LISP UI EXECUTION] - Poprawa autouzupełniania %skrypt i pełnego wykonania LISPa po load.
 - v2.28.18 DOC [MEMORY CANONICALIZATION] - Scalenie memory.md i docs/memory.md, renumeracja kolizji v2.28.x oraz wskazanie jednego źródła prawdy.
 - v2.28.19 FEAT [AGENT CHAT] - Dodanie zakładki Agent-Czat do ręcznego testowania wybranego subagenta, z panelem tool JSON i eksportem debugowym.
+- v2.28.34 FEAT [BENCHMARK MODEL PICKER] - Selektor providera/modelu w zakładce Benchmark z unload + load do VRAM, etykieta stanu LM Studio, deduplikacja load w LLMConfigDialog, przycisk Rozładuj.
+- v2.28.35 HOTFIX [UNLOAD INSTANCE_ID] - Fix unload LM Studio: pobiera instance_id z loaded_instances, naprawia błąd 400 Missing required field. Dodaje przycisk Rozładuj w benchmarku.
 
 ## Decyzje Architektoniczne
 - **Semantic Tool Routing**: System dynamicznego dobierania narzędzi na podstawie tagów (#core, #bloki, itp.). Od v2.8.0 zarządzany przez `ToolConfigManager`.
@@ -1210,3 +1212,71 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
 - Pelny build projektu w tym srodowisku nadal blokuje niezalezny problem brakujacych zaleznosci NuGet / referencji, wiec ocena tej iteracji dalej opiera sie na testach runtime w BricsCAD.
 ### [KOLEJNY_KROK]
 - Jesli ergonomia danych okaże sie wystarczajaca, kolejnym naturalnym ruchem jest dodanie eksportu analiz (CSV / Markdown) albo lekkiego rankingu per benchmark / per profil.
+
+## [v2.28.34] 2026-06-10T01:30:00+02:00 - Selektor providera i modelu w zakladce Benchmark [BENCHMARK-MODEL-PICKER]
+### [ZREALIZOWANO]
+- W zakladce `Benchmark` dodano nowy pasek wyboru (drugi rzad `panModelPicker` pod `panTop`):
+  - `cbProviders` - dropdown aktywnego providera LLM (persystowany przez `LLMConfigManager.SetActiveProvider`).
+  - `cbModels` - dropdown z lista modeli pobrana z `GET {baseUrl}/v1/models`.
+  - `btnRefreshModels` - reczne odswiezenie listy modeli.
+  - `chkLiveStatus` - opcjonalny timer 3 s odswiezajacy status.
+  - `lblModelStatus` - etykieta aktualnego stanu LM Studio (np. `● Gemma 4 26B A4B • Q4_K_M • ~17.9 GB • ctx 8k`).
+- Wybor modelu z listy powoduje sekwencje `unload` (stary) -> zapis `ModelName` -> `load` (nowy) z parametrami `LoadContextLength` / `TtlSeconds` / `FlashAttention` / `OffloadKvCache` pobranymi z `LLMProviderConfig`. Wszystko dzieje sie w jednym miejscu - bez przeskakiwania do Ustawien.
+- Dla providerow zdalnych (OpenRouter / OpenAI / Azure) `cbModels`, `btnRefreshModels` i `chkLiveStatus` sa ukrywane; etykieta pokazuje tylko nazwe modelu.
+- W `LLMClient.cs` dodano publiczne API:
+  - `LoadModelAsync(config, ct)` - POST `/api/v1/models/load` z `BuildLoadPayload(config)`.
+  - `UnloadModelAsync(config, ct)` - POST `/api/v1/models/unload` (nowa funkcjonalnosc, wczesniej nie istniala).
+  - `GetAvailableModelsAsync(config, ct)` - GET `/v1/models` (logika przeniesiona z `LLMConfigDialog`).
+  - `GetLoadedModelInfoAsync(config, ct)` - GET `/api/v1/models`, parsuje `loaded_instances` i zwraca `LlmModelDescriptor` dla zaladowanego modelu.
+  - Helpery statyczne: `SupportsLocalModelManagement(config)`, `GetBaseUrl(config)`, `BuildLoadPayload(config)`.
+  - Prywatny `TryLoadModelAsync` stal sie cienkim wrapperem na `LoadModelAsync` - deduplikacja kodu.
+- W `LLMConfigManager.cs` dodano `SetActiveProvider(Guid id)` i `UpdateActiveProvider(Func<...> mutator)`; istniejace `OnConfigChanged` jest wywolywane automatycznie przez `Save()`.
+- W `LLMConfigDialog.cs`:
+  - Deduplikacja `BtnLoadModel_Click` - wywoluje `LLMClient.LoadModelAsync` zamiast wlasnej kopii kodu HTTP.
+  - Nowy przycisk `btnUnloadModel` ("⏏ Rozładuj") wywolujacy `LLMClient.UnloadModelAsync`.
+  - Nowa etykieta `lblLoadedModelStatus` na dole okna pokazujaca rzeczywisty stan LM Studio w czasie rzeczywistym.
+  - Odswiezanie statusu po load/unload/zmianie providera w dialogu.
+- Nowy plik `src/Models/LlmApiModels.cs` z klasa `LlmModelDescriptor` (Id, DisplayName, Quantization, ParamsString, SizeBytes, IsLoaded, LoadedContextLength, Architecture, Publisher) i metoda `FormatStatusLine()`.
+- `Bricscad_AgentAI_V2.csproj` - dodano wpis `<Compile Include="LlmApiModels.cs" />`.
+- `AgentControl` juz subskrybowal `OnConfigChanged` -> `UpdateModelLabel`, wiec etykieta `[Model: ... / ...]` w czacie automatycznie odzwierciedla zmiane providera/modelu z benchmarku.
+### [STAN_SYSTEMU]
+- Cala sekwencja "wybierz model" jest teraz w jednym miejscu (zakladka Benchmark), z perspektywa rzeczywistego stanu VRAM (wariant B etykiety: `display_name • quantization • ~size • ctx`).
+- Kod HTTP load/unload zostal zdeduplikowany - jedyne zrodlo prawdy to `LLMClient.LoadModelAsync` / `UnloadModelAsync`.
+- Przycisk "Rozladuj" w oknie Ustawien umozliwia reczne zwolnienie VRAM bez otwierania GUI LM Studio.
+- Plik DLL z poprzedniej udanej kompilacji (2026-06-09 22:28) potwierdza, ze projekt kompiluje sie w Visual Studio.
+### [BLOKADY / PROBLEMY]
+- `dotnet build` w biezacym srodowisku CLI nadal jest zablokowany przez globalny problem brakujacych referencji NuGet dla .NET Framework 4.8 + PackageReference w SDK .NET 10. Weryfikacja tej iteracji opiera sie na review kodu + porownaniu z istniejacymi wzorcami (ten sam `JObject.Parse`, ten sam `HttpClient`, te same usingi). Ostateczna weryfikacja kompilacji musi zostac przeprowadzona w Visual Studio (MSBuild legacy).
+- `_suppressModelChangedEvent` ustawiane recznie w `SwitchToModelAsync` dla `cbModels.Text = previousModel` - w przyszlosci warto rozwazyc uzycie `BindingSource` zamiast surowego DataSource, aby uniknac kolizji z `SelectedIndexChanged`.
+### [KOLEJNY_KROK]
+- Po restarcie BricsCAD (zwolnienie blokady DLL) przetestowac recznie:
+  1. zmiane providera w benchmarku i odswiezenie listy modeli,
+  2. wybor modelu z unload + load,
+  3. klikniecie "⏏ Rozladuj" w oknie Ustawien,
+  4. wlaczenie "🔴 Live" i obserwacje etykiety w czasie rzeczywistym,
+  5. przelaczenie providera na OpenRouter - sekcja modelu powinna sie ukryc.
+
+## [v2.28.35] 2026-06-10T01:50:00+02:00 - Fix unload LM Studio (instance_id) + przycisk Rozladuj w benchmarku [UNLOAD-INSTANCE-ID]
+### [ZREALIZOWANO]
+- Naprawiono blad unload w LM Studio (HTTP 400: `Missing required field 'instance_id'`):
+  - LM Studio `/api/v1/models/unload` wymaga pola `instance_id` (a nie `model`).
+  - `instance_id` znajduje sie w `loaded_instances[0].id` w odpowiedzi z `/api/v1/models`.
+  - Zrefaktoryzowano `LLMClient.UnloadModelAsync` tak, aby najpierw wywolywal `GetLoadedModelInfoAsync` w celu pobrania aktualnego `instance_id`, a nastepnie wysylal unload z tym identyfikatorem.
+  - Jesli zaden model nie jest zaladowany, unload zwraca sukces ("Brak zaladowanego modelu w LM Studio (nic do zwolnienia)") - idempotentnosc.
+  - W `GetLoadedModelInfoAsync` pole `Id` deskryptora jest teraz ustawiane na `loaded_instances[0].id` (z fallbackiem do `key` jesli brak), co zapewnia poprawny `instance_id` dla unload.
+- Dodano przycisk `⏏ Rozladuj` w zakladce Benchmark (obok `🔄`), ktory wywoluje `UnloadModelAsync` na aktywnym providerze.
+  - Przycisk jest ukrywany dla providerow zdalnych (OpenRouter/OpenAI/Azure) razem z reszta sekcji modelu.
+  - W trakcie operacji przycisk pokazuje `⏳` i jest zablokowany, etykieta statusu informuje o postepie.
+  - Po unload nastepuje odswiezenie `lblModelStatus` (live status).
+- Naprawiono blad kompilacji CS1501 w `LLMClient.cs` (linie 768, 809): `HttpContent.ReadAsStringAsync(ct)` nie istnieje w .NET Framework 4.8 (dodane dopiero w .NET 5+). Zmieniono na `ReadAsStringAsync()` bez tokena. `GetAsync(url, ct)` w .NET Framework 4.8 dziala poprawnie.
+### [STAN_SYSTEMU]
+- Unload z poziomu Ustawien i benchmarku powinien teraz poprawnie zwalniac VRAM w LM Studio (identyfikacja po `instance_id`).
+- Przy wyborze nowego modelu w benchmarku unload poprzedniego powinien sie teraz powiesc, dzieki czemu load nowego nie doda drugiego modelu do VRAM.
+- Sekwencja wyboru modelu w benchmarku (unload -> zapis ModelName -> load) powinna dzialac atomowo.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Przetestowac w BricsCAD:
+  1. wybrac model A w benchmarku, poczekac na load,
+  2. wybrac model B, sprawdzic w LM Studio czy A zostal zwolniony przed zaladowaniem B,
+  3. kliknac `⏏ Rozladuj` w benchmarku - LM Studio powinien zwolnic VRAM,
+  4. sprawdzic `⏏ Rozladuj` w Ustawieniach - powinien miec identyczne zachowanie.
