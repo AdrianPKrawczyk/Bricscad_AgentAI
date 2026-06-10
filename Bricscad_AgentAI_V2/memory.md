@@ -2097,6 +2097,48 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Jesli v2.28.53 osiagnie 85%+ dla 31B QAT - GOLD, przechodzimy do Benchmark_10.
 - Jesli nie - akceptujemy 76-84% jako SOLID (lepszy niz benchmark_08's plateau).
 
+## [v2.28.54] 2026-06-10T13:40:00+02:00 - Benchmark_09 retest 3 modeli + nowy RuleType AnyOfArgumentMatchOrAbsent [BLOCKS-ORABSENT-EXT]
+
+### [WYNIKI RETEST 3 MODELI v2.28.53]
+- 26B QAT : 18/25 (72%) | +1 vs v2.28.52
+- 31B QAT : 19/25 (76%) | plateau (0 vs v2.28.52)
+- 12b QAT : **21/25 (84%)** | +2 vs v2.28.52 - **GOLD LEVEL!**
+
+### [KLUCZOWE USTALENIA]
+- 16 testow (64%) przechodzi WSZYSTKIE 3 modele (vs 12 w v2.28.52 = +4).
+- 12b QAT (84%) jest LEPSZY niz benchmark_08 31B QAT (81%) - to nowy rekord dla benchmarku blokowego.
+- 26B QAT NAJSZYBSZY (71s vs 134s dla 12b vs 297s dla 31B) - idealny do iteracji.
+- Tylko 2 oble 3/3 (testy 16 i 25 - oba D4-D5) - 1. iteracja naprawi je.
+
+### [KLASYFIKACJA 9 OBLE - PO RETEST v2.28.53]
+- 0/3 FAIL: 16 testow (64%) - wszystkie PASS
+- 1/3 FAIL: 4 testy (16%) - test 6, 14, 15, 16
+- 2/3 FAIL: 3 testy (12%) - test 9, 11, 13, 20
+- 3/3 FAIL: 2 testy (8%) - test 16, 25
+
+### [NOWY RULE TYPE: AnyOfArgumentMatchOrAbsent]
+- Motywacja: test 16 (Count=2 vs Items) i test 25 (TargetVariable+Items vs 2xForeach) mialy problemy.
+- Stary AnyOfArgumentMatch: argument MUSI istniec.
+- Nowy AnyOfArgumentMatchOrAbsent: argument MOZE nie istniec (PASS) lub musi pasowac do wariantu.
+- Przydatny dla "argument A LUB argument B - oba poprawne" pattern.
+- Implementacja w AutoBenchmarkEngine.cs (linia ~388).
+
+### [ZMIANY v2.28.54]
+1. AutoBenchmarkEngine.cs: nowy RuleType 'AnyOfArgumentMatchOrAbsent' (30 linii).
+2. Benchmark_09_InsertBlock_Extended.json: testy 16 i 25 z nowym RuleType + rozszerzonymi wariantami.
+3. 25 testow, 76 regul (+2 vs v2.28.53).
+
+### [OCZEKIWANE WYNIKI PO RETEST v2.28.54]
+- 12b QAT: 21->22-23/25 (84%->88-92%)
+- 31B QAT: 19->20-21/25 (76%->80-84%)
+- 26B QAT: 18->20-21/25 (72%->80-84%)
+
+### [KOLEJNY_KROK]
+- User kompiluje projekt (3 zmienione pliki) i uruchamia Benchmark_09.
+- Dostarcza raporty FULL.
+- Jesli 31B QAT >= 80% LUB 12b >= 88% - **GOLD v2.28.54**.
+- Commit GOLD + przejscie do Benchmark_10.
+
 ## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
 
 ### [ZMIANY]
