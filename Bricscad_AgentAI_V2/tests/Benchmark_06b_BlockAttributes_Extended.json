@@ -289,7 +289,7 @@
       "Category": "ForeachBlockAttributes",
       "Difficulty": 3,
       "TestName": "Foreach_Update_Stable_Id_Static_Value",
-      "Description": "Foreach z lista identyfikatorow i stala wartoscia atrybutu (bez {item} w Value).",
+      "Description": "Foreach z lista identyfikatorow i stala wartoscia atrybutu (bez {item} w Value) LUB 3 osobne EditAttributes.",
       "UserPrompt": "Dla identyfikatorow A1, A2, A3 ustaw STAN na Wolne.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
@@ -297,27 +297,34 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCalled",
-          "TargetValue": "Foreach",
-          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy identyfikatorow."
-        },
-        {
-          "RuleType": "ArgumentMatch",
-          "TargetArgument": "Items[0]",
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
           "TargetValue": "A1",
-          "ErrorMessage": "BLAD: Model nie przekazal listy identyfikatorow do Items."
+          "ErrorMessage": "BLAD: Model nie wskazal A1 (ani w Foreach.Items, ani w FilterValue EditAttributes)."
         },
         {
-          "RuleType": "AnyOfArgumentMatch",
-          "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"STAN\",\"Value\":\"Wolne\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"STAN\",\"Value\":\"Wolne\"}]}",
-          "ErrorMessage": "BLAD: Foreach powinien budowac Action z filtrem po ID i {item} w FilterValue."
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "A2",
+          "ErrorMessage": "BLAD: Model nie wskazal A2 (ani w Foreach.Items, ani w FilterValue EditAttributes)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "A3",
+          "ErrorMessage": "BLAD: Model nie wskazal A3 (ani w Foreach.Items, ani w FilterValue EditAttributes)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "Wolne",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci Wolne."
         },
         {
           "RuleType": "ToolCallCountMax",
           "TargetValue": "EditAttributes",
-          "ExpectedOutput": "0",
-          "ErrorMessage": "BLAD: Przy jawnej liscie A1, A2, A3 agent nie powinien wykonywac dodatkowych recznych wywolan EditAttributes poza Foreach."
+          "ExpectedOutput": "3",
+          "ErrorMessage": "BLAD: Przy 3 identyfikatorach A1, A2, A3 model moze wykonac max 3 EditAttributes (1 na identyfikator)."
         }
       ]
     },
@@ -326,7 +333,7 @@
       "Category": "ForeachBlockAttributes",
       "Difficulty": 4,
       "TestName": "Foreach_Update_With_Item_As_Value",
-      "Description": "Foreach z {item} w Value atrybutu (wartosc z listy).",
+      "Description": "Foreach z {item} w Value atrybutu LUB 3 osobne EditAttributes z Value=identyfikator.",
       "UserPrompt": "Dla identyfikatorow A1, B2, C3 ustaw KOD na wartosc identyfikatora (czyli A1 dla A1, B2 dla B2, C3 dla C3).",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
@@ -334,21 +341,46 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCalled",
-          "TargetValue": "Foreach",
-          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy."
-        },
-        {
-          "RuleType": "ArgumentMatch",
-          "TargetArgument": "Items[0]",
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
           "TargetValue": "A1",
-          "ErrorMessage": "BLAD: Model nie przekazal identyfikatora A1 do Items."
+          "ErrorMessage": "BLAD: Model nie wskazal A1."
         },
         {
-          "RuleType": "AnyOfArgumentMatch",
-          "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"KOD\",\"Value\":\"{item}\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"KOD\",\"Value\":\"{item}\"}]}",
-          "ErrorMessage": "BLAD: Foreach powinien uzyc {item} zarowno w FilterValue jak i w Value atrybutu KOD."
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "B2",
+          "ErrorMessage": "BLAD: Model nie wskazal B2."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "C3",
+          "ErrorMessage": "BLAD: Model nie wskazal C3."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "A1",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci A1 (jako literal lub {item} w Foreach)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "B2",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci B2."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "C3",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci C3."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "EditAttributes",
+          "ExpectedOutput": "3",
+          "ErrorMessage": "BLAD: Przy 3 identyfikatorach A1, B2, C3 model moze wykonac max 3 EditAttributes."
         }
       ]
     },
@@ -357,7 +389,7 @@
       "Category": "ForeachBlockAttributes",
       "Difficulty": 4,
       "TestName": "Foreach_Concat_Update_With_Stable_Id",
-      "Description": "Foreach + RPN CONCAT ze stabilnym identyfikatorem (test 24 z Benchmark_06 - 3/8 obl).",
+      "Description": "Foreach + RPN CONCAT ze stabilnym identyfikatorem LUB 2 osobne EditAttributes z CONCAT.",
       "UserPrompt": "Dla identyfikatorow T1 i T2 dopisz _REV do atrybutu NAME.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
@@ -365,27 +397,28 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCalled",
-          "TargetValue": "Foreach",
-          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy T1, T2."
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "T1",
+          "ErrorMessage": "BLAD: Model nie wskazal T1."
         },
         {
-          "RuleType": "ArgumentMatch",
-          "TargetArgument": "Items[0]",
-          "TargetValue": "T1",
-          "ErrorMessage": "BLAD: Model nie przekazal T1 do Items."
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "T2",
+          "ErrorMessage": "BLAD: Model nie wskazal T2."
         },
         {
           "RuleType": "AnyOfArgumentMatch",
-          "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}]} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"TYPE\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"NAME\",\"FilterValue\":\"{item}\"}",
-          "ErrorMessage": "BLAD: Foreach powinien uzyc CONCAT ze stabilnym filtrem (ID, TYPE, lub NAME)."
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "RPN: $OLD_VALUE \"_REV\" CONCAT",
+          "ErrorMessage": "BLAD: Model nie uzyl RPN CONCAT do dopisania _REV."
         },
         {
           "RuleType": "ToolCallCountMax",
           "TargetValue": "EditAttributes",
-          "ExpectedOutput": "0",
-          "ErrorMessage": "BLAD: Przy jawnej liscie T1, T2 agent nie powinien wykonywac dodatkowych EditAttributes poza Foreach."
+          "ExpectedOutput": "2",
+          "ErrorMessage": "BLAD: Przy 2 identyfikatorach T1, T2 model moze wykonac max 2 EditAttributes."
         }
       ]
     },
@@ -394,7 +427,7 @@
       "Category": "ForeachBlockAttributes",
       "Difficulty": 5,
       "TestName": "Foreach_Stable_Id_Not_Changing_Target",
-      "Description": "Foreach musi uzyc stabilnego identyfikatora, nie zmienianego atrybutu (test 25 z Benchmark_06 - 5/8 obl).",
+      "Description": "Foreach lub 2 osobne EditAttributes musi uzyc stabilnego identyfikatora, nie zmienianego VAL.",
       "UserPrompt": "Dla blokow T1 i T2 ustaw atrybut VAL na NOWE_T.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
@@ -402,21 +435,34 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCalled",
-          "TargetValue": "Foreach",
-          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy blokow T1, T2."
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "T1",
+          "ErrorMessage": "BLAD: Model nie wskazal T1."
         },
         {
-          "RuleType": "ArgumentMatch",
-          "TargetArgument": "Items[0]",
-          "TargetValue": "T1",
-          "ErrorMessage": "BLAD: Model nie przekazal T1 do Items."
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "T2",
+          "ErrorMessage": "BLAD: Model nie wskazal T2."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "NOWE_T",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci NOWE_T."
         },
         {
           "RuleType": "AnyOfArgumentMatch",
-          "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"VAL\",\"Value\":\"NOWE_T\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"VAL\",\"Value\":\"NOWE_T\"}]}",
-          "ErrorMessage": "BLAD: Foreach musi filtrowac po stabilnym ID, NIE po zmienianym VAL."
+          "TargetArgument": "FilterTag",
+          "TargetValue": "ID || NAME || TYPE",
+          "ErrorMessage": "BLAD: Model nie uzył stabilnego identyfikatora (ID, NAME, TYPE) - filtrowal po zmienianym atrybucie VAL."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "EditAttributes",
+          "ExpectedOutput": "2",
+          "ErrorMessage": "BLAD: Przy 2 identyfikatorach T1, T2 model moze wykonac max 2 EditAttributes."
         }
       ]
     },

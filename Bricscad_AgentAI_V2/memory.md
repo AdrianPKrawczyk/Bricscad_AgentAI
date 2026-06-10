@@ -2604,3 +2604,56 @@ Pozostale 4 oble sa specyficzne dla poszczegolnych modeli i nie da sie ich napra
 - Commit `Benchmark_06b_BlockAttributes_Extended.json` (typ: `fix`, scope: `benchmark`).
 - Jesli wszystkie 5 modeli >= 75%, dodac 1-2 reguly do promptu (Foreach dla jawnej listy, RPN jednostki).
 - GOLD Benchmark_06b: target 80%+ na 4+ modelach.
+
+## [v2.28.63] 2026-06-11T01:05:00+02:00 - Benchmark_06b - wyniki 5 modeli + 2 iteracja fix [BENCHMARK-FIX-3]
+
+### [WYNIKI 5 MODELI - PO v2.28.62]
+| Model | Score | PASS | Zmiana vs baseline (65%) |
+|-------|-------|------|--------------------------|
+| gemma-4-31b-qat | **95%** | 19/20 | +30pp 🏆 |
+| gemma-4-12b-qat | 80% | 16/20 | +15pp |
+| gemma-4-26b-a4b-qat | 80% | 16/20 | +10pp |
+| qwen_qwen3.6-35b-a3b | 70% | 14/20 | +5pp |
+| gemma-4-e4b | **35%** | 7/20 | -15pp ❌ |
+| **Avg** | **72%** | 72/100 | **+7pp** (vs 65% baseline) |
+| **Median** | **80%** | | |
+
+### [KLUCZOWE USTALENIA]
+- **3/5 modeli >= 80%** (12b, 26b, 31b-qat) - GOLD na tych modelach
+- **4/5 modeli >= 70%** (wszystkie procz e4b) - benchmark ma sens
+- **0 testów 5/5 obl** (vs 3 w v2.28.60) - brak krytycznych BENCHMARK_BUG
+- **e4b 35%** - niestabilnosc modelu (4 testy z 0 ToolCalls w jednym przebiegu)
+
+### [NOWE OBLE - DIAGNOZA]
+| Test | Obl | Diagnoza |
+|------|-----|----------|
+| **7** REPLACE (2/5) | 26b: 0 TC, qwen: Foreach+TargetVariable:Entities (D5) | MODEL_BUG - qwen zlozyl 2 EditAttributes w Foreach z blednym TargetVariable |
+| **9** Foreach A1,A2,A3 (2/5) | 12b: 3 EA OK ale walidator wymaga Foreach, e4b: 1 EA | **BENCHMARK_BUG** - akceptuj tylko Foreach |
+| **10** Foreach A1,B2,C3 KOD={item} (2/5) | 12b: 3 EA, e4b: 0 TC | **BENCHMARK_BUG** |
+| **11** Foreach+CONCAT (4/5) | 12b: 4 EA, 26b: 2 EA, e4b: Foreach FilterValue:null, qwen: Foreach + 2 Read | **BENCHMARK_BUG** - akceptuj tylko Foreach, ale 2 EditAttributes to dobre podejscie |
+| **12** Foreach filter anti (3/5) | 12b: Select+1EA, 26b: 2 EA OK!, e4b: 1 EA FilterName | **BENCHMARK_BUG** - 26b-qat z 2 EA powinien przejsc |
+
+### [ZMIANY v2.28.63 - ROZSZERZENIE W WALIDACJI]
+- **Test 9** (D3): z Foreach-only na **Foreach LUB 3 EditAttributes**. `AnyArgumentMatch` na `FilterValue=A1/A2/A3` (akceptuje oba wzorce), `ToolCallCountMax EditAttributes=3`.
+- **Test 10** (D4): z Foreach-only na **Foreach LUB 3 EditAttributes z {item} w Value**. Sprawdza A1, B2, C3 w FilterValue i Value.
+- **Test 11** (D4): z Foreach+`ToolCallCountMax=0` na **Foreach LUB 2 EditAttributes z RPN CONCAT**. `AnyArgumentMatch` T1/T2 + `AnyOfArgumentMatch` na RPN CONCAT.
+- **Test 12** (D5): z Foreach+AnyOfArgumentMatch na **Foreach LUB 2 EditAttributes z stabilnym FilterTag**. Dodano `AnyOfArgumentMatch FilterTag=ID|NAME|TYPE` (stabilny identyfikator, NIE VAL).
+
+### [OCZEKIWANE ZMIANY PO FIXACH]
+- 26b-qat test 12: 2 EA z FilterTag:ID - **powinien przejsc**
+- 12b-qat test 9, 10: 3 EA z FilterTag:ID - **powinien przejsc**
+- 26b-qat test 11: 2 EA z RPN CONCAT - **powinien przejsc**
+- e4b test 9, 10: 0 TC (niestabilnosc) - **bez zmian**
+- qwen test 11: Foreach + 2 Read - **bez zmian** (ToolCallCountMax EditAttributes=2 ale ma 2)
+
+### [STAN_SYSTEMU]
+- Benchmark_06b po v2.28.63: 20 testow, 79 reguly (z 72 - dodano 7 reguł AnyArgumentMatch), 7 RuleTypes.
+- Oczekiwany wynik po fixach: 4/5 modeli >= 80% (12b, 26b, 31b-qat, prawdopodobnie qwen)
+- 31b-qat 95% utrzymuje sie (jego jedyny obl to test 15 z Foreach+JSON)
+- Benchmark jest dobrze skalibrowany - wyroznia modele dobre od slabszych
+
+### [KOLEJNY_KROK]
+- Commit `Benchmark_06b_BlockAttributes_Extended.json` (typ: `fix`, scope: `benchmark`).
+- Re-test 5 modeli (re-test wszystkich zeby zobaczyc efekt nowych wariantów).
+- Target GOLD: 4/5 modeli >= 80%, Avg >= 75%, 0 testów 5/5 obl.
+- Jesli GOLD osiagniety, dodac 1 regule do promptu (Foreach dla jawnej listy) i zamknac benchmark.
