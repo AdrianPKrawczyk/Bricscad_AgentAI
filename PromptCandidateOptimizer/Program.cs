@@ -109,7 +109,7 @@ internal sealed class PromptOptimizerCli
     private static async Task<int> CreateJobAsync(Dictionary<string, string> options)
     {
         string candidateDir = Require(options, "candidate");
-        string benchmarkPath = Require(options, "benchmark");
+        var benchmarkPaths = await ReadBenchmarkPathsAsync(options);
         string profile = Require(options, "profile");
         string jobsRoot = Require(options, "jobs-root");
         string provider = options.GetValueOrDefault("provider", "");
@@ -124,7 +124,8 @@ internal sealed class PromptOptimizerCli
         {
             JobId = jobId,
             RunMode = "optimizer_lab",
-            BenchmarkPath = Path.GetFullPath(benchmarkPath),
+            BenchmarkPath = Path.GetFullPath(benchmarkPaths[0]),
+            BenchmarkPaths = benchmarkPaths.Select(Path.GetFullPath).ToList(),
             ProfileName = profile,
             ProviderId = provider,
             PromptOverridePath = Path.GetFullPath(manifest.CandidatePromptPath),
@@ -144,11 +145,13 @@ internal sealed class PromptOptimizerCli
         manifest.LabRun.TargetScore = targetScore;
         manifest.LabRun.LastJobId = jobId;
         manifest.LabRun.LastResultPath = outputRoot;
+        manifest.LabRun.BenchmarkPaths = job.BenchmarkPaths;
         await WriteJsonAsync(manifestPath, manifest);
 
         Console.WriteLine("=== BRICSCAD LAB JOB CREATED ===");
         Console.WriteLine($"Job: {jobPath}");
         Console.WriteLine($"Candidate: {candidateDir}");
+        Console.WriteLine($"Benchmarks: {job.BenchmarkPaths.Count}");
         Console.WriteLine($"OutputRoot: {outputRoot}");
         return 0;
     }
@@ -156,22 +159,40 @@ internal sealed class PromptOptimizerCli
     private static async Task<int> RecordResultAsync(Dictionary<string, string> options)
     {
         string candidateDir = Require(options, "candidate");
-        string fullReportPath = Require(options, "full-report");
+        string resultsRoot = options.GetValueOrDefault("results-root", "");
+        string fullReportPath = options.GetValueOrDefault("full-report", "");
         string errorsReportPath = options.GetValueOrDefault("errors-report", "");
         var manifestPath = Path.Combine(candidateDir, "manifest.json");
         var manifest = await ReadJsonAsync<CandidateManifest>(manifestPath);
-        var report = BenchmarkReport.Load(fullReportPath, string.IsNullOrWhiteSpace(errorsReportPath) ? fullReportPath : errorsReportPath);
+        double score;
+        string resultPath;
 
-        manifest.Status = manifest.LabRun.TargetScore.HasValue && report.GlobalScore >= manifest.LabRun.TargetScore.Value
+        if (!string.IsNullOrWhiteSpace(resultsRoot))
+        {
+            var aggregate = BenchmarkAggregate.Load(resultsRoot);
+            score = aggregate.WeightedGlobalScore;
+            resultPath = aggregate.SummaryPath ?? Path.GetFullPath(resultsRoot);
+            manifest.LabRun.LastSummaryPath = aggregate.SummaryPath;
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(fullReportPath))
+                throw new ArgumentException("Missing --full-report or --results-root");
+            var report = BenchmarkReport.Load(fullReportPath, string.IsNullOrWhiteSpace(errorsReportPath) ? fullReportPath : errorsReportPath);
+            score = report.GlobalScore;
+            resultPath = Path.GetDirectoryName(Path.GetFullPath(fullReportPath)) ?? Path.GetFullPath(fullReportPath);
+        }
+
+        manifest.Status = manifest.LabRun.TargetScore.HasValue && score >= manifest.LabRun.TargetScore.Value
             ? "target_reached"
             : "benchmarked";
-        manifest.LabRun.LastScore = report.GlobalScore;
-        manifest.LabRun.LastResultPath = Path.GetDirectoryName(Path.GetFullPath(fullReportPath));
+        manifest.LabRun.LastScore = score;
+        manifest.LabRun.LastResultPath = resultPath;
         await WriteJsonAsync(manifestPath, manifest);
 
         Console.WriteLine("=== RESULT RECORDED ===");
         Console.WriteLine($"Candidate: {candidateDir}");
-        Console.WriteLine($"Score: {report.GlobalScore:F2}%");
+        Console.WriteLine($"Score: {score:F2}%");
         Console.WriteLine($"Status: {manifest.Status}");
         return 0;
     }
@@ -262,7 +283,10 @@ internal sealed class PromptOptimizerCli
             if (!args[i].StartsWith("--")) continue;
             string key = args[i][2..];
             string value = i + 1 < args.Length && !args[i + 1].StartsWith("--") ? args[++i] : "true";
-            result[key] = value;
+            if (result.TryGetValue(key, out var existing))
+                result[key] = existing + ";" + value;
+            else
+                result[key] = value;
         }
         return result;
     }
@@ -299,9 +323,60 @@ internal sealed class PromptOptimizerCli
         Console.WriteLine("PromptCandidateOptimizer");
         Console.WriteLine("Commands:");
         Console.WriteLine("  suggest --profile P --source prompt.txt --full-report FULL.json --errors-report ERRORS.json --out prompt-lab/blocks");
-        Console.WriteLine("  create-job --candidate candidate_dir --benchmark Benchmark.json --profile CadBlocksProfile --jobs-root prompt-lab/jobs");
+        Console.WriteLine("  create-job --candidate candidate_dir --benchmark Benchmark.json [--benchmark Other.json] --profile CadBlocksProfile --jobs-root prompt-lab/jobs");
+        Console.WriteLine("  create-job --candidate candidate_dir --benchmarks-file benchmarks.txt --profile CadBlocksProfile --jobs-root prompt-lab/jobs");
         Console.WriteLine("  record-result --candidate candidate_dir --full-report FULL.json [--errors-report ERRORS.json]");
+        Console.WriteLine("  record-result --candidate candidate_dir --results-root prompt-lab/blocks/candidate_NNN/bricscad-results");
         Console.WriteLine("  inspect --candidate candidate_dir");
+    }
+
+    private static async Task<List<string>> ReadBenchmarkPathsAsync(Dictionary<string, string> options)
+    {
+        var paths = SplitOptionValues(options.GetValueOrDefault("benchmark")).ToList();
+        string benchmarksFile = options.GetValueOrDefault("benchmarks-file", "");
+        if (!string.IsNullOrWhiteSpace(benchmarksFile))
+        {
+            if (!File.Exists(benchmarksFile)) throw new FileNotFoundException("Benchmarks file not found.", benchmarksFile);
+            string content = await File.ReadAllTextAsync(benchmarksFile, Encoding.UTF8);
+            if (benchmarksFile.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                var parsed = JsonSerializer.Deserialize<List<string>>(content, JsonOptions);
+                if (parsed != null) paths.AddRange(parsed);
+            }
+            else
+            {
+                paths.AddRange(content
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(line => line.Trim())
+                    .Where(line => line.Length > 0 && !line.StartsWith("#")));
+            }
+        }
+
+        paths = paths
+            .Select(p => p.Trim())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (paths.Count == 0)
+            throw new ArgumentException("Missing --benchmark or --benchmarks-file");
+
+        foreach (var path in paths)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException("Benchmark file not found.", path);
+        }
+
+        return paths;
+    }
+
+    private static IEnumerable<string> SplitOptionValues(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return [];
+
+        return value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(v => v.Trim());
     }
 }
 
@@ -362,6 +437,63 @@ internal sealed class BenchmarkReport
         => element.TryGetProperty(property, out var values) && values.ValueKind == JsonValueKind.Array
             ? values.EnumerateArray().Select(v => v.ToString()).ToList()
             : [];
+}
+
+internal sealed class BenchmarkAggregate
+{
+    public double WeightedGlobalScore { get; init; }
+    public string? SummaryPath { get; init; }
+
+    public static BenchmarkAggregate Load(string resultsRoot)
+    {
+        if (!Directory.Exists(resultsRoot))
+            throw new DirectoryNotFoundException($"Results root not found: {resultsRoot}");
+
+        string? summaryPath = Directory.GetFiles(resultsRoot, "*_SUMMARY.json")
+            .OrderByDescending(File.GetLastWriteTime)
+            .FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(summaryPath))
+        {
+            using var summaryDoc = JsonDocument.Parse(File.ReadAllText(summaryPath));
+            double score = summaryDoc.RootElement.TryGetProperty("weightedGlobalScore", out var weighted) && weighted.TryGetDouble(out var weightedValue)
+                ? weightedValue
+                : 0;
+            return new BenchmarkAggregate
+            {
+                WeightedGlobalScore = score,
+                SummaryPath = Path.GetFullPath(summaryPath)
+            };
+        }
+
+        var fullReports = Directory.GetFiles(resultsRoot, "*FULL*.json")
+            .Where(path => !Path.GetFileName(path).Contains("SUMMARY", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (fullReports.Count == 0)
+            throw new FileNotFoundException($"No FULL reports or SUMMARY found in {resultsRoot}");
+
+        int total = 0;
+        int passed = 0;
+        foreach (var reportPath in fullReports)
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+            if (!doc.RootElement.TryGetProperty("Tests", out var tests) || tests.ValueKind != JsonValueKind.Array)
+                continue;
+
+            foreach (var test in tests.EnumerateArray())
+            {
+                total++;
+                if (test.TryGetProperty("Passed", out var passedProp) && passedProp.ValueKind == JsonValueKind.True)
+                    passed++;
+            }
+        }
+
+        return new BenchmarkAggregate
+        {
+            WeightedGlobalScore = total > 0 ? Math.Round((double)passed / total * 100, 2) : 0,
+            SummaryPath = null
+        };
+    }
 }
 
 internal sealed record FailedTest
@@ -522,6 +654,8 @@ internal sealed class LabRunInfo
     public double? LastScore { get; set; }
     public string? LastJobId { get; set; }
     public string? LastResultPath { get; set; }
+    public string? LastSummaryPath { get; set; }
+    public List<string> BenchmarkPaths { get; set; } = [];
 }
 
 internal sealed class BenchmarkLabJob
@@ -530,6 +664,7 @@ internal sealed class BenchmarkLabJob
     public string JobId { get; set; } = "";
     public string RunMode { get; set; } = "optimizer_lab";
     public string BenchmarkPath { get; set; } = "";
+    public List<string> BenchmarkPaths { get; set; } = [];
     public string ProfileName { get; set; } = "";
     public string ProviderId { get; set; } = "";
     public string PromptOverridePath { get; set; } = "";

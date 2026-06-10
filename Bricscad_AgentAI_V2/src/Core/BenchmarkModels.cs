@@ -44,6 +44,7 @@ namespace Bricscad_AgentAI_V2.Core
         public string JobId { get; set; }
         public string RunMode { get; set; } = "optimizer_lab";
         public string BenchmarkPath { get; set; }
+        public List<string> BenchmarkPaths { get; set; } = new List<string>();
         public string ProfileName { get; set; }
         public string ProviderId { get; set; }
         public string PromptOverridePath { get; set; }

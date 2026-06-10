@@ -75,6 +75,22 @@ Dodawaj małe, celowane reguły. Nie rób szerokich zmian stylistycznych. Po rę
 dotnet run --project PromptCandidateOptimizer\PromptCandidateOptimizer.csproj -- create-job `
   --candidate prompt-lab\blocks\candidate_002 `
   --benchmark Bricscad_AgentAI_V2\tests\Benchmark_09_InsertBlock_Extended.json `
+  --benchmark Bricscad_AgentAI_V2\tests\Benchmark_08_CreateBlock.json `
+  --benchmark Bricscad_AgentAI_V2\tests\Benchmark_10_EditAttributes.json `
+  --profile CadBlocksProfile `
+  --provider gemma-4-12b-qat `
+  --target-score 90 `
+  --jobs-root prompt-lab\jobs
+```
+
+Preferowany tryb optymalizacji promptu to kilka benchmarkow w jednym jobie. Pojedynczy JSON jest dobry do szybkiej diagnozy, ale latwo przeucza prompt pod jeden przypadek.
+
+Alternatywnie zapisz liste benchmarkow w pliku tekstowym albo JSON array i uzyj:
+
+```powershell
+dotnet run --project PromptCandidateOptimizer\PromptCandidateOptimizer.csproj -- create-job `
+  --candidate prompt-lab\blocks\candidate_002 `
+  --benchmarks-file prompt-lab\benchmark-sets\cad-blocks-core.txt `
   --profile CadBlocksProfile `
   --provider gemma-4-12b-qat `
   --target-score 90 `
@@ -86,6 +102,8 @@ Sprawdź, czy job ma absolutne ścieżki:
 ```powershell
 Get-Content -LiteralPath prompt-lab\jobs\pending\job_*.json
 ```
+
+Job wielobenchmarkowy powinien miec `benchmarkPaths` z lista sciezek. `benchmarkPath` zostaje tylko dla kompatybilnosci wstecznej i wskazuje pierwszy benchmark.
 
 ### 5. Uruchom BricsCAD benchmark przez COM
 
@@ -122,18 +140,16 @@ Start-Sleep -Seconds 30
 ### 7. Odczytaj wynik
 
 ```powershell
-$f = (Get-ChildItem -LiteralPath prompt-lab\blocks\candidate_002\bricscad-results -Filter *FULL*.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-$j = Get-Content -LiteralPath $f -Raw | ConvertFrom-Json
-$passed = ($j.Tests | Where-Object Passed).Count
-$total = $j.Tests.Count
+$summary = (Get-ChildItem -LiteralPath prompt-lab\blocks\candidate_002\bricscad-results -Filter *_SUMMARY.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+$j = Get-Content -LiteralPath $summary -Raw | ConvertFrom-Json
 [pscustomobject]@{
-  Score = $j.RunMetadata.GlobalScore
-  Passed = $passed
-  Total = $total
-  RunMode = $j.RunMetadata.RunMode
-  CandidateId = $j.RunMetadata.CandidateId
-  JobId = $j.RunMetadata.JobId
-  PromptOverridePath = $j.RunMetadata.PromptOverridePath
+  Score = $j.weightedGlobalScore
+  Passed = $j.passedTests
+  Total = $j.totalTests
+  RunMode = $j.runMode
+  CandidateId = $j.candidateId
+  JobId = $j.jobId
+  PromptOverridePath = $j.promptOverridePath
 }
 ```
 
@@ -148,14 +164,12 @@ PromptOverridePath = prompt-lab/...
 ### 8. Zarejestruj wynik w manifeście
 
 ```powershell
-$full = (Get-ChildItem -LiteralPath prompt-lab\blocks\candidate_002\bricscad-results -Filter *FULL*.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-$errors = (Get-ChildItem -LiteralPath prompt-lab\blocks\candidate_002\bricscad-results -Filter *ERRORS*.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-
 dotnet run --project PromptCandidateOptimizer\PromptCandidateOptimizer.csproj -- record-result `
   --candidate prompt-lab\blocks\candidate_002 `
-  --full-report $full `
-  --errors-report $errors
+  --results-root prompt-lab\blocks\candidate_002\bricscad-results
 ```
+
+`record-result --results-root` zapisuje w manifiescie score wazony po wszystkich testach ze zbiorczego summary. Stary tryb `--full-report` zostaje dla jednego benchmarku.
 
 ### 9. Analizuj oble
 
@@ -193,7 +207,7 @@ Powtarzaj:
 4. create-job
 5. SendCommand via COM
 6. wait for done/failed
-7. record-result
+7. read *_SUMMARY.json and record-result --results-root
 8. compare score/regressions
 ```
 
@@ -213,10 +227,11 @@ Zatrzymaj pętlę, gdy:
 - Jeśli COM nie działa, sprawdź proces `bricscad` i ProgID `BricscadApp.AcadApplication`.
 - Jeśli job trafia do `failed`, najpierw czytaj `prompt-lab/jobs/failed/*.error.txt`.
 
+Przy optymalizacji szerokiej job powinien uzywac `benchmarkPaths`, aby mierzyc prompt szerzej niz pojedynczy JSON.
+
 ## Znane Problemy
 
 - Jeżeli job zawiera ścieżki względne, BricsCAD może szukać plików względem własnego katalogu roboczego. Nowe joby powinny mieć absolutne ścieżki.
 - Sandbox może blokować `dotnet run` przez `NuGet.Config`; w razie błędu uruchom z eskalacją.
 - `candidate.candidate.txt` w nazwie jest kosmetyczne; ważne, aby `bricscad-job.json` wskazywał istniejący plik.
 - Szerokie reguły promptu mogą naprawić jedne testy i zepsuć inne. Preferuj małe iteracje.
-

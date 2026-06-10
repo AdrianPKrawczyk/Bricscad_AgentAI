@@ -376,12 +376,26 @@ W MVP można tej komendy nie implementować. Jeśli powstanie, musi:
 
 ### 6.7 Komenda `create-job`
 
-Tworzy job dla BricsCAD Benchmark Lab Workera.
+Tworzy job dla BricsCAD Benchmark Lab Workera. Preferowany tryb optymalizacji promptu to zestaw kilku benchmarkow wykonywanych po kolei dla tego samego kandydata. Pojedynczy `--benchmark` zostaje wspierany jako szybki test punktowy, ale szeroka optymalizacja powinna uzywac `benchmarkPaths`.
 
 ```powershell
 dotnet run --project PromptCandidateOptimizer -- create-job `
   --candidate prompt-lab/blocks/candidate_001 `
   --benchmark Bricscad_AgentAI_V2/tests/Benchmark_09_InsertBlock_Extended.json `
+  --benchmark Bricscad_AgentAI_V2/tests/Benchmark_08_CreateBlock.json `
+  --benchmark Bricscad_AgentAI_V2/tests/Benchmark_10_EditAttributes.json `
+  --profile CadBlocksProfile `
+  --provider gemma-4-12b-qat `
+  --target-score 90 `
+  --jobs-root prompt-lab/jobs
+```
+
+Alternatywnie lista moze byc zapisana w pliku tekstowym albo JSON array:
+
+```powershell
+dotnet run --project PromptCandidateOptimizer -- create-job `
+  --candidate prompt-lab/blocks/candidate_001 `
+  --benchmarks-file prompt-lab/benchmark-sets/cad-blocks-core.txt `
   --profile CadBlocksProfile `
   --provider gemma-4-12b-qat `
   --target-score 90 `
@@ -392,7 +406,10 @@ Wynik:
 
 ```text
 prompt-lab/jobs/pending/job_20260610_001.json
+prompt-lab/blocks/candidate_001/bricscad-job.json
 ```
+
+Job zawiera `benchmarkPaths` z lista absolutnych sciezek. BricsCAD Lab Worker wykonuje je sekwencyjnie, zapisuje osobne raporty `*FULL*.json` / `*ERRORS*.json` oraz zbiorczy `job_*_SUMMARY.json` w `bricscad-results`.
 
 ### 6.8 Komenda `record-result`
 
@@ -401,9 +418,10 @@ Aktualizuje manifest kandydata po zakończeniu joba przez BricsCAD.
 ```powershell
 dotnet run --project PromptCandidateOptimizer -- record-result `
   --candidate prompt-lab/blocks/candidate_001 `
-  --full-report prompt-lab/blocks/candidate_001/bricscad-results/Benchmark_09_FULL.json `
-  --errors-report prompt-lab/blocks/candidate_001/bricscad-results/Benchmark_09_ERRORS.json
+  --results-root prompt-lab/blocks/candidate_001/bricscad-results
 ```
+
+Dla zestawu benchmarkow score powinien byc liczony jako wynik wazony po wszystkich testach ze zbiorczego `SUMMARY`. Tryb `--full-report` pozostaje dostepny dla pojedynczego benchmarku.
 
 Ta komenda pozwala zewnętrznemu agentowi zdecydować, czy target został osiągnięty, czy trzeba wygenerować kolejnego kandydata.
 
