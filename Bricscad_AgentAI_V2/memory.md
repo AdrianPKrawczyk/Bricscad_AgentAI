@@ -2139,6 +2139,42 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Jesli 31B QAT >= 80% LUB 12b >= 88% - **GOLD v2.28.54**.
 - Commit GOLD + przejscie do Benchmark_10.
 
+## [v2.28.55] 2026-06-10T14:05:00+02:00 - Benchmark_09 retest + ITERACJA FINALNA [BLOCKS-FINAL-ITER]
+
+### [WYNIKI RETEST 3 MODELI v2.28.54]
+- 26B QAT : **20/25 (80%)** | +2 vs v2.28.53 - GOLD!
+- 31B QAT : **21/25 (84%)** | +2 vs v2.28.53 - GOLD!
+- 12b QAT : **23/25 (92%)** | +2 vs v2.28.53 - **SUPER GOLD!**
+
+### [KLUCZOWE USTALENIA]
+- 17 testow (68%) przechodzi WSZYSTKIE 3 modele.
+- 0 oble wspolnych (3/3 FAIL = 0) - poprzednie 2 oble naprawione przez AnyOfArgumentMatchOrAbsent.
+- 12b QAT 92% jest NAJLEPSZYM WYNIKIEM W HISTORII benchmarkow blokowych.
+- Benchmark jest SOLIDNY - 0 oble 3/3 oznacza poprawny benchmark dla blokowych narzedzi CAD.
+
+### [KLASYFIKACJA 8 OBLE v2.28.54]
+- 0/3 FAIL: 17 testow (68%) - GOLD
+- 1/3 FAIL: 5 testow (20%) - specyficzne modelowo
+- 2/3 FAIL: 3 testy (12%) - trudniejsze
+- 3/3 FAIL: 0 testow (0%) - BRAK WSPOLNYCH OBLE
+
+### [ZMIANY v2.28.55 - ITERACJA FINALNA]
+1. Test 9 (SameBlock_Twice): akceptuje Foreach z Items=[2 punkty] zamiast 2x InsertBlock.
+2. Test 11 (GridPattern_2D): akceptuje Count=3+Offset=100,0,0 ({MATH: index_x/index_y}) LUB Items=9+{MATH}.
+3. Test 16 (AttributeMText_Foreach): naprawiono wariant Action (dodano InsertionPoint=[0,0,0] + Tag=MText - 12b dawal to, ale warianty mialy inna kombinacje).
+4. 25 testow, 79 regul (+3).
+
+### [OCZEKIWANE WYNIKI PO RETEST v2.28.55]
+- 26B QAT: 20->22-23/25 (80%->88-92%)
+- 31B QAT: 21->22-23/25 (84%->88-92%)
+- 12b QAT: 23->24/25 (92%->96%) - moze 100%?!
+
+### [KOLEJNY_KROK]
+- User kompiluje projekt (1 zmieniony plik - benchmark) i uruchamia Benchmark_09.
+- Dostarcza raporty FULL.
+- Jesli 12b QAT >= 95% LUB 31B QAT >= 88% - **GOLD v2.28.55** (benchmark FINAL).
+- Commit GOLD + przejscie do **Benchmark_10** (np. EditAttributes rozszerzony lub ManageLayers).
+
 ## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
 
 ### [ZMIANY]
