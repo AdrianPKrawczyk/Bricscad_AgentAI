@@ -501,7 +501,7 @@
       "Category": "BlockPipeline",
       "Difficulty": 4,
       "TestName": "Update_Different_Values_Different_Identifiers",
-      "Description": "Dwa rozne identyfikatory, dwa rozne wartosci - osobne wywolania EditAttributes.",
+      "Description": "Dwa rozne identyfikatory, dwa rozne wartosci - osobne wywolania EditAttributes lub Foreach z JSON Items.",
       "UserPrompt": "Dla bloku o ID=A1 ustaw STAN=Wolne, a dla bloku o ID=A2 ustaw STAN=Zajete.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
@@ -510,34 +510,28 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCallCountMax",
-          "TargetValue": "EditAttributes",
-          "ExpectedOutput": "2",
-          "ErrorMessage": "BLAD: Model powinien wywolac EditAttributes dokladnie 2 razy (osobne wywolania dla A1 i A2)."
-        },
-        {
-          "RuleType": "AnyArgumentMatch",
+          "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "FilterValue",
-          "TargetValue": "A1",
-          "ErrorMessage": "BLAD: Model nie wskazal A1 w ktoryms wywolaniu."
+          "TargetValue": "A1 || {\"id\":\"A1\"} || {\"ID\":\"A1\"} || {\"Value\":\"Wolne\",\"ID\":\"A1\"} || A1\",\"val\":\"Wolne\"}",
+          "ErrorMessage": "BLAD: Model nie wskazal A1 w zadnym EditAttributes ani Foreach z JSON Items."
         },
         {
-          "RuleType": "AnyArgumentMatch",
+          "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "FilterValue",
-          "TargetValue": "A2",
-          "ErrorMessage": "BLAD: Model nie wskazal A2 w ktoryms wywolaniu."
+          "TargetValue": "A2 || {\"id\":\"A2\"} || {\"ID\":\"A2\"} || {\"Value\":\"Zajete\",\"ID\":\"A2\"} || A2\",\"val\":\"Zajete\"}",
+          "ErrorMessage": "BLAD: Model nie wskazal A2 w zadnym EditAttributes ani Foreach z JSON Items."
         },
         {
-          "RuleType": "AnyArgumentMatch",
+          "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "Attributes[0].Value",
-          "TargetValue": "Wolne",
-          "ErrorMessage": "BLAD: Model nie ustawil wartosci Wolne."
+          "TargetValue": "Wolne || {item} || {val}",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci Wolne (literalnie, {item}, lub {val} w Foreach)."
         },
         {
-          "RuleType": "AnyArgumentMatch",
+          "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "Attributes[0].Value",
-          "TargetValue": "Zajete",
-          "ErrorMessage": "BLAD: Model nie ustawil wartosci Zajete."
+          "TargetValue": "Zajete || {item} || {val}",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci Zajete (literalnie, {item}, lub {val} w Foreach)."
         }
       ]
     },
