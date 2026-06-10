@@ -2360,3 +2360,61 @@ Pozostale 4 oble sa specyficzne dla poszczegolnych modeli i nie da sie ich napra
 ### [KORZYSC UZYTKOWA]
 - Kolejka zaladowanych JSON-ow pozostaje czytelna, ale nie zabiera zbyt duzo miejsca tabeli testow.
 - Widok listy zadan jest wygodniejszy przy dluzszych benchmarkach i wiekszej liczbie promptow.
+
+## [v2.28.58] 2026-06-10T22:20:00+02:00 - Prompt Candidate Optimizer + BricsCAD Benchmark Lab [PROMPT-CANDIDATE-OPTIMIZER]
+
+### [ZMIANY]
+1. Dodano projekt CLI `PromptCandidateOptimizer`, ktory tworzy laboratoryjne kopie promptu, analizuje raporty benchmarkowe i przygotowuje kandydatow w `prompt-lab/blocks/candidate_NNN/`.
+2. Dodano kontrakt `BenchmarkLabJob` oraz `BenchmarkRunOptions` dla izolowanego trybu benchmarku `optimizer_lab`.
+3. Dodano `BenchmarkLabWorker`, ktory przetwarza joby z `prompt-lab/jobs/pending`, przenosi je przez `running` do `done` albo `failed`, i uruchamia benchmark z `PromptOverridePath`.
+4. Dodano komende BricsCAD `AGENT_BENCHMARK_LAB_ONCE`, umozliwiajaca zewnetrznemu agentowi LLM uruchomienie pending jobow przez COM.
+5. Rozszerzono raporty benchmarku o metadane laboratoryjne: `RunMode`, `PromptOverridePath`, `OutputRoot`, `CandidateId`, `JobId`, `SaveToUserBenchmarkHistory`.
+6. Dodano skill `.agents/skills/prompt-candidate-optimizer`, opisujacy pelny workflow dla kolejnych agentow.
+
+### [ZASADA DZIALANIA]
+- Produkcyjne prompty w `Bricscad_AgentAI_V2/resources/prompts/` nie sa modyfikowane podczas optymalizacji.
+- Kandydat promptu jest osobnym plikiem w `prompt-lab/blocks/candidate_NNN/`.
+- BricsCAD pozostaje zrodlem prawdy dla benchmarku, a zewnetrzny agent tylko tworzy joby, uruchamia komende COM i czyta wyniki.
+- Wyniki labowe trafiaja do `prompt-lab/blocks/candidate_NNN/bricscad-results/`, bez zasmiecania standardowej historii benchmarkow uzytkownika.
+
+### [WERYFIKACJA]
+- `dotnet build PromptCandidateOptimizer/PromptCandidateOptimizer.csproj` zakonczyl sie sukcesem.
+- BricsCAD wykonal job laboratoryjny przez COM dla `candidate_002`.
+- Raporty mialy `RunMode = optimizer_lab`, `CandidateId = candidate_002` i `PromptOverridePath` wskazujacy laboratoryjna kopie promptu.
+- Build calego `Bricscad_AgentAI_V2` w CLI nadal nie przechodzi w tym srodowisku z powodu istniejacych brakow referencji pakietow (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet`, `ExcelDataReader` i inne).
+
+### [STAN_SYSTEMU]
+- Istnieje bezpieczny warsztat do tworzenia, testowania i recznej weryfikacji kandydatow promptu bez dotykania promptu produkcyjnego.
+- Zewnetrzny agent LLM moze sterowac petla laboratoryjna przez pliki jobow i COM do aktywnego BricsCAD.
+
+## [v2.28.59] 2026-06-10T22:45:00+02:00 - Batch benchmarkow w Prompt Candidate Optimizer [PROMPT-LAB-BATCH]
+
+### [ZMIANY]
+1. Rozszerzono `BenchmarkLabJob` o `BenchmarkPaths`, czyli liste benchmarkow wykonywanych po kolei dla tego samego kandydata promptu.
+2. `PromptCandidateOptimizer create-job` obsluguje teraz wiele `--benchmark` oraz `--benchmarks-file`.
+3. `BenchmarkLabWorker` uruchamia benchmarki sekwencyjnie, zachowujac osobne raporty `FULL` i `ERRORS` dla kazdego pliku JSON.
+4. Po zakonczeniu batcha worker zapisuje `job_<id>_SUMMARY.json` z lacznym wynikiem wazonym po wszystkich testach.
+5. `record-result` obsluguje teraz `--results-root`, aby zapisac w manifiescie wynik zbiorczy z calego katalogu wynikow.
+6. Lab worker probuje przelaczyc providera na czas joba po GUID, nazwie providera albo `ModelName`, a po zakonczeniu przywraca poprzedniego aktywnego providera.
+7. Zaktualizowano `docs/15_Prompt_Candidate_Optimizer.md` i skill `prompt-candidate-optimizer` o workflow batchowy.
+
+### [WERYFIKACJA]
+- `dotnet build PromptCandidateOptimizer/PromptCandidateOptimizer.csproj` zakonczyl sie sukcesem.
+- Utworzono job `job_20260610_223805` dla `candidate_002` z dwoma benchmarkami:
+  - `Benchmark_09_InsertBlock_Extended.json`
+  - `Benchmark_08_CreateBlock.json`
+- BricsCAD wykonal oba benchmarki po kolei i zapisal `job_20260610_223805_SUMMARY.json`.
+- Wynik zbiorczy: `73.77%` (`45/61`).
+- Wyniki czastkowe:
+  - `Benchmark_09_InsertBlock_Extended`: `84.00%` (`21/25`)
+  - `Benchmark_08_CreateBlock`: `66.67%` (`24/36`)
+- `record-result --results-root` zapisalo wynik do manifestu kandydata.
+
+### [UWAGI]
+- Proba `--provider gemma-4-e4b` nie przelaczyla modelu, poniewaz w aktualnym `llm_providers.json` nie ma providera/modelu o takim `ModelName`.
+- Raporty potwierdzily uzycie aktywnego modelu `google/gemma-4-26b-a4b-qat`.
+- Aby testowac `gemma-4-e4b`, trzeba dodac taki provider/model do konfiguracji BricsCAD/LM Studio albo ustawic istniejacy provider na ten `ModelName`.
+
+### [STAN_SYSTEMU]
+- Prompt Candidate Optimizer moze optymalizowac prompt szerzej niz pod pojedynczy JSON.
+- Preferowany tryb laboratoryjny to batch benchmarkow z `BenchmarkPaths` i ocena kandydata po `weightedGlobalScore` z `SUMMARY`.
