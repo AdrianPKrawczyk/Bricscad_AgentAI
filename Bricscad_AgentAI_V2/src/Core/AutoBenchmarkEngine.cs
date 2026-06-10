@@ -522,7 +522,7 @@ namespace Bricscad_AgentAI_V2.Core
                     }
                     if (current == null) return null;
                 }
-                return current.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                return current.ToString((System.IFormatProvider)System.Globalization.CultureInfo.InvariantCulture);
             }
             catch
             {
