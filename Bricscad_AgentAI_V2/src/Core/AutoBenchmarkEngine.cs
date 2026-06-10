@@ -522,7 +522,7 @@ namespace Bricscad_AgentAI_V2.Core
                     }
                     if (current == null) return null;
                 }
-                return current.ToString();
+                return current.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
             catch
             {
@@ -540,6 +540,13 @@ namespace Bricscad_AgentAI_V2.Core
             if (TryParseJsonToken(actual, out var actualToken) && TryParseJsonToken(expected, out var expectedToken))
             {
                 return JToken.DeepEquals(actualToken, expectedToken);
+            }
+
+            // v2.28.52: Obsluga wartosci numerycznych z roznych locale (np. "0,5" w polskim vs "0.5" w InvariantCulture)
+            if (double.TryParse(actual, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double actualNum) &&
+                double.TryParse(expected, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double expectedNum))
+            {
+                return Math.Abs(actualNum - expectedNum) < 1e-9;
             }
 
             return false;
