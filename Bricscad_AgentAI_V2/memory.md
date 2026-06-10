@@ -2418,3 +2418,64 @@ Pozostale 4 oble sa specyficzne dla poszczegolnych modeli i nie da sie ich napra
 ### [STAN_SYSTEMU]
 - Prompt Candidate Optimizer moze optymalizowac prompt szerzej niz pod pojedynczy JSON.
 - Preferowany tryb laboratoryjny to batch benchmarkow z `BenchmarkPaths` i ocena kandydata po `weightedGlobalScore` z `SUMMARY`.
+
+## [v2.28.60] 2026-06-10T23:35:00+02:00 - Benchmark_06b_BlockAttributes_Extended [BENCHMARK-NEW]
+
+### [KONTEKST]
+- Analiza `Benchmark_06_BlockAttributes_Complete.json` (26 testow, 8 modeli):
+  - gemma-4-31b i gemma-4-31b-qat: 100% (26/26) - benchmark za łatwy dla najwiekszych modeli
+  - qwen3.6-35b-a3b: 96.15% (25/26)
+  - gemma-4-26b-a4b-qat: 92.31% (24/26)
+  - qwen_qwen3.6-27b: 88.46% (23/26)
+  - gemma-4-26b-a4b: 84.62% (22/26)
+  - gemma-4-12b: 76.92% (20/26)
+  - gemma-4-e4b: 69.23% (18/26)
+  - qwen3.6-27b-mtp: 0.00% (0/26) - problem z konfiguracja providera, nie z benchmarkiem
+- 3 testy wspolne (3+ modele):
+  - Test 19 (D5, IFEMPTY): 3/8 - modele probuja `RPN: $OLD_VALUE "" == "" ? "Brak" : $OLD_VALUE` zamiast `IFEMPTY`
+  - Test 24 (D4, Foreach+CONCAT): 3/8 - modele wolą osobne EditAttributes zamiast Foreach
+  - Test 25 (D5, Foreach filter anti-pattern): 5/8 - modele filtrowaly po VAL zamiast ID
+
+### [ZMIANY]
+1. Utworzono `Bricscad_AgentAI_V2/tests/Benchmark_06b_BlockAttributes_Extended.json` (20 testow, 5 kategorii, 73 reguly walidacyjne, 5 poziomow trudnosci D2-D5).
+2. Kategorie:
+   - `BlockAttributesBatch` (4 testy, D2-D3): wiele atrybutow w jednym wywolaniu, Read bez/z filtrowaniem
+   - `BlockAttributesRpnAdvanced` (4 testy, D4-D5): IFEMPTY, IFTE, REPLACE, jednostki (m, mm)
+   - `ForeachBlockAttributes` (4 testy, D3-D5): Foreach + EditAttributes z {item} w Value/FilterValue, test 12 wariant testu 25 z AnyOfArgumentMatchOrAbsent
+   - `BlockPipeline` (4 testy, D3-D4): SelectEntities -> EditAttributes, Read -> Foreach, 2 rozne wartosci 2 rozne ID
+   - `BlockEdgeCases` (4 testy, D4-D5): znaki specjalne, pusty FilterValue, dekrementacja RPN, TargetVariable z listy
+3. Wzorce inspirowane obleniami z Benchmark_06:
+   - Test 5 (IFEMPTY NOTE) - alternatywny wzorzec `IFEMPTY CONCAT` dla innego tagu niz w B06
+   - Test 6 (IFTE) - wybor z 2 wartosci przez IFTE
+   - Test 8 (1.5m) - alternatywny do testu 10 z B06 (5_mm), sprawdza rozumienie roznych jednostek
+   - Test 11 (Foreach+CONCAT) - poprawiony wariant testu 24 z B06
+   - Test 12 (Foreach filter anti-pattern) - poprawiony wariant testu 25 z B06
+4. Zasady walidacji:
+   - `AnyOfArgumentMatch` dla tolerowania roznej kolejnosci kluczy w JSON
+   - `AnyOfArgumentMatchOrAbsent` dla testu 12 (sprawdza czy NIE ma `FilterTag:VAL`)
+   - `SequenceMatch` dla pipeline SelectEntities -> EditAttributes i EditAttributes(Read) -> Foreach
+   - `ToolCallCountMax` dla zapobiegania petli (test 11, 12) i wymuszenia dokladnej liczby wywolan (test 15: 2 wywolania EditAttributes)
+
+### [WERYFIKACJA]
+- JSON jest parsowalny (`ConvertFrom-Json` OK).
+- Statystyki: 20 testow, 73 regul (avg 3.7/test), D2: 2, D3: 5, D4: 9, D5: 4.
+- 7 unikalnych RuleTypes: `AnyArgumentMatch`, `AnyOfArgumentMatch`, `AnyOfArgumentMatchOrAbsent`, `ArgumentMatch`, `SequenceMatch`, `ToolCallCountMax`, `ToolCalled` (wszystkie wspierane przez walidator).
+- Wykryto i naprawiono blad: `ToolCallCount` (nie istnieje) -> `ToolCallCountMax`.
+- Wykryto i naprawiono blad w teście 12: `AnyOfArgumentMatchOrAbsent` z `FilterValue:{item}` (co jest pozadane) -> tylko `FilterTag:VAL` (co jest zabronione).
+
+### [KLUCZOWE USTALENIA]
+- Benchmark_06b jest celowo trudniejszy niz Benchmark_06 (D2-D5 zamiast D1-D5, mniej oczywistych testow na odczyt).
+- Skupiony na 3 obleniach wspolnych z Benchmark_06: IFEMPTY (test 5), Foreach+CONCAT (test 11), Foreach filter anti-pattern (test 12).
+- Testy Pipeline (13-16) i EdgeCases (17-20) sa unikalne - nie pokrywaja sie z Benchmark_06.
+- Benchmark_06 pozostaje nietkniety (zachowanie historycznej porownywalnosci).
+
+### [STAN_SYSTEMU]
+- 2 benchmarki atrybutow: Benchmark_06 (26 testow, GOLD v2.28.x) i Benchmark_06b (20 testow, NEW v2.28.60).
+- 5 RuleType'ow zostalo uzytych (w tym nowy `AnyOfArgumentMatchOrAbsent` z v2.28.54).
+- Wzorzec benchmarku: kazdy test = 1+ kategoria + D2-D5 + 1-6 regul walidacyjnych + SymulowaneOdpowiedzi dla walidatora.
+
+### [KOLEJNY_KROK]
+- Commit `Benchmark_06b_BlockAttributes_Extended.json` (typ: `feat`, scope: `benchmark`).
+- Uruchom benchmark w BricsCAD na 4+ modelach: gemma-4-31b-qat, gemma-4-26b-a4b-qat, gemma-4-12b-qat, qwen_qwen3.6-35b-a3b.
+- Diagnoza oblen: podzial na BENCHMARK_BUG vs MODEL_BUG vs PROMPT_GAP.
+- Docelowy GOLD: 80%+ na 6+ modelach, 90%+ na 3+ modelach.
