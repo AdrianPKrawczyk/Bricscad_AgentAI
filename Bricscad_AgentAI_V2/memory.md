@@ -1864,3 +1864,54 @@ Bilans 0: 3 testy przeszly, 3 testy oblewyly nowe. Wzmocnienie promptu CZESCIOWO
 ### [KOLEJNY_KROK]
 - Commit memory.md + benchmark v2.28.49.
 - Benchmark_08 GOLD na 78% (31B QAT). Mozna przejsc do nastepnego benchmarku.
+
+## [v2.28.50] 2026-06-10T11:10:00+02:00 - Benchmark_08 retest 3 modeli po v2.28.49
+### [WYNIKI 3 NOWYCH RAPORTOW]
+| Model | Poprzednio | Teraz | Zmiana |
+|-------|------------|-------|--------|
+| 12b-qat | 26/36 (72%) | 26/36 (72%) | 0 (ale zmiana skladu oblen) |
+| 26B QAT | 26/36 (72%) | 26/36 (72%) | 0 (stabilne) |
+| 31B QAT | 28/36 (78%) | **29/36 (81%)** 🏆 | **+1 PASS** |
+
+### [ZMIANY STATUSU]
+**12b-qat (26->26):**
+- ✅ Test 31 (MTextAttribute): PASS - dodane warianty tekstu wieloliniowego zadzialaly
+- ❌ Test 11 (DeleteOriginals+Sequence): FAIL - regresja (pominiento SelectEntities)
+
+**26B QAT (26->26):**
+- Brak zmian statusu (ale wewnetrzne oblenia sie zmienily - niedeterministycznosc modelu)
+
+**31B QAT (28->29):**
+- ✅ Test 17 (Foreach+GenerateSequence): PASS - AnyOfArgumentMatch z 2 JSON wariantami zadzialal
+- ✅ Test 32 (InsertBlock_Foreach_ItemsList): PASS - dodanie wariantu z InsertionPoint="{point}" zadzialalo
+- ❌ Test 11 (DeleteOriginals+Sequence): FAIL - regresja (pominiento SelectEntities)
+
+### [REZYSTKOWE OBLE WSPOLNE 3/3]
+- Test 5 (Sequence+AskUser): 31B QAT i inne - benchmark_bug (wymusza 0,0,0 zamiast AskUser)
+- Test 15 (Foreach+Delete+AskUser): wszystkie 3 - model_bug
+- Test 18 (MissingBlockName): wszystkie 3 - pętla 4-5x
+- Test 19 (InvalidPointFormat): 31B QAT, 26B QAT - pętla 5-10x
+- Test 29 (Workflow CreateThenInsert): wszystkie 3 - pomija SelectEntities (lub pomija InsertionPoint w Action)
+
+### [KLUCZOWE USTALENIA]
+- Benchmark_08 osiagnal **PLATEAU ~78-81%** dla najlepszych modeli (31B QAT).
+- 26B QAT stabilny na 72% (ale szybki - 90s).
+- 31B QAT poprawia sie do 81% - najlepszy model dla benchmark_08.
+- 12b-qat stabilny na 72%.
+- Wzmocnienia promptu v2.28.47 juz nie pomagaja (maly wplyw).
+- Resztkowe problemy (petla 5-10x, SelectEntities, Foreach+AskUser) sa specyficzne dla modeli.
+
+### [REKOMENDACJA]
+Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego benchmarku.
+
+### [STAN_SYSTEMU]
+- Benchmark_08 ma 121 regul walidacyjnych.
+- 31B QAT osiagnal 29/36 (81%) - **NAJLEPSZY WYNIK**.
+- 26B QAT stabilny na 26/36 (72%) - 4x szybszy.
+- 12b-qat stabilny na 26/36 (72%).
+- Benchmark jest akceptowalny dla blokowych narzedzi CAD.
+
+### [KOLEJNY_KROK]
+- Commit memory.md v2.28.50.
+- Benchmark_08 GOLD.
+- Przejscie do nastepnego benchmarku (np. Benchmark_09 ManageLayers, Benchmark_10 EditAttributes, Benchmark_11 ListBlocks).
