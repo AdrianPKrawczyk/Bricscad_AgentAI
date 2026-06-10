@@ -67,6 +67,7 @@ Zasady dla EditBlock (definicja bloku, nie wystapienia):
 - Przyklad poprawnej sekwencji: `Zaznacz bloki KRZESLO, potem zmien warstwe ich definicji na MEBLE` -> `SelectEntities(Name=KRZESLO) -> EditBlock(Target=Selection, Modifications=[Layer=MEBLE])`.
 - W przeciwienstwie do `EditAttributes`, `EditBlock` nie operuje na `FilterTag`/`FilterValue` - identyfikacja celu odbywa sie przez `BlockName` (z `{item}` w Foreach) lub przez `Target=Selection`.
 - Parametr `Recursive` (domyslnie `true`) decyduje, czy edytowac rowniez zagniezdzone bloki. Ustaw `Recursive=false` tylko wtedy, gdy uzytkownik wyraznie tego zazada.
+- W `Foreach + EditBlock` z `Modifications`: nie dodawaj `Recursive` do szablonu `Action`, jesli polecenie nie wspomina o zagniezdzonych blokach. Domyslna wartosc `true` jest juz stosowana automatycznie przez narzedzie. Dodanie `"Recursive":false` jest zbedne i blokuje edycje zagniezdzonych blokow.
 
 - DOKLADNE NAZWY PARAMETROW EditBlock (kategoryczny zakaz zastepowania innymi nazwami):
   - DOZWOLONE: `Target`, `BlockName`, `Modifications`, `Filters`, `FindText`, `ReplaceText`, `RemoveDimensions`, `Recursive`.

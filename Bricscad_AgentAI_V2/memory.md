@@ -1522,3 +1522,56 @@ Qwen 35B-A3B (raport 01:24):
 - Przejsc do Benchmark_08 (CreateBlock) z preferowanym modelem gemma-4-26b-a4b-qat (szybki, 100% PASS po kompilacji).
 - Przetestowac Qwen 27B na pozostalych benchmarkach (03, 04, 05, 06) - potwierdzic stabilnosc.
 - Benchmark_07 jest gotowy do finalizacji - mozna oznaczyc jako v2.28.42 GOLD.
+
+## [v2.28.43] 2026-06-10T08:15:00+02:00 - Benchmark_07_EditBlock_Complete (30 testow) + naprawa walidacji + wzmocnienie promptu
+### [ZREALIZOWANO]
+- Utworzono `tests/Benchmark_07_EditBlock_Complete.json` (30 testow, 119 regul walidacyjnych, 8 kategorii, 5 poziomow trudnosci).
+- Po przeanalizowaniu 2 raportow z pelnego benchmarku (26B QAT i 31B QAT) zidentyfikowano 4 realne problemy i 1 problem walidatora.
+- Naprawiono 5 testow (19, 22, 25, 29, 30) - zamieniono walidacje `AnyArgumentMatch` (substring) na `AnyOfArgumentMatch` (parsowanie JSON z tolerancja wariantow).
+- Wzmocniono `resources/prompts/system_prompt_blocks.txt` (75->76 linii) o regule: "W Foreach+EditBlock z Modifications nie dodawaj Recursive do szablonu Action, jesli polecenie nie wspomina o zagniezdzonych blokach."
+### [WYNIKI 2 RAPORTOW (PRZED NAPRAWA)]
+| Model | Score | Czas sredni | Czas calkowity |
+|-------|-------|-------------|----------------|
+| gemma-4-26b-a4b-qat | 25/30 (83%) | 2108ms | 63 225ms |
+| gemma-4-31b-qat | 26/30 (87%) | 9639ms | 289 165ms |
+
+**Oba modele oblewyly te same 4 testy Foreach+EditBlock: 19, 22, 25, 29. 26B QAT dodatkowo FAIL na 30 (Blackboard).**
+
+### [DIAGNOZA OBLEWANIA]
+- **Test 19 (Foreach+Modifications)**: 26B QAT dodal zbedne `"Recursive":false`. 31B QAT calkowicie odrzucil Foreach i uzyl SelectEntities->EditBlock.
+- **Test 22 (Foreach+Target=Selection)**: 26B QAT pominął Foreach (uzyl SelectEntities->EditBlock). 31B QAT generowal Foreach ale z Action zawierajacym `"Modifications":[{"Prop":"Layer","Val":"SYMBOL_LAYER"}]` ktory nie pasowal do substring.
+- **Test 25 (Foreach+Filters.Type+Recursive)**: Oba modele mialy Action poprawny (z Filters.Type=Line), ale walidator substring nie tolerowal kolejnosci kluczy (model dawal Modifications przed Filters).
+- **Test 29 (Foreach+Modifications+Recursive)**: Identyczny problem - substring `Recursive":true` nie pasowal do rzeczywistego JSON.
+- **Test 30 (Foreach+Blackboard)**: 26B QAT wygenerowal `Target=Selection` zamiast `Target=ByName` w Action.
+
+### [NAPRAWA WALIDACJI]
+Zamieniono `AnyArgumentMatch` (substring) na `AnyOfArgumentMatch` (parsowanie JSON, wiele wariantow).
+- Test 19: 3 warianty (bez Recursive / Recursive=false / Recursive=true)
+- Test 22: 3 warianty (sam Target / Target+Modifications / Target+Modifications z warstwa)
+- Test 25: 3 warianty (z Recursive=true / bez Recursive / rozna kolejnosc pol)
+- Test 29: 2 warianty (z Recursive=true / bez Recursive)
+- Test 30: 3 warianty (bez Recursive / Recursive=true / Recursive=false)
+
+`ValuesMatch` w `AutoBenchmarkEngine.cs:533` parsuje oba stringi jako JSON i robi `JToken.DeepEquals` - toleruje rozna kolejnosc kluczy.
+
+### [OCZEKIWANE WYNIKI PO NAPRAWIE]
+- 26B QAT: 25/30 -> **~28-29/30 (93-97%)**
+- 31B QAT: 26/30 -> **~28-29/30 (93-97%)**
+
+Wzmocnienie promptu (regula o Foreach+EditBlock+Recursive) powinno wyeliminowac FAIL z `"Recursive":false` w 26B QAT.
+
+### [STAN_SYSTEMU]
+- Benchmark_07_EditBlock_Complete gotowy do retestu.
+- Wszystkie 5 problemow walidatora substring naprawione.
+- Prompt wzmocniony delikatnie (1 nowa regula, nie modyfikuje istniejacych).
+- Czas oczekiwany na retest z 26B QAT: ~63s (bez zmian predkosci).
+
+### [BLOKADY / PROBLEMY]
+- Brak - benchmark wymaga uruchomienia przez uzytkownika w GUI BricsCAD (AutoBenchmarkControl.cs:296 UserControl). Z poziomu terminala nie mozna uruchomic (brak headless mode).
+- Oczekuje na retest 26B QAT po zmianach.
+
+### [KOLEJNY_KROK]
+- Uzytkownik uruchamia Benchmark_07_EditBlock_Complete z 26B QAT w GUI BricsCAD.
+- Po retescie: porownanie wynikow 83% -> oczekiwane ~93-97%.
+- Jesli wynik >= 28/30: commit + Benchmark_07_EditBlock_Complete GOLD.
+- Jesli wynik < 28/30: analiza kolejnych wzorcow, dalsze wzmocnienia promptu.

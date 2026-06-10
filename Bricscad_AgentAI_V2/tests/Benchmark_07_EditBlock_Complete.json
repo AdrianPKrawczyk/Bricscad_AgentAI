@@ -1,0 +1,555 @@
+{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_07_EditBlock_Complete",
+    "ModelName": "LLM-Benchmark-V2",
+    "ProfileName": "CadBlocksProfile",
+    "RunDate": "2026-06-10",
+    "Comment": "Rozszerzony benchmark EditBlock (edycja zawartosci definicji bloku) w profilu CadBlocksProfile. 30 testow, ~130 regul walidacyjnych. Pokrywa: warstwy, kolory, linetype/lineweight, tekst, wymiary, filtry (Type/Layer/Color), rekurencje, selekcje, Foreach, scenariusze bledow (brak Target/BlockName, pusta selekcja, brak bloku)."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "EditBlockBasic",
+      "Difficulty": 1,
+      "TestName": "EditBlock_ByName_ChangeLayer",
+      "Description": "Agent otrzymuje nazwe bloku i probuje zmienic warstwe wszystkich obiektow w jego definicji.",
+      "UserPrompt": "W bloku o nazwie BIURKO zmien warstwe wszystkich obiektow na MEBLE.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 4 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock do edycji definicji bloku." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Target", "TargetValue": "ByName", "ErrorMessage": "BLAD: Oczekiwano Target='ByName' (edytujemy konkretny blok po nazwie)." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "BIURKO", "ErrorMessage": "BLAD: Nie wskazano nazwy bloku BIURKO." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "Layer", "ErrorMessage": "BLAD: Brak modyfikacji warstwy w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "MEBLE", "ErrorMessage": "BLAD: Nie ustawiono warstwy docelowej MEBLE." }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "EditBlockBasic",
+      "Difficulty": 1,
+      "TestName": "EditBlock_ByName_ChangeColor",
+      "Description": "Agent probuje zmienic kolor (ColorIndex) wszystkich obiektow w bloku po nazwie.",
+      "UserPrompt": "W bloku KRZESLO ustaw kolor wszystkich obiektow na czerwony (ColorIndex 1).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "KRZESLO", "ErrorMessage": "BLAD: Nie wskazano nazwy bloku KRZESLO." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "Color", "ErrorMessage": "BLAD: Brak modyfikacji koloru w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "1", "ErrorMessage": "BLAD: Nie ustawiono ColorIndex=1." }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "EditBlockBasic",
+      "Difficulty": 2,
+      "TestName": "EditBlock_ByName_MultipleProperties",
+      "Description": "Agent musi podac dwie modyfikacje w jednym wywolaniu (warstwa + kolor).",
+      "UserPrompt": "W bloku STOL zmien warstwe na KITCHEN i kolor na 3.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 5 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "STOL", "ErrorMessage": "BLAD: Nie wskazano nazwy bloku STOL." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "KITCHEN", "ErrorMessage": "BLAD: Brak ustawienia warstwy KITCHEN w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[1].Val", "TargetValue": "3", "ErrorMessage": "BLAD: Brak ustawienia koloru 3 w Modifications (jako drugi element tablicy)." }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "EditBlockText",
+      "Difficulty": 2,
+      "TestName": "EditBlock_ByName_ReplaceText",
+      "Description": "Agent uzywa FindText/ReplaceText do zamiany tekstu wewnatrz definicji bloku.",
+      "UserPrompt": "W bloku SCHEMAT zamien wszystkie wystapienia tekstu TEMP na WALID.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 2 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock do zamiany tekstu." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "SCHEMAT", "ErrorMessage": "BLAD: Nie wskazano nazwy bloku SCHEMAT." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FindText", "TargetValue": "TEMP", "ErrorMessage": "BLAD: Nie przekazano FindText='TEMP'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ReplaceText", "TargetValue": "WALID", "ErrorMessage": "BLAD: Nie przekazano ReplaceText='WALID'." }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "EditBlockText",
+      "Difficulty": 3,
+      "TestName": "EditBlock_ByName_RemoveDimensions",
+      "Description": "Agent uzywa dedykowanej flagi RemoveDimensions do czyszczenia bloku z wymiarow.",
+      "UserPrompt": "W bloku RYSUNEK_TECH usun wszystkie wymiary.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 6 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock z RemoveDimensions." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "RYSUNEK_TECH", "ErrorMessage": "BLAD: Nie wskazano bloku RYSUNEK_TECH." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "RemoveDimensions", "TargetValue": "true", "ErrorMessage": "BLAD: Brak RemoveDimensions=true (wymagane dla usuwania wymiarow)." }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "EditBlockFilters",
+      "Difficulty": 3,
+      "TestName": "EditBlock_FilterByType",
+      "Description": "Agent musi uzyc filtra Type=Line, aby zmienic kolor tylko linii w bloku.",
+      "UserPrompt": "W bloku SCIANA zmien kolor tylko linii (Type=Line) na 5.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 2 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock z filtrem Type." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "SCIANA", "ErrorMessage": "BLAD: Nie wskazano bloku SCIANA." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filters.Type", "TargetValue": "Line", "ErrorMessage": "BLAD: Brak filtra Filters.Type='Line' (wymagane do ograniczenia do linii)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "5", "ErrorMessage": "BLAD: Nie ustawiono koloru 5 w Modifications." }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "EditBlockFilters",
+      "Difficulty": 3,
+      "TestName": "EditBlock_FilterByLayer",
+      "Description": "Agent musi uzyc filtra Layer=0, aby zmienic kolor obiektow na konkretnej warstwie.",
+      "UserPrompt": "W bloku ELEMENT zmien kolor obiektow na warstwie 0 na zolty (2).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock z filtrem Layer." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "ELEMENT", "ErrorMessage": "BLAD: Nie wskazano bloku ELEMENT." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filters.Layer", "TargetValue": "0", "ErrorMessage": "BLAD: Brak filtra Filters.Layer='0'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "2", "ErrorMessage": "BLAD: Nie ustawiono koloru 2 w Modifications." }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "EditBlockRecursive",
+      "Difficulty": 4,
+      "TestName": "EditBlock_ByName_Recursive_Disable",
+      "Description": "Agent musi swiadomie wylaczyc rekurencje, aby nie edytowac zagniezdzonych blokow.",
+      "UserPrompt": "W bloku OSWIETLENIE zmien kolor na 7, ale NIE edytuj zagniezdzonych blokow.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 4 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "OSWIETLENIE", "ErrorMessage": "BLAD: Nie wskazano bloku OSWIETLENIE." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "7", "ErrorMessage": "BLAD: Nie ustawiono koloru 7 w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Recursive", "TargetValue": "false", "ErrorMessage": "BLAD: Nie wylaczono rekurencji (Recursive=false). Domyslnie EditBlock wchodzi w zagniezdzone bloki." }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "EditBlockSelection",
+      "Difficulty": 4,
+      "TestName": "EditBlock_FromSelection_AfterSelect",
+      "Description": "Agent musi najpierw zaznaczyc wystapienia blokow, a dopiero potem edytowac ich definicje przez Target=Selection.",
+      "UserPrompt": "Zaznacz bloki typu KRZESLO, a potem w ich definicji zmien warstwe na MEBLE.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 5 obiektow.",
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "SelectEntities, EditBlock", "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Target", "TargetValue": "Selection", "ErrorMessage": "BLAD: EditBlock powinien uzyc Target='Selection' (bo edytujemy definicje z zaznaczenia)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "MEBLE", "ErrorMessage": "BLAD: Nie ustawiono warstwy MEBLE w Modifications." }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "EditBlockForeach",
+      "Difficulty": 5,
+      "TestName": "EditBlock_Batch_With_Foreach_ReplaceText",
+      "Description": "Agent uzywa Foreach z Items=[SCHEMAT1,SCHEMAT2], wywolujac EditBlock z {item} jako BlockName, FindText, ReplaceText i Recursive=true.",
+      "UserPrompt": "Dla blokow SCHEMAT1 i SCHEMAT2 zamien tekst DRAFT na FINAL wewnatrz ich definicji. Edytuj rowniez zagniezdzone bloki.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach dla jawnej listy blokow." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "SCHEMAT1", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='SCHEMAT1'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "SCHEMAT2", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='SCHEMAT2'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"FindText\":\"DRAFT\",\"ReplaceText\":\"FINAL\",\"Recursive\":true}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z FindText/ReplaceText/Recursive=true i {item} jako BlockName." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "EditBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy jawnej liscie agent nie powinien wywolywac EditBlock bezposrednio poza Foreach." }
+      ]
+    },
+    {
+      "Id": 11,
+      "Category": "EditBlockFilters",
+      "Difficulty": 3,
+      "TestName": "EditBlock_FilterByColor",
+      "Description": "Agent musi uzyc filtra Filters.Color=1, aby zmienic warstwe obiektow o konkretnym kolorze.",
+      "UserPrompt": "W bloku DETAL zmien warstwe obiektow o kolorze czerwonym (ColorIndex 1) na WARSTWA_CZERW.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 2 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock z filtrem Color." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "DETAL", "ErrorMessage": "BLAD: Nie wskazano bloku DETAL." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filters.Color", "TargetValue": "1", "ErrorMessage": "BLAD: Brak filtra Filters.Color=1 (ColorIndex czerwonego)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "Layer", "ErrorMessage": "BLAD: Brak modyfikacji warstwy w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "WARSTWA_CZERW", "ErrorMessage": "BLAD: Nie ustawiono warstwy WARSTWA_CZERW w Modifications." }
+      ]
+    },
+    {
+      "Id": 12,
+      "Category": "EditBlockBasic",
+      "Difficulty": 2,
+      "TestName": "EditBlock_ByName_ThreePropertiesAtOnce",
+      "Description": "Agent musi podac 3 modyfikacje (Layer + Color + Linetype) w jednym wywolaniu.",
+      "UserPrompt": "W bloku RURA ustaw warstwe RURY, kolor 4 i rodzaj linii HIDDEN.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "RURA", "ErrorMessage": "BLAD: Nie wskazano bloku RURA." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "RURY", "ErrorMessage": "BLAD: Brak modyfikacji warstwy RURY." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[1].Val", "TargetValue": "4", "ErrorMessage": "BLAD: Brak modyfikacji koloru 4." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[2].Val", "TargetValue": "HIDDEN", "ErrorMessage": "BLAD: Brak modyfikacji Linetype=HIDDEN." }
+      ]
+    },
+    {
+      "Id": 13,
+      "Category": "EditBlockRecursive",
+      "Difficulty": 4,
+      "TestName": "EditBlock_ByName_Recursive_Enable_Explicit",
+      "Description": "Agent musi jawnie ustawic Recursive=true, aby edytowac zagniezdzone bloki.",
+      "UserPrompt": "W bloku HALA zmien warstwe na KONSTRUKCJA. Edytuj rowniez wszystkie zagniezdzone bloki.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 12 obiektow wewnatrz definicji bloku/blokow (rekurencyjnie)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "HALA", "ErrorMessage": "BLAD: Nie wskazano bloku HALA." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Recursive", "TargetValue": "true", "ErrorMessage": "BLAD: Brak jawnego Recursive=true dla edycji zagniezdzonych blokow." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "KONSTRUKCJA", "ErrorMessage": "BLAD: Nie ustawiono warstwy KONSTRUKCJA w Modifications." }
+      ]
+    },
+    {
+      "Id": 14,
+      "Category": "EditBlockProperties",
+      "Difficulty": 3,
+      "TestName": "EditBlock_ByName_ChangeLinetype",
+      "Description": "Agent uzywa Linetype w Modifications (globalna wlasciwosc Entity).",
+      "UserPrompt": "W bloku OKAP ustaw rodzaj linii (Linetype) wszystkich obiektow na DASHED.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 5 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock do zmiany Linetype." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "OKAP", "ErrorMessage": "BLAD: Nie wskazano bloku OKAP." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "Linetype", "ErrorMessage": "BLAD: Brak modyfikacji Linetype w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "DASHED", "ErrorMessage": "BLAD: Nie ustawiono Linetype=DASHED." }
+      ]
+    },
+    {
+      "Id": 15,
+      "Category": "EditBlockProperties",
+      "Difficulty": 3,
+      "TestName": "EditBlock_ByName_ChangeLineWeight",
+      "Description": "Agent uzywa LineWeight w Modifications (globalna wlasciwosc Entity, podawana jako liczba calkowita 0-211).",
+      "UserPrompt": "W bloku BELKA ustaw grubosc linii (LineWeight) wszystkich obiektow na 0.5mm (50).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 4 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock do zmiany LineWeight." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "BELKA", "ErrorMessage": "BLAD: Nie wskazano bloku BELKA." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "LineWeight", "ErrorMessage": "BLAD: Brak modyfikacji LineWeight w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "50", "ErrorMessage": "BLAD: Nie ustawiono LineWeight=50 (0.5mm)." }
+      ]
+    },
+    {
+      "Id": 16,
+      "Category": "EditBlockProperties",
+      "Difficulty": 3,
+      "TestName": "EditBlock_ByName_ChangeLinetypeScale",
+      "Description": "Agent uzywa LinetypeScale w Modifications (wspolczynnik skali linii, typ double).",
+      "UserPrompt": "W bloku FUNDAMENT ustaw wspolczynnik skali linii (LinetypeScale) na 2.5.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock do zmiany LinetypeScale." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "FUNDAMENT", "ErrorMessage": "BLAD: Nie wskazano bloku FUNDAMENT." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "LinetypeScale", "ErrorMessage": "BLAD: Brak modyfikacji LinetypeScale w Modifications." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "2.5", "ErrorMessage": "BLAD: Nie ustawiono LinetypeScale=2.5." }
+      ]
+    },
+    {
+      "Id": 17,
+      "Category": "EditBlockText",
+      "Difficulty": 4,
+      "TestName": "EditBlock_MText_TextHeight",
+      "Description": "Agent musi uzyc Prop=TextHeight w Modifications (wlasciwosc specyficzna dla MText).",
+      "UserPrompt": "W bloku LEGENDA ustaw wysokosc tekstu (TextHeight) na 5 dla wszystkich obiektow MText.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 2 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "LEGENDA", "ErrorMessage": "BLAD: Nie wskazano bloku LEGENDA." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "TextHeight", "ErrorMessage": "BLAD: Brak modyfikacji TextHeight w Modifications (wlasciwosc MText)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "5", "ErrorMessage": "BLAD: Nie ustawiono TextHeight=5." }
+      ]
+    },
+    {
+      "Id": 18,
+      "Category": "EditBlockText",
+      "Difficulty": 3,
+      "TestName": "EditBlock_DBText_TextString",
+      "Description": "Agent musi uzyc Prop=TextString w Modifications (wlasciwosc specyficzna dla DBText).",
+      "UserPrompt": "W bloku OPIS ustaw tresc tekstu (TextString) na NOWY_OPIS dla wszystkich obiektow DBText.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 1 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "OPIS", "ErrorMessage": "BLAD: Nie wskazano bloku OPIS." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Prop", "TargetValue": "TextString", "ErrorMessage": "BLAD: Brak modyfikacji TextString w Modifications (wlasciwosc DBText)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "NOWY_OPIS", "ErrorMessage": "BLAD: Nie ustawiono TextString=NOWY_OPIS." }
+      ]
+    },
+    {
+      "Id": 19,
+      "Category": "EditBlockForeach",
+      "Difficulty": 4,
+      "TestName": "EditBlock_Foreach_Modifications_Only",
+      "Description": "Foreach+EditBlock wywolujacy tylko Modifications (bez FindText, bez RemoveDimensions).",
+      "UserPrompt": "Dla blokow BLK1 i BLK2 ustaw warstwe na NOWA. Nie zamieniaj tekstu.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "BLK1", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='BLK1'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "BLK2", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='BLK2'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"NOWA\"}]} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"NOWA\"}],\"Recursive\":false} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"NOWA\"}],\"Recursive\":true}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z Modifications (Layer=NOWA) i {item} jako BlockName. Dozwolone warianty: bez Recursive, Recursive=false, Recursive=true." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "EditBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy jawnej liscie agent nie powinien wywolywac EditBlock bezposrednio poza Foreach." }
+      ]
+    },
+    {
+      "Id": 20,
+      "Category": "EditBlockForeach",
+      "Difficulty": 4,
+      "TestName": "EditBlock_Foreach_RemoveDimensions",
+      "Description": "Foreach+EditBlock wywolujacy RemoveDimensions=true na wielu blokach.",
+      "UserPrompt": "Dla blokow RYS_A i RYS_B usun wszystkie wymiary z ich definicji.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "RYS_A", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='RYS_A'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "RYS_B", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='RYS_B'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"RemoveDimensions\":true}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z RemoveDimensions=true i {item} jako BlockName." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "EditBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy jawnej liscie agent nie powinien wywolywac EditBlock bezposrednio poza Foreach." }
+      ]
+    },
+    {
+      "Id": 21,
+      "Category": "EditBlockSelection",
+      "Difficulty": 4,
+      "TestName": "EditBlock_SelectionWithTypeFilter",
+      "Description": "Target=Selection + Filters.Type=Circle (edycja definicji z zaznaczenia z filtrem typu).",
+      "UserPrompt": "Zaznacz bloki typu ZNAK, a potem w ich definicji zmien kolor tylko okregow (Type=Circle) na 5.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 3 obiektow.",
+        "EditBlock": "WYNIK: Zmodyfikowano 2 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "SelectEntities, EditBlock", "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Target", "TargetValue": "Selection", "ErrorMessage": "BLAD: EditBlock powinien uzyc Target='Selection'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filters.Type", "TargetValue": "Circle", "ErrorMessage": "BLAD: Brak filtra Filters.Type='Circle'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "5", "ErrorMessage": "BLAD: Nie ustawiono koloru 5 w Modifications." }
+      ]
+    },
+    {
+      "Id": 22,
+      "Category": "EditBlockForeach",
+      "Difficulty": 5,
+      "TestName": "EditBlock_Foreach_TargetSelection_AfterSelect",
+      "Description": "Sekwencja SelectEntities + Foreach z Action=EditBlock(Target=Selection). Edycja wielu wystapien zagniezdzonego bloku.",
+      "UserPrompt": "Zaznacz wszystkie bloki typu SYMBOL, a potem dla kazdego z nich wywolaj Foreach zmieniajacy warstwe w ich definicji.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 4 obiektow.",
+        "Foreach": "SUKCES: Wykonano 4/4 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "SelectEntities, Foreach", "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> Foreach." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"Selection\"} || {\"ToolName\":\"EditBlock\",\"Target\":\"Selection\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"SYMBOL_LAYER\"}]} || {\"ToolName\":\"EditBlock\",\"Target\":\"Selection\",\"Modifications\":[{\"Prop\":\"Layer\"}]}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z Target='Selection' w Action. Dozwolone warianty: sam Target, Target+Modifications, Target+Modifications z warstwa." }
+      ]
+    },
+    {
+      "Id": 23,
+      "Category": "EditBlockNegative",
+      "Difficulty": 2,
+      "TestName": "EditBlock_MissingRequiredTarget",
+      "Description": "Wywolanie EditBlock bez parametru Target (pole Required w schemacie) - powinno zostac wykryte.",
+      "UserPrompt": "Zmien warstwe w bloku TEST na X (sprawdzam czy model doda Target=ByName).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "BŁĄD: Pole 'Target' jest wymagane."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien wywolac EditBlock." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Target", "TargetValue": "ByName", "ErrorMessage": "BLAD: Brak Target='ByName' (pole wymagane przez schemat)." }
+      ]
+    },
+    {
+      "Id": 24,
+      "Category": "EditBlockNegative",
+      "Difficulty": 2,
+      "TestName": "EditBlock_ByName_MissingBlockName",
+      "Description": "Wywolanie EditBlock z Target=ByName ale bez BlockName (walidacja linii 117 w EditBlockTool.cs).",
+      "UserPrompt": "W konkretnym bloku (jego nazwa to KOMPONENT) zmien warstwe na KOMP.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 2 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien wywolac EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Target", "TargetValue": "ByName", "ErrorMessage": "BLAD: Brak Target='ByName'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "KOMPONENT", "ErrorMessage": "BLAD: Brak BlockName='KOMPONENT' (wymagane przy Target=ByName)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "KOMP", "ErrorMessage": "BLAD: Nie ustawiono warstwy KOMP w Modifications." }
+      ]
+    },
+    {
+      "Id": 25,
+      "Category": "EditBlockForeach",
+      "Difficulty": 5,
+      "TestName": "EditBlock_Foreach_FilterByType_Recursive",
+      "Description": "Foreach+EditBlock z Filters.Type=Line i Recursive=true (kompozycja reguł).",
+      "UserPrompt": "Dla blokow HALA_A i HALA_B zmien kolor wszystkich linii (Filters.Type=Line) na 7, wraz z zagniezdzonymi blokami.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "HALA_A", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='HALA_A'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "HALA_B", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='HALA_B'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Color\",\"Val\":\"7\"}],\"Filters\":{\"Type\":\"Line\"},\"Recursive\":true} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Filters\":{\"Type\":\"Line\"},\"Modifications\":[{\"Prop\":\"Color\",\"Val\":\"7\"}],\"Recursive\":true} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Color\",\"Val\":\"7\"}],\"Filters\":{\"Type\":\"Line\"}}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z Filters.Type='Line' i Modifications Color=7. Dozwolone warianty: z/bez Recursive=true, pola w dowolnej kolejnosci." }
+      ]
+    },
+    {
+      "Id": 26,
+      "Category": "EditBlockFilters",
+      "Difficulty": 4,
+      "TestName": "EditBlock_MultipleFilters_Combined",
+      "Description": "Filtry Type=Linetype+Filters.Layer='0' polaczone (tylko obiekty Line na warstwie 0).",
+      "UserPrompt": "W bloku RYS_POLACZONY zmien kolor na 6 tylko dla obiektow typu Line lezacych na warstwie 0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien uzyc EditBlock z wieloma filtrami." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "RYS_POLACZONY", "ErrorMessage": "BLAD: Nie wskazano bloku RYS_POLACZONY." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filters.Type", "TargetValue": "Line", "ErrorMessage": "BLAD: Brak filtra Filters.Type='Line'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filters.Layer", "TargetValue": "0", "ErrorMessage": "BLAD: Brak filtra Filters.Layer='0' (kombinacja z Type)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Modifications[0].Val", "TargetValue": "6", "ErrorMessage": "BLAD: Nie ustawiono koloru 6 w Modifications." }
+      ]
+    },
+    {
+      "Id": 27,
+      "Category": "EditBlockNegative",
+      "Difficulty": 2,
+      "TestName": "EditBlock_ByName_TypoInBlockName",
+      "Description": "Agent podaje nazwe bloku z drobnym bladem (np. KOLUMNA zamiast KOLUMNY). Walidacja linii 130 w EditBlockTool.cs.",
+      "UserPrompt": "W bloku KOLUMNA zmien kolor na 4.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "BŁĄD: Blok o nazwie 'KOLUMNA' nie został odnaleziony w tabeli bloków."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien wywolac EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "KOLUMNA", "ErrorMessage": "BLAD: Brak BlockName='KOLUMNA' (nawet jesli blok nie istnieje)." }
+      ]
+    },
+    {
+      "Id": 28,
+      "Category": "EditBlockNegative",
+      "Difficulty": 3,
+      "TestName": "EditBlock_SelectionEmpty_ErrorPath",
+      "Description": "EditBlock z Target=Selection ale pusta selekcja (walidacja linii 142 w EditBlockTool.cs).",
+      "UserPrompt": "Edytuj definicje zaznaczonych blokow - zmien warstwe na MEBLE.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "EditBlock": "BŁĄD: Pamięć Agenta (zaznaczenie) jest pusta. Zaznacz najpierw bloki do edycji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "EditBlock", "ErrorMessage": "BLAD: Model powinien wywolac EditBlock." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Target", "TargetValue": "Selection", "ErrorMessage": "BLAD: Brak Target='Selection' (z pusta selekcja)." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "SelectEntities", "ExpectedOutput": "1", "ErrorMessage": "BLAD: Przy pustej selekcji model powinien najpierw zaznaczyc (SelectEntities), a potem wywolac EditBlock." }
+      ]
+    },
+    {
+      "Id": 29,
+      "Category": "EditBlockForeach",
+      "Difficulty": 4,
+      "TestName": "EditBlock_Foreach_Modifications_RecursiveTrue",
+      "Description": "Foreach+EditBlock z Modifications + Recursive=true (bez FindText, bez RemoveDimensions).",
+      "UserPrompt": "Dla blokow GRUPA_A i GRUPA_B ustaw kolor 5 i warstwe GRUPA, edytujac rowniez zagniezdzone bloki.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "GRUPA_A", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='GRUPA_A'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "GRUPA_B", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='GRUPA_B'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Color\",\"Val\":\"5\"},{\"Prop\":\"Layer\",\"Val\":\"GRUPA\"}],\"Recursive\":true} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Color\",\"Val\":\"5\"},{\"Prop\":\"Layer\",\"Val\":\"GRUPA\"}]}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z Modifications (Color=5, Layer=GRUPA) i {item} jako BlockName. Dozwolone warianty: z Recursive=true lub bez Recursive." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "EditBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy jawnej liscie agent nie powinien wywolywac EditBlock bezposrednio poza Foreach." }
+      ]
+    },
+    {
+      "Id": 30,
+      "Category": "EditBlockForeach",
+      "Difficulty": 4,
+      "TestName": "EditBlock_Foreach_BlackboardList",
+      "Description": "Foreach z TargetVariable (z blackboard) jako zrodlem listy blokow do edycji.",
+      "UserPrompt": "Lista blokow jest juz w @BlockList. Ustaw dla nich warstwe FINAL.",
+      "MockMemoryVariables": {
+        "BlockList": "BLOK1 | BLOK2 | BLOK3"
+      },
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach z @BlockList." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "TargetVariable", "TargetValue": "BlockList", "ErrorMessage": "BLAD: Foreach powinien korzystac z @BlockList (TargetVariable)." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"FINAL\"}]} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"FINAL\"}],\"Recursive\":true} || {\"ToolName\":\"EditBlock\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",\"Modifications\":[{\"Prop\":\"Layer\",\"Val\":\"FINAL\"}],\"Recursive\":false}", "ErrorMessage": "BLAD: Foreach powinien wywolac EditBlock z {item} jako BlockName i Modifications Layer=FINAL. Dozwolone warianty: z/bez Recursive." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "EditBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy Foreach z listy agent nie powinien wywolywac EditBlock bezposrednio poza Foreach." }
+      ]
+    }
+  ]
+}
