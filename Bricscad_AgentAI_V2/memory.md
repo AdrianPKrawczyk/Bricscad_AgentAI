@@ -2216,6 +2216,51 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Jesli 31B QAT >= 90% LUB 26B QAT >= 92% - **GOLD v2.28.56** (benchmark FINAL FINAL!).
 - Commit GOLD + przejscie do **Benchmark_10** (np. EditAttributes rozszerzony lub ManageLayers).
 
+## [v2.28.57] 2026-06-10T15:00:00+02:00 - **BENCHMARK_09 FINAL GOLD v2.28.56** 🏆🏆🏆 [BLOCKS-FINAL-FINAL]
+
+### [WYNIKI RETEST 3 MODELI v2.28.56 - FINAL GOLD]
+- 26B QAT : **23/25 (92%)** | +2 vs v2.28.55 - **SUPER GOLD**
+- 31B QAT : **23/25 (92%)** | +1 vs v2.28.55 - **SUPER GOLD**
+- 12b QAT : **24/25 (96%)** | +2 vs v2.28.55 - **NEAR-PERFECT GOLD!**
+
+### [KLUCZOWE USTALENIA - FINAL]
+- 21 testow (84%) przechodzi WSZYSTKIE 3 modele - SOLIDNY BENCHMARK.
+- 0 oble wspolnych (3/3 FAIL = 0) - BRAK WSPOLNYCH PROBLEMOW.
+- 3 oble 1/3 (model-specific): test 6 (26B), test 14 (12b), test 15 (31B).
+- 1 oble 2/3 (test 20 D5 FullPipeline - 31B i 26B pomijaja EditAttributes).
+- Wszystkie 4 oble sa MODEL_BUG specyficzne dla konkretnego modelu.
+- BRAK BENCHMARK_BUG! Benchmark jest perfekcyjnie skalibrowany.
+
+### [POROWNANIE Z BENCHMARK_08]
+- benchmark_08: 31B QAT 81% (29/36)
+- **benchmark_09 v2.28.56: 31B QAT 92% (23/25)** - **+11pp LEPSZY!**
+- benchmark_08: 26B QAT 72% (26/36)
+- **benchmark_09 v2.28.56: 26B QAT 92% (23/25)** - **+20pp LEPSZY!**
+- benchmark_08: 12b QAT 72% (26/36)
+- **benchmark_09 v2.28.56: 12b QAT 96% (24/25)** - **+24pp LEPSZY!**
+
+### [PODSUMOWANIE CALEGO PROJEKTU BENCHMARK_09]
+- **Start**: v2.28.51 (52% w 31B QAT) - problem z profilem
+- **Koniec**: v2.28.56 (92% w 31B QAT) - **+40pp progresu!**
+- 7 iteracji (v2.28.51 → v2.28.57).
+- 2 nowe RuleType w walidatorze: AnyOfArgumentMatchOrAbsent.
+- 1 fix krytyczny: TokenToInvariantString (locale bug).
+- 1 wzmocnienie promptu: ListBlocks + Foreach kanoniczne wzorce.
+- 79 regul walidacyjnych w FINAL benchmarku.
+
+### [DECYZJA]
+**Benchmark_09 v2.28.56 = FINAL GOLD**. Benchmark jest kompletny i nie wymaga dalszych iteracji.
+Pozostale 4 oble sa specyficzne dla poszczegolnych modeli i nie da sie ich naprawic bez poswiecania poprawnosci benchmarku.
+
+### [KOLEJNY_KROK - BENCHMARK_10]
+- Przejscie do nastepnego benchmarku (Benchmark_10).
+- Propozycje:
+  1. **EditAttributes rozszerzony** - testuje 5 parametrow (Action, Attributes, FilterTag, FilterValue, BlockName)
+  2. **ManageLayers** - nowe narzedzie do zarzadzania warstwami
+  3. **ManageSkills** / **ManageRecipes** - narzedzia Knowledge
+  4. **Combined test** - mieszane operacje blokowe i warstwowe
+- Rekomendacja: **EditAttributes rozszerzony** (uzupelnia blokowe narzedzia).
+
 ## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
 
 ### [ZMIANY]
