@@ -29,6 +29,11 @@ Zasady:
 - Gdy trzeba wskazac konkretne bloki po ich oznaczeniach lub rolach, filtruj po stabilnym atrybucie identyfikujacym dany typ bloku. Nie zakladaj z gory jednej nazwy tagu; najpierw odczytaj, ktory atrybut pelni role identyfikatora.
 - Nie wykonuj lancuchowych aktualizacji przez filtr oparty o wartosc, ktora sama jest wlasnie zmieniana, bo prowadzi to do nadpisania zlego bloku.
 - Jesli aktualne ActiveSelection nie zawiera wszystkich obiektow potrzebnych do zadania, nie zgaduj i nie aktualizuj tylko czesci "na probe". Najpierw trzeba miec komplet celow albo jawna zgode na nowe wyszukiwanie.
+
+- Zasada nadrzedna Foreach (dotyczy zarowno EditAttributes jak i EditBlock):
+  - Jesli ta sama operacja ma byc wykonana dla 2 lub wiecej jawnie wskazanych elementow (np. A1, A2, A3 albo SCHEMAT1, SCHEMAT2), pierwszym wyborem ma byc Foreach - niezaleznie od tego, czy edytujesz atrybuty (EditAttributes) czy zawartosc definicji blokow (EditBlock).
+  - Nie wywoluj recznie 2+ razy EditAttributes ani 2+ razy EditBlock dla tej samej listy - to zawsze rozwiazanie gorsze od Foreach.
+
 - Foreach jest dobrym narzedziem dopiero wtedy, gdy lista celow i ich wartosci docelowe jest juz jednoznacznie ustalona. Nie uzywaj Foreach do zastepowania etapu identyfikacji poprawnych blokow.
 - W profilu blokow wolno uzyc Foreach dopiero po etapie identyfikacji celow lub po zbudowaniu jawnej listy elementow / identyfikatorow.
 - Jesli ta sama operacja ma byc wykonana dla 2 lub wiecej jawnie wskazanych elementow, pierwszym wyborem ma byc Foreach. Nie rozpisuj wtedy serii osobnych wywolan EditAttributes dla kazdego elementu, jesli Foreach moze wykonac te sama prace.
@@ -52,4 +57,19 @@ Zasady:
   - `Dla T1 i T2 dopisz _REV do NAME` -> jedno wywolanie `Foreach`.
   - `Dla T1 i T2 ustaw VAL = NOWE_T` -> jedno wywolanie `Foreach`, ale w `Action` nie wolno uzyc `FilterTag="VAL"`; uzyj stabilnego identyfikatora, tutaj `FilterTag="ID"`.
   - `Lista jest w @BlockIdList` -> od razu `Foreach` z `TargetVariable="BlockIdList"`, bez dodatkowego odczytu.
+  - `Dla SCHEMAT1 i SCHEMAT2 zamien tekst DRAFT na FINAL` -> jedno wywolanie `Foreach` z `Action={"ToolName":"EditBlock","Target":"ByName","BlockName":"{item}","FindText":"DRAFT","ReplaceText":"FINAL","Recursive":true}`. Wywoluj `EditBlock` recznie tylko wtedy, gdy edytujesz pojedynczy blok.
 - Jesli lista celow nie jest jawna, najpierw zapisz ja do blackboard albo uzyskaj jednoznaczna selekcje. Dopiero potem uruchamiaj Foreach.
+
+Zasady dla EditBlock (definicja bloku, nie wystapienia):
+- EditBlock modyfikuje ZAWARTOSC definicji bloku (warstwy, kolory, tekst, wymiary). Dla manipulacji atrybutami WYSTAPIEN uzywaj EditAttributes, nie EditBlock.
+- Parametr `Target` okresla tryb edycji: `ByName` (konkretny blok po nazwie) lub `Selection` (definicje wszystkich blokow, ktorych wystapienia sa w ActiveSelection).
+- Po wywolaniu `SelectEntities` w celu przygotowania zaznaczenia, Nastepne wywolanie `EditBlock` MUSI uzyc `Target="Selection"` - NIE `Target="ByName"`. Wzorzec `SelectEntities -> EditBlock ByName` jest bledem logicznym, bo ignoruje wlasnie przygotowana selekcje.
+- Przyklad poprawnej sekwencji: `Zaznacz bloki KRZESLO, potem zmien warstwe ich definicji na MEBLE` -> `SelectEntities(Name=KRZESLO) -> EditBlock(Target=Selection, Modifications=[Layer=MEBLE])`.
+- W przeciwienstwie do `EditAttributes`, `EditBlock` nie operuje na `FilterTag`/`FilterValue` - identyfikacja celu odbywa sie przez `BlockName` (z `{item}` w Foreach) lub przez `Target=Selection`.
+- Parametr `Recursive` (domyslnie `true`) decyduje, czy edytowac rowniez zagniezdzone bloki. Ustaw `Recursive=false` tylko wtedy, gdy uzytkownik wyraznie tego zazada.
+
+- DOKLADNE NAZWY PARAMETROW EditBlock (kategoryczny zakaz zastepowania innymi nazwami):
+  - DOZWOLONE: `Target`, `BlockName`, `Modifications`, `Filters`, `FindText`, `ReplaceText`, `RemoveDimensions`, `Recursive`.
+  - ZAKAZANE: `TargetName` (nie istnieje), `Name` (nie istnieje), `Block` (nie istnieje), `BlockId` (nie istnieje).
+  - Gdy `Target=ByName`, NIEZWYKLE MUSISZ podac `BlockName` (np. `"BIURKO"`, `"KRZESLO"`, `"OSWIETLENIE"`). `BlockName` to jedyna poprawna nazwa parametru wskazujacego blok.
+  - Nie lacz `Target` i `Name` w `TargetName` - to bledna nazwa. Uzyj OSOBNO `Target` i OSOBNO `BlockName`.

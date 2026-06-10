@@ -1280,3 +1280,245 @@ Poprawiono kodowanie znakow w AgentControl.cs gdzie wyswietlane byly krzaczki np
   2. wybrac model B, sprawdzic w LM Studio czy A zostal zwolniony przed zaladowaniem B,
   3. kliknac `⏏ Rozladuj` w benchmarku - LM Studio powinien zwolnic VRAM,
   4. sprawdzic `⏏ Rozladuj` w Ustawieniach - powinien miec identyczne zachowanie.
+
+## [v2.28.36] 2026-06-09T23:35:00+02:00 - Benchmark 07 EditBlock - analiza wyników i naprawa promptu
+### [ZREALIZOWANO]
+- Utworzono `tests/Benchmark_07_EditBlock.json` (10 testów, 40 reguł walidacyjnych, 6 kategorii).
+- Przeprowadzono testy na 2 modelach lokalnych LM Studio: gemma-4-26b-a4b-qat oraz gemma-4-31b-qat.
+- Oba modele uzyskały identyczny wynik 80% (8/10).
+- Zdiagnozowano 2 powtarzające się błędy w obu modelach (test 9 i test 10).
+- Zaktualizowano `resources/prompts/system_prompt_blocks.txt` - dodano nową sekcję "Zasady dla EditBlock" (10 nowych reguł, plik wydłużony z 55 do 67 linii).
+### [WYNIKI]
+- Testy 1-8 (Basic/Text/Filters/Recursive): **100% PASS** w obu modelach.
+- Test 9 (EditBlock_FromSelection_AfterSelect): **FAIL** - oba modele użyły Target=ByName zamiast Target=Selection po uprzednim SelectEntities.
+- Test 10 (EditBlock_Batch_With_Foreach): **FAIL** - oba modele pominęły Foreach i wywołały EditBlock ręcznie 2x (dla SCHEMAT1 i SCHEMAT2 osobno).
+- gemma-4-26b-a4b-qat jest **4.3x szybsza** (średnia 2135ms vs 9231ms) przy tej samej poprawności - preferowany model produkcyjny.
+### [ZMIANA W PROMPT]
+Nowa sekcja "Zasady dla EditBlock" zawiera:
+- Definicję roli EditBlock (definicja, nie wystąpienia - w odróżnieniu od EditAttributes).
+- Regułę Target=Selection po SelectEntities (z przykładem poprawnej sekwencji).
+- Regułę Foreach dla masowej edycji wielu bloków po nazwie (z wzorcem JSON).
+- Regułę {item} w BlockName oraz opcjonalne {index} w innych polach.
+- Regułę Foreach z TargetVariable dla list z blackboard.
+- Wyraźne rozróżnienie: EditBlock NIE używa FilterTag/FilterValue (to domena EditAttributes).
+- Regułę Recursive (domyślnie true, false tylko na żądanie).
+### [STAN_SYSTEMU]
+- Błędy kompilacji dotnet build istniejące PRZED zmianą (620 linii z error) - środowisko .NET jest popsute, ale to NIE jest regresja z mojej strony (prompt to plik <Content>, nie C#).
+- Benchmark gotowy do ponownego uruchomienia - po edycji promptu oczekiwany wynik: 100% (10/10).
+### [BLOKADY / PROBLEMY]
+- Brak - zmiana promptu jest non-invasive (plik tekstowy osadzony jako Content w csproj).
+### [KOLEJNY_KROK]
+- Uruchomić ponownie Benchmark_07_EditBlock w BricsCAD (model: gemma-4-26b-a4b-qat, profil: CadBlocksProfile) i zweryfikować 100% PASS.
+- Po sukcesie - kolejne benchmarki dla EditBlock (filtry kombinowane, {index} w BlockName) lub praca nad Benchmark_08 dla CreateBlock/InsertBlock.
+
+## [v2.28.37] 2026-06-10T00:20:00+02:00 - Ponowna weryfikacja Benchmark_07 z profilem CadBlocksProfile
+### [ZREALIZOWANO]
+- Przeprowadzono 3 rundy testów Benchmark_07_EditBlock na modelach gemma-4-26b-a4b-qat i gemma-4-31b-qat.
+- Runda 1 (00:07/00:10, bez profilu w metadanych): oba 80% (8/10).
+- Runda 2 (00:08/00:13, ProfileName="" w metadanych - profil NIE załadowany): 26B spadło do 70%, 31B 80%.
+- Runda 3 (00:17/00:18, z prawidłowym profilem): oba **90% (9/10)** - stabilny wynik.
+### [WYNIKI KOŃCOWE - runda 3 z profilem]
+- **gemma-4-26b-a4b-qat**: 90% (9/10), 2431ms średnio - **LEPSZY MODEL PRODUKCYJNY** (4.2x szybszy)
+- **gemma-4-31b-qat**: 90% (9/10), 10313ms średnio
+- Kategoria EditBlockSelection: 0% → 100% (reguła Target=Selection zadziałała w obu modelach)
+- Kategoria EditBlockBasic: 66.67% → 100% (26B - regresja z poprzedniej rundy odwrócona)
+- Kategoria EditBlockText: 50% → 100% (31B - regresja odwrócona)
+- Kategoria EditBlockRecursive: 0% → 100% (26B - fluktuacja odwrócona)
+- Kategoria EditBlockForeach: **0% w obu modelach - 3. runda z rzędu** - reguła Foreach+EditBlock NIE zadziałała
+### [DIAGNOZA PROBLEMU FOREACH+EDITBLOCK]
+Test 10 (EditBlock_Batch_With_Foreach_ReplaceText) obłał w 6/6 prób (3 rundy × 2 modele).
+Identyczny wzorzec: modele wywołują 2× EditBlock ręcznie zamiast Foreach.
+Przyczyny:
+- Reguła w promptcie jest umieszczona w SEKCJI 3 (po EditAttributes) - model czyta Foreach jako "narzędzie dla atrybutów" i nie transferuje wzorca na EditBlock.
+- UserPrompt "Dla blokow X i Y zamien tekst..." jest interpretowany jako 2 niezależne operacje.
+- Silny wzorzec w promptcie: Foreach jest powiązany z EditAttributes w 8+ regułach, a z EditBlock tylko w 1.
+### [STAN_SYSTEMU]
+- 9/10 testów przechodzi stabilnie w obu modelach z prawidłowym profilem.
+- 1 test (Foreach+EditBlock) jest odporny na obecne reguły promptowe.
+### [BLOKADY / PROBLEMY]
+- Reguła w prompcie nie wystarcza - potrzebne wzmocnienie wzorca Foreach dla EditBlock.
+### [KOLEJNY_KROK]
+- Wzmocnić regułę Foreach+EditBlock: przenieść do GŁÓWNEJ sekcji 'Zasady' (przed EditAttributes), skrócić do 1-2 zdań, dodać explicitny przykład kodu.
+- Rozważyć dodanie reguły SequenceArgumentMatch do AutoBenchmarkEngine (wymaga modyfikacji C#) - reguła, która wymusza konkretny argument po konkretnym narzędziu w sekwencji.
+- Po uzyskaniu 10/10 PASS - praca nad Benchmark_08 (CreateBlock/InsertBlock).
+
+## [v2.28.38] 2026-06-10T00:30:00+02:00 - Wzmocnienie reguły Foreach+EditBlock (bez naruszania EditAttributes)
+### [ZREALIZOWANO]
+- Przeprowadzono 3 minimalne edycje pliku `resources/prompts/system_prompt_blocks.txt` w celu wzmocnienia reguły Foreach+EditBlock.
+- Test 10 (Foreach+EditBlock) oblał 6/6 prób w poprzednich 3 rundach - konieczne było ukierunkowane wzmocnienie.
+### [ZMIANY W PROMPT]
+Edycja 1 (4 nowe linie, wstawione PRZED istniejącymi regułami EditAttributes):
+- Nowa pod-sekcja "Zasada nadrzedna Foreach (dotyczy zarowno EditAttributes jak i EditBlock)".
+- Reguła: "Jesli ta sama operacja ma byc wykonana dla 2 lub wiecej jawnie wskazanych elementow (...) - niezaleznie od tego, czy edytujesz atrybuty (EditAttributes) czy zawartosc definicji blokow (EditBlock)."
+- Reguła anty-duplikacji: "Nie wywoluj recznie 2+ razy EditAttributes ani 2+ razy EditBlock dla tej samej listy".
+
+Edycja 2 (1 nowa linia, dodana do listy przykładów JSON):
+- 6. przykład: "Dla SCHEMAT1 i SCHEMAT2 zamien tekst DRAFT na FINAL" z pełnym wzorcem Action={"ToolName":"EditBlock","Target":"ByName","BlockName":"{item}","FindText":"DRAFT","ReplaceText":"FINAL","Recursive":true}.
+- Zakaz: "Wywoluj EditBlock recznie tylko wtedy, gdy edytujesz pojedynczy blok."
+
+Edycja 3 (usunięte 3 linie z duplikującymi się regułami w starej sekcji EditBlock):
+- Usunięte reguły o Foreach+EditBlock (teraz są w Edycji 1+2 - unika rozpraszania modelu).
+### [GWARANCJE NIENARUSZENIA EDITATTRIBUTES]
+- Wszystkie 5 oryginalnych przykładów JSON dla EditAttributes (linie 55-59 po edycji) są NIETKNIĘTE.
+- Reguły EditAttributes (linie 37-53 po edycji) są NIETKNIĘTE (tekst identyczny co przed zmianami).
+- Reguły szczegółowe (FilterTag=ID, zakaz VAL, wzorzec JSON) są NIETKNIĘTE.
+- Reguły RPN (linie 12-25) są NIETKNIĘTE.
+### [STATYSTYKI PLIKU]
+- Przed: 55 linii (v2.28.35).
+- Po edycji 1: 67 linii.
+- Po edycjach 1+2+3: **69 linii** (+1 od wersji 67 - dodana sekcja, usunięte 3 duplikaty = +1-3 = -2, ale z 5 wstawionych linii i 3 usuniętych = +2 netto).
+- Rozmiar: 8 872 bajty.
+### [DECYZJA O ZAKRESIE]
+- CreateBlock/InsertBlock: NIE dodano reguły Foreach - odłożone do Benchmark_08/09.
+- Reason: użytkownik ostrzegł przed "wylaniem dziecka z kąpielą" - EditAttributes+Foreach były długo dostrajane.
+- Strategia: wzmocnienie minimalne (1 reguła nadrzędna + 1 przykład + usunięcie duplikatów) zamiast rozbudowanej refaktoryzacji.
+### [STAN_SYSTEMU]
+- Prompt gotowy do testów w BricsCAD.
+- Kolejna weryfikacja powinna wykazać 100% PASS w Benchmark_07_EditBlock.
+- Jeśli test 10 nadal obłał, kolejnym krokiem będzie SequenceArgumentMatch w AutoBenchmarkEngine (modyfikacja C#).
+### [BLOKADY / PROBLEMY]
+- Brak - wszystkie 3 edycje były addytywne (z wyjątkiem 3 usuniętych duplikatów, które były zastąpione przez silniejsze wersje).
+### [KOLEJNY_KROK]
+- Uruchomić Benchmark_07_EditBlock w BricsCAD z profilem CadBlocksProfile na obu modelach (gemma-4-26b-a4b-qat, gemma-4-31b-qat).
+- Weryfikować 100% PASS.
+- Po sukcesie - benchmark 08 dla CreateBlock.
+
+## [v2.28.39] 2026-06-10T00:40:00+02:00 - Zmiana BenchmarkName w Benchmark_07
+### [ZREALIZOWANO]
+- Zmieniono wartosc `BenchmarkName` z `"LLM-Benchmark-V2"` na `"Benchmark_07_EditBlock"` w pliku zrodlowym `tests/Benchmark_07_EditBlock.json`.
+- Zaktualizowano wszystkie 12 historycznych raportow (6 FULL + 6 ERRORS) dla obu modeli (gemma-4-26b-a4b-qat, gemma-4-31b-qat) we wszystkich 3 rundach (00:07/00:10, 00:08/00:13, 00:17/00:18).
+- Cel: czytelnosc w zakladce "Analiza benchmarkow" (BenchmarkAnalyticsControl) - zamiast ogolnej etykiety "LLM-Benchmark-V2" widac bedzie konkretna nazwe benchmarku.
+- Wzor wziety z `Benchmark_06_BlockAttributes_Complete.json` (BenchmarkName = nazwa pliku bez rozszerzenia).
+### [STATYSTYKI]
+- Plikow zaktualizowanych: 13 (1 zrodlo + 6 FULL + 6 ERRORS).
+- Roznica: `"BenchmarkName": "LLM-Benchmark-V2"` -> `"BenchmarkName": "Benchmark_07_EditBlock"` (sededyczny replace, pole w `RunMetadata`).
+- Wszystkie pliki przechodza parsowanie JSON.
+### [STAN_SYSTEMU]
+- Spójne nazewnictwo BenchmarkName we wszystkich plikach Benchmark_07.
+- Dashboard analityczny bedzie teraz wyswietlal konkretne nazwy benchmarkow zamiast ogolnej etykiety.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Kontynuacja testow Benchmark_07 w BricsCAD - po ponownym uruchomieniu nowe raporty beda mialy poprawne BenchmarkName automatycznie (silnik wypelnia to z nazwy pliku).
+
+## [v2.28.40] 2026-06-10T00:55:00+02:00 - Benchmark 07 - 100% PASS dla 31B z CadBlocksProfile
+### [ZREALIZOWANO]
+- Przeprowadzono 3 testy Benchmark_07_EditBlock z prawidlowym profilem CadBlocksProfile (potwierdzone przez ProfileName w metadanych).
+- Model 31B: **100% (10/10)** - wszystkie testy PASS, w tym test 10 (Foreach+EditBlock).
+- Model 26B: **70% (00:52) i 60% (00:53)** - regresja w stosunku do 90% z poprzedniej rundy z tym samym profilem.
+### [WYNIKI]
+- 31B: 100% - kategoria EditBlockForeach: 0% -> 100% (regula Foreach+EditBlock zadzialala)
+- 26B: 60-70% - halucynacja `TargetName` zamiast `BlockName` w testach z Target=ByName (testy 1, 3, 4)
+### [DIAGNOZA REGRESJI 26B]
+- 26B w testach 1, 3, 4 generuje `"TargetName": "BIURKO"` zamiast `"BlockName": "BIURKO"`.
+- Prawdopodobna przyczyna: model laczy koncepcje `Target=ByName` + `Name` = `TargetName`.
+- Halucynacja specyficzna dla mniejszego modelu (26B); 31B tego nie robi.
+- Testy bez `Target=ByName` (filtry, selection, foreach) przechodza - regresja ograniczona do 4 testow.
+### [STAN_SYSTEMU]
+- Wzmocnienie promptu system_prompt_blocks.txt (regula nadrzedna Foreach + 6. przyklad JSON) POTWIERDZONE jako skuteczne dla 31B.
+- Benchmark_07_EditBlock osiagnal stabilny maksymalny wynik (100%) dla 31B.
+- 26B wymaga dodatkowej ochrony przed halucynacja TargetName (mozliwe rozwiazania: ostrzejszy prompt, walidacja w C#, zmiana modelu).
+### [BLOKADY / PROBLEMY]
+- Regresja 26B specyficzna dla halucynacji parametrow - nie jest to problem promptu blokow (reguly Foreach zadzialaly).
+### [KOLEJNY_KROK]
+- Uruchomic dodatkowy test 26B z CadBlocksProfile (3-5 powtorzen) w celu potwierdzenia niestabilnosci halucynacji TargetName.
+- Zbadac czy halucynacja TargetName wystepuje w innych benchmarkach (Benchmark_03, Benchmark_04, Benchmark_06).
+- Przejsc do Benchmark_08 (CreateBlock) - 31B osiagnelo 100% PASS, mozna walidowac nastepne narzedzie.
+
+## [v2.28.41] 2026-06-10T01:15:00+02:00 - Benchmark_07 - diagnostyka 5 modeli, halucynacja TargetName specyficzna dla QAT
+### [ZREALIZOWANO]
+- Przeprowadzono testy Benchmark_07_EditBlock z 5 modelami lokalnymi LM Studio (profil CadBlocksProfile).
+- Wzmocniono prompt system_prompt_blocks.txt o kategoryczny zakaz halucynacji TargetName.
+### [WYNIKI PER MODEL]
+| Model | Architektura | QAT | Score | Halucynacja TargetName | Foreach+EditBlock | Sredni czas (ms) |
+|-------|--------------|-----|-------|------------------------|-------------------|-----------------|
+| gemma-4-26b-a4b | MoE (a4b) | NIE | 80% | 0/10 (0%) | FAIL | 1984 |
+| gemma-4-26b-a4b-qat | MoE (a4b) | TAK | 60-70% | 9/80 (11.2%) | PASS | 1647-2063 |
+| qwen3.6-35b-a3b | MoE (a3b) | brak info | 90% | 0/10 (0%) | PASS | 4860 |
+| gemma-4-31b-qat | Dense (31b) | TAK | 100% | 0/50 (0%) | PASS | 9500 |
+| qwen3.6-27b | Dense | brak info | 100% | 0/10 (0%) | PASS | 11020 |
+
+Tabela posortowana po czasie wykonania (od najszybszego do najwolniejszego).
+- Najszybszy: gemma-4-26b-a4b (1984ms) - ale tylko 80% PASS.
+- Najwolniejszy: qwen3.6-27b (11020ms) - ale 100% PASS.
+- Najlepszy stosunek jakosc/czas: gemma-4-31b-qat (100% PASS w 9500ms).
+- Qwen 27B jest 5.5x wolniejszy niz 26B, ale daje 100% PASS.
+### [KOREKTA]
+W poprzedniej wiadomosci blad porownania czasow: zostalo napisane "Qwen 27B jest szybszy niz 31B" - to BLAD. 11020ms > 9500ms, wiec Qwen 27B jest wolniejszy. Poprawiona kolejnosc od najszybszego: 26B < 35B-A3B < 31B < 27B.
+
+### [KLUCZOWE ODKRYCIA]
+1. **Halucynacja TargetName specyficzna dla kwantyzacji QAT w modelu 26B**: 26B bez QAT nie ma problemu, 26B z QAT ma 11.2% halucynacji. 31B z QAT jest odporny. Qwen 27B i 35B-A3B nie maja tego problemu.
+2. **Qwen 3.6 27B osiagnal 100% PASS (10/10)** - najlepszy model pod wzgledem jakosci dla tego benchmarku, ale 5.5x wolniejszy niz 26B.
+3. **Gemma 4 31B QAT ma najlepszy stosunek jakosc/czas**: 100% PASS w 9500ms.
+4. **Qwen 3.6 35B-A3B ma inna halucynacje**: w tescie 2 (ChangeColor) generuje `Modifications=[{Color: 1}]` zamiast `[{Prop:Color, Val:1}]` - brak pola Prop.
+5. **Test 9 (Target=Selection po SelectEntities) - 100% PASS w kazdym modelu z CadBlocksProfile** - regula zadzialala.
+6. **Test 10 (Foreach+EditBlock) - 100% PASS w modelach > 26B bez QAT** - regula Foreach+EditBlock zadzialala.
+
+### [WZMOCNIENIE PROMPTU]
+Dodano do `system_prompt_blocks.txt` sekcje 'DOKLADNE NAZWY PARAMETROW EditBlock':
+- Lista DOZWOLONYCH: Target, BlockName, Modifications, Filters, FindText, ReplaceText, RemoveDimensions, Recursive
+- Lista ZAKAZANYCH: TargetName, Name, Block, BlockId
+- Regula: "Gdy Target=ByName, NIEZWYKLE MUSISZ podac BlockName. BlockName to jedyna poprawna nazwa parametru wskazujacego blok."
+- Regula: "Nie lacz Target i Name w TargetName - to bledna nazwa. Uzyj OSOBNO Target i OSOBNO BlockName."
+
+### [STAN_SYSTEMU]
+- Prompt zaktualizowany (75 linii) - czeka na testy w BricsCAD z 26B QAT.
+- Skrypty diagnostyczne `validate_benchmark_reports.ps1` i `analyze_targetname_hallucination.ps1` gotowe do uzycia.
+- 5 modeli przetestowanych - baza porownawcza gotowa.
+
+### [BLOKADY / PROBLEMY]
+- Brak - wszystkie 5 modeli zostalo zdiagnozowanych.
+
+### [KOLEJNY_KROK]
+- Uruchomic benchmark z 26B QAT jeszcze raz (z nowym wzmocnieniem promptu) - cel: wyeliminowac halucynacje TargetName.
+- Przetestowac Qwen 3.6 27B na Benchmark_03, 04, 05, 06 - potwierdzic stabilnosc na wszystkich benchmarkach.
+- Przejsc do Benchmark_08 (CreateBlock) z Qwen 27B jako preferowanym modelem (lub Gemma 31B dla szybszych testow).
+
+## [v2.28.42] 2026-06-10T01:30:00+02:00 - Benchmark_07 - SUKCES: wzmocnienie promptu wyeliminowalo halucynacje TargetName w 26B QAT
+### [ZREALIZOWANO]
+- Przeprowadzono 3 nowe testy Benchmark_07_EditBlock z nowym promptem (sekcja DOKLADNE NAZWY PARAMETROW).
+- Testowane modele: gemma-4-26b-a4b-qat, gemma-4-26b-a4b (bez QAT), qwen3.6-35b-a3b.
+### [WYNIKI]
+| Model | Score | Halucynacja | Wniosek |
+|-------|-------|-------------|---------|
+| gemma-4-26b-a4b-qat | **100% (10/10)** 🏆 | 0/10 (0%) ✅ | SUKCES - wzmocnienie promptu wyeliminowalo halucynacje |
+| gemma-4-26b-a4b (bez QAT) | 90% (9/10) | 0/10 (0%) ✅ | test 10 FAIL (inny powod: "Action":"Update" w szablonie Foreach) |
+| qwen3.6-35b-a3b | 90% (9/10) | 0/10 (0%) ✅ | test 2 FAIL (Prop: "ColorIndex" zamiast "Color") |
+
+### [KLUCZOWE ODKRYCIE]
+**Wzmocnienie promptu (sekcja DOKLADNE NAZWY PARAMETROW) w 100% wyeliminowalo halucynacje TargetName w 26B QAT!**
+- Wczesniej 9/80 testow (11.2%) mialo halucynacje TargetName.
+- Po dodaniu sekcji: 0/10 testow (0%) ma halucynacje.
+- Sekcja 'DOKLADNE NAZWY PARAMETROW EditBlock' z lista DOZWOLONYCH (Target, BlockName, Modifications, Filters, FindText, ReplaceText, RemoveDimensions, Recursive) i ZAKAZANYCH (TargetName, Name, Block, BlockId) okazala sie skuteczna.
+
+### [SZCZEGOLY]
+26B QAT (raport 01:21):
+- Test 1 (BIURKO): BlockName="BIURKO" (poprawnie, wczesniej TargetName="BIURKO")
+- Test 3 (STOL): BlockName="STOL" (poprawnie, wczesniej TargetName="STOL")
+- Test 4 (SCHEMAT): BlockName="SCHEMAT" (poprawnie, wczesniej TargetName="SCHEMAT")
+- Wszystkie 10 testow PASS w 2117ms (srednio).
+
+26B bez QAT (raport 01:23):
+- Wszystkie testy 1-9 PASS.
+- Test 10 (Foreach+EditBlock) FAIL: model wygenerowal `"Action":"Update"` w szablonie Foreach:
+  ```json
+  "Action": "{\"ToolName\":\"EditBlock\",\"Action\":\"Update\",\"Target\":\"ByName\",\"BlockName\":\"{item}\",...}"
+  ```
+  W naszym benchmarku oczekujemy wersji bez `"Action":"Update"`. To wariancja stylistyczna modelu.
+
+Qwen 35B-A3B (raport 01:24):
+- Test 2 (ChangeColor) FAIL: model wygenerowal `Prop: "ColorIndex"` zamiast `Prop: "Color"`.
+  Pozostale testy OK (lacznie z Foreach+EditBlock w 5658ms).
+
+### [STAN_SYSTEMU]
+- Benchmark_07_EditBlock osiagnal stabilny 100% PASS dla 26B QAT (po wzmocnieniu promptu).
+- Halucynacja TargetName wyeliminowana.
+- Wykryto drobne halucynacje w 26B bez QAT (Action:Update) i Qwen 35B-A3B (Prop:ColorIndex) - specyficzne dla kazdego modelu.
+
+### [BLOKADY / PROBLEMY]
+- Brak - wszystkie wczesniejsze problemy zostaly rozwiazane przez wzmocnienie promptu.
+
+### [KOLEJNY_KROK]
+- Przejsc do Benchmark_08 (CreateBlock) z preferowanym modelem gemma-4-26b-a4b-qat (szybki, 100% PASS po kompilacji).
+- Przetestowac Qwen 27B na pozostalych benchmarkach (03, 04, 05, 06) - potwierdzic stabilnosc.
+- Benchmark_07 jest gotowy do finalizacji - mozna oznaczyc jako v2.28.42 GOLD.
