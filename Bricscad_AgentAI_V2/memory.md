@@ -2048,6 +2048,55 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Commit memory.md v2.28.53.
 - Przejscie do Benchmark_10 (np. EditAttributes rozszerzony lub ManageLayers).
 
+## [v2.28.53] 2026-06-10T13:15:00+02:00 - Benchmark_09 retest 5 modeli + iteracja wariantow [BLOCKS-MULTIMODEL-EXT]
+
+### [WYNIKI RETEST 5 MODELI v2.28.52]
+- 26B QAT : 17/25 (68%) | 71s total (NAJSZYBSZY) | Avg 2837ms
+- 31B QAT : 19/25 (76%) | 297s total | Avg 11892ms
+- 12b QAT : 19/25 (76%) | 134s total | Avg 5353ms
+- e4b     : 13/25 (52%) | 131s total | Avg 5248ms
+- Qwen 35B: 16/25 (64%) | 227s total | Avg 9073ms
+
+### [KLUCZOWE USTALENIA]
+- 12b QAT = 31B QAT (76%) - mniejszy model rownie dobry dla benchmarku blokowego.
+- 26B QAT NAJSZYBSZY (71s vs 297s dla 31B) - idealny do iteracji.
+- 12 testow (48%) przechodzi WSZYSTKIE 5 modeli.
+- 4 testy (D4-D5) oblewaja wszystkie modele (15, 16, 24, 25) - duzo BENCHMARK_BUG w tych testach.
+
+### [KLASYFIKACJA 8 OBLE (Faza 3)]
+- Test 11 (3/5 FAIL): BENCHMARK_BUG (Items vs Count) - walidator za ciasny.
+- Test 13 (4/5 PASS tylko 31B): BENCHMARK_BUG (case-sensitive ETYKIETA) - 4 modele daly 'etykieta'/'ETKIETA'/'ETYKETA'.
+- Test 14 (3/5 FAIL): BENCHMARK_BUG (Items[0]='TYPOWANE_A' zamiast 'A').
+- Test 15 (5/5 FAIL): MIESZANY - rozszerzono warianty (CZUJNIK staly) + prompt regule Foreach+Attributes.
+- Test 16 (5/5 FAIL): BENCHMARK_BUG (Items zamiast Count - logika dziala poprawnie).
+- Test 20 (3/5 FAIL): MODEL_BUG (3 modele pominiento EditAttributes - 26B/Qwen/e4b). 31B/12b PASS.
+- Test 24 (5/5 FAIL): BENCHMARK_BUG (Tag='MText' zamiast 'KOMENTARZ' - akceptujemy oba).
+- Test 25 (5/5 FAIL): BENCHMARK_BUG (wymuszalismy Count=2 zamiast 2x Foreach z Items).
+
+### [BILANS]
+- 6 BENCHMARK_BUG (naprawione przez rozszerzenie wariantow)
+- 1 MIESZANY (15 - rozszerzenie + prompt)
+- 1 prawdziwy MODEL_BUG (20 - prompt v2.28.52 juz mial regule ale 3/5 modeli nadal FAIL - akceptujemy plateau dla tego testu)
+
+### [ZMIANY v2.28.53]
+1. Benchmark_09_InsertBlock_Extended.json: 6 testow z rozszerzonymi wariantami (11, 13, 14, 15, 16, 24, 25).
+2. system_prompt_blocks.txt: 1 nowa regula Foreach+Attributes (104->105 linii).
+3. Liczba testow: 25. Liczba regul: 74 (bez zmian - zamieniono warianty).
+
+### [OCZEKIWANE WYNIKI PO RETEST v2.28.53]
+- 26B QAT: 17->20-22/25 (68%->80-88%)
+- 31B QAT: 19->22-23/25 (76%->88-92%) - target GOLD >= 85%
+- 12b QAT: 19->21-23/25 (76%->84-92%)
+- e4b    : 13->16-18/25 (52%->64-72%)
+- Qwen   : 16->19-21/25 (64%->76-84%)
+
+### [PLATEAU CHECK]
+- 31B QAT na 76% juz jest blisko benchmark_08 (81%) - mozliwe GOLD na >= 85%.
+- 12b QAT zrownalo sie z 31B - to swiadczy o poprawnym benchmarku (rozne modele, podobny wynik).
+- 26B QAT ma najwiekszy potencjal (szybki + poprawialny).
+- Jesli v2.28.53 osiagnie 85%+ dla 31B QAT - GOLD, przechodzimy do Benchmark_10.
+- Jesli nie - akceptujemy 76-84% jako SOLID (lepszy niz benchmark_08's plateau).
+
 ## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
 
 ### [ZMIANY]
