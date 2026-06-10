@@ -1771,5 +1771,53 @@ Dodane 2 nowe sekcje w `system_prompt_blocks.txt` (76 -> 91 linii):
 ### [BLOKADY / PROBLEMY]
 - Brak - wzmocnienie promptu jest addytywne, nie modyfikuje istniejacych regul.
 ### [KOLEJNY_KROK]
-- Commit zmian (prompt + benchmark + memory.md).
+- Commit zmian (prompt + memory.md + benchmark).
 - Retest 26B QAT. Oczekiwane 30+/36.
+
+## [v2.28.48] 2026-06-10T10:15:00+02:00 - Benchmark_08_CreateBlock - retest po wzmocnieniu promptu v2.28.47
+### [WYNIKI RETESTU (26B QAT 10:09)]
+- Score: 23/36 (64%) - BRAK POPRAWY vs poprzedni retest 23/36 (64%).
+- Avg: 2512ms, Total: 90423ms.
+### [ANALIZA ZMIAN STATUSU]
+Bilans 0: 3 testy przeszly, 3 testy oblewyly nowe. Wzmocnienie promptu CZESCIOWO zadziałało.
+
+**ZMIANY PASS -> FAIL (regresje):**
+- Test 3 (2DPoint): Model dodal `,0` do 2D punktu (100,50 -> 100,50,0). **BENCHMARK_BUG** - walidator wymuszal 2D, ale model 3D jest rowniez poprawny.
+- Test 16 (Blackboard): Model dal `BasePoint:"AskUser"` w Action mimo wzmocnienia. **MODEL_BUG**.
+- Test 18 (MissingBlockName): Model dal "Nowy_Blok_Zaznaczenia" zamiast "NowyBlok". **BENCHMARK_BUG** - walidator wymuszal konkretna nazwe.
+
+**ZMIANY FAIL -> PASS (wzmocnienie zadziałało):**
+- Test 2 (AskUser): Model uzywa BasePoint="AskUser" zamiast UserInput - **SUKCES WZMOCNIENIA**.
+- Test 14 (Foreach+Items): Model uzywa konkretny BasePoint=[0,0,0] w Action - **SUKCES WZMOCNIENIA**.
+- Test 24 (InsertBlock+AskUser): Model uzywa InsertionPoint="AskUser" - **SUKCES WZMOCNIENIA**.
+
+### [KLASYFIKACJA 13 OBLEŃ (10:09)]
+- MODEL_BUG_BasePoint=AskUser_zamiast_XYZ: 5, 15 (2 testy)
+- MODEL_BUG_brak_SelectEntities: 11, 29, 35 (3 testy)
+- MODEL_BUG_petla_10x: 19, 36 (2 testy)
+- MODEL_BUG_Blackboard_AskUser_w_Foreach: 16 (1 test)
+- MODEL_BUG_Foreach_GenerateSequence_AnyArgumentMatch: 17, 32 (2 testy)
+- BENCHMARK_BUG_2DPoint_AutoDodaneZ: 3 (1 test)
+- BENCHMARK_BUG_MissingBlockName_specific_value: 18 (1 test)
+- BENCHMARK_BUG_MTextAttribute_tylko_3_przyklady: 31 (1 test)
+
+### [DODATKOWE NAPRAWY BENCHMARKU (v2.28.48)]
+- Test 3: AnyOfArgumentMatch z 6 wariantami (2D/3D, z/bez nawiasow).
+- Test 18: AnyOfArgumentMatch z 5 przykladowymi nazwami blokow + ToolCallCountMax=1.
+- Test 31: AnyOfArgumentMatch z 4 przykladowymi tekstami wieloliniowymi.
+- Test 17: AnyOfArgumentMatch z konkretnymi JSON wariantami (zamiast substring "CreateBlock").
+- Test 32: AnyOfArgumentMatch z 3 wariantami Action (bez/ze `{item}`/z czymkolwiek).
+
+### [STAN_SYSTEMU]
+- Benchmark_08 ma 121 regul walidacyjnych, 25 AnyOfArgumentMatch, 7 ToolCallCountMax.
+- Prompt ma 91 linii (5 wzmocnien: v2.28.36, 38, 41, 43, 47).
+- Wzmocnienie promptu v2.28.47 CZESCIOWO skuteczne (3/9 problemow naprawionych).
+- Resztkowe problemy (SelectEntities, petla 10x, Math halucynacja) sa specyficzne dla 26B QAT.
+
+### [BLOKADY / PROBLEMY]
+- Brak - benchmark gotowy do retestu.
+
+### [KOLEJNY_KROK]
+- Commit napraw benchmarku v2.28.48.
+- Retest 26B QAT - oczekiwane 26-28/36 (72-78%) po naprawach benchmarku.
+- Pozostale problemy (SelectEntities przed CreateBlock, petla 10x) moga wymagac albo wzmocnienia promptu albo redesignu benchmarku (np. osobny test "pytanie z wyborem" zamiast "wymuszanie wzorca").

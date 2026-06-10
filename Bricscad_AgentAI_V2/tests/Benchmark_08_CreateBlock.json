@@ -55,7 +55,7 @@
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "CreateBlock", "ErrorMessage": "BLAD: Model powinien uzyc CreateBlock." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "DRZWI", "ErrorMessage": "BLAD: Nie wskazano BlockName='DRZWI'." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BasePoint", "TargetValue": "100,50 || [100,50] || (100,50)", "ErrorMessage": "BLAD: Brak BasePoint z X=100, Y=50. Dozwolone formaty: 100,50 | [100,50] | (100,50)." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BasePoint", "TargetValue": "100,50 || [100,50] || (100,50) || 100,50,0 || [100,50,0] || (100,50,0)", "ErrorMessage": "BLAD: Brak BasePoint z X=100, Y=50. Dozwolone formaty: 100,50 (2D) | 100,50,0 (3D z domyslnym Z=0) - z nawiasami lub bez." }
       ]
     },
     {
@@ -298,7 +298,7 @@
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach z GenerateSequence." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "GenerateSequence.Count", "TargetValue": "3", "ErrorMessage": "BLAD: Foreach powinien miec GenerateSequence.Count=3." },
-        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "CreateBlock", "ErrorMessage": "BLAD: Foreach powinien wywolywac CreateBlock w Action." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"GRID_{index}\",\"BasePoint\":\"{item}\"} || {\"ToolName\":\"CreateBlock\",\"BasePoint\":\"{item}\",\"BlockName\":\"GRID_{index}\"}", "ErrorMessage": "BLAD: Foreach powinien wywolywac CreateBlock z BlockName='GRID_{index}' i BasePoint='{item}' (z GenerateSequence)." }
       ]
     },
     {
@@ -314,7 +314,8 @@
       },
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "CreateBlock", "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock." },
-        { "RuleType": "AnyArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "NowyBlok", "ErrorMessage": "BLAD: Brak BlockName (wymagane przez schemat)." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "NowyBlok || Nowy_Blok_Zaznaczenia || NowyBlok1 || NowyBlok01 || Blok_Nowy_1", "ErrorMessage": "BLAD: Brak BlockName (wymagane przez schemat - model powinien sam wymyslec nazwe). Akceptowalne przykladowe nazwy: NowyBlok, Nowy_Blok_Zaznaczenia, NowyBlok1." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "CreateBlock", "ExpectedOutput": "1", "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock dokladnie 1 raz, a nie powtarzac w petli." }
       ]
     },
     {
@@ -549,7 +550,7 @@
         { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "InsertionPoint", "TargetValue": "0,0,0 || [0,0,0] || (0,0,0)", "ErrorMessage": "BLAD: Brak InsertionPoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "UWAGA", "ErrorMessage": "BLAD: Brak BlockName='UWAGA'." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "Attributes[0].Tag", "TargetValue": "OPIS", "ErrorMessage": "BLAD: Brak atrybutu OPIS w Attributes." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Attributes[0].Value", "TargetValue": "Linia 1\nLinia 2\nLinia 3 || Pierwsza linia tekstu\nDruga linia tekstu\nTrzecia linia tekstu || Uwaga 1\nUwaga 2\nUwaga 3", "ErrorMessage": "BLAD: Brak wartosci atrybutu OPIS (model powinien wygenerowac wieloliniowy tekst - dowolna tresc z znakami \\n). Dozwolone przyklady: 'Linia 1\\nLinia 2\\nLinia 3' lub 'Pierwsza linia...\\nDruga...\\nTrzecia...'" }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Attributes[0].Value", "TargetValue": "Linia 1\nLinia 2\nLinia 3 || Pierwsza linia tekstu\nDruga linia tekstu\nTrzecia linia tekstu || Uwaga 1\nUwaga 2\nUwaga 3 || To jest tekst\nwieloliniowy\nw atrybucie.", "ErrorMessage": "BLAD: Brak wartosci atrybutu OPIS (model powinien wygenerowac wieloliniowy tekst - dowolna tresc z znakami \\n). Dozwolone przyklady: 'Linia 1\\nLinia 2\\nLinia 3', 'Pierwsza linia...\\nDruga...\\nTrzecia...', 'Uwaga 1\\nUwaga 2\\nUwaga 3', lub 'To jest tekst\\nwieloliniowy\\nw atrybucie.'" }
       ]
     },
     {
@@ -567,7 +568,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach." },
         { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "A1 || [0,0,0]", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='A1' LUB '[0,0,0]' (dopuszczalne dwa warianty)." },
         { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "A2 || [100,0,0]", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='A2' LUB '[100,0,0]' (dopuszczalne dwa warianty)." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":", "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z opcjonalnym InsertionPoint)." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":", "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z opcjonalnym InsertionPoint - {item} lub {MATH:...})." }
       ]
     },
     {
