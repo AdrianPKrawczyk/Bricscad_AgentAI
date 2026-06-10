@@ -13,6 +13,7 @@ namespace Bricscad_AgentAI_V2.Core
         public string LastDatasetFilePath { get; set; }
         public System.Collections.Generic.List<string> RecentDatasetFiles { get; set; } = new System.Collections.Generic.List<string>();
         public string CustomKnowledgePath { get; set; } = string.Empty;
+        public System.Collections.Generic.List<string> BenchmarkVisibleColumns { get; set; } = new System.Collections.Generic.List<string>();
         
         // Workflow Settings
         public int AIStartupBehavior { get; set; } = 0; // 0 = Ładuj poprzednią, 1 = Twórz nową, 2 = Wybór manualny

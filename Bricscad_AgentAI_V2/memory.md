@@ -1981,3 +1981,35 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Ewentualne 1-2 retesty (poprawka validatora + lekka iteracja promptu).
 - Commit memory.md v2.28.51.
 - Przejscie do Benchmark_10 (np. EditAttributes rozszerzony, lub calkiem nowy use-case typu ManageLayers).
+
+## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
+
+### [ZMIANY]
+1. Dodano przycisk `Reset testu` w `src/UI/AutoBenchmarkControl.cs`, ktory czyści wyniki ostatniego uruchomienia bez ponownego wczytywania pliku JSON.
+2. Dodano nowa kolumne `Prompt` do tabeli wynikow benchmarku.
+3. Zmieniono proporcje szerokosci kolumn w `DataGridView`: `ID`, `Status` i `Czas` sa wezsze, a wiecej miejsca dostaly `Nazwa Testu` oraz `Prompt`.
+4. Dodano przycisk `Kolumny` z menu wlaczania i wylaczania widocznosci kolumn.
+5. Dodano trwale ustawienie `BenchmarkVisibleColumns` w `src/Core/UISettingsManager.cs`, aby zapamietywac wybor widocznych kolumn miedzy uruchomieniami.
+
+### [SZCZEGOLY IMPLEMENTACJI]
+- Reset nie modyfikuje pliku zrodlowego benchmarku. Kontrolka przechowuje "czysta" kopie konfiguracji po wczytaniu i z niej odtwarza stan tabeli oraz logow.
+- Kolumna `Prompt` pokazuje tekst w jednej linii w siatce, a pelna tresc jest nadal dostepna w detalach testu oraz jako tooltip komorki.
+- Menu kolumn nie pozwala ukryc ostatniej widocznej kolumny, co zabezpiecza UI przed "pusta" tabela.
+
+### [KORZYSC UZYTKOWA]
+- Nie trzeba juz ponownie ladowac tego samego JSON tylko po to, aby wyczyscic statusy poprzedniego przebiegu.
+- Dlugie prompty sa widoczne bez przechodzenia do zakladki detali.
+- Uzytkownik moze sobie zrobic waski widok diagnostyczny (np. tylko ID, Nazwa, Status) albo pelny widok analityczny.
+
+### [WERYFIKACJA]
+- `git diff` potwierdzil zmiany w `AutoBenchmarkControl.cs`, `UISettingsManager.cs` oraz `memory.md`.
+- Proba `dotnet build Bricscad_AgentAI_V2.csproj` nie przeszla, ale z powodu istniejacych brakow zaleznosci w projekcie (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet`, `ExcelDataReader` i inne).
+- Filtrowanie logu buildu nie wskazalo bledow przypisanych do `AutoBenchmarkControl.cs` ani `UISettingsManager.cs`.
+
+### [STAN_SYSTEMU]
+- Zakladka `Testy > Benchmark` ma teraz szybszy cykl iteracji podczas recznych retestow.
+- Widok tabeli benchmarku stal sie bardziej informacyjny i konfigurowalny bez ruszania backendu silnika benchmarkowego.
+
+### [KOLEJNY_KROK]
+- Przetestowac recznie w GUI BricsCAD zachowanie resetu po przerwanym benchmarku oraz po benchmarku zakonczonym sukcesem.
+- W razie potrzeby dodac osobne okno konfiguracji kolumn lub skrocony renderer promptow z lepszym elipsowaniem.

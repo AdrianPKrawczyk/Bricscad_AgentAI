@@ -19,15 +19,17 @@ namespace Bricscad_AgentAI_V2.UI
         private readonly AutoBenchmarkEngine _engine;
         private CancellationTokenSource _cts;
         private BenchmarkConfig _currentConfig;
+        private string _loadedBenchmarkJson;
 
         // Kontrolki UI
-        private Button btnLoadJson, btnStart, btnStop, btnSendToChat;
+        private Button btnLoadJson, btnStart, btnStop, btnSendToChat, btnResetTest, btnColumns;
         private ComboBox cbProfiles;
         private DataGridView dgvTests;
         private RichTextBox txtLogs, txtDetails, txtTaskDesc, txtErrorLog;
         private ProgressBar progressBar;
         private Label lblGlobalStatus;
         private TabControl tabLogs;
+        private ContextMenuStrip columnVisibilityMenu;
 
         // Provider/Model picker
         private ComboBox cbProviders, cbModels;
@@ -93,6 +95,10 @@ namespace Bricscad_AgentAI_V2.UI
             btnLoadJson = CreateStyledButton("📂 Wczytaj JSON", Color.FromArgb(60, 60, 60));
             btnLoadJson.Click += BtnLoadJson_Click;
 
+            btnResetTest = CreateStyledButton("Reset testu", Color.FromArgb(90, 90, 90));
+            btnResetTest.Enabled = false;
+            btnResetTest.Click += BtnResetTest_Click;
+
             btnStart = CreateStyledButton("▶ Start", Color.FromArgb(0, 122, 204));
             btnStart.Enabled = false;
             btnStart.Click += BtnStart_Click;
@@ -101,9 +107,16 @@ namespace Bricscad_AgentAI_V2.UI
             btnStop.Enabled = false;
             btnStop.Click += BtnStop_Click;
 
+            btnColumns = CreateStyledButton("Kolumny", Color.FromArgb(70, 70, 70));
+            btnColumns.Click += BtnColumns_Click;
+
             panTop.Controls.Add(btnStop);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panTop.Controls.Add(btnStart);
+            panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panTop.Controls.Add(btnResetTest);
+            panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panTop.Controls.Add(btnColumns);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panTop.Controls.Add(btnLoadJson);
 
@@ -215,6 +228,7 @@ namespace Bricscad_AgentAI_V2.UI
                 GridColor = Color.FromArgb(60, 60, 60)
             };
             dgvTestsColumnsInit();
+            InitializeColumnVisibilityMenu();
             dgvTests.SelectionChanged += DgvTests_SelectionChanged;
             
             // Przyciski akcji dodatkowych
@@ -267,16 +281,93 @@ namespace Bricscad_AgentAI_V2.UI
         {
             dgvTests.Columns.Clear();
             dgvTests.Columns.Add("Id", "ID");
-            dgvTests.Columns["Id"].Width = 25;
             dgvTests.Columns.Add("Category", "Kategoria");
             dgvTests.Columns.Add("Name", "Nazwa Testu");
+            dgvTests.Columns.Add("Prompt", "Prompt");
             dgvTests.Columns.Add("Status", "Status");
-            dgvTests.Columns["Status"].Width = 80;
             dgvTests.Columns.Add("Time", "Czas (s)");
-            dgvTests.Columns["Time"].Width = 70;
-            
+            dgvTests.Columns["Id"].FillWeight = 6;
+            dgvTests.Columns["Category"].FillWeight = 16;
+            dgvTests.Columns["Name"].FillWeight = 20;
+            dgvTests.Columns["Prompt"].FillWeight = 42;
+            dgvTests.Columns["Status"].FillWeight = 8;
+            dgvTests.Columns["Time"].FillWeight = 8;
+            dgvTests.Columns["Id"].MinimumWidth = 45;
+            dgvTests.Columns["Status"].MinimumWidth = 70;
+            dgvTests.Columns["Time"].MinimumWidth = 70;
+            dgvTests.Columns["Prompt"].DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+            dgvTests.RowTemplate.Height = 28;
             dgvTests.ColumnHeadersHeight = 45;
             dgvTests.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        }
+
+        private void InitializeColumnVisibilityMenu()
+        {
+            columnVisibilityMenu = new ContextMenuStrip();
+
+            foreach (DataGridViewColumn column in dgvTests.Columns)
+            {
+                var menuItem = new ToolStripMenuItem(column.HeaderText)
+                {
+                    Checked = true,
+                    CheckOnClick = true,
+                    Tag = column.Name
+                };
+                menuItem.CheckedChanged += ColumnVisibilityItem_CheckedChanged;
+                columnVisibilityMenu.Items.Add(menuItem);
+            }
+
+            ApplySavedColumnVisibility();
+        }
+
+        private void ApplySavedColumnVisibility()
+        {
+            var savedColumns = UISettingsManager.Settings.BenchmarkVisibleColumns ?? new List<string>();
+            if (savedColumns.Count == 0)
+            {
+                PersistColumnVisibility();
+                return;
+            }
+
+            foreach (ToolStripMenuItem item in columnVisibilityMenu.Items)
+            {
+                string columnName = item.Tag as string;
+                bool isVisible = savedColumns.Contains(columnName);
+                item.Checked = isVisible;
+                if (dgvTests.Columns.Contains(columnName))
+                {
+                    dgvTests.Columns[columnName].Visible = isVisible;
+                }
+            }
+        }
+
+        private void PersistColumnVisibility()
+        {
+            UISettingsManager.Settings.BenchmarkVisibleColumns = dgvTests.Columns
+                .Cast<DataGridViewColumn>()
+                .Where(c => c.Visible)
+                .Select(c => c.Name)
+                .ToList();
+            UISettingsManager.Save();
+        }
+
+        private void ColumnVisibilityItem_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!(sender is ToolStripMenuItem item) || !(item.Tag is string columnName) || !dgvTests.Columns.Contains(columnName))
+            {
+                return;
+            }
+
+            if (!item.Checked && dgvTests.Columns.Cast<DataGridViewColumn>().Count(c => c.Visible) == 1)
+            {
+                item.CheckedChanged -= ColumnVisibilityItem_CheckedChanged;
+                item.Checked = true;
+                item.CheckedChanged += ColumnVisibilityItem_CheckedChanged;
+                return;
+            }
+
+            dgvTests.Columns[columnName].Visible = item.Checked;
+            PersistColumnVisibility();
         }
 
         private RichTextBox CreateLogBox(Color? fg = null)
@@ -316,11 +407,7 @@ namespace Bricscad_AgentAI_V2.UI
                 {
                     try
                     {
-                        string content = File.ReadAllText(ofd.FileName);
-                        _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(content);
-                        this.Tag = ofd.FileName;
-                        SaveLastPath(ofd.FileName);
-                        RefreshTestsList();
+                        LoadBenchmarkDefinition(ofd.FileName);
                     }
                     catch (Exception ex)
                     {
@@ -335,15 +422,27 @@ namespace Bricscad_AgentAI_V2.UI
             if (_currentConfig == null) return;
 
             dgvTests.Rows.Clear();
+            txtLogs.Clear();
+            txtDetails.Clear();
             txtTaskDesc.Clear();
             txtErrorLog.Clear();
+            btnSendToChat.Enabled = false;
+            btnSendToChat.Tag = null;
+            progressBar.Value = 0;
 
             txtTaskDesc.SelectionFont = new Font(txtTaskDesc.Font, FontStyle.Bold);
             txtTaskDesc.AppendText("LISTA ZADAŃ W ZESTAWIE:\n\n");
 
             foreach (var test in _currentConfig.Tests)
             {
-                dgvTests.Rows.Add(test.Id, test.Category, test.TestName, "Oczekuje", "");
+                int rowIndex = dgvTests.Rows.Add(
+                    test.Id,
+                    test.Category,
+                    test.TestName,
+                    NormalizePromptForGrid(test.UserPrompt),
+                    "Oczekuje",
+                    string.Empty);
+                dgvTests.Rows[rowIndex].Cells["Prompt"].ToolTipText = test.UserPrompt ?? string.Empty;
                 
                 txtTaskDesc.SelectionColor = Color.White;
                 txtTaskDesc.AppendText($"[ID: {test.Id}] {test.TestName}\n");
@@ -353,8 +452,64 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             btnStart.Enabled = true;
+            btnResetTest.Enabled = true;
             lblGlobalStatus.Text = $"Wczytano {_currentConfig.Tests.Count} testów.";
             txtLogs.AppendText($"\n[{DateTime.Now:HH:mm:ss}] Zainicjowano zestaw: {this.Tag}");
+        }
+
+        private void LoadBenchmarkDefinition(string path)
+        {
+            string content = File.ReadAllText(path);
+            var rawConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(content);
+            if (rawConfig == null)
+            {
+                throw new InvalidOperationException("Nie udalo sie zdeserializowac pliku benchmarku.");
+            }
+
+            var cleanConfig = CreateCleanBenchmarkConfig(rawConfig);
+            _loadedBenchmarkJson = JsonConvert.SerializeObject(cleanConfig);
+            _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(_loadedBenchmarkJson);
+            this.Tag = path;
+            SaveLastPath(path);
+            RefreshTestsList();
+        }
+
+        private BenchmarkConfig CreateCleanBenchmarkConfig(BenchmarkConfig source)
+        {
+            var clone = JsonConvert.DeserializeObject<BenchmarkConfig>(
+                JsonConvert.SerializeObject(source)) ?? new BenchmarkConfig();
+
+            if (clone.RunMetadata == null)
+            {
+                clone.RunMetadata = new RunMetadata();
+            }
+
+            clone.RunMetadata.GlobalScore = 0;
+            clone.RunMetadata.AverageExecutionTimeMs = 0;
+            clone.RunMetadata.CategoriesScores = new Dictionary<string, double>();
+
+            foreach (var test in clone.Tests ?? Enumerable.Empty<BenchmarkTest>())
+            {
+                test.Passed = false;
+                test.ExecutionTimeMs = 0;
+                test.RecordedToolCalls = new List<RecordedToolCall>();
+                test.FailedRulesErrors = new List<string>();
+            }
+
+            return clone;
+        }
+
+        private string NormalizePromptForGrid(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+            {
+                return string.Empty;
+            }
+
+            return prompt
+                .Replace("\r\n", " ")
+                .Replace("\n", " ")
+                .Trim();
         }
 
         private void SaveLastPath(string path)
@@ -379,10 +534,7 @@ namespace Bricscad_AgentAI_V2.UI
                         string path = key.GetValue(REG_KEY) as string;
                         if (!string.IsNullOrEmpty(path) && File.Exists(path))
                         {
-                            string content = File.ReadAllText(path);
-                            _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(content);
-                            this.Tag = path;
-                            RefreshTestsList();
+                            LoadBenchmarkDefinition(path);
                         }
                     }
                 }
@@ -395,6 +547,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnStart.Enabled = false;
             btnLoadJson.Enabled = false;
+            btnResetTest.Enabled = false;
             btnStop.Enabled = true;
             cbProfiles.Enabled = false;
             
@@ -451,6 +604,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnStart.Enabled = true;
             btnLoadJson.Enabled = true;
+            btnResetTest.Enabled = _currentConfig != null;
             btnStop.Enabled = false;
             btnStop.Text = "⏹ Stop";
             cbProfiles.Enabled = true;
@@ -526,6 +680,24 @@ namespace Bricscad_AgentAI_V2.UI
             MessageBox.Show($"Zakończono Benchmark V2!\n\nSkuteczność: {e.FinalConfig.RunMetadata.GlobalScore}%\nCzas średni: {e.FinalConfig.RunMetadata.AverageExecutionTimeMs}ms", 
                 "Bielik AI V2 GOLD", MessageBoxButtons.OK, 
                 e.FinalConfig.RunMetadata.GlobalScore > 70 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+
+        private void BtnResetTest_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(_loadedBenchmarkJson))
+            {
+                return;
+            }
+
+            _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(_loadedBenchmarkJson);
+            RefreshTestsList();
+            lblGlobalStatus.Text = $"Zresetowano stan {_currentConfig?.Tests?.Count ?? 0} testow.";
+            txtLogs.AppendText($"\n[{DateTime.Now:HH:mm:ss}] Zresetowano wyniki benchmarku bez ponownego wczytywania pliku.");
+        }
+
+        private void BtnColumns_Click(object sender, EventArgs e)
+        {
+            columnVisibilityMenu?.Show(btnColumns, new Point(0, btnColumns.Height));
         }
 
         private void DgvTests_SelectionChanged(object sender, EventArgs e)
