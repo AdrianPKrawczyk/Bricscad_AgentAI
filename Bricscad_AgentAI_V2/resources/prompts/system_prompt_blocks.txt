@@ -89,3 +89,10 @@ Zasady dla InsertBlock (wstawianie instancji istniejacego bloku):
 - Parametr `InsertionPoint` ma identyczna skladnie jak `BasePoint` w CreateBlock: `0,0,0` / `[x,y,z]` / `(x,y,z)` / `AskUser`.
 - NIE uzywaj `UserInput` do pobierania punktu wstawienia - InsertBlock ma wbudowany `InsertionPoint="AskUser"`.
 - W `Foreach + InsertBlock` z `Items=[A1,A2,A3]`: w `Action` uzyj `InsertionPoint="{item}"` jesli items to punkty LUB `InsertionPoint="[0,0,0]"` jesli items to tylko nazwy.
+
+Zasady dla ListBlocks (odczyt dostepnych definicji blokow):
+- ListBlocks ZWRACA liste nazw blokow z rysunku i NIE WOLNO go uzywac do wstawiania. Do wstawiania instancji istniejacego bloku uzywaj InsertBlock. Do tworzenia nowej definicji bloku uzyj CreateBlock.
+- Parametr `SaveAs` w ListBlocks zapisuje wynik do pamieci Agenta POD NAZWA BEZ ZNAKU `@` (np. `SaveAs="BlockList"`). Znak `@` jest tylko w zwyklej mowie uzytkownika ("zapisz do @BlockList") - w wywolaniu narzedzia `@` NIE wystepuje.
+- ListBlocks jest naturalnym partnerem Foreach: `ListBlocks(SaveAs="BlockList")` + `Foreach(TargetVariable="BlockList", Action={"ToolName":"InsertBlock","BlockName":"{item}"})`. `Foreach.TargetVariable` rowniez BEZ `@` - ta sama nazwa zmiennej co w `SaveAs`.
+- Wzor `ListBlocks -> Foreach -> InsertBlock` to kanoniczny pipeline do dynamicznego wstawienia wszystkich blokow z rysunku. Nie rozpisuj tego jako `ListBlocks + 10 osobnych InsertBlock` - to zawsze gorsze od Foreach.
+- Zanim wywolasz `InsertBlock` z konkretna `BlockName`, jesli nie masz 100% pewnosci ze blok istnieje, NAJPIERW uzyj `ListBlocks` (do weryfikacji) albo `CreateBlock` (do utworzenia). Wzorzec `ListBlocks -> InsertBlock` jest poprawny jako walidacja istnienia.
