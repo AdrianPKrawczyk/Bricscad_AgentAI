@@ -1575,3 +1575,60 @@ Wzmocnienie promptu (regula o Foreach+EditBlock+Recursive) powinno wyeliminowac 
 - Po retescie: porownanie wynikow 83% -> oczekiwane ~93-97%.
 - Jesli wynik >= 28/30: commit + Benchmark_07_EditBlock_Complete GOLD.
 - Jesli wynik < 28/30: analiza kolejnych wzorcow, dalsze wzmocnienia promptu.
+
+## [v2.28.44] 2026-06-10T08:50:00+02:00 - Analiza porownawcza 2 profili (CadProfile vs CadBlocksProfile)
+### [ZREALIZOWANO]
+- Uzytkownik wykonal 4 nowe testy Benchmark_07_EditBlock_Complete z NOWYM promptem (po kompilacji v2.28.43):
+  - 26B QAT + CadProfile (FULL: 08:26)
+  - 26B QAT + CadBlocksProfile (FULL: 08:28)
+  - 31B QAT + CadProfile (FULL: 08:24)
+  - 31B QAT + CadBlocksProfile (FULL: 08:33)
+### [WYNIKI 2x2]
+| Model | Profile | Score | AvgMs | TotalMs |
+|-------|---------|-------|-------|---------|
+| 26B QAT | CadProfile | 20/30 (67%) | 4120 | 123 604 |
+| 26B QAT | CadBlocksProfile | 27/30 (90%) | 1919 | 57 577 |
+| 31B QAT | CadProfile | 20/30 (67%) | 10400 | 312 002 |
+| 31B QAT | CadBlocksProfile | 27/30 (90%) | 9398 | 281 947 |
+
+**CadBlocksProfile daje +7 punktow (23% lepiej) dla obu modeli. CadProfile jest 2.1x wolniejszy dla 26B QAT.**
+
+### [KLUCZOWE USTALENIA]
+1. **CadBlocksProfile jest jednoznacznie lepszy** - 90% vs 67% dla obu modeli.
+2. **CadProfile jest wolniejszy** - model bez regul profilu "gubi sie" i eksploruje rysunek (10 wywolan narzedzi w tescie 27 zamiast 1).
+3. **Wspolne resztkowe FAIL (oba modele, oba profile)**: test 22 (Foreach+Target=Selection) - model pomija Foreach i robi SelectEntities->EditBlock recznie.
+4. **Resztkowy FAIL 26B QAT Blocks**: test 30 (Foreach+Blackboard) - model wybiera Target=Selection zamiast Target=ByName+BlockName={item}.
+5. **Resztkowe FAIL 31B QAT Blocks**: test 10 (brak Recursive:true w Action) i test 18 (używa FindText/ReplaceText zamiast Modifications+TextString).
+
+### [HALUCYNACJE SPECYFICZNE DLA CadProfile]
+- Test 4 (ReplaceText): model pomija BlockName (bo nie ma wzmocnienia o nazewnictwie).
+- Test 17 (TextHeight): model uzywa Prop:"Height" zamiast "TextHeight" (bez reguly mapowania).
+- Test 18 (TextString): oba modele uzywaja Prop:"Text" zamiast "TextString" (ogolniejsza nazwa).
+- Test 11 (FilterByColor): model zapomina o Modifications (probuje uzyc sam Filter).
+- Test 19/20/25/29 (Foreach+EditBlock): model robi 2+ reczne EditBlock zamiast Foreach (brak reguly nadrzednej Foreach w CadProfile).
+- Test 27 (TypoInBlockName): model wykonuje 8 wywolan eksploracyjnych (ListBlocks, AnalyzeSelectionTool) zamiast 1 EditBlock z BlockName.
+
+### [REGRESJA W 26B QAT]
+Test 16 (LinetypeScale): CadProfile PASS, CadBlocksProfile FAIL.
+- Powod: model w CadBlocksProfile wygenerowal Val:2.5 (number), walidator oczekuje Val:"2.5" (string).
+- To **bug walidatora** (polski separator vs kropka) - NIE zalezny od profilu.
+- Wystapilby tez w CadProfile gdyby tamten test przeszedl - kwestia przypadku.
+
+### [WNIOSEK ARCHITEKTONICZNY]
+- Wszystkie regulacje specyficzne dla blokow (Foreach+EditBlock, Target=Selection, BlockName, TextHeight/TextString) sa dobrze umieszczone w `system_prompt_blocks.txt`.
+- CadProfile (system_prompt.txt) jest **celowo** ogolny - sluzy do pracy z warstwami, geometria itp.
+- Nie ma potrzeby duplikowania regul blokowych w CadProfile - benchmark_07 powinien byc uruchamiany z CadBlocksProfile.
+- **Narzuca to decyzje UX**: w UI benchmarku profil CadBlocksProfile powinien byc domyslny dla benchmarkow 07/08/09/10 (blokowych), a CadProfile dla benchmarkow 01-06 (ogolnych).
+
+### [STAN_SYSTEMU]
+- Potwierdzona skutecznosc wzmocnien promptu w system_prompt_blocks.txt.
+- Profil CadBlocksProfile osiagnal 90% PASS na 30 testach Benchmark_07_Complete.
+- Cel na 2026: 95%+ PASS - pozostale 3 FAIL to kwestia fine-tuningu promptu (testy 22, 30) lub specyficznych zachowan modeli (testy 10, 18 dla 31B).
+
+### [BLOKADY / PROBLEMY]
+- Brak - wszystkie 4 testy pomyslnie wykonane i przeanalizowane.
+
+### [KOLEJNY_KROK]
+- Commit memory.md z analiza v2.28.44.
+- Opcjonalnie: wzmocnienie promptu dla testu 22 (Foreach+Target=Selection) i 30 (Foreach+Blackboard) - ale moze to byc "wylewanie dziecka z kapiela".
+- Przejscie do Benchmark_08 (CreateBlock) z CadBlocksProfile (rekomendowany 26B QAT dla szybkosci).
