@@ -1632,3 +1632,56 @@ Test 16 (LinetypeScale): CadProfile PASS, CadBlocksProfile FAIL.
 - Commit memory.md z analiza v2.28.44.
 - Opcjonalnie: wzmocnienie promptu dla testu 22 (Foreach+Target=Selection) i 30 (Foreach+Blackboard) - ale moze to byc "wylewanie dziecka z kapiela".
 - Przejscie do Benchmark_08 (CreateBlock) z CadBlocksProfile (rekomendowany 26B QAT dla szybkosci).
+
+## [v2.28.45] 2026-06-10T08:55:00+02:00 - Benchmark_08_CreateBlock (36 testow) - nowy benchmark dla CreateBlock + InsertBlock
+### [ZREALIZOWANO]
+- Utworzono `tests/Benchmark_08_CreateBlock.json` (36 testow, 115 regul walidacyjnych, 10 kategorii, 5 poziomow trudnosci).
+- Pokrycie API: CreateBlock (3 parametry), InsertBlock (5 parametrow), wszystkie scenariusze bledow, wzorce Foreach, multi-step workflows.
+- Wzorzec przeniesiony z Benchmark_07: AnyOfArgumentMatch dla tolerowania roznej kolejnosci kluczy / opcjonalnych pol.
+### [PODSUMOWANIE BENCHMARKU]
+- Testy: 36
+- Reguly walidacyjne: 115
+- Srednia regul/test: 3.2
+- Rozmiar pliku: 40509 B
+- Kategoryzacja: CreateBlockBasic(4), CreateBlockSequence(4), CreateBlockPointFormats(3), CreateBlockAdvanced(3), CreateBlockForeach(5), CreateBlockNegative(2), InsertBlockBasic(4), InsertBlockAdvanced(5), InsertBlockNegative(3), WorkflowCombined(3).
+- Poziomy trudnosci: D1(3) + D2(9) + D3(11) + D4(8) + D5(5) = 36.
+### [POKRYCIE API]
+**CreateBlock (3 parametry):**
+- BlockName: 22 testy (63% pokrycia, kazdy test bezpośrednio lub poprzez Foreach)
+- BasePoint: 16 testow (3 formaty: [x,y,z], (x,y,z), x,y,z; + AskUser; + niepoprawny format)
+- DeleteOriginals: 4 testy (true/false)
+
+**InsertBlock (5 parametrow):**
+- BlockName: 12 testow
+- InsertionPoint: 10 testow
+- Scale: 2 testy (poprawne + <=0)
+- Rotation: 1 test
+- Attributes: 4 testy (proste, wiele, MText)
+
+**Wzorce:**
+- SelectEntities->CreateBlock: 5 testow (z filtrowaniem po Type, Name, itp.)
+- Foreach+CreateBlock: 5 testow (Items, GenerateSequence, Blackboard, AskUser, DeleteOriginals)
+- Foreach+InsertBlock: 3 testy (GenerateSequence, Items)
+- Multi-step workflows: 3 testy (Create+Insert, List+Create+Select, Create+Insert+Edit)
+
+**Scenariusze bledow (6 z 6 mozliwych - 100%):**
+- Pusta selekcja
+- Istniejacy blok
+- Brak BlockName (Required)
+- Bledny BasePoint format
+- Scale<=0
+- Bledny InsertionPoint format
+### [WYMOGI PROFILU]
+- CadBlocksProfile (potwierdzony w v2.28.44 jako jednoznacznie lepszy o +23%).
+- Rekomendowany model: gemma-4-26b-a4b-qat (najszybszy, ~2s/test).
+- Czas oczekiwany na pelny benchmark: ~75-80s (36 testow x ~2s).
+### [STAN_SYSTEMU]
+- Benchmark_08 gotowy do testow.
+- Prompt nie wymaga modyfikacji (CreateBlock/InsertBlock to proste narzedzia, CadBlocksProfile ma wystarczajace reguly).
+- Mozna rownolegle testowac Benchmark_07_EditBlock_Complete i Benchmark_08_CreateBlock.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Commit Benchmark_08_CreateBlock.json.
+- Uzytkownik uruchamia benchmark z 26B QAT w GUI BricsCAD.
+- Po wynikach: identyfikacja problemow (spodziewane: 90%+ PASS, moze FAIL na Foreach+CreateBlock z AskUser lub MTextAttribute).
