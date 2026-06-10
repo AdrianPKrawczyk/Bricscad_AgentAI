@@ -522,12 +522,31 @@ namespace Bricscad_AgentAI_V2.Core
                     }
                     if (current == null) return null;
                 }
-                return current.ToString((System.IFormatProvider)System.Globalization.CultureInfo.InvariantCulture);
+                return TokenToInvariantString(current);
             }
             catch
             {
                 return null;
             }
+        }
+
+        // v2.28.52a: Helper do konwersji JToken na string z InvariantCulture.
+        // Powod: Newtonsoft ma extension method ToString(Formatting) ktory zaciemnia wbudowany overload JToken.ToString(IFormatProvider).
+        // Rozwiazanie: dla JValue z liczba uzywamy Convert.ToString z InvariantCulture.
+        //              dla reszty JToken uzywamy default ToString() (stringi, JSON objects, itp. nie maja problemu locale).
+        private string TokenToInvariantString(JToken token)
+        {
+            if (token == null) return null;
+            if (token is JValue jv)
+            {
+                if (jv.Value == null) return null;
+                if (jv.Type == JTokenType.Float || jv.Type == JTokenType.Integer)
+                {
+                    return Convert.ToString(jv.Value, System.Globalization.CultureInfo.InvariantCulture);
+                }
+                return jv.Value.ToString();
+            }
+            return token.ToString(Newtonsoft.Json.Formatting.None);
         }
 
         private bool ValuesMatch(string actual, string expected)
