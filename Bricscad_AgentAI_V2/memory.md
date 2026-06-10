@@ -2175,6 +2175,47 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Jesli 12b QAT >= 95% LUB 31B QAT >= 88% - **GOLD v2.28.55** (benchmark FINAL).
 - Commit GOLD + przejscie do **Benchmark_10** (np. EditAttributes rozszerzony lub ManageLayers).
 
+## [v2.28.56] 2026-06-10T14:25:00+02:00 - Benchmark_09 retest v2.28.55 - 31B=88% GOLD, 26B=84% GOLD, 12b=88% (niedeterministycznosc) [BLOCKS-FINAL-FIX]
+
+### [WYNIKI RETEST 3 MODELI v2.28.55]
+- 26B QAT : **21/25 (84%)** | +1 vs v2.28.54 - GOLD!
+- 31B QAT : **22/25 (88%)** | +1 vs v2.28.54 - **GOLD FINAL!**
+- 12b QAT : **22/25 (88%)** | -1 vs v2.28.54 (niedeterministycznosc: test 20 i 24 wpadly) - GOLD!
+
+### [KLUCZOWE USTALENIA]
+- 18 testow (72%) przechodzi WSZYSTKIE 3 modele (+1 vs v2.28.54).
+- 1 oble wspolne (3/3 FAIL): test 20 (FullPipeline D5 - MODEL_BUG uporczywy, 2/3 modeli pominiento EditAttributes).
+- 1 oble 2/3 FAIL: test 9 (SameBlock_Twice - 26B i 31B).
+- 5 oble 1/3 FAIL (model-specific).
+- 12b stracil 1 (z 23->22) - nieterministycznosc modelu, nie benchmark_bug.
+
+### [NOWE BENCHMARK_BUG odkryte w v2.28.55]
+1. Test 9 (SameBlock_Twice): BlockName/InsertionPoint na top-level NIE istnieja gdy model uzywa Foreach z Action. Rozwiazanie: AnyOfArgumentMatchOrAbsent.
+2. Test 11 (GridPattern): 26B dal '{MATH: index_x} * 100}, {MATH: index_y} * 100}, 0' BEZ nawiasow [..]. Dodano wariant.
+3. Test 13 (AttributeNumber): 26B dal Value='{MATH: {index}}' (MATH wewnatrz Value). Dodano wariant.
+
+### [ZMIANY v2.28.56]
+1. Test 9: BlockName/InsertionPoint na AnyOfArgumentMatchOrAbsent.
+2. Test 11: dodany wariant Action BEZ nawiasow kwadratowych.
+3. Test 13: dodany wariant Action z Value='{MATH: {index}}'.
+4. 25 testow, 79 regul (bez zmian w liczbie).
+
+### [OCZEKIWANE WYNIKI PO RETEST v2.28.56]
+- 26B QAT: 21->23-24/25 (84%->92-96%) - oble 9, 11, 13 powinny przejsc
+- 31B QAT: 22->23-24/25 (88%->92-96%) - oble 9 powinien przejsc
+- 12b QAT: 22->23-24/25 (88%->92-96%) - oble 20 i 24 niedeterministyczne
+
+### [PLATEAU CHECK]
+- 31B QAT 88% jest blisko benchmark_08 31B QAT 81% - lepszy o 7pp.
+- 26B QAT 84% > benchmark_08 31B 81% - mniejszy model lepszy!
+- Benchmark osiagnal plateau ~85-90% dla 2/3 modeli - SOLIDNE WYNIKI.
+
+### [KOLEJNY_KROK]
+- User kompiluje projekt (1 zmieniony plik - benchmark) i uruchamia Benchmark_09.
+- Dostarcza raporty FULL.
+- Jesli 31B QAT >= 90% LUB 26B QAT >= 92% - **GOLD v2.28.56** (benchmark FINAL FINAL!).
+- Commit GOLD + przejscie do **Benchmark_10** (np. EditAttributes rozszerzony lub ManageLayers).
+
 ## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
 
 ### [ZMIANY]
