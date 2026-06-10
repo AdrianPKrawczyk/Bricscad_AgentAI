@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -117,6 +118,18 @@ namespace Bricscad_AgentAI_V2.Core
             CancellationToken ct = default,
             bool saveErrors = true)
         {
+            return await RunBenchmarkAsync(jsonFilePath, BenchmarkRunOptions.Manual(profileName, saveErrors), ct);
+        }
+
+        public async Task<BenchmarkConfig> RunBenchmarkAsync(
+            string jsonFilePath,
+            BenchmarkRunOptions options,
+            CancellationToken ct = default)
+        {
+            options = options ?? BenchmarkRunOptions.Manual(null);
+            string profileName = options.ProfileName;
+            bool saveErrors = options.SaveErrors;
+
             // --- FAZA 0: Pre-flight ---
             RunPreflightCheck();
 
@@ -161,6 +174,18 @@ namespace Bricscad_AgentAI_V2.Core
             config.RunMetadata.MaxContextTokens = LLMConfigManager.Current?.MaxContextTokens ?? 0;
             config.RunMetadata.ContextCompressionThreshold = LLMConfigManager.Current?.ContextCompressionThreshold ?? 0;
             config.RunMetadata.RunDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            config.RunMetadata.RunMode = string.IsNullOrWhiteSpace(options.RunMode) ? "manual" : options.RunMode;
+            config.RunMetadata.PromptOverridePath = options.PromptOverridePath ?? string.Empty;
+            config.RunMetadata.OutputRoot = options.OutputRoot ?? string.Empty;
+            config.RunMetadata.CandidateId = options.CandidateId ?? string.Empty;
+            config.RunMetadata.JobId = options.JobId ?? string.Empty;
+            config.RunMetadata.SaveToUserBenchmarkHistory = options.SaveToUserBenchmarkHistory;
+            if (!string.IsNullOrWhiteSpace(options.PromptOverridePath))
+            {
+                config.RunMetadata.Comment = string.IsNullOrWhiteSpace(config.RunMetadata.Comment)
+                    ? $"PromptOverridePath={options.PromptOverridePath}"
+                    : $"{config.RunMetadata.Comment}\nPromptOverridePath={options.PromptOverridePath}";
+            }
             OnLogMessage?.Invoke(this, $"Model benchmarku: {config.RunMetadata.ModelName} | Provider: {config.RunMetadata.ProviderName}");
 
             int passedCount = 0;
@@ -203,7 +228,7 @@ namespace Bricscad_AgentAI_V2.Core
                 // Dodanie system promptu profilu jesli wybrano
                 if (!string.IsNullOrEmpty(profileName))
                 {
-                    string systemPromptContent = ToolConfigManager.LoadEffectivePromptForProfile(profileName);
+                    string systemPromptContent = LoadBenchmarkPrompt(profileName, options.PromptOverridePath);
                     if (!string.IsNullOrWhiteSpace(systemPromptContent))
                     {
                         history.Add(new ChatMessage { Role = "system", Content = systemPromptContent });
@@ -271,7 +296,7 @@ namespace Bricscad_AgentAI_V2.Core
                         g => Math.Round((double)g.Count(t => t.Passed) / g.Count() * 100, 2));
             }
 
-            SaveReports(config, jsonFilePath, saveErrors);
+            SaveReports(config, jsonFilePath, saveErrors, options);
 
             OnLogMessage?.Invoke(this, $"\n=== ZAKOĹCZONO. Wynik: {config.RunMetadata.GlobalScore}% ({passedCount}/{currentIndex}) | Czas Ĺ›r.: {config.RunMetadata.AverageExecutionTimeMs}ms ===");
             OnBenchmarkCompleted?.Invoke(this, new BenchmarkCompletedEventArgs
@@ -627,10 +652,26 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
+        private string LoadBenchmarkPrompt(string profileName, string promptOverridePath)
+        {
+            if (!string.IsNullOrWhiteSpace(promptOverridePath))
+            {
+                if (!File.Exists(promptOverridePath))
+                {
+                    throw new FileNotFoundException($"Nie znaleziono pliku PromptOverridePath: {promptOverridePath}", promptOverridePath);
+                }
+
+                OnLogMessage?.Invoke(this, $"[Benchmark] Uzywam PromptOverridePath: {promptOverridePath}");
+                return File.ReadAllText(promptOverridePath, Encoding.UTF8);
+            }
+
+            return ToolConfigManager.LoadEffectivePromptForProfile(profileName);
+        }
+
         // ==========================================
         // RAPORTOWANIE
         // ==========================================
-        private void SaveReports(BenchmarkConfig config, string sourceJsonPath, bool saveErrors)
+        private void SaveReports(BenchmarkConfig config, string sourceJsonPath, bool saveErrors, BenchmarkRunOptions options = null)
         {
             try
             {
@@ -641,10 +682,18 @@ namespace Bricscad_AgentAI_V2.Core
 
                 string safeModel = string.Join("_", (config.RunMetadata.ModelName ?? "UnknownModel")
                     .Split(Path.GetInvalidFileNameChars()));
-                string modelDir = Path.Combine(rootDir, safeModel);
+                bool labOutput = options != null
+                    && !options.SaveToUserBenchmarkHistory
+                    && !string.IsNullOrWhiteSpace(options.OutputRoot);
+                string modelDir = labOutput
+                    ? options.OutputRoot
+                    : Path.Combine(rootDir, safeModel);
                 if (!Directory.Exists(modelDir)) Directory.CreateDirectory(modelDir);
 
-                string fullPath = Path.Combine(modelDir, $"{origName}_{safeModel}_FULL_{timestamp}.json");
+                string fullName = labOutput
+                    ? $"{origName}_FULL_{timestamp}.json"
+                    : $"{origName}_{safeModel}_FULL_{timestamp}.json";
+                string fullPath = Path.Combine(modelDir, fullName);
                 File.WriteAllText(fullPath, resultJson, System.Text.Encoding.UTF8);
                 OnLogMessage?.Invoke(this, $"Raport FULL zapisany: {fullPath}");
 
@@ -655,7 +704,10 @@ namespace Bricscad_AgentAI_V2.Core
                     {
                         var errConfig = new BenchmarkConfig { RunMetadata = config.RunMetadata, Tests = failed };
                         string errJson = JsonConvert.SerializeObject(errConfig, Formatting.Indented);
-                        string errPath = Path.Combine(modelDir, $"{origName}_{safeModel}_ERRORS_{timestamp}.json");
+                        string errName = labOutput
+                            ? $"{origName}_ERRORS_{timestamp}.json"
+                            : $"{origName}_{safeModel}_ERRORS_{timestamp}.json";
+                        string errPath = Path.Combine(modelDir, errName);
                         File.WriteAllText(errPath, errJson, System.Text.Encoding.UTF8);
                         OnLogMessage?.Invoke(this, $"Raport ERRORS zapisany: {errPath}");
                     }

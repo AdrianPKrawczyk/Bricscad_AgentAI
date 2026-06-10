@@ -10,6 +10,7 @@ using Teigha.DatabaseServices;
 using System.Linq;
 using System.Collections.Generic;
 using Bricscad_AgentAI_V2.Models;
+using System.Threading.Tasks;
 
 [assembly: CommandClass(typeof(Bricscad_AgentAI_V2.Core.AgentStartup))]
 
@@ -197,6 +198,100 @@ namespace Bricscad_AgentAI_V2.Core
             if (AgentControl.Instance != null)
             {
                 AgentControl.Instance.SwitchToBenchmark();
+            }
+        }
+
+        [CommandMethod("AGENT_BENCHMARK_LAB_ONCE")]
+        public async void RunBenchmarkLabOnce()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc?.Editor;
+            if (ed == null) return;
+
+            string defaultJobsRoot = ResolveBenchmarkLabPath("prompt-lab\\jobs");
+            var opts = new PromptStringOptions($"\nKatalog jobow lab (Enter = {defaultJobsRoot}): ")
+            {
+                AllowSpaces = true,
+                DefaultValue = defaultJobsRoot,
+                UseDefaultValue = true
+            };
+
+            PromptResult res = ed.GetString(opts);
+            if (res.Status != PromptStatus.OK) return;
+
+            string jobsRoot = string.IsNullOrWhiteSpace(res.StringResult)
+                ? opts.DefaultValue
+                : ResolveBenchmarkLabPath(res.StringResult);
+
+            try
+            {
+                ed.WriteMessage($"\n[Benchmark Lab] Przetwarzam pending jobs: {jobsRoot}");
+                var client = new LLMClient(ToolOrchestrator.Instance);
+                var engine = new AutoBenchmarkEngine(client);
+                engine.OnLogMessage += (s, msg) => ed.WriteMessage("\n" + msg);
+                var worker = new BenchmarkLabWorker(engine);
+                int completed = await Task.Run(() => worker.RunPendingJobsOnceAsync(jobsRoot));
+                ed.WriteMessage($"\n[Benchmark Lab] Zakonczono. Wykonane joby: {completed}");
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage($"\n[Benchmark Lab] BLAD: {ex.Message}");
+                ed.WriteMessage("\n[Benchmark Lab] Wskazowka: podaj absolutna sciezke do katalogu jobs, np. D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\jobs.");
+            }
+        }
+
+        private static string ResolveBenchmarkLabPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                path = "prompt-lab\\jobs";
+            }
+
+            if (System.IO.Path.IsPathRooted(path))
+            {
+                return System.IO.Path.GetFullPath(path);
+            }
+
+            string currentCandidate = System.IO.Path.GetFullPath(path);
+            if (System.IO.Directory.Exists(currentCandidate) || System.IO.File.Exists(currentCandidate))
+            {
+                return currentCandidate;
+            }
+
+            string pluginDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            foreach (var root in EnumeratePathRoots(pluginDir).Concat(EnumeratePathRoots(System.Environment.CurrentDirectory)))
+            {
+                string candidate = System.IO.Path.Combine(root, path);
+                if (System.IO.Directory.Exists(candidate) || System.IO.File.Exists(candidate))
+                {
+                    return System.IO.Path.GetFullPath(candidate);
+                }
+            }
+
+            return currentCandidate;
+        }
+
+        private static IEnumerable<string> EnumeratePathRoots(string start)
+        {
+            if (string.IsNullOrWhiteSpace(start))
+            {
+                yield break;
+            }
+
+            System.IO.DirectoryInfo dir;
+            try
+            {
+                dir = new System.IO.DirectoryInfo(start);
+            }
+            catch
+            {
+                yield break;
+            }
+
+            while (dir != null)
+            {
+                yield return dir.FullName;
+                dir = dir.Parent;
             }
         }
 

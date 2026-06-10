@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prompt Candidate Optimizer"
+  short_description: "Optymalizuj kandydaty promptu w BricsCAD Lab"
+  default_prompt: "U¿yj Prompt Candidate Optimizer, aby iterowaæ laboratoryjne kopie promptu, uruchomiæ benchmark w BricsCAD przez COM i zapisaæ wynik."

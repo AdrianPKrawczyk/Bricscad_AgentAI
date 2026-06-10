@@ -125,6 +125,7 @@
     <Compile Include="src\Core\AppPaths.cs" />
     <Compile Include="src\Core\BenchmarkModels.cs" />
     <Compile Include="src\Core\AutoBenchmarkEngine.cs" />
+    <Compile Include="src\Core\BenchmarkLabWorker.cs" />
     <Compile Include="src\Core\ToolConfigManager.cs" />
     <Compile Include="src\Core\EngineTracer.cs" />
     <Compile Include="src\Core\BielikLogger.cs" />
