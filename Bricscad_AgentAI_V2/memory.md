@@ -1915,3 +1915,69 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Commit memory.md v2.28.50.
 - Benchmark_08 GOLD.
 - Przejscie do nastepnego benchmarku (np. Benchmark_09 ManageLayers, Benchmark_10 EditAttributes, Benchmark_11 ListBlocks).
+
+## [v2.28.51] 2026-06-10T12:30:00+02:00 - Benchmark_09 InsertBlock_Extended + prompt ListBlocks [BLOCKS-LISTBLOCKS-EXT]
+
+### [ZMIANY]
+1. Nowy plik `tests/Benchmark_09_InsertBlock_Extended.json` - 25 testow, 7 kategorii, 5 poziomow trudnosci (D1-D5), 74 reguly walidacyjne.
+2. Wzmocnienie `resources/prompts/system_prompt_blocks.txt` (91 -> 98 linii): nowa sekcja "Zasady dla ListBlocks" (linie 93-98).
+
+### [KONTEKST DECYZJI]
+- **InsertBlock juz pokryty w Benchmark_08** (12 testow: ByName, Scale, Rotation, Attributes, AskUser, ManyAttributes, Foreach_GenerateSequence, Foreach_ItemsList, BlockNotFound, InvalidScale, InvalidPointFormat, MTextAttribute, 2x workflow). Benchmark_08 ma 36 testow - benchmark ten jest WZORCOWY dla nastepnych benchmarkow.
+- **ListBlocks MA 1 TYLKO TEST** w Benchmark_08 (test 30: Workflow_ListBlocksThenCreate). 
+- **Decyzja**: Benchmark_09 jako INSERTBLOCK_EXTENDED (udoskonalenie wzwyz od Benchmark_08) + 8-9 nowych testow ListBlocks.
+
+### [STRUKTURA BENCHMARK_09]
+| # | Kategoria | Testy | Trudnosc | Cel |
+|---|-----------|-------|----------|-----|
+| 1-3 | ListBlocksBasic (3) | 3 | D1-D2 | Podstawowe, pusty rysunek, dlugie nazwy |
+| 4-8 | ListBlocksAdvanced (5) | 5 | D2-D4 | SaveAs, Foreach pipeline, weryfikacja unikalnosci |
+| 9-12 | InsertBlockMultiInsertion (4) | 4 | D2-D3 | Ten sam blok 2x, ForeachGenerate, grid 3x3, multiple blocks |
+| 13-16 | InsertBlockDynamicAttributes (4) | 4 | D3-D4 | Atrybuty z {index}/{item}, MText, multi-attribute |
+| 17-20 | InsertBlockWorkflows (4) | 4 | D3-D5 | CreateBlock->Insert, Insert+Edit, SelectEntities->Verify->Insert, FullPipeline |
+| 21-23 | InsertBlockEdgeCases (3) | 3 | D2-D3 | Scale=0.5, Rotation=45, dlugie nazwy (38 znakow) |
+| 24-25 | InsertBlockAdvancedForeach (2) | 2 | D4-D5 | Foreach+Generate+MText, ListBlocks->Foreach (bez @) |
+
+### [STATYSTYKI]
+- Testy: 25 (9 ListBlocks + 17 InsertBlock - w tym 9 Foreach).
+- Reguly: 74 (srednio 3.0/test).
+- Dystrybucja D: 2x D1, 5x D2, 8x D3, 8x D4, 2x D5.
+- Powiazania miedzy narzedziami:
+  * `ListBlocks` -> `SaveAs` -> `Foreach(TargetVariable)` -> `InsertBlock` (kanoniczny pipeline - testy 5, 6, 25)
+  * `CreateBlock` -> `InsertBlock` (nowo utworzony blok natychmiast wstawiony - test 17)
+  * `EditBlock` -> `InsertBlock` (definicja zmieniona -> instancje wstawione - test 18)
+  * `SelectEntities` -> `ReadSelectedBlockInfo` -> `InsertBlock` (weryfikacja nazwy - test 19)
+  * `SelectEntities` -> `CreateBlock` -> `EditBlock` -> `Foreach(InsertBlock)` -> `EditAttributes` (full pipeline - test 20)
+  * `ListBlocks` -> `SelectEntities` -> `CreateBlock` (walidacja unikalnosci - test 7)
+  * `ListBlocks` -> `InsertBlock` (walidacja istnienia - test 8)
+
+### [PROMPT - LISTBLOCKS REGULY (linie 93-98)]
+1. ListBlocks ZWRACA listę i NIE sluzy do wstawiania (NIE mylic z InsertBlock/CreateBlock).
+2. `SaveAs` zapisuje do pamieci BEZ znaku `@` (np. `"BlockList"`).
+3. `Foreach.TargetVariable` rowniez BEZ `@` - ta sama nazwa co `ListBlocks.SaveAs`.
+4. Kanoniczny pipeline: `ListBlocks -> Foreach -> InsertBlock` zamiast `ListBlocks + 10x InsertBlock`.
+5. Weryfikacja istnienia przed `InsertBlock`: `ListBlocks -> InsertBlock` jako wzorzec.
+
+### [KLUCZOWE USTALENIA]
+- **Prompt zostal wzmocniony MINIMALNIE** - tylko 7 linii dodanych (91->98, limit 100). Lista `@` vs brak `@` to kluczowa regula, bo modele maja tendencje do przekazywania `@BlockList` jako SaveAs (potem Foreach nie moze odczytac).
+- **Wzorzec `ListBlocks->Foreach->InsertBlock` jest kanoniczny** - prompt v2.28.51 to wyraznie wymusza. Powinno to dac lepsze wyniki niz w Benchmark_08 (test 5, 19).
+- **Test 20 (FullPipeline D5)** to najdluzszy mozliwy workflow - benchmarkuje, czy model potrafi utrzymac sekwencje 5 krokow z Foreach w srodku.
+- **Test 25 (ListBlocksForeach_NoAtSign D5)** jest celowo trudny - testuje, czy model NIE dodaje `@` do `SaveAs` i `TargetVariable` mimo ze user prompt go uzywa.
+
+### [STAN_SYSTEMU]
+- Benchmark_09 ma 25 testow i 74 reguly walidacyjne.
+- Prompt ma 98 linii (limit 100).
+- Sekcje promptu: Zasady ogolne (1-62), EditBlock (63-76), CreateBlock (78-86), InsertBlock (87-91), ListBlocks (93-98).
+- Wszystkie 4 narzedzia profilu CadBlocksProfile (EditBlock, CreateBlock, InsertBlock, ListBlocks) maja teraz wlasne sekcje w prompcie.
+
+### [OCZEKIWANE WYNIKI]
+- 26B QAT: ~70-75% PASS (9-12 oblen - glownie ListBlocks D4-D5, workflowy D5)
+- 31B QAT: ~75-85% PASS (benchmarki benchmark_08 potwierdzaja ten model jako najlepszy)
+- 12b-qat: ~60-70% PASS (mniejszy model, mniej rozumie zlozone wzorce)
+
+### [KOLEJNY_KROK]
+- User uruchamia Benchmark_09 w BricsCAD GUI (gemma-4-26b-a4b-qat, profil CadBlocksProfile) i dostarcza raport.
+- Analiza oblen (benchmark_bug vs model_bug) wg 8 kategorii z cad-benchmark-workflow skill.
+- Ewentualne 1-2 retesty (poprawka validatora + lekka iteracja promptu).
+- Commit memory.md v2.28.51.
+- Przejscie do Benchmark_10 (np. EditAttributes rozszerzony, lub calkiem nowy use-case typu ManageLayers).
