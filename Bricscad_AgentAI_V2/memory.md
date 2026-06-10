@@ -1732,3 +1732,44 @@ Test 16 (LinetypeScale): CadProfile PASS, CadBlocksProfile FAIL.
 - Commit napraw benchmarku v2.28.46.
 - (Opcjonalnie) Wzmocnienie promptu v2.28.47 - 3 reguly (AskUser, Insert vs Create, SelectEntities przed CreateBlock).
 - Retest 26B QAT.
+
+## [v2.28.47] 2026-06-10T10:00:00+02:00 - Benchmark_08_CreateBlock - retest po naprawie walidatora + wzmocnienie promptu
+### [WYNIKI RETESTU PO NAPRAWIE WALIDATORA (26B QAT 09:57)]
+- Score: 23/36 (64%) - wzrost z 16/36 (44%) = +7 punktow.
+- Avg: 2585ms, Total: 93053ms.
+- Klasyfikacja 13 resztkowych oblen:
+  - MODEL_BUG (9 testy): 2, 5, 11, 14, 15, 17, 24, 29, 35 - UserInput vs AskUser, brak SelectEntities, AskUser w Foreach, {MATH:} halucynacja.
+  - BENCHMARK_BUG (4 testy): 19, 31, 32, 36 - MTextAttribute sztywny validator, Foreach+Items warianty punktow vs nazw, 10x petle wykryte przez ToolCallCountMax (działa poprawnie).
+### [DODATKOWE NAPRAWY BENCHMARKU]
+- Test 31 (MTextAttribute): `AnyOfArgumentMatch` z 3 przykladowymi tekstami wieloliniowymi zamiast sztywnego `"Linia 1\nLinia 2\nLinia 3"`.
+- Test 32 (Foreach+Items): `AnyOfArgumentMatch` akceptuje Items=[A1,A2,A3] LUB Items=[[0,0,0],[100,0,0],[200,0,0]] (dwa rownowazne warianty).
+### [WZMOCNIENIE PROMPTU]
+Dodane 2 nowe sekcje w `system_prompt_blocks.txt` (76 -> 91 linii):
+
+**Zasady dla CreateBlock (5 regul):**
+1. Wzor `SelectEntities -> CreateBlock` jest OBOWIAZKOWY gdy user mowi "zaznacz ... i utworz blok".
+2. BasePoint moze byc: `0,0,0` / `[x,y,z]` / `(x,y,z)` / `AskUser` (3 formaty + AskUser).
+3. NIE uzywaj `UserInput(InputType=Point)` przed CreateBlock - ma wbudowany `BasePoint="AskUser"`.
+4. W `Foreach + CreateBlock` z Items=[A,B,C]: uzyj konkretny punkt XYZ, NIE `BasePoint="AskUser"` w szablonie (wymusza to reczny wybor dla kazdej iteracji).
+5. `CreateBlock` = TWORZENIE nowych definicji. `InsertBlock` = WSTAWIANIE istniejacych. Nie myl: "utworz/nowy/stworz" = CreateBlock, "wstaw/umiesc/insert" = InsertBlock.
+
+**Zasady dla InsertBlock (4 reguly):**
+1. Wymaga, aby blok juz istnial (mozna go wczesniej utworzyc przez CreateBlock).
+2. InsertionPoint: `0,0,0` / `[x,y,z]` / `(x,y,z)` / `AskUser` (identycznie jak CreateBlock).
+3. NIE uzywaj `UserInput` do pobierania punktu - ma wbudowany `InsertionPoint="AskUser"`.
+4. W `Foreach + InsertBlock` z Items=[A1,A2,A3]: `InsertionPoint="{item}"` jesli items to punkty LUB `InsertionPoint="[0,0,0]"` jesli items to tylko nazwy.
+
+### [OCZEKIWANE WYNIKI PO WZMOCNIENIU PROMPTU]
+- 23/36 (64%) -> **30-33/36 (83-92%)** spodziewany wzrost.
+- Resztkowe problemy:
+  - Petle 10x przy `origin` (testy 19, 36) - specyficzne dla 26B QAT, moze nie do naprawienia promptem.
+  - Foreach+Sequence z `{MATH:...}` (test 17) - halucynacja modelu.
+### [STAN_SYSTEMU]
+- Prompt wzmocniony (91 linii, 3-krotnie wzmocniony w v2.28.36, 38, 41, 43, 47).
+- Benchmark_08 ma 120 regul walidacyjnych, 22 AnyOfArgumentMatch, 6 ToolCallCountMax.
+- Gotowe do retestu z 26B QAT.
+### [BLOKADY / PROBLEMY]
+- Brak - wzmocnienie promptu jest addytywne, nie modyfikuje istniejacych regul.
+### [KOLEJNY_KROK]
+- Commit zmian (prompt + benchmark + memory.md).
+- Retest 26B QAT. Oczekiwane 30+/36.

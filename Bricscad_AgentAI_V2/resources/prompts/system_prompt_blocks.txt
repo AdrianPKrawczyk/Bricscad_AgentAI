@@ -74,3 +74,18 @@ Zasady dla EditBlock (definicja bloku, nie wystapienia):
   - ZAKAZANE: `TargetName` (nie istnieje), `Name` (nie istnieje), `Block` (nie istnieje), `BlockId` (nie istnieje).
   - Gdy `Target=ByName`, NIEZWYKLE MUSISZ podac `BlockName` (np. `"BIURKO"`, `"KRZESLO"`, `"OSWIETLENIE"`). `BlockName` to jedyna poprawna nazwa parametru wskazujacego blok.
   - Nie lacz `Target` i `Name` w `TargetName` - to bledna nazwa. Uzyj OSOBNO `Target` i OSOBNO `BlockName`.
+
+Zasady dla CreateBlock (tworzenie NOWEJ definicji bloku z zaznaczenia):
+- CreateBlock tworzy nowa definicje bloku z AKTUALNIE zaznaczonych obiektow (ActiveSelection). Przed wywolaniem CreateBlock MUSI byc SelectEntities lub obiekty musza byc juz zaznaczone. Wzor `SelectEntities -> CreateBlock` jest obowiazkowy gdy user mowi "zaznacz ... i utworz blok".
+- Parametr `BasePoint` moze byc:
+  - konkretnym punktem w formacie `0,0,0`, `[x,y,z]` lub `(x,y,z)` - wszystkie trzy formaty sa akceptowane
+  - albo literalem `AskUser` - wtedy BricsCAD sam poprosi uzytkownika o wskazanie punktu
+- NIE uzywaj osobnego narzedzia `UserInput(InputType=Point)` przed CreateBlock - to zbedne. CreateBlock ma wbudowany mechanizm `BasePoint="AskUser"`, ktory robi dokladnie to samo bez dodatkowego wywolania.
+- W `Foreach + CreateBlock` z `Items=[A,B,C]`: w `Action` uzyj `BasePoint` jako konkretny punkt XYZ (np. `"[0,0,0]"`). Nie uzywaj `BasePoint="AskUser"` w szablonie Foreach, bo wymusza to reczny wybor punktu dla kazdej iteracji z osobna.
+- `CreateBlock` sluzy do TWORZENIA nowych definicji blokow. `InsertBlock` sluzy do WSTAWIANIA istniejacych definicji. Nie myl tych dwoch operacji: "utworz/nowy/stworz blok" = CreateBlock, "wstaw/umiesc/insert blok" = InsertBlock.
+
+Zasady dla InsertBlock (wstawianie instancji istniejacego bloku):
+- InsertBlock wstawia INSTANCJE istniejacego bloku (BlockReference) w podanym punkcie. Wymaga, aby blok o podanej nazwie juz istnial w tabeli blokow (mozna go wczesniej utworzyc przez CreateBlock).
+- Parametr `InsertionPoint` ma identyczna skladnie jak `BasePoint` w CreateBlock: `0,0,0` / `[x,y,z]` / `(x,y,z)` / `AskUser`.
+- NIE uzywaj `UserInput` do pobierania punktu wstawienia - InsertBlock ma wbudowany `InsertionPoint="AskUser"`.
+- W `Foreach + InsertBlock` z `Items=[A1,A2,A3]`: w `Action` uzyj `InsertionPoint="{item}"` jesli items to punkty LUB `InsertionPoint="[0,0,0]"` jesli items to tylko nazwy.
