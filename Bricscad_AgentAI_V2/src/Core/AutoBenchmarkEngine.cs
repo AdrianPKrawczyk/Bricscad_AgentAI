@@ -372,6 +372,36 @@ namespace Bricscad_AgentAI_V2.Core
                                 ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", candidateValues)}', Dozwolone: '{string.Join(" || ", expectedVariants)}')";
                             break;
 
+                        // v2.28.54: Wariant AnyOfArgumentMatch, w ktorym BRAK argumentu rowniez akceptowany (np. Items LUB GenerateSequence.Count - oba poprawne).
+                        case "AnyOfArgumentMatchOrAbsent":
+                            var candidateValuesOrAbsent = test.RecordedToolCalls
+                                .Where(c => c.Arguments != null)
+                                .Select(c => ResolveJsonPath(c.Arguments, rule.TargetArgument))
+                                .Where(v => v != null)
+                                .ToList();
+
+                            if (candidateValuesOrAbsent.Count == 0)
+                            {
+                                // Brak argumentu = PASS (warunek OR ABSENT)
+                                rulePassed = true;
+                                break;
+                            }
+
+                            var expectedVariantsOrAbsent = (rule.TargetValue ?? string.Empty)
+                                .Split(new[] { " || " }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(v => v.Trim())
+                                .Where(v => !string.IsNullOrWhiteSpace(v))
+                                .ToList();
+
+                            rulePassed = candidateValuesOrAbsent.Any(actual =>
+                                expectedVariantsOrAbsent.Any(expected =>
+                                    ValuesMatch(actual, expected)));
+
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", candidateValuesOrAbsent)}', Dozwolone: '{string.Join(" || ", expectedVariantsOrAbsent)}')";
+                            break;
+
+
                         case "ToolCallCountMax":
                             if (!int.TryParse(rule.ExpectedOutput, out int maxAllowedCalls))
                             {
