@@ -1982,6 +1982,72 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 - Commit memory.md v2.28.51.
 - Przejscie do Benchmark_10 (np. EditAttributes rozszerzony, lub calkiem nowy use-case typu ManageLayers).
 
+## [v2.28.52] 2026-06-10T12:50:00+02:00 - Benchmark_09 retest + 3 fixy (validator, benchmark, prompt) [BLOCKS-LOCALE-FIX]
+
+### [ZMIANY]
+1. **Fix validatatora** (AutoBenchmarkEngine.cs:533, 525): ValuesMatch obsluguje wartosci numeryczne z InvariantCulture, ResolveJsonPath.ToString() uzywa InvariantCulture.
+2. **Fix benchmarku** (Benchmark_09.json): test 18 (AnyOfArgumentMatch Action z 4 wariantami), test 24 (dodane 2 warianty z {MATH:...} w InsertionPoint).
+3. **Wzmocnienie promptu** (system_prompt_blocks.txt 98->104): nowa sekcja "Zasady kanoniczne dla Foreach" - 4 reguly.
+
+### [DIAGNOZA - 7 OBLE WSPOLNYCH PO RETEST Z CadBlocksProfile]
+**Wynik retest 11:58-12:03**: 26B QAT 16/25 (64%), 31B QAT 16/25 (64%).
+- 14/25 PASS w obu (56% - oba modele zgadzaja sie)
+- 7 wspolnych FAIL (testy: 15, 16, 18, 20, 21, 24, 25)
+- 2 testy roznic (tylko 26B PASS: 6; tylko 31B PASS: 10, 13)
+
+### [KLASYFIKACJA 7 OBLE - BENCHMARK_BUG vs MODEL_BUG]
+
+| Test | Co model zrobil | Co walidator oczekiwal | Klasa | Fix |
+|------|----------------|------------------------|-------|-----|
+| 15 | BlockName="CZUJNIK" (staly) | BlockName="{item}" | **MODEL_BUG** | prompt v2.28.52 reguła 1 |
+| 16 | Items=[wartosci MText] | GenerateSequence.Count=2 | **MODEL_BUG** | prompt v2.28.52 reguła 2 |
+| 18 | EditBlock + Foreach z DETAL_A w Action | BlockName na top-level | **BENCHMARK_BUG** | benchmark fix ✅ |
+| 20 | 4 kroki (pominiento EditAttributes) | 5 krokow (SE->CB->EB->FE->EA) | **MODEL_BUG** | prompt v2.28.52 reguła 3 |
+| 21 | Scale=0.5 (number JSON) | "0.5" string | **BENCHMARK_BUG** (locale) | validator fix ✅ |
+| 24 | [0, {MATH: 100*{index}}, 0] (reczne wyliczenie) | {item} (z Count) | **BENCHMARK_BUG** | benchmark fix ✅ |
+| 25 | Items=[A,B,C] (zamiast TargetVariable) | TargetVariable+Count=2 | **MODEL_BUG** | prompt v2.28.52 reguła 4 |
+
+**Bilans**: 3 benchmark_bug (naprawione) + 4 model_bug (wymagaja wzmocnienia promptu).
+
+### [KRYTYCZNE ODKRYCIE - LOCALE BUG W WALIDATORZE]
+- W test 21: model poprawnie zapisal `"Scale": 0.5` (JSON number z kropka)
+- ALE `ResolveJsonPath` zwracal `"0,5"` (polskie locale) - porownywal z `"0.5"` (z kropka) - NIE ZGADZALY SIE
+- Fix: `return current.ToString(System.Globalization.CultureInfo.InvariantCulture)` w ResolveJsonPath (linia 525)
+- Dodatkowy fix: `ValuesMatch` obsluguje porownanie numeryczne (linia 533-555) - na wypadek roznych formatow liczbowych w roznych modelach
+- Odkrycie ma szerszy zasieg - benchmark_07 test 16 (LinetypeScale=2.5 vs "2.5") tez mogl byc dotkniety
+
+### [NOWA REGULA PROMPTU - KANONICZNE FOREACH]
+- Regula 1: Items + {item} = BlockName dynamiczny (test 15)
+- Regula 2: GenerateSequence.Count dla indeksu 1,2,3; Items dla roznych wartosci/tresci (test 16)
+- Regula 3: Pipeline 5-krokowy z EditAttributes na koncu (test 20)
+- Regula 4: TargetVariable+GenerateSequence vs Items - alternatywne (NIE mieszac) (test 25)
+
+### [PROFIL - WLASCIWY]
+- Pierwszy test (11:35): ProfileName="" - uruchomiony z "Brak profilu" (default SelectedIndex=0)
+- Drugi test (11:58+): ProfileName="CadBlocksProfile" - prawidlowy
+- Roznica: +20pp dla 26B (44%->64%), +12pp dla 31B (52%->64%)
+- Potwierdzenie v2.28.44: CadBlocksProfile daje +20-30pp dla benchmarkow blokowych
+
+### [STAN_SYSTEMU]
+- Validator: 1 fix (InvariantCulture dla numeric).
+- Benchmark_09: 25 testow, 74 reguly (2 fixy w testach 18 i 24).
+- Prompt: 104 linie (5 sekcji + Zasady kanoniczne Foreach).
+- Wszystkie 4 narzedzia profilu (EditBlock/CreateBlock/InsertBlock/ListBlocks) maja dedykowane sekcje w prompcie.
+
+### [OCZEKIWANE WYNIKI PO RETEST v2.28.52]
+- 26B QAT: 16-19/25 (64-76%) - 3 benchmark_bug naprawione daja PASS dla 18, 21, 24
+- 31B QAT: 16-19/25 (64-76%) - j.w. + prawdopodobnie 15, 20, 25 z nowych regul promptu
+- 12b-qat: 14-16/25 (56-64%) - mniejszy model, mniej korzysta z regul
+- e4b: 11-14/25 (44-56%) - najmniejszy model
+- Qwen 35B-A3B: 8-11/25 (32-44%) - halucynuje (ReadSelectedBlockInfo)
+
+### [KOLEJNY_KROK]
+- User kompiluje projekt (4 zmienione pliki) i uruchamia Benchmark_09 na 4-6 modelach (26B, 31B, 12b, e4b, Qwen, +opcjonalnie Gemma-3).
+- Dostarcza raporty FULL.
+- Jesli wyniki >= 75% dla 31B QAT - GOLD v2.28.52.
+- Commit memory.md v2.28.53.
+- Przejscie do Benchmark_10 (np. EditAttributes rozszerzony lub ManageLayers).
+
 ## [v2.28.52] 2026-06-10T12:55:00+02:00 - Usprawnienia UI zakladki Benchmark [BENCHMARK-UI-COLUMNS]
 
 ### [ZMIANY]
