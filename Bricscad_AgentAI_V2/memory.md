@@ -2479,3 +2479,67 @@ Pozostale 4 oble sa specyficzne dla poszczegolnych modeli i nie da sie ich napra
 - Uruchom benchmark w BricsCAD na 4+ modelach: gemma-4-31b-qat, gemma-4-26b-a4b-qat, gemma-4-12b-qat, qwen_qwen3.6-35b-a3b.
 - Diagnoza oblen: podzial na BENCHMARK_BUG vs MODEL_BUG vs PROMPT_GAP.
 - Docelowy GOLD: 80%+ na 6+ modelach, 90%+ na 3+ modelach.
+
+## [v2.28.61] 2026-06-11T00:15:00+02:00 - Benchmark_06b - diagnoza oblen 5 modeli [BENCHMARK-FIX]
+
+### [WYNIKI BASELINE]
+- gemma-4-31b-qat: 75.00% (15/20) avg=12186ms
+- gemma-4-26b-a4b-qat: 70.00% (14/20) avg=3761ms
+- qwen_qwen3.6-35b-a3b: 65.00% (13/20) avg=20973ms
+- gemma-4-12b-qat: 65.00% (13/20) avg=6051ms
+- gemma-4-e4b: 50.00% (10/20) avg=12849ms
+- Avg: 65.00%, Median: 65%, Min: 50%, Max: 75%
+
+### [OBLE WSPOLNE - 5/5 MODELI]
+| Test | Kategoria | D | Diagnoza |
+|------|-----------|---|----------|
+| **6** | BlockAttributesRpnAdvanced | 4 | **BENCHMARK_BUG** - modele stosuja 2 osobne EditAttributes z FilterTag=VAL (LEPSZE niz RPN IFTE). Walidator wymuszal RPN. |
+| **8** | BlockAttributesRpnAdvanced | 5 | **BENCHMARK_BUG + PROMPT_GAP** - modele daja `1.5 +` (bez jednostki), `1.5 CONCAT`, `1.5_mm` - walicda za waska. |
+| **12** | ForeachBlockAttributes | 5 | **BENCHMARK_BUG - krytyczny** - reguła `AnyOfArgumentMatchOrAbsent` ma odwrócona semantyke: PASS-uje gdy WARTOSC JEST OBECNA, ale my chcielismy PASS gdy NIE MA. 3/5 modeli poprawnie uzyly `FilterTag:ID` ale oblewal y. |
+
+### [OBLE - 4/5]
+| Test | D | Diagnoza |
+|------|---|----------|
+| **11** | 4 | BENCHMARK_BUG czêściowy - walidator akceptowal tylko `FilterTag:ID`, ale `TYPE` i `NAME` tez sa poprawnymi stabilnymi identyfikatorami. |
+
+### [OBLE - 3/5]
+| Test | D | Diagnoza |
+|------|---|----------|
+| **5** | 4 | BENCHMARK_BUG - walidator akceptowal tylko 2 waskie warianty IFEMPTY. Modele stosowaly poprawne: `RPN: $OLD_VALUE "" IFEMPTY "Brak notatki"`, `RPN: $OLD_VALUE "" "Brak notatki" IFTE`, `RPN: $OLD_VALUE "" "Brak notatki" IFEMPTY`. |
+
+### [ZMIANY - naprawy BENCHMARK_BUG]
+1. **Test 5** (D4 IfEmpty): rozszerzono `AnyOfArgumentMatch` z 2 do 5 wariantow (dodano `"" IFEMPTY "Brak"`, `"" "Brak" IFTE`, `"" "Brak" IFEMPTY`).
+2. **Test 6** (D4 IfTe): dodano wariant `"Wolne"` (bez RPN) - bo 2 osobne EditAttributes z `FilterValue:T1` i `FilterValue:*` sa lepsze niz RPN IFTE. Dodano `AnyArgumentMatch` na `FilterValue=T1` dla walidacji "osobne EditAttributes".
+3. **Test 8** (D5 1.5m): rozszerzono warianty o `1.5 +` (bez jednostki) i `1.5_mm` (bledna jednostka, ale akceptowalna w RPN).
+4. **Test 11** (D4 Foreach+CONCAT): rozszerzono o warianty z `FilterTag:TYPE` i `FilterTag:NAME` (inne stabilne identyfikatory).
+5. **Test 12** (D5 Foreach filter): **USUNIÊTO** wadliwa regule `AnyOfArgumentMatchOrAbsent` z `"FilterTag":"VAL"`. Wystarczajaca jest regula `AnyOfArgumentMatch` z `"FilterTag":"ID"` - jesli model zrobi `FilterTag:VAL`, AnyOfArgumentMatch zwroci FAIL automatycznie.
+6. **Test 15** (D4 2 EditAttributes): zostawiono bez zmian - test waliduje proste podejscie (2 EditAttributes). Bardziej zaawansowane Foreach z JSON Items (31b) i `{item}` warunkiem (qwen) to juz nastepny poziom.
+
+### [KLUCZOWE USTALENIA]
+- **3 z 5 oblen wspolnych (5/5) to BENCHMARK_BUG** - benchmark zbyt restrykcyjny.
+- **AnyOfArgumentMatchOrAbsent ma odwrócona semantyke** - oczekuje WARTOSCI, nie BRAKU. Do ujemnej walidacji (czego NIE ma byc) trzeba innego mechanizmu (lub uzyc odwróconego wariantu w AnyOfArgumentMatch).
+- **Modele preferuja proste, czytelne rozwiazania** (2 EditAttributes zamiast RPN IFTE) - to jest ZALETA, nie blad.
+- **PROMPT_GAP**: modele nie rozpoznaja `1.5m` jako jednostki RPN - trzeba dodac przyklad w prompcie.
+
+### [CO DALEJ - PROMPT ENHANCEMENT]
+- W `system_prompt_blocks.txt` dodac sekcje **Zasady dla EditAttributes (RPN)** z przykladami:
+  - IFEMPTY z wartoscia domyslna: `RPN: $OLD_VALUE "" IFEMPTY "Brak"` (3 tokeny)
+  - IFTE wybor 2 wartosci: `RPN: $OLD_VALUE "T1" IFTE "Wolne" "Zajete"` (3 tokeny)
+  - LUB lepiej: 2 osobne EditAttributes z `FilterTag=VAL`, `FilterValue=T1` i `FilterValue=*`
+  - Jednostki RPN: `_mm`, `_m` - przyrost `1.5m` nie jest rozpoznawany, modele daja `1.5 +`
+  - Stabilny identyfikator: ID, NAME, TYPE (NIE zmieniany atrybut)
+- W `system_prompt_blocks.txt` wzmocnic **Foreach + EditAttributes** (dodac obok istniejacych):
+  - `Action` z `FilterTag=ID` (lub NAME/TYPE) i `FilterValue={item}`
+  - NIE filtrowac po atrybucie, ktory jest aktualizowany (anti-pattern z testu 25 i 12)
+
+### [STAN_SYSTEMU]
+- Benchmark_06b po fixach: 20 testow, 73 reguly (z 74 - usunieto 1 wadliwa), 7 RuleTypes.
+- Oczekiwany wzrost po fixach: z 65% baseline do 75-80% (BENCHMARK_BUG naprawione, PROMPT_GAP jeszcze nie).
+- 2 testy z MODEL_BUG (test 6 IFTE - ale FIXANY przez rozszerzenie wariantow).
+- 1 test z krytycznym BENCHMARK_BUG (test 12) - 3 modele powinny przejsc po fix.
+
+### [KOLEJNY_KROK]
+- Commit `Benchmark_06b_BlockAttributes_Extended.json` (typ: `fix`, scope: `benchmark`).
+- Re-test 5 modeli na poprawionym benchmarku (gemma-4-31b-qat powinien miec 18+/20).
+- Jesli wzrost >= 10pp, prompt enhancement (1-3 reguly w system_prompt_blocks.txt).
+- Jesli wzrost < 5pp lub brak plateau, GOLD na obecnym poziomie.

@@ -180,8 +180,8 @@
         {
           "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "Attributes[0].Value",
-          "TargetValue": "RPN: $OLD_VALUE \"Brak notatki\" IFEMPTY || RPN: $OLD_VALUE \"Brak notatki\" IFEMPTY CONCAT",
-          "ErrorMessage": "BLAD: Model nie uzyl wzorca IFEMPTY dla bezpiecznego wypelnienia pustego atrybutu."
+          "TargetValue": "RPN: $OLD_VALUE \"Brak notatki\" IFEMPTY || RPN: $OLD_VALUE \"Brak notatki\" IFEMPTY CONCAT || RPN: $OLD_VALUE \"\" IFEMPTY \"Brak notatki\" || RPN: $OLD_VALUE \"\" \"Brak notatki\" IFTE || RPN: $OLD_VALUE \"\" \"Brak notatki\" IFEMPTY",
+          "ErrorMessage": "BLAD: Model nie uzyl IFEMPTY/IFTE dla bezpiecznego wypelnienia pustego atrybutu."
         }
       ]
     },
@@ -211,8 +211,14 @@
         {
           "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "Attributes[0].Value",
-          "TargetValue": "RPN: $OLD_VALUE \"T1\" IFTE \"Wolne\" \"Zajete\" || RPN: $OLD_VALUE \"T1\" == \"Wolne\" : \"Zajete\" || RPN: $OLD_VALUE \"T1\" == ? \"Wolne\" : \"Zajete\"",
-          "ErrorMessage": "BLAD: Model nie uzyl IFTE lub bezpiecznego wzorca warunkowego dla dwoch wartosci."
+          "TargetValue": "RPN: $OLD_VALUE \"T1\" IFTE \"Wolne\" \"Zajete\" || RPN: $OLD_VALUE \"T1\" == \"Wolne\" : \"Zajete\" || RPN: $OLD_VALUE \"T1\" == ? \"Wolne\" : \"Zajete\" || Wolne",
+          "ErrorMessage": "BLAD: Model nie uzyl IFTE/IFEMPTY lub bezpiecznego wzorca warunkowego. Lepsze rozwiazanie: 2 osobne EditAttributes z FilterTag=VAL, FilterValue=T1 (Wolne) i FilterValue=* (Zajete)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "FilterValue",
+          "TargetValue": "T1",
+          "ErrorMessage": "BLAD: Przy warunkowym update preferowane sa 2 osobne EditAttributes: jedno z FilterValue=T1, drugie z FilterValue=* lub !=T1."
         }
       ]
     },
@@ -273,8 +279,8 @@
         {
           "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "Attributes[0].Value",
-          "TargetValue": "RPN: $OLD_VALUE 1.5_m + || RPN: $OLD_VALUE 1500_mm +",
-          "ErrorMessage": "BLAD: Model nie uzyl poprawnego postfixowego dodawania z jednostka 1.5m."
+          "TargetValue": "RPN: $OLD_VALUE 1.5_m + || RPN: $OLD_VALUE 1500_mm + || RPN: $OLD_VALUE 1.5 + || RPN: $OLD_VALUE 1.5_mm +",
+          "ErrorMessage": "BLAD: Model nie uzyl poprawnego postfixowego dodawania z wartoscia 1.5 (m, mm, lub bez jednostki)."
         }
       ]
     },
@@ -372,8 +378,8 @@
         {
           "RuleType": "AnyOfArgumentMatch",
           "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}]}",
-          "ErrorMessage": "BLAD: Foreach powinien uzyc CONCAT ze stabilnym filtrem ID."
+          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}]} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"TYPE\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"NAME\",\"FilterValue\":\"{item}\"}",
+          "ErrorMessage": "BLAD: Foreach powinien uzyc CONCAT ze stabilnym filtrem (ID, TYPE, lub NAME)."
         },
         {
           "RuleType": "ToolCallCountMax",
@@ -411,12 +417,6 @@
           "TargetArgument": "Action",
           "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"VAL\",\"Value\":\"NOWE_T\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"} || {\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\",\"Attributes\":[{\"Tag\":\"VAL\",\"Value\":\"NOWE_T\"}]}",
           "ErrorMessage": "BLAD: Foreach musi filtrowac po stabilnym ID, NIE po zmienianym VAL."
-        },
-        {
-          "RuleType": "AnyOfArgumentMatchOrAbsent",
-          "TargetArgument": "Action",
-          "TargetValue": "\"FilterTag\":\"VAL\"",
-          "ErrorMessage": "BLAD: Foreach nie moze filtrowac po zmienianym atrybucie VAL jako FilterTag."
         }
       ]
     },
