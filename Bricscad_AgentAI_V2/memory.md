@@ -2079,3 +2079,26 @@ Benchmark_08 jest **GOLD na 78-81%** (31B QAT). Można przejsc do nastepnego ben
 ### [KOLEJNY_KROK]
 - Przetestowac recznie w GUI BricsCAD zachowanie resetu po przerwanym benchmarku oraz po benchmarku zakonczonym sukcesem.
 - W razie potrzeby dodac osobne okno konfiguracji kolumn lub skrocony renderer promptow z lepszym elipsowaniem.
+
+## [v2.28.53] 2026-06-10T13:10:00+02:00 - Zapamietywanie ostatniego profilu Benchmark [BENCHMARK-LAST-PROFILE]
+
+### [ZMIANY]
+1. Dodano trwale ustawienie `LastBenchmarkProfileName` w `src/Core/UISettingsManager.cs`.
+2. Zmieniono inicjalizacje `cbProfiles` w `src/UI/AutoBenchmarkControl.cs`, aby po otwarciu zakladki Benchmark przywracany byl ostatnio wybrany profil.
+3. Dodano automatyczny zapis wyboru profilu przy zmianie `SelectedIndexChanged`.
+
+### [SZCZEGOLY IMPLEMENTACJI]
+- Jesli ostatnio wybrany byl konkretny profil, kontrolka ustawia go automatycznie po starcie BricsCAD.
+- Jesli ostatnio wybrana byla opcja `(Brak profilu - wszystkie narzedzia)`, zapisywana jest pusta wartosc i UI wraca do opcji domyslnej.
+- Jesli zapisany profil nie istnieje juz w konfiguracji, kontrolka bezpiecznie spada do `Brak profilu`.
+
+### [KORZYSC UZYTKOWA]
+- Ogranicza ryzyko przypadkowego uruchomienia benchmarku bez profilu.
+- Skraca rutynowy setup przed kolejnymi retestami benchmarkow blokowych.
+- Stabilizuje workflow benchmarkowy dla profili takich jak `CadBlocksProfile`.
+
+### [STAN_SYSTEMU]
+- Zakladka `Testy > Benchmark` zapamietuje teraz nie tylko ostatni plik JSON i uklad kolumn, ale tez ostatnio wybrany profil.
+
+### [KOLEJNY_KROK]
+- Potwierdzic recznie po restarcie BricsCAD, ze `CadBlocksProfile` wraca automatycznie i ze fallback do `Brak profilu` dziala poprawnie po usunieciu profilu z konfiguracji.

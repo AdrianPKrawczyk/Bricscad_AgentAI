@@ -86,7 +86,8 @@ namespace Bricscad_AgentAI_V2.UI
                 }
             }
             catch { }
-            cbProfiles.SelectedIndex = 0;
+            RestoreLastBenchmarkProfileSelection();
+            cbProfiles.SelectedIndexChanged += CbProfiles_SelectedIndexChanged;
 
             panTop.Controls.Add(cbProfiles);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
@@ -510,6 +511,36 @@ namespace Bricscad_AgentAI_V2.UI
                 .Replace("\r\n", " ")
                 .Replace("\n", " ")
                 .Trim();
+        }
+
+        private void RestoreLastBenchmarkProfileSelection()
+        {
+            string lastProfile = UISettingsManager.Settings.LastBenchmarkProfileName;
+            if (!string.IsNullOrWhiteSpace(lastProfile))
+            {
+                int index = cbProfiles.Items.IndexOf(lastProfile);
+                if (index >= 0)
+                {
+                    cbProfiles.SelectedIndex = index;
+                    return;
+                }
+            }
+
+            cbProfiles.SelectedIndex = 0;
+        }
+
+        private void CbProfiles_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbProfiles.SelectedIndex <= 0)
+            {
+                UISettingsManager.Settings.LastBenchmarkProfileName = string.Empty;
+            }
+            else
+            {
+                UISettingsManager.Settings.LastBenchmarkProfileName = cbProfiles.SelectedItem?.ToString() ?? string.Empty;
+            }
+
+            UISettingsManager.Save();
         }
 
         private void SaveLastPath(string path)
