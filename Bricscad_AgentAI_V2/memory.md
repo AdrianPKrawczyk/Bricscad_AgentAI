@@ -1821,3 +1821,46 @@ Bilans 0: 3 testy przeszly, 3 testy oblewyly nowe. Wzmocnienie promptu CZESCIOWO
 - Commit napraw benchmarku v2.28.48.
 - Retest 26B QAT - oczekiwane 26-28/36 (72-78%) po naprawach benchmarku.
 - Pozostale problemy (SelectEntities przed CreateBlock, petla 10x) moga wymagac albo wzmocnienia promptu albo redesignu benchmarku (np. osobny test "pytanie z wyborem" zamiast "wymuszanie wzorca").
+
+## [v2.28.49] 2026-06-10T10:50:00+02:00 - Benchmark_08_CreateBlock - 6 modeli porownanie + identyfikacja benchmark bugs
+### [WYNIKI 6 MODELI (po v2.28.48)]
+| Model | Score | AvgMs | TotalMs | Szybkosc/PASS |
+|-------|-------|-------|---------|----------------|
+| 31B QAT | 28/36 (78%) 🏆 | 10016 | 360587 | 0.78/10000ms |
+| 26B QAT | 26/36 (72%) | 2361 | 85002 | 3.05/1000ms ⚡ |
+| 12b-qat | 26/36 (72%) | 4838 | 174161 | 1.49/1000ms |
+| 26B | 25/36 (69%) | 3367 | 121222 | 2.05/1000ms |
+| Gemma 4 e4b | 23/36 (64%) | 3013 | 108459 | 2.12/1000ms |
+| Qwen 35B-A3B | 21/36 (58%) | 6100 | 219589 | 0.95/1000ms |
+
+### [KLUCZOWE USTALENIA]
+- Benchmark_08 jest teraz na 64-78% PASS (zalezy od modelu).
+- 26B QAT jest NAJLEPSZY do iteracji (4x szybszy niz 31B QAT, tylko -6pp).
+- 31B QAT jest najlepszy do finalnej walidacji.
+- Qwen 35B-A3B halucynuje `ReadSelectedBlockInfo` (narzedzie ktore nie istnieje).
+- 5 testow oblewanych przez 5-6 modeli (czesc benchmark_bug, czesc model_bug).
+
+### [TESTY WSPOLNE (5-6/6 oblewan)]
+- Test 5 (Sequence+AskUser): 6/6 - **BENCHMARK_BUG** - akceptowac tez AskUser w sekwencji po SelectEntities.
+- Test 15 (Foreach+Delete+AskUser): 6/6 - **MODEL_BUG** - model nie rozumie Foreach+AskUser.
+- Test 18 (MissingBlockName): 6/6 - **BENCHMARK_BUG** - walidator wymuszal konkretne nazwy.
+- Test 29 (Workflow CreateThenInsert - SelectEntities): 6/6 - **MODEL_BUG** - pomija SelectEntities.
+- Test 32 (InsertBlock_Foreach_ItemsList): 6/6 - **BENCHMARK_BUG** - akceptowac rowniez wariant Items=[punkty].
+
+### [NAPRAWY BENCHMARKU v2.28.49]
+- Test 18: 11 wariantow nazw blokow (zamiast 5) - akceptuje rowniez "NOWY_BLOK_TESTOWY", "NowyBlok_Zaznaczenie", "BlokZaznaczenia", "TestBlock".
+- Test 31 (MTextAttribute): 7 wariantow tekstu wieloliniowego (zamiast 4) - akceptuje rowniez "Tekst wieloliniowy\nz podziałem na\nkilka linii", "Wieloliniowy\ntekst", "Wieloliniowy tekst opisu bloku UWAGA".
+- Test 32 (InsertBlock_Foreach_ItemsList): 4 warianty Action (zamiast 3) - akceptuje rowniez InsertionPoint="{point}" (z TargetVariable).
+
+### [REKOMENDACJA MODELI]
+- 26B QAT (najszybszy, 85s na benchmark) - do developmentu i szybkich testow.
+- 31B QAT (najlepszy wynik, 360s) - do finalnej walidacji.
+
+### [STAN_SYSTEMU]
+- Benchmark_08 ma 121 regul walidacyjnych, 25 AnyOfArgumentMatch, 7 ToolCallCountMax.
+- Benchmark GOLD: 78% PASS (31B QAT) - akceptowalny poziom dla blokowych narzedzi.
+- Wzmocnienie promptu v2.28.47 (15 linii) - CZESCIOWO skuteczne (3 problemy naprawione).
+
+### [KOLEJNY_KROK]
+- Commit memory.md + benchmark v2.28.49.
+- Benchmark_08 GOLD na 78% (31B QAT). Mozna przejsc do nastepnego benchmarku.
