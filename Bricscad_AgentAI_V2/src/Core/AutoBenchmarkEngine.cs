@@ -666,5 +666,81 @@ namespace Bricscad_AgentAI_V2.Core
                 OnLogMessage?.Invoke(this, $"BĹ‚Ä…d zapisu raportu: {ex.Message}");
             }
         }
+
+        public BenchmarkBatchSummary SaveBatchSummaryReport(
+            IReadOnlyList<BenchmarkQueueItem> items,
+            string profileName,
+            string providerName,
+            string modelName)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                string firstPath = items.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.FilePath))?.FilePath;
+                string rootDir = !string.IsNullOrWhiteSpace(firstPath)
+                    ? Path.GetDirectoryName(firstPath)
+                    : Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+                string safeModel = string.Join("_", (modelName ?? "UnknownModel")
+                    .Split(Path.GetInvalidFileNameChars()));
+                string modelDir = Path.Combine(rootDir, safeModel);
+                if (!Directory.Exists(modelDir))
+                {
+                    Directory.CreateDirectory(modelDir);
+                }
+
+                int totalTests = items.Sum(i => i.TestCount);
+                int passedTests = items.Sum(i => i.PassedCount);
+                var scoredItems = items.Where(i => i.Score.HasValue).ToList();
+
+                var summary = new BenchmarkBatchSummary
+                {
+                    BatchName = $"BenchmarkBatch_{timestamp}",
+                    ProfileName = profileName ?? string.Empty,
+                    ProviderName = providerName ?? string.Empty,
+                    ModelName = modelName ?? string.Empty,
+                    RunDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    TotalBenchmarks = items.Count,
+                    CompletedBenchmarks = items.Count(i => string.Equals(i.Status, "Zakonczono", StringComparison.OrdinalIgnoreCase)),
+                    CancelledBenchmarks = items.Count(i => string.Equals(i.Status, "Przerwano", StringComparison.OrdinalIgnoreCase)),
+                    FailedBenchmarks = items.Count(i => string.Equals(i.Status, "Blad krytyczny", StringComparison.OrdinalIgnoreCase)),
+                    TotalTests = totalTests,
+                    PassedTests = passedTests,
+                    WeightedGlobalScore = totalTests > 0 ? Math.Round((double)passedTests / totalTests * 100, 2) : 0,
+                    AverageBenchmarkScore = scoredItems.Count > 0 ? Math.Round(scoredItems.Average(i => i.Score.Value), 2) : 0,
+                    TotalExecutionTimeMs = items.Sum(i => i.DurationMs),
+                    Benchmarks = items.Select(i => new BenchmarkBatchSummaryItem
+                    {
+                        FilePath = i.FilePath,
+                        DisplayName = i.DisplayName,
+                        BenchmarkName = i.BenchmarkName,
+                        Status = i.Status,
+                        TestCount = i.TestCount,
+                        PassedCount = i.PassedCount,
+                        FailedCount = i.FailedCount,
+                        Score = i.Score,
+                        DurationMs = i.DurationMs,
+                        ErrorMessage = i.ErrorMessage
+                    }).ToList()
+                };
+
+                string summaryPath = Path.Combine(modelDir, $"{summary.BatchName}_{safeModel}_SUMMARY.json");
+                string summaryJson = JsonConvert.SerializeObject(summary, Formatting.Indented);
+                File.WriteAllText(summaryPath, summaryJson, System.Text.Encoding.UTF8);
+                OnLogMessage?.Invoke(this, $"Raport SUMMARY zapisany: {summaryPath}");
+
+                return summary;
+            }
+            catch (Exception ex)
+            {
+                OnLogMessage?.Invoke(this, $"Blad zapisu raportu zbiorczego: {ex.Message}");
+                return null;
+            }
+        }
     }
 }

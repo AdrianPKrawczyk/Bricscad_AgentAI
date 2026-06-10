@@ -2315,3 +2315,48 @@ Pozostale 4 oble sa specyficzne dla poszczegolnych modeli i nie da sie ich napra
 
 ### [KOLEJNY_KROK]
 - Potwierdzic recznie po restarcie BricsCAD, ze `CadBlocksProfile` wraca automatycznie i ze fallback do `Brak profilu` dziala poprawnie po usunieciu profilu z konfiguracji.
+
+## [v2.28.54] 2026-06-10T14:20:00+02:00 - Kolejka wielu benchmarkow JSON + raport zbiorczy [BENCHMARK-BATCH-QUEUE]
+
+### [ZMIANY]
+1. Rozbudowano `src/UI/AutoBenchmarkControl.cs` o kolejke wielu plikow benchmarkowych JSON.
+2. `Wczytaj JSON-y` obsluguje teraz wielokrotny wybor plikow i buduje liste benchmarkow do uruchomienia.
+3. Dodano gorna tabele kolejki benchmarkow (`plik`, `benchmark`, `status`, `wynik`, `pass`, `czas`, `errory`) oraz dolny widok testow aktualnie wybranego benchmarku.
+4. `Start` uruchamia benchmarki sekwencyjnie, jeden po drugim, z zachowaniem osobnych raportow FULL/ERRORS dla kazdego JSON-a.
+5. Dodano przycisk `Wyczysc kolejke` oraz reset stanu tylko dla zaznaczonego benchmarku z kolejki.
+6. Dodano `SaveBatchSummaryReport(...)` w `src/Core/AutoBenchmarkEngine.cs`, zapisujacy raport zbiorczy batcha do osobnego pliku JSON.
+7. Rozszerzono `src/Core/BenchmarkModels.cs` o modele kolejki i podsumowania batcha (`BenchmarkQueueItem`, `BenchmarkBatchSummary`, `BenchmarkBatchSummaryItem`).
+
+### [ZASADA DZIALANIA]
+- Architektura pozostaje zgodna z dotychczasowym podejsciem: `1 JSON => 1 run => 1 komplet raportow`.
+- Batch NIE scala testow w jeden sztuczny benchmark. Zamiast tego wykonuje wiele niezaleznych benchmarkow po kolei.
+- Po zakonczeniu kolejki generowany jest dodatkowy raport `SUMMARY.json`, liczacy wynik laczny po wszystkich testach (`weighted score`) oraz sredni wynik benchmarkow.
+
+### [KORZYSC UZYTKOWA]
+- Model moze przejsc przez kilka benchmarkow bez recznego ladowania kazdego pliku osobno.
+- Nadal zachowana jest pelna czytelnosc pojedynczych raportow i plikow bledow per benchmark.
+- Uzytkownik dostaje tez syntetyczny wynik zbiorczy dla calej sesji benchmarkowej.
+
+### [STAN_SYSTEMU]
+- UI Benchmark obsluguje teraz dwa poziomy progresu: aktywny benchmark oraz cala kolejke.
+- Wybrany wiersz kolejki steruje tym, jaki benchmark jest widoczny w dolnej tabeli testow.
+- Raport zbiorczy jest zapisywany obok wynikow modelu dla danego batcha.
+
+### [WERYFIKACJA]
+- Wykonano przeglad diffu dla `AutoBenchmarkControl.cs`, `AutoBenchmarkEngine.cs` i `BenchmarkModels.cs`.
+- Proba filtrowanego `dotnet build` w tym srodowisku nadal natrafia na istniejace problemy zaleznosci projektu V2, wiec wymagana jest reczna weryfikacja GUI w BricsCAD.
+
+### [KOLEJNY_KROK]
+- Sprawdzic recznie scenariusze: 1 plik, kilka plikow, przerwanie w polowie kolejki, reset pojedynczego benchmarku po wykonaniu.
+- W razie potrzeby dodac `Start od zaznaczonego`, usuwanie pojedynczego elementu z kolejki oraz eksport summary do `.md` lub `.csv`.
+
+## [v2.28.55] 2026-06-10T14:35:00+02:00 - Korekta proporcji split view w Benchmark batch UI [BENCHMARK-BATCH-LAYOUT]
+
+### [ZMIANY]
+1. Skorygowano proporcje pionowego splittera w `src/UI/AutoBenchmarkControl.cs`.
+2. Gorna lista zaladowanych benchmarkow zajmuje teraz okolo 25% wysokosci, a dolna lista zadan okolo 75%.
+3. Dodano przeliczanie `SplitterDistance` przy zmianie rozmiaru kontrolki, aby proporcja utrzymywala sie stabilniej po resize okna.
+
+### [KORZYSC UZYTKOWA]
+- Kolejka zaladowanych JSON-ow pozostaje czytelna, ale nie zabiera zbyt duzo miejsca tabeli testow.
+- Widok listy zadan jest wygodniejszy przy dluzszych benchmarkach i wiekszej liczbie promptow.

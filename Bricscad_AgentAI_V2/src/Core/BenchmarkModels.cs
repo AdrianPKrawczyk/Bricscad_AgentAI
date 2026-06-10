@@ -17,6 +17,56 @@ namespace Bricscad_AgentAI_V2.Core
         public List<BenchmarkTest> Tests { get; set; } = new List<BenchmarkTest>();
     }
 
+    public class BenchmarkQueueItem
+    {
+        public string FilePath { get; set; }
+        public string DisplayName { get; set; }
+        public string BenchmarkName { get; set; }
+        public int TestCount { get; set; }
+        public string Status { get; set; } = "Oczekuje";
+        public string CleanConfigJson { get; set; }
+        public BenchmarkConfig LoadedConfig { get; set; }
+        public BenchmarkConfig FinalConfig { get; set; }
+        public double? Score { get; set; }
+        public int PassedCount { get; set; }
+        public int FailedCount { get; set; }
+        public long DurationMs { get; set; }
+        public string ErrorMessage { get; set; }
+    }
+
+    public class BenchmarkBatchSummary
+    {
+        public string BatchName { get; set; }
+        public string ProfileName { get; set; }
+        public string ProviderName { get; set; }
+        public string ModelName { get; set; }
+        public string RunDate { get; set; }
+        public int TotalBenchmarks { get; set; }
+        public int CompletedBenchmarks { get; set; }
+        public int CancelledBenchmarks { get; set; }
+        public int FailedBenchmarks { get; set; }
+        public int PassedTests { get; set; }
+        public int TotalTests { get; set; }
+        public double WeightedGlobalScore { get; set; }
+        public double AverageBenchmarkScore { get; set; }
+        public long TotalExecutionTimeMs { get; set; }
+        public List<BenchmarkBatchSummaryItem> Benchmarks { get; set; } = new List<BenchmarkBatchSummaryItem>();
+    }
+
+    public class BenchmarkBatchSummaryItem
+    {
+        public string FilePath { get; set; }
+        public string DisplayName { get; set; }
+        public string BenchmarkName { get; set; }
+        public string Status { get; set; }
+        public int TestCount { get; set; }
+        public int PassedCount { get; set; }
+        public int FailedCount { get; set; }
+        public double? Score { get; set; }
+        public long DurationMs { get; set; }
+        public string ErrorMessage { get; set; }
+    }
+
     /// <summary>
     /// Metadane przebiegu benchmarku (wypełniane przez silnik po zakończeniu).
     /// </summary>

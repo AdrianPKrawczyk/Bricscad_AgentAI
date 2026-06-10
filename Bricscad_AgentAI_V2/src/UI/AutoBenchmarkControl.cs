@@ -19,15 +19,18 @@ namespace Bricscad_AgentAI_V2.UI
         private readonly AutoBenchmarkEngine _engine;
         private CancellationTokenSource _cts;
         private BenchmarkConfig _currentConfig;
-        private string _loadedBenchmarkJson;
+        private readonly List<BenchmarkQueueItem> _benchmarkQueue = new List<BenchmarkQueueItem>();
+        private BenchmarkQueueItem _activeQueueItem;
+        private bool _isBatchRunning;
+        private BenchmarkBatchSummary _lastBatchSummary;
 
         // Kontrolki UI
-        private Button btnLoadJson, btnStart, btnStop, btnSendToChat, btnResetTest, btnColumns;
+        private Button btnLoadJson, btnStart, btnStop, btnSendToChat, btnResetTest, btnColumns, btnClearQueue;
         private ComboBox cbProfiles;
-        private DataGridView dgvTests;
+        private DataGridView dgvTests, dgvQueue;
         private RichTextBox txtLogs, txtDetails, txtTaskDesc, txtErrorLog;
-        private ProgressBar progressBar;
-        private Label lblGlobalStatus;
+        private ProgressBar progressBar, progressBarBatch;
+        private Label lblGlobalStatus, lblBatchStatus;
         private TabControl tabLogs;
         private ContextMenuStrip columnVisibilityMenu;
 
@@ -95,10 +98,15 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnLoadJson = CreateStyledButton("📂 Wczytaj JSON", Color.FromArgb(60, 60, 60));
             btnLoadJson.Click += BtnLoadJson_Click;
+            btnLoadJson.Text = "Wczytaj JSON-y";
 
             btnResetTest = CreateStyledButton("Reset testu", Color.FromArgb(90, 90, 90));
             btnResetTest.Enabled = false;
             btnResetTest.Click += BtnResetTest_Click;
+
+            btnClearQueue = CreateStyledButton("Wyczysc kolejke", Color.FromArgb(80, 80, 80));
+            btnClearQueue.Enabled = false;
+            btnClearQueue.Click += BtnClearQueue_Click;
 
             btnStart = CreateStyledButton("▶ Start", Color.FromArgb(0, 122, 204));
             btnStart.Enabled = false;
@@ -114,6 +122,8 @@ namespace Bricscad_AgentAI_V2.UI
             panTop.Controls.Add(btnStop);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panTop.Controls.Add(btnStart);
+            panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
+            panTop.Controls.Add(btnClearQueue);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panTop.Controls.Add(btnResetTest);
             panTop.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
@@ -208,13 +218,34 @@ namespace Bricscad_AgentAI_V2.UI
             liveStatusTimer.Tick += LiveStatusTimer_Tick;
 
             // Stopka (Progres)
-            Panel panFooter = new Panel { Dock = DockStyle.Bottom, Height = 45, Padding = new Padding(5) };
-            lblGlobalStatus = new Label { Text = "Oczekiwanie na plik JSON...", Dock = DockStyle.Top, Height = 20, Font = new Font(this.Font, FontStyle.Bold) };
-            progressBar = new ProgressBar { Dock = DockStyle.Bottom, Height = 10 };
-            panFooter.Controls.Add(lblGlobalStatus);
+            Panel panFooter = new Panel { Dock = DockStyle.Bottom, Height = 68, Padding = new Padding(5) };
+            lblBatchStatus = new Label { Text = "Kolejka benchmarkow: 0 plikow.", Dock = DockStyle.Top, Height = 18, ForeColor = Color.LightGray };
+            progressBarBatch = new ProgressBar { Dock = DockStyle.Top, Height = 10 };
+            lblGlobalStatus = new Label { Text = "Oczekiwanie na pliki JSON...", Dock = DockStyle.Top, Height = 20, Font = new Font(this.Font, FontStyle.Bold) };
+            progressBar = new ProgressBar { Dock = DockStyle.Top, Height = 10 };
             panFooter.Controls.Add(progressBar);
+            panFooter.Controls.Add(lblGlobalStatus);
+            panFooter.Controls.Add(progressBarBatch);
+            panFooter.Controls.Add(lblBatchStatus);
 
             // Tabela testów
+            dgvQueue = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                BackgroundColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.Black,
+                AllowUserToAddRows = false,
+                ReadOnly = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(60, 60, 60)
+            };
+            DgvQueueColumnsInit();
+            dgvQueue.SelectionChanged += DgvQueue_SelectionChanged;
+
             dgvTests = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -257,7 +288,25 @@ namespace Bricscad_AgentAI_V2.UI
             txtTaskDesc = CreateLogBox(Color.LightGray);
             txtErrorLog = CreateLogBox(Color.LightCoral);
 
-            pageResults.Controls.Add(dgvTests);
+            SplitContainer splitResults = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterDistance = 150,
+                BackColor = Color.FromArgb(30, 30, 30)
+            };
+            splitResults.SizeChanged += (s, e) =>
+            {
+                int targetHeight = Math.Max(120, (int)(splitResults.Height * 0.25));
+                if (targetHeight < splitResults.Height - 80)
+                {
+                    splitResults.SplitterDistance = targetHeight;
+                }
+            };
+            splitResults.Panel1.Controls.Add(dgvQueue);
+            splitResults.Panel2.Controls.Add(dgvTests);
+
+            pageResults.Controls.Add(splitResults);
             pageTasks.Controls.Add(txtTaskDesc);
             pageErrors.Controls.Add(txtErrorLog);
             pageFullLog.Controls.Add(txtLogs);
@@ -300,6 +349,38 @@ namespace Bricscad_AgentAI_V2.UI
             dgvTests.RowTemplate.Height = 28;
             dgvTests.ColumnHeadersHeight = 45;
             dgvTests.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        }
+
+        private void DgvQueueColumnsInit()
+        {
+            dgvQueue.Columns.Clear();
+            dgvQueue.Columns.Add("QueueIndex", "#");
+            dgvQueue.Columns.Add("FileName", "Plik");
+            dgvQueue.Columns.Add("BenchmarkName", "Benchmark");
+            dgvQueue.Columns.Add("TestCount", "Testy");
+            dgvQueue.Columns.Add("QueueStatus", "Status");
+            dgvQueue.Columns.Add("QueueScore", "Wynik %");
+            dgvQueue.Columns.Add("QueuePassed", "Pass");
+            dgvQueue.Columns.Add("QueueTime", "Czas");
+            dgvQueue.Columns.Add("QueueErrors", "Errory");
+
+            dgvQueue.Columns["QueueIndex"].FillWeight = 5;
+            dgvQueue.Columns["FileName"].FillWeight = 22;
+            dgvQueue.Columns["BenchmarkName"].FillWeight = 22;
+            dgvQueue.Columns["TestCount"].FillWeight = 8;
+            dgvQueue.Columns["QueueStatus"].FillWeight = 14;
+            dgvQueue.Columns["QueueScore"].FillWeight = 8;
+            dgvQueue.Columns["QueuePassed"].FillWeight = 8;
+            dgvQueue.Columns["QueueTime"].FillWeight = 7;
+            dgvQueue.Columns["QueueErrors"].FillWeight = 6;
+            dgvQueue.Columns["QueueIndex"].MinimumWidth = 35;
+            dgvQueue.Columns["TestCount"].MinimumWidth = 55;
+            dgvQueue.Columns["QueueScore"].MinimumWidth = 65;
+            dgvQueue.Columns["QueuePassed"].MinimumWidth = 70;
+            dgvQueue.Columns["QueueTime"].MinimumWidth = 65;
+            dgvQueue.Columns["QueueErrors"].MinimumWidth = 55;
+            dgvQueue.ColumnHeadersHeight = 36;
+            dgvQueue.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         }
 
         private void InitializeColumnVisibilityMenu()
@@ -404,11 +485,21 @@ namespace Bricscad_AgentAI_V2.UI
         {
             using (System.Windows.Forms.OpenFileDialog ofd = new System.Windows.Forms.OpenFileDialog { Filter = "Zestaw Benchmarków (*.json)|*.json", Title = "Wybierz plik testowy" })
             {
+                ofd.Multiselect = true;
+                ofd.Title = "Wybierz pliki testowe";
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
                     try
                     {
-                        LoadBenchmarkDefinition(ofd.FileName);
+                        foreach (string fileName in ofd.FileNames)
+                        {
+                            AddBenchmarkToQueue(fileName);
+                        }
+
+                        if (ofd.FileNames.Length > 0)
+                        {
+                            SaveLastPath(ofd.FileNames[0]);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -418,18 +509,51 @@ namespace Bricscad_AgentAI_V2.UI
             }
         }
 
-        private void RefreshTestsList()
+        private void AddBenchmarkToQueue(string path)
         {
-            if (_currentConfig == null) return;
+            string normalizedPath = Path.GetFullPath(path);
+            if (_benchmarkQueue.Any(i => string.Equals(i.FilePath, normalizedPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            var item = LoadBenchmarkQueueItem(normalizedPath);
+            _benchmarkQueue.Add(item);
+            RefreshQueueGrid();
+
+            if (_activeQueueItem == null)
+            {
+                SetActiveQueueItem(item, true);
+            }
+        }
+
+        private void RefreshTestsList(bool clearLogPane)
+        {
+            if (_currentConfig == null)
+            {
+                dgvTests.Rows.Clear();
+                txtTaskDesc.Clear();
+                txtErrorLog.Clear();
+                txtDetails.Clear();
+                btnSendToChat.Enabled = false;
+                btnSendToChat.Tag = null;
+                progressBar.Value = 0;
+                btnResetTest.Enabled = false;
+                return;
+            }
 
             dgvTests.Rows.Clear();
-            txtLogs.Clear();
             txtDetails.Clear();
             txtTaskDesc.Clear();
             txtErrorLog.Clear();
             btnSendToChat.Enabled = false;
             btnSendToChat.Tag = null;
             progressBar.Value = 0;
+
+            if (clearLogPane)
+            {
+                txtLogs.Clear();
+            }
 
             txtTaskDesc.SelectionFont = new Font(txtTaskDesc.Font, FontStyle.Bold);
             txtTaskDesc.AppendText("LISTA ZADAŃ W ZESTAWIE:\n\n");
@@ -444,6 +568,13 @@ namespace Bricscad_AgentAI_V2.UI
                     "Oczekuje",
                     string.Empty);
                 dgvTests.Rows[rowIndex].Cells["Prompt"].ToolTipText = test.UserPrompt ?? string.Empty;
+                if (test.Passed || test.ExecutionTimeMs > 0 || (test.FailedRulesErrors != null && test.FailedRulesErrors.Any()))
+                {
+                    dgvTests.Rows[rowIndex].Cells["Status"].Value = test.Passed ? "SUKCES" : "BLAD";
+                    dgvTests.Rows[rowIndex].Cells["Time"].Value = (test.ExecutionTimeMs / 1000.0).ToString("F1") + "s";
+                    dgvTests.Rows[rowIndex].DefaultCellStyle.BackColor = test.Passed ? Color.ForestGreen : Color.Maroon;
+                    dgvTests.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                }
                 
                 txtTaskDesc.SelectionColor = Color.White;
                 txtTaskDesc.AppendText($"[ID: {test.Id}] {test.TestName}\n");
@@ -452,13 +583,13 @@ namespace Bricscad_AgentAI_V2.UI
                 txtTaskDesc.AppendText(new string('-', 40) + "\n");
             }
 
-            btnStart.Enabled = true;
-            btnResetTest.Enabled = true;
-            lblGlobalStatus.Text = $"Wczytano {_currentConfig.Tests.Count} testów.";
-            txtLogs.AppendText($"\n[{DateTime.Now:HH:mm:ss}] Zainicjowano zestaw: {this.Tag}");
+            AppendErrorsFromCurrentConfig();
+            btnStart.Enabled = _benchmarkQueue.Count > 0;
+            btnResetTest.Enabled = _activeQueueItem != null;
+            lblGlobalStatus.Text = $"Aktywny benchmark: {_currentConfig.Tests.Count} testow.";
         }
 
-        private void LoadBenchmarkDefinition(string path)
+        private BenchmarkQueueItem LoadBenchmarkQueueItem(string path)
         {
             string content = File.ReadAllText(path);
             var rawConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(content);
@@ -468,11 +599,20 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             var cleanConfig = CreateCleanBenchmarkConfig(rawConfig);
-            _loadedBenchmarkJson = JsonConvert.SerializeObject(cleanConfig);
-            _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(_loadedBenchmarkJson);
-            this.Tag = path;
-            SaveLastPath(path);
-            RefreshTestsList();
+            string cleanConfigJson = JsonConvert.SerializeObject(cleanConfig);
+
+            return new BenchmarkQueueItem
+            {
+                FilePath = path,
+                DisplayName = Path.GetFileName(path),
+                BenchmarkName = !string.IsNullOrWhiteSpace(cleanConfig.RunMetadata?.BenchmarkName)
+                    ? cleanConfig.RunMetadata.BenchmarkName
+                    : Path.GetFileNameWithoutExtension(path),
+                TestCount = cleanConfig.Tests?.Count ?? 0,
+                CleanConfigJson = cleanConfigJson,
+                LoadedConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(cleanConfigJson),
+                Status = "Oczekuje"
+            };
         }
 
         private BenchmarkConfig CreateCleanBenchmarkConfig(BenchmarkConfig source)
@@ -511,6 +651,119 @@ namespace Bricscad_AgentAI_V2.UI
                 .Replace("\r\n", " ")
                 .Replace("\n", " ")
                 .Trim();
+        }
+
+        private void RefreshQueueGrid()
+        {
+            dgvQueue.Rows.Clear();
+
+            for (int i = 0; i < _benchmarkQueue.Count; i++)
+            {
+                var item = _benchmarkQueue[i];
+                string scoreText = item.Score.HasValue ? item.Score.Value.ToString("F2") : string.Empty;
+                string passText = item.TestCount > 0 ? $"{item.PassedCount}/{item.TestCount}" : string.Empty;
+                string timeText = item.DurationMs > 0 ? (item.DurationMs / 1000.0).ToString("F1") + "s" : string.Empty;
+                int rowIndex = dgvQueue.Rows.Add(
+                    i + 1,
+                    item.DisplayName,
+                    item.BenchmarkName,
+                    item.TestCount,
+                    item.Status,
+                    scoreText,
+                    passText,
+                    timeText,
+                    item.FailedCount);
+
+                dgvQueue.Rows[rowIndex].Tag = item;
+
+                if (ReferenceEquals(item, _activeQueueItem))
+                {
+                    dgvQueue.Rows[rowIndex].Selected = true;
+                }
+
+                if (string.Equals(item.Status, "Zakonczono", StringComparison.OrdinalIgnoreCase))
+                {
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.BackColor = item.FailedCount == 0 ? Color.ForestGreen : Color.DarkOliveGreen;
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                }
+                else if (string.Equals(item.Status, "Blad krytyczny", StringComparison.OrdinalIgnoreCase))
+                {
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Maroon;
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                }
+                else if (string.Equals(item.Status, "Przerwano", StringComparison.OrdinalIgnoreCase))
+                {
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.BackColor = Color.SaddleBrown;
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                }
+                else if (string.Equals(item.Status, "W trakcie", StringComparison.OrdinalIgnoreCase))
+                {
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.BackColor = Color.DarkSlateBlue;
+                    dgvQueue.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                }
+            }
+
+            btnClearQueue.Enabled = _benchmarkQueue.Count > 0 && !_isBatchRunning;
+            btnStart.Enabled = _benchmarkQueue.Count > 0 && !_isBatchRunning;
+            lblBatchStatus.Text = $"Kolejka benchmarkow: {_benchmarkQueue.Count} plikow.";
+            progressBarBatch.Maximum = Math.Max(_benchmarkQueue.Count, 1);
+        }
+
+        private void SetActiveQueueItem(BenchmarkQueueItem item, bool clearLogPane)
+        {
+            _activeQueueItem = item;
+            if (item == null)
+            {
+                _currentConfig = null;
+                RefreshTestsList(clearLogPane);
+                return;
+            }
+
+            _currentConfig = CloneConfig(item.FinalConfig ?? item.LoadedConfig);
+            this.Tag = item.FilePath;
+            RefreshTestsList(clearLogPane);
+            SelectQueueRow(item);
+        }
+
+        private void SelectQueueRow(BenchmarkQueueItem item)
+        {
+            if (item == null) return;
+
+            foreach (DataGridViewRow row in dgvQueue.Rows)
+            {
+                if (ReferenceEquals(row.Tag, item))
+                {
+                    row.Selected = true;
+                    break;
+                }
+            }
+        }
+
+        private BenchmarkConfig CloneConfig(BenchmarkConfig source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return JsonConvert.DeserializeObject<BenchmarkConfig>(
+                JsonConvert.SerializeObject(source));
+        }
+
+        private void AppendErrorsFromCurrentConfig()
+        {
+            if (_currentConfig?.Tests == null) return;
+
+            foreach (var test in _currentConfig.Tests.Where(t => t.FailedRulesErrors != null && t.FailedRulesErrors.Any()))
+            {
+                txtErrorLog.SelectionFont = new Font(txtErrorLog.Font, FontStyle.Bold);
+                txtErrorLog.AppendText($"[TEST {test.Id}: {test.TestName}]\n");
+                foreach (string err in test.FailedRulesErrors)
+                {
+                    txtErrorLog.AppendText($"  - {err}\n");
+                }
+                txtErrorLog.AppendText("\n");
+            }
         }
 
         private void RestoreLastBenchmarkProfileSelection()
@@ -565,7 +818,7 @@ namespace Bricscad_AgentAI_V2.UI
                         string path = key.GetValue(REG_KEY) as string;
                         if (!string.IsNullOrEmpty(path) && File.Exists(path))
                         {
-                            LoadBenchmarkDefinition(path);
+                            AddBenchmarkToQueue(path);
                         }
                     }
                 }
@@ -574,19 +827,25 @@ namespace Bricscad_AgentAI_V2.UI
 
         private async void BtnStart_Click(object sender, EventArgs e)
         {
-            if (_currentConfig == null || this.Tag == null) return;
+            if (_benchmarkQueue.Count == 0) return;
 
+            _isBatchRunning = _benchmarkQueue.Count > 1;
+            if (_isBatchRunning)
+            {
+                _engine.OnBenchmarkCompleted -= Engine_OnBenchmarkCompleted;
+            }
             btnStart.Enabled = false;
             btnLoadJson.Enabled = false;
             btnResetTest.Enabled = false;
+            btnClearQueue.Enabled = false;
             btnStop.Enabled = true;
             cbProfiles.Enabled = false;
             
             _cts = new CancellationTokenSource();
-            progressBar.Maximum = _currentConfig.Tests.Count;
+            progressBarBatch.Maximum = Math.Max(_benchmarkQueue.Count, 1);
+            progressBarBatch.Value = 0;
+            progressBar.Maximum = Math.Max(_currentConfig?.Tests?.Count ?? 0, 1);
             progressBar.Value = 0;
-
-            string filePath = this.Tag.ToString();
             string selectedProfile = null;
             if (cbProfiles.SelectedIndex > 0)
             {
@@ -594,15 +853,84 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             txtLogs.Clear();
-            txtLogs.AppendText($"[{DateTime.Now:HH:mm:ss}] URUCHAMIAM BENCHMARK V2...\n");
+            txtLogs.AppendText($"[{DateTime.Now:HH:mm:ss}] URUCHAMIAM KOLEJKE BENCHMARKOW...\n");
 
             try
             {
                 // Uruchomienie w wątku tła, aby UI pozostało responsywne
-                _ = await Task.Run(async () =>
+                var provider = LLMConfigManager.GetActiveProvider();
+                int completedCount = 0;
+
+                foreach (var item in _benchmarkQueue)
                 {
-                    return await _engine.RunBenchmarkAsync(filePath, selectedProfile, _cts.Token);
-                });
+                    if (_cts.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    item.Status = "W trakcie";
+                    item.ErrorMessage = null;
+                    item.FinalConfig = null;
+                    item.Score = null;
+                    item.PassedCount = 0;
+                    item.FailedCount = 0;
+                    item.DurationMs = 0;
+                    SetActiveQueueItem(item, false);
+                    progressBar.Maximum = Math.Max(item.TestCount, 1);
+                    progressBar.Value = 0;
+                    lblBatchStatus.Text = $"Kolejka: {completedCount}/{_benchmarkQueue.Count} zakonczonych. Teraz: {item.DisplayName}";
+                    RefreshQueueGrid();
+                    txtLogs.AppendText($"\n=== START PLIKU: {item.DisplayName} ===\n");
+
+                    try
+                    {
+                        BenchmarkConfig finalConfig = await Task.Run(async () =>
+                        {
+                            return await _engine.RunBenchmarkAsync(item.FilePath, selectedProfile, _cts.Token);
+                        });
+
+                        item.FinalConfig = finalConfig;
+                        item.Score = finalConfig?.RunMetadata?.GlobalScore;
+                        item.PassedCount = finalConfig?.Tests?.Count(t => t.Passed) ?? 0;
+                        item.FailedCount = finalConfig?.Tests?.Count(t => !t.Passed) ?? 0;
+                        item.DurationMs = finalConfig?.Tests?.Sum(t => t.ExecutionTimeMs) ?? 0;
+                        item.Status = _cts.IsCancellationRequested ? "Przerwano" : "Zakonczono";
+                    }
+                    catch (Exception ex)
+                    {
+                        item.Status = "Blad krytyczny";
+                        item.ErrorMessage = ex.Message;
+                        txtLogs.SelectionColor = Color.Red;
+                        txtLogs.AppendText($"\nBLAD KRYTYCZNY ({item.DisplayName}): {ex.Message}\n");
+                        txtLogs.SelectionColor = txtLogs.ForeColor;
+                    }
+
+                    completedCount++;
+                    progressBarBatch.Value = Math.Min(completedCount, progressBarBatch.Maximum);
+                    RefreshQueueGrid();
+                    SetActiveQueueItem(item, false);
+
+                    if (_cts.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                }
+
+                provider = LLMConfigManager.GetActiveProvider();
+                if (_benchmarkQueue.Count > 1)
+                {
+                    _lastBatchSummary = _engine.SaveBatchSummaryReport(
+                        _benchmarkQueue,
+                        selectedProfile,
+                        provider?.Name,
+                        provider?.ModelName);
+
+                    if (_lastBatchSummary != null)
+                    {
+                        lblBatchStatus.Text = $"Kolejka zakonczona: {_lastBatchSummary.CompletedBenchmarks}/{_lastBatchSummary.TotalBenchmarks}, laczny wynik {_lastBatchSummary.WeightedGlobalScore:F2}%";
+                        txtLogs.AppendText($"\n=== PODSUMOWANIE BATCHA: {_lastBatchSummary.WeightedGlobalScore:F2}% ({_lastBatchSummary.PassedTests}/{_lastBatchSummary.TotalTests}) ===\n");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -635,10 +963,14 @@ namespace Bricscad_AgentAI_V2.UI
 
             btnStart.Enabled = true;
             btnLoadJson.Enabled = true;
-            btnResetTest.Enabled = _currentConfig != null;
+            btnResetTest.Enabled = _activeQueueItem != null;
+            btnClearQueue.Enabled = _benchmarkQueue.Count > 0;
             btnStop.Enabled = false;
             btnStop.Text = "⏹ Stop";
             cbProfiles.Enabled = true;
+            _isBatchRunning = false;
+            _engine.OnBenchmarkCompleted -= Engine_OnBenchmarkCompleted;
+            _engine.OnBenchmarkCompleted += Engine_OnBenchmarkCompleted;
             
             if (_cts != null)
             {
@@ -715,20 +1047,59 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void BtnResetTest_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(_loadedBenchmarkJson))
+            if (_activeQueueItem == null || string.IsNullOrWhiteSpace(_activeQueueItem.CleanConfigJson))
             {
                 return;
             }
 
-            _currentConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(_loadedBenchmarkJson);
-            RefreshTestsList();
+            _activeQueueItem.LoadedConfig = JsonConvert.DeserializeObject<BenchmarkConfig>(_activeQueueItem.CleanConfigJson);
+            _activeQueueItem.FinalConfig = null;
+            _activeQueueItem.Score = null;
+            _activeQueueItem.PassedCount = 0;
+            _activeQueueItem.FailedCount = 0;
+            _activeQueueItem.DurationMs = 0;
+            _activeQueueItem.ErrorMessage = null;
+            _activeQueueItem.Status = "Oczekuje";
+            SetActiveQueueItem(_activeQueueItem, false);
+            RefreshQueueGrid();
             lblGlobalStatus.Text = $"Zresetowano stan {_currentConfig?.Tests?.Count ?? 0} testow.";
             txtLogs.AppendText($"\n[{DateTime.Now:HH:mm:ss}] Zresetowano wyniki benchmarku bez ponownego wczytywania pliku.");
+        }
+
+        private void BtnClearQueue_Click(object sender, EventArgs e)
+        {
+            if (_isBatchRunning)
+            {
+                return;
+            }
+
+            _benchmarkQueue.Clear();
+            _activeQueueItem = null;
+            _currentConfig = null;
+            _lastBatchSummary = null;
+            RefreshQueueGrid();
+            RefreshTestsList(false);
+            lblGlobalStatus.Text = "Oczekiwanie na pliki JSON...";
+            lblBatchStatus.Text = "Kolejka benchmarkow: 0 plikow.";
+            txtLogs.Clear();
         }
 
         private void BtnColumns_Click(object sender, EventArgs e)
         {
             columnVisibilityMenu?.Show(btnColumns, new Point(0, btnColumns.Height));
+        }
+
+        private void DgvQueue_SelectionChanged(object sender, EventArgs e)
+        {
+            if (_isBatchRunning || dgvQueue.SelectedRows.Count == 0)
+            {
+                return;
+            }
+
+            if (dgvQueue.SelectedRows[0].Tag is BenchmarkQueueItem item)
+            {
+                SetActiveQueueItem(item, false);
+            }
         }
 
         private void DgvTests_SelectionChanged(object sender, EventArgs e)
