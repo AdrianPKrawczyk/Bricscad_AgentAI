@@ -3145,3 +3145,42 @@ Dodano regule 1D vs 2D w Foreach + GenerateSequence (linia 107-113):
 - Re-test - kazdy model powinien trafic do swojego folderu
 - Opcjonalnie: organizacja istniejacych raportow UD-Q4 do wlasciwych folderow
   (na podstawie wzorca i avg ms)
+
+## [v2.28.81] 2026-06-11T22:00:00+02:00 - Fix v2.28.79 potwierdzony - 4 osobne foldery [BENCHMARK-OK]
+
+### [WYNIKI 4 MODELI - FIX v2.28.79 DZIAŁA]
+User zrobil 4 testy Benchmark_09 - kazdy trafil do OSOBNEGO folderu:
+
+| Folder | ModelName | Score | Avg | Identify |
+|--------|-----------|-------|-----|----------|
+| `gemma-4-26B-A4B-it-QAT-Q4_0.gguf` | `gemma-4-26B-A4B-it-QAT-Q4_0.gguf` | **84%** (21/25) | 4585ms | **26B Q4** (bez MTP) |
+| `gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf` | `gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf` | **76%** (19/25) | 4777ms | **26B UD-Q4** (z MTP) |
+| `gemma-4-31B-it-QAT-Q4_0.gguf` | `gemma-4-31B-it-QAT-Q4_0.gguf` | **88%** (22/25) | 13564ms | **31B Q4** (bez MTP) |
+| `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf` | `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf` | **88%** (22/25) | 10774ms | **31B UD-Q4** (z MTP) |
+
+### [POROWNANIE Q4 vs UD-Q4 (MTP)]
+- **26B Q4 (84%) vs 26B UD-Q4 (76%)** - UD-Q4 TRACI 8pp! MTP daje gorsze wyniki.
+  avg 4585ms vs 4777ms - podobna szybkosc (MTP nie pomaga dla 26B)
+- **31B Q4 (88%) vs 31B UD-Q4 (88%)** - UD-Q4 rowne. MTP daje 21% szybszy.
+  avg 13564ms vs 10774ms - **MTP 1.26x szybszy**
+
+### [KLUCZOWE WNIOSKI]
+- **MTP ma rozne efekty**:
+  - 26B: gorsze wyniki (76% vs 84%), podobna szybkosc - MTP nie pomaga
+  - 31B: rowne wyniki (88%), 1.26x szybszy - MTP pomaga
+- **Fix v2.28.79 DZIAŁA** - kazdy test trafia do osobnego folderu z prawidlowym ModelName
+- **Migracja 6 starych raportow z UD-Q4/** nadal potrzebna (ale te 4 nowe sa juz OK)
+
+### [STAN_SYSTEMU]
+- 1 commit: v2.28.81 (memory notes)
+- 4 nowe foldery z 4 modelami
+- Fix v2.28.79 (LLMClient.cs llama.cpp wsparcie) potwierdzony
+- Brak potrzeby dalszych fixow dla ModelName
+
+### [KOLEJNY_KROK]
+- Migracja 6 starych raportow z `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/` (15:19-15:36) do wlasciwych folderow
+  - 15:19, 15:36: 31B QAT MTP (avg 10422, 13418) - do `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/`
+  - 15:23: 26B QAT MTP (avg 7245) - do `gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf/`
+  - 15:27, 15:30: 26B QAT unsloth (avg 3894, 4174) - ale brak folderu `gemma-4-26b-a4b-it-qat-UD-Q4/`
+  - 15:28: timeout - do usuniecia
+- Lub: oznaczyc UD-Q4 jako `archive/` i zostawic stare raporty
