@@ -3178,9 +3178,7 @@ User zrobil 4 testy Benchmark_09 - kazdy trafil do OSOBNEGO folderu:
 - Brak potrzeby dalszych fixow dla ModelName
 
 ### [KOLEJNY_KROK]
-- Migracja 6 starych raportow z `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/` (15:19-15:36) do wlasciwych folderow
-  - 15:19, 15:36: 31B QAT MTP (avg 10422, 13418) - do `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/`
-  - 15:23: 26B QAT MTP (avg 7245) - do `gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf/`
-  - 15:27, 15:30: 26B QAT unsloth (avg 3894, 4174) - ale brak folderu `gemma-4-26b-a4b-it-qat-UD-Q4/`
-  - 15:28: timeout - do usuniecia
-- Lub: oznaczyc UD-Q4 jako `archive/` i zostawic stare raporty
+- BRAK - folder bug naprawiony, wszystkie 4 nowe raporty sa w swoich folderach
+- Stare raporty UD-Q4 (15:19-15:36) byly w glowie - w rzeczywistosci wszystkie byly w `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/`
+  (ale zostaly zostawione/zapisane w poprzedniej sesji z blednym ModelName, stad heurystyczna identyfikacja)
+- Biezacy stan: 11 folderow z raportami, kazdy ma poprawny ModelName po v2.28.79
