@@ -809,19 +809,88 @@ namespace Bricscad_AgentAI_V2.Core
 
             try
             {
-                string url = GetBaseUrl(config) + "/api/v1/models";
+                string baseUrl = GetBaseUrl(config);
                 using (var client = new HttpClient())
                 {
                     client.Timeout = TimeSpan.FromSeconds(5);
                     if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
                         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
 
-                    var response = await client.GetAsync(url, ct);
-                    if (!response.IsSuccessStatusCode) return null;
-                    var body = await response.Content.ReadAsStringAsync();
-                    var json = JObject.Parse(body);
-                    var modelsArray = json["models"] as JArray;
+                    // v2.28.79: Najpierw probuj OpenAI-compat /v1/models (llama.cpp, vLLM, etc.)
+                    // Fallback do LM Studio /api/v1/models (LM Studio specyficzne)
+                    string openAIPath = "/v1/models";
+                    string lmStudioPath = "/api/v1/models";
+                    JArray modelsArray = null;
+                    string responseBody = null;
+
+                    // Proba 1: OpenAI-compat (llama.cpp)
+                    try
+                    {
+                        var openAIResp = await client.GetAsync(baseUrl + openAIPath, ct);
+                        if (openAIResp.IsSuccessStatusCode)
+                        {
+                            responseBody = await openAIResp.Content.ReadAsStringAsync();
+                            var openAIJson = JObject.Parse(responseBody);
+                            // llama.cpp: {"object":"list","data":[{"id":"...gguf","object":"model",...}]}
+                            modelsArray = openAIJson["data"] as JArray;
+                        }
+                    }
+                    catch { /* fallback */ }
+
+                    // Proba 2: LM Studio /api/v1/models
+                    if (modelsArray == null)
+                    {
+                        try
+                        {
+                            var lmResp = await client.GetAsync(baseUrl + lmStudioPath, ct);
+                            if (lmResp.IsSuccessStatusCode)
+                            {
+                                responseBody = await lmResp.Content.ReadAsStringAsync();
+                                var lmJson = JObject.Parse(responseBody);
+                                modelsArray = lmJson["models"] as JArray;
+                            }
+                        }
+                        catch { /* fallback */ }
+                    }
+
                     if (modelsArray == null) return null;
+
+                    // Sprawdzamy czy to OpenAI-compat (llama.cpp) - pole "data" zamiast "models"
+                    bool isOpenAICompat = modelsArray.Count > 0 && modelsArray[0]["object"]?.ToString() == "model";
+
+                    if (isOpenAICompat)
+                    {
+                        // llama.cpp/vLLM: data[].id jest modelem, nie ma loaded_instances
+                        // Nie wiadomo ktory jest "aktywnie ladowany" (wszystkie sa dostepne)
+                        // Proba: dopasuj do config.ModelName, jesli brak - pierwszy
+                        LlmModelDescriptor firstId = null;
+                        LlmModelDescriptor matchId = null;
+                        foreach (var m in modelsArray)
+                        {
+                            string id = m["id"]?.ToString();
+                            if (string.IsNullOrEmpty(id)) continue;
+                            var desc = new LlmModelDescriptor
+                            {
+                                Id = id,
+                                DisplayName = id,
+                                Quantization = null,
+                                ParamsString = null,
+                                SizeBytes = 0,
+                                IsLoaded = true,
+                                Architecture = null,
+                                Publisher = m["owned_by"]?.ToString()
+                            };
+                            if (firstId == null) firstId = desc;
+                            if (!string.IsNullOrEmpty(config.ModelName) &&
+                                string.Equals(id, config.ModelName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchId = desc;
+                                break;
+                            }
+                        }
+                        return matchId ?? firstId;
+                    }
+
 
                     LlmModelDescriptor firstLoaded = null;
                     LlmModelDescriptor match = null;
