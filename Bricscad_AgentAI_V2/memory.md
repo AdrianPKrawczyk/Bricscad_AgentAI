@@ -2853,3 +2853,69 @@ v2.28.64 przywraca walidacje Foreach-only dla testow 9-12 (z v2.28.62):
 - Commit memory.md z analiza 26b (typ: `docs`, scope: `memory`).
 - Rekomendacja: naprawic 3-4 najwazniejsze BENCHMARK_BUG (06 ID 4, 08 ID 5, 08 ID 31, 09 ID 20) + 1 PROMPT_GAP (BasePoint=AskUser w Foreach).
 - Po naprawach: 26b-qat 81% -> 85%+, 31b-qat 92% -> 95%+.
+
+## [v2.28.72] 2026-06-11T11:30:00+02:00 - Seria fixow v2.28.67 - v2.28.71 [BENCHMARK-FIX-SERIES]
+
+### [PODSUMOWANIE 5 COMMITOW]
+
+| KROK | Co | Pliki |
+|------|-----|-------|
+| v2.28.67 | Prompt enhancement: atrybuty w Foreach.Action.InsertBlock = TEMPLATE | system_prompt_blocks.txt |
+| v2.28.68 | Fix 08 ID 5, 15, 16: dodano AskUser do wariantow BasePoint | Benchmark_08_CreateBlock.json |
+| v2.28.69 | Nowy RuleType StringContainsNewline + Fix 08 ID 31 (MText) | AutoBenchmarkEngine.cs + Benchmark_08 |
+| v2.28.70 | Fix 06 ID 4: AnyOfArgumentMatchOrAbsent dla opcjonalnego Mode | Benchmark_06_BlockAttributes_Complete.json |
+| v2.28.71 | Nowy RuleType AnyArgumentMatchAnyPath + 4 fixy (06b 11, 12, 06 24, 25) | AutoBenchmarkEngine.cs + 06 + 06b |
+
+### [NOWE RULETYPES - 2 sztuki]
+
+**1. StringContainsNewline** (v2.28.69):
+- PASS gdy wartosc argumentu zawiera `\\n` (escaped) lub `\n` (rzeczywisty)
+- Uzycie: MText, OPIS z wielolinijkowym tekstem
+- Problem rozwiazany: 08 ID 31 mial 7 waskich wariantow
+
+**2. AnyArgumentMatchAnyPath** (v2.28.71):
+- PASS gdy wartosc TargetValue jest na DOWOLNEJ z wielu sciezek
+- TargetArgument: sciezki oddzielone `|` (np. "FilterValue|Items[0]|Items[1]")
+- Problem rozwiazany: Foreach (Items) vs EditAttributes (FilterValue) to alternatywne miejsca
+- Pozwala testom akceptowac OBA podejscia
+
+### [PROMPT ENHANCEMENT - 1 regula]
+Dodano linie 106 w system_prompt_blocks.txt:
+```
+- KLUCZOWE: atrybuty w `Foreach.Action.InsertBlock` to TEMPLATE (w definicji bloku, dziedziczone przez kazda instancje), NIE atrybuty unikalne dla kazdej nowej instancji. Aby ustawic INNA wartosc atrybutu dla kazdej nowo wstawionej instancji, MUSISZ wywolac OSOBNE `EditAttributes` PO `Foreach(InsertBlock)` z filtrem po stabilnym identyfikatorze (np. `FilterTag=ID, FilterValue={item}`).
+```
+
+### [OCZEKIWANE ZMIANY WYNIKOW]
+| Test | Przed (v2.28.66) | Po (v2.28.72) | Zmiana |
+|------|------------------|----------------|--------|
+| 31b-qat 09 ID 20 | FAIL (MODEL_BUG) | PASS | +1 (prompt) |
+| 31b-qat 06 ID 4 | FAIL (BB) | PASS | +1 (AnyOfOrAbsent) |
+| 31b-qat 08 ID 5 | PASS (z AskUser) | PASS | - |
+| 31b-qat 08 ID 15 | FAIL (BB) | PASS | +1 (AskUser) |
+| 31b-qat 08 ID 31 | FAIL (BB) | PASS | +1 (StringContainsNewline) |
+| 26b-qat 06b 11, 12 + 06 24, 25 | FAIL (4x) | PASS | +4 (AnyArgumentMatchAnyPath) |
+| 26b-qat 08 ID 5, 16 | FAIL (2x) | PASS | +2 (AskUser) |
+| 26b-qat 09 ID 20 | FAIL (MODEL_BUG) | PASS | +1 (prompt) |
+
+### [PROGNOZA WYNIKOW]
+- 31b-qat: 91.76% -> ~95% (+3pp)
+- 26b-qat: 80.94% -> ~86% (+5pp)
+
+### [WNIOSKI - WALIDATOR I PROMPT]
+- v2.28.63 mial zbyt agresywna walidacje (szukal w 1 sciezce) - FIX 5 to naprawia
+- 31b-qat jest odporny na te bugi (uzywa Foreach)
+- 26b-qat jest slabiej odporny (uzywa 2 EditAttributes)
+- Nowe RuleType sa reusable - mozna ich uzyc w przyszlych benchmarkach
+
+### [STAN_SYSTEMU]
+- 5 commitow (v2.28.67 - v2.28.71)
+- 2 nowe RuleType w walidatorze (StringContainsNewline, AnyArgumentMatchAnyPath)
+- 1 regula w prompcie
+- 7 benchmarkow/fixow (06, 06b, 08)
+- Brak re-testu - to nastepny krok
+
+### [KOLEJNY_KROK]
+- Re-test 5 modeli na poprawionych benchmarkach.
+- Weryfikacja czy prognoza 31b-qat ~95% i 26b-qat ~86% sie potwierdza.
+- Jesli OK, przejsc do nowego benchmarku lub prompt-lab optimization.
+- Alternatywnie: dodac 3 nowe benchmarki (testy negatywne, workflow, edge cases) w v2.28.73+.
