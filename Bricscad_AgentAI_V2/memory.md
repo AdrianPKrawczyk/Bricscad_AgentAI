@@ -3044,3 +3044,56 @@ Dodano regule 1D vs 2D w Foreach + GenerateSequence (linia 107-113):
 - Weryfikacja czy UD-Q4 przechodzi test 11 i 13
 - Jesli OK, Benchmark_09 z UD-Q4 ma szanse na 96-100% (poprawa z 92%)
 - Alternatywnie: zrobic multi-benchmark na UD-Q4 (06, 06b, 07, 08, 09)
+
+## [v2.28.78] 2026-06-11T14:55:00+02:00 - Fix: ModelName nieaktualny w RunMetadata (folder bug) [ENGINE-FIX]
+
+### [PROBLEM]
+- Wszystkie benchmarki zapisywane do jednego folderu
+  `tests/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/` niezaleznie od tego
+  jaki model faktycznie odpowiada w llama-server.
+- 4 testy z 4 roznych modeli w jednym folderze:
+  - 11:25 - gemma-4-31B-it-qat-UD-Q4 (QAT) - 92% (PRZED kompilacja MTP)
+  - 14:35 - gemma-4-31B-it-qat-UD-Q4 (QAT) - 92% (PO kompilacji 31B QAT MTP)
+  - 14:48 - gemma-4-31B-it-qat-UD-Q4 (QAT) - 88% (PO kompilacji 26B QAT MTP)
+  - 14:51 - gemma-4-31B-it-qat-UD-Q4 (QAT) - 80% (inny model, 4548ms)
+- Wszystkie 4 maja IDENTYCZNE `ModelName: gemma-4-31B-it-qat-UD-Q4_K_XL.gguf`
+
+### [DIAGNOZA]
+- Bug w `AutoBenchmarkEngine.cs:160`:
+  ```csharp
+  config.RunMetadata.ModelName = activeProvider?.ModelName ?? config.RunMetadata.ModelName;
+  ```
+- `activeProvider.ModelName` pochodzi z `llm_providers.json` - twardo zakodowane.
+- Gdy user zmienia model w llama-server (np. 26b QAT MTP), `llm_providers.json`
+  NIE jest aktualizowany - stara nazwa zostaje.
+- `GetLoadedModelInfoAsync` w LLMClient.cs istnieje (od v2.28.x) ale
+  uzywany tylko w UI do wyswietlania statusu (AutoBenchmarkControl.cs:1448).
+- NIE byl uzywany do aktualizacji `RunMetadata.ModelName`!
+
+### [FIX v2.28.78]
+- AutoBenchmarkEngine.cs:191-213 - dodano 24 linie kodu
+- Po `activeProvider` lookup, asynchronicznie wywolaj
+  `GetLoadedModelInfoAsync(activeProvider)`
+- Jesli `loadedDesc != null` i `DisplayName` rozni sie od `ModelName`:
+  - `config.RunMetadata.ModelName = detectedModel`
+  - Log: "Wykryto aktualnie zaladowany model: X"
+- Try/catch dla bezpieczenstwa (LLM moze nie odpowiadac)
+- OnLogMessage dla widocznosci w UI
+
+### [OCZEKIWANE REZULTATY]
+- Po kompilacji BricsCAD z v2.28.78, kazdy test trafia do osobnego folderu:
+  - 31B QAT -> `gemma-4-31b-it-qat-q4_k_xl/`
+  - 31B QAT MTP -> `gemma-4-31B-it-qat-UD-Q4_K_XL/`
+  - 26B QAT MTP -> `gemma-4-26b-a4b-it-qat-q4_k_xl/`
+- Raporty FULL maja aktualne `ModelName` (nie z llm_providers.json)
+
+### [STAN_SYSTEMU]
+- 1 commit: v2.28.78 (AutoBenchmarkEngine.cs)
+- Brak re-testu - wymaga kompilacji BricsCAD z nowym kodem
+- UD-Q4 testy z 11:25-14:51 sa zmieszane - nie da sie odtworzyc ktory to ktory model
+
+### [KOLEJNY_KROK]
+- Kompilacja BricsCAD z v2.28.78 (wymaga srodowiska deweloperskiego BricsCAD)
+- Re-test z roznych modeli - weryfikacja osobnych folderow
+- Jesli OK, multi-benchmark na UD-Q4 z poprawnymi folderami
+- Opcjonalnie: przemigrowac 4 istniejace raporty z UD-Q4 folder do wlasciwych folderow (na podstawie czasu, score, avg ms)
