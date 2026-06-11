@@ -2773,3 +2773,83 @@ v2.28.64 przywraca walidacje Foreach-only dla testow 9-12 (z v2.28.62):
 - Opcjonalnie: poprawic 6 BENCHMARK_BUG (commit `fix(benchmark)` per benchmark).
 - Opcjonalnie: dodac 1 regule do promptu o Foreach(InsertBlock) + EditAttributes.
 - Rekomendacja: najpierw prompt enhancement (1 regula), potem BENCHMARK_BUG fixes.
+
+## [v2.28.66] 2026-06-11T08:50:00+02:00 - Multi-benchmark 26b-qat (5 benchmarkow) [BENCHMARK-MULTI-26B]
+
+### [WYNIKI - 26b-qat]
+| Benchmark | Score | PASS | avg ms |
+|-----------|-------|------|--------|
+| Benchmark_06_BlockAttributes_Complete | 88.46% | 23/26 | 3795 |
+| Benchmark_07_EditBlock_Complete | 90.00% | 27/30 | 3302 |
+| Benchmark_09_InsertBlock_Extended | 84.00% | 21/25 | 4101 |
+| Benchmark_08_CreateBlock | 72.22% | 26/36 | 3760 |
+| Benchmark_06b_BlockAttributes_Extended | 70.00% | 14/20 | 3744 |
+| **TOTAL** | **80.94% avg / 81.02% weighted** | **111/137** | 3741 |
+
+### [POROWNANIE 26b vs 31b]
+| Model | Avg | PASS | vs 31b |
+|-------|-----|------|--------|
+| 31b-qat | 91.76% | 125/137 | baseline |
+| 26b-qat | 80.94% | 111/137 | **-10.82pp** |
+| Różnica | | **-14 testów** | |
+
+26b-qat jest szybszy (3741ms vs 9915ms = 2.6x szybciej!), ale ma 14 testów mniej PASS.
+
+### [KLASYFIKACJA OBLE 26b-qat (26 oble)]
+- **7 oble WSPOLNYCH z 31b-qat** (kandydaci na BENCHMARK_BUG):
+  - 06b ID 15: Foreach z JSON Items
+  - 07 ID 22: SelectEntities + EditBlock (zamiast Foreach)
+  - 08 ID 5: BasePoint=AskUser w CreateBlock
+  - 08 ID 18, 19: testy negatywne (model powinien NIE wywolac)
+  - 08 ID 29: InsertionPoint:{item} w Foreach.Action
+  - 09 ID 20: atrybuty w Foreach.Action.InsertBlock (MODEL_BUG prawdziwy)
+
+- **19 oble TYLKO 26b** (słabszy model, mniej odporny):
+  - **06b ID 3, 4, 14**: model generuje **USZKODZONY JSON** (`"Tag":"*\"}],SaveAs:"` itp.) - niestabilnosc 26b
+  - **06b ID 11, 12**: 2 EditAttributes (zamiast Foreach) - **BENCHMARK_BUG** (v2.28.64 wymusza Foreach)
+  - **06 ID 3**: uszkodzony JSON
+  - **06 ID 24, 25**: 2 EditAttributes (zamiast Foreach) - **BENCHMARK_BUG**
+  - **07 ID 19**: 2 EditBlock (zamiast Foreach) - **BENCHMARK_BUG**
+  - **07 ID 30**: Foreach z `Target:Selection` (zamiast `ByName`+`BlockName:{item}`) - **BENCHMARK_BUG** (oba poprawne)
+  - **08 ID 11, 35**: brak SelectEntities przed CreateBlock (ale selekcja byla wczesniej) - **BENCHMARK_BUG** (SequenceMatch zbyt restrykcyjny)
+  - **08 ID 16, 17**: Foreach z BasePoint=AskUser lub `{MATH:...}` - **PROMPT_GAP**
+  - **08 ID 27**: ListBlocks zamiast InsertBlock (model NIE chce wstawic nieistniejacego bloku - POPRAWNE) - **BENCHMARK_BUG**
+  - **08 ID 36**: 10x powtórzenie tego samego InsertBlock (niestabilnosc 26b) - **MODEL_BUG**
+  - **09 ID 6**: tylko ListBlocks, brak Foreach (bo Foreach wymaga juz zdefiniowanych blokow)
+  - **09 ID 15, 24**: Foreach z dobrymi danymi, ale walidator ma za wąskie warianty (np. `InsertionPoint:[0,0,0]` zamiast `{item}`)
+
+- **5 oble TYLKO 31b** (lepszy model, ale):
+  - 06b ID 16, 06 ID 4, 08 ID 15, 31: te same BENCHMARK_BUG co 26b
+  - 07 ID 29: EditBlock(Target:Selection) zamiast Foreach - **BENCHMARK_BUG**
+
+### [KLUCZOWE WNIOSKI - PROMPT ENHANCEMENT]
+1. **Foreach + Target:Selection jest POPRAWNY** (test 07 ID 22, 30, ID 29 tylko-31b). Walidator wymusza Foreach z `BlockName:{item}` - to jest alternatywne podejscie, nie jedyna opcja.
+2. **BasePoint=AskUser w Foreach** (08 ID 5, 15, 16): prompt mowi "Nie uzywaj BasePoint=AskUser w szablonie Foreach" - ale modele to robia. Prompt jest **zbyt kategoryczny**. Powinien: "W Foreach preferuj BasePoint XYZ; AskUser w Foreach wymusza reczny wybor kazdej iteracji - uzywaj go tylko gdy to konieczne".
+3. **InsertionPoint:{item} w Foreach Action** (08 ID 29): poprawne, ale walidator akceptuje tylko BlockName.
+4. **09 ID 20** (MODEL_BUG prawdziwy): atrybuty w Foreach.Action.InsertBlock zamiast EditAttributes po Foreach. Wymaga reguly w prompcie.
+
+### [KANDYDACI DO NAPRAWY BENCHMARK_BUG - v2.28.67+]
+1. **06b ID 3, 4, 14**: toleruj uszkodzony JSON (poza scope, to model bug)
+2. **06b ID 11, 12 + 06 ID 24, 25**: zaakceptuj 2 EditAttributes (problem v2.28.63 - walidator nie obsługuje OR)
+3. **07 ID 19, 22, 29, 30**: zaakceptuj 2 EditBlock/Foreach z Target:Selection
+4. **08 ID 5, 15, 16**: dodaj AskUser do wariantow BasePoint
+5. **08 ID 18, 19, 27, 36**: testy negatywne - model powinien NIE wywolac
+6. **08 ID 11, 35**: SequenceMatch zbyt restrykcyjny (SelectEntities mogl byc wczesniej)
+7. **08 ID 29**: zaakceptuj InsertionPoint:{item} w Foreach.Action
+8. **08 ID 31**: ogolny wzorzec wieloliniowego tekstu
+9. **09 ID 6**: Foreach z TargetVariable=AllBlocks (z ListBlocks)
+10. **09 ID 15, 24**: rozszerz warianty Foreach.Action
+
+### [STAN_SYSTEMU]
+- 5 benchmarkow, 137 testow, 2 modele przetestowane
+- 26b-qat: 80.94% (szybki, ale mniej dokladny)
+- 31b-qat: 91.76% (wolniejszy 2.6x, ale dokladniejszy)
+- 26 obleń u 26b, 12 u 31b (roznica 14 testow)
+- **Prawdziwe MODEL_BUG** (oba modele): 09 ID 20 (atrybuty w Foreach.Action.InsertBlock) - 1 test
+- **Prawdziwe PROMPT_GAP** (oba modele): BasePoint=AskUser w Foreach - 1 wzorzec
+- Reszta to BENCHMARK_BUG lub niestabilnosc 26b
+
+### [KOLEJNY_KROK]
+- Commit memory.md z analiza 26b (typ: `docs`, scope: `memory`).
+- Rekomendacja: naprawic 3-4 najwazniejsze BENCHMARK_BUG (06 ID 4, 08 ID 5, 08 ID 31, 09 ID 20) + 1 PROMPT_GAP (BasePoint=AskUser w Foreach).
+- Po naprawach: 26b-qat 81% -> 85%+, 31b-qat 92% -> 95%+.
