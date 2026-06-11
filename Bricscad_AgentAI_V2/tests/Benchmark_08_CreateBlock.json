@@ -1,4 +1,4 @@
-{
+﻿{
   "RunMetadata": {
     "BenchmarkName": "Benchmark_08_CreateBlock",
     "ModelName": "LLM-Benchmark-V2",
@@ -90,7 +90,7 @@
       "ValidationRules": [
         { "RuleType": "SequenceMatch", "TargetValue": "SelectEntities, CreateBlock", "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "SCHEMAT_ELEKTRYCZNY", "ErrorMessage": "BLAD: Nie wskazano BlockName='SCHEMAT_ELEKTRYCZNY'." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BasePoint", "TargetValue": "0,0,0 || [0,0,0] || (0,0,0)", "ErrorMessage": "BLAD: Brak BasePoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BasePoint", "TargetValue": "0,0,0 || [0,0,0] || (0,0,0) || AskUser", "ErrorMessage": "BLAD: Brak BasePoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)." }
       ]
     },
     {
@@ -260,7 +260,7 @@
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "KOMP1", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='KOMP1'." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\",\"DeleteOriginals\":true}", "ErrorMessage": "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName, BasePoint i DeleteOriginals=true." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"AskUser\",\"DeleteOriginals\":true}", "ErrorMessage": "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName, BasePoint i DeleteOriginals=true." },
         { "RuleType": "ToolCallCountMax", "TargetValue": "CreateBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy Foreach model nie powinien wywolywac CreateBlock bezposrednio poza Foreach." }
       ]
     },
@@ -280,7 +280,7 @@
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Model powinien uzyc Foreach z @Items." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "TargetVariable", "TargetValue": "Items", "ErrorMessage": "BLAD: Foreach powinien korzystac z @Items (TargetVariable)." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\"}", "ErrorMessage": "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"AskUser\"}", "ErrorMessage": "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName." },
         { "RuleType": "ToolCallCountMax", "TargetValue": "CreateBlock", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy Foreach z listy agent nie powinien wywolywac CreateBlock bezposrednio poza Foreach." }
       ]
     },
@@ -531,7 +531,7 @@
       "ValidationRules": [
         { "RuleType": "SequenceMatch", "TargetValue": "ListBlocks, SelectEntities, CreateBlock", "ErrorMessage": "BLAD: Oczekiwano sekwencji ListBlocks -> SelectEntities -> CreateBlock." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "BlockName", "TargetValue": "A4", "ErrorMessage": "BLAD: Brak BlockName='A4' (unikalna, nie kolidujaca z istniejaca)." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BasePoint", "TargetValue": "0,0,0 || [0,0,0] || (0,0,0)", "ErrorMessage": "BLAD: Brak BasePoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "BasePoint", "TargetValue": "0,0,0 || [0,0,0] || (0,0,0) || AskUser", "ErrorMessage": "BLAD: Brak BasePoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)." }
       ]
     },
     {
