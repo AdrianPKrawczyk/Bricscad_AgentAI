@@ -792,21 +792,28 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCalled",
-          "TargetValue": "Foreach",
-          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy T1, T2."
+          "RuleType": "AnyArgumentMatchAnyPath",
+          "TargetArgument": "FilterValue|Items[0]|Items[1]",
+          "TargetValue": "T1",
+          "ErrorMessage": "BLAD: Model nie wskazal T1 (w FilterValue EditAttributes LUB w Foreach.Items)."
         },
         {
-          "RuleType": "ArgumentMatch",
-          "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"NAME\",\"Value\":\"RPN: $OLD_VALUE \\\"_REV\\\" CONCAT\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"}",
-          "ErrorMessage": "BLAD: Foreach powinien uzyc CONCAT i stabilnego filtra ID."
+          "RuleType": "AnyArgumentMatchAnyPath",
+          "TargetArgument": "FilterValue|Items[0]|Items[1]",
+          "TargetValue": "T2",
+          "ErrorMessage": "BLAD: Model nie wskazal T2 (w FilterValue EditAttributes LUB w Foreach.Items)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "RPN: $OLD_VALUE \"_REV\" CONCAT",
+          "ErrorMessage": "BLAD: Model nie uzyl RPN CONCAT do dopisania _REV."
         },
         {
           "RuleType": "ToolCallCountMax",
           "TargetValue": "EditAttributes",
-          "ExpectedOutput": "0",
-          "ErrorMessage": "BLAD: Przy jawnej liscie T1, T2 agent nie powinien wykonywac dodatkowych recznych wywolan EditAttributes poza Foreach."
+          "ExpectedOutput": "2",
+          "ErrorMessage": "BLAD: Przy 2 identyfikatorach T1, T2 model moze wykonac max 2 EditAttributes."
         }
       ]
     },
@@ -823,21 +830,34 @@
       },
       "ValidationRules": [
         {
-          "RuleType": "ToolCalled",
-          "TargetValue": "Foreach",
-          "ErrorMessage": "BLAD: Model nie uzyl Foreach dla jawnej listy blokow."
+          "RuleType": "AnyArgumentMatchAnyPath",
+          "TargetArgument": "FilterValue|Items[0]|Items[1]",
+          "TargetValue": "T1",
+          "ErrorMessage": "BLAD: Model nie wskazal T1 (w FilterValue EditAttributes LUB w Foreach.Items)."
         },
         {
-          "RuleType": "ArgumentMatch",
-          "TargetArgument": "Action",
-          "TargetValue": "{\"ToolName\":\"EditAttributes\",\"Action\":\"Update\",\"Attributes\":[{\"Tag\":\"VAL\",\"Value\":\"NOWE_T\"}],\"FilterTag\":\"ID\",\"FilterValue\":\"{item}\"}",
-          "ErrorMessage": "BLAD: Foreach nie powinien filtrowac po zmienianym VAL; oczekiwano stabilnego identyfikatora w Action."
+          "RuleType": "AnyArgumentMatchAnyPath",
+          "TargetArgument": "FilterValue|Items[0]|Items[1]",
+          "TargetValue": "T2",
+          "ErrorMessage": "BLAD: Model nie wskazal T2 (w FilterValue EditAttributes LUB w Foreach.Items)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetArgument": "Attributes[0].Value",
+          "TargetValue": "NOWE_T",
+          "ErrorMessage": "BLAD: Model nie ustawil wartosci NOWE_T."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "FilterTag",
+          "TargetValue": "ID || NAME || TYPE",
+          "ErrorMessage": "BLAD: Model nie uzył stabilnego identyfikatora (ID, NAME, TYPE) - filtrowal po zmienianym atrybucie VAL."
         },
         {
           "RuleType": "ToolCallCountMax",
           "TargetValue": "EditAttributes",
-          "ExpectedOutput": "0",
-          "ErrorMessage": "BLAD: Przy jawnej liscie T1, T2 agent nie powinien wykonywac dodatkowych recznych wywolan EditAttributes poza Foreach."
+          "ExpectedOutput": "2",
+          "ErrorMessage": "BLAD: Przy 2 identyfikatorach T1, T2 model moze wykonac max 2 EditAttributes."
         }
       ]
     },

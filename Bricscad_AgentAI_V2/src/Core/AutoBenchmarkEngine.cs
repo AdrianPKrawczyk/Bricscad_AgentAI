@@ -369,6 +369,36 @@ namespace Bricscad_AgentAI_V2.Core
                                 ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", matchingValues)}', Oczekiwano: '{rule.TargetValue}')";
                             break;
 
+                        // v2.28.71: Wariant AnyArgumentMatch, w ktorym wartosc moze byc na DOWOLNEJ z wielu sciezek.
+                        // TargetArgument zawiera sciezki oddzielone "|" (np. "FilterValue|Items[0]|Items[1]").
+                        // PASS gdy wartosc TargetValue wystapi na ktorejkolwiek sciezce w ktorymkolwiek wywolaniu.
+                        // Uzywane dla testow Foreach vs 2 EditAttributes, gdzie Items[X] (Foreach)
+                        // i FilterValue (EditAttributes) to alternatywne miejsca na te sama wartosc.
+                        case "AnyArgumentMatchAnyPath":
+                            var allPathValues = new List<string>();
+                            var pathsToCheck = rule.TargetArgument.Split('|').Select(p => p.Trim()).ToList();
+
+                            foreach (var path in pathsToCheck)
+                            {
+                                var pathValues = test.RecordedToolCalls
+                                    .Where(c => c.Arguments != null)
+                                    .Select(c => ResolveJsonPath(c.Arguments, path))
+                                    .Where(v => v != null);
+                                allPathValues.AddRange(pathValues);
+                            }
+
+                            if (allPathValues.Count == 0)
+                            {
+                                rulePassed = false;
+                                ruleError = $"{ruleError} (Zadna z sciezek [{string.Join(", ", pathsToCheck)}] nie zostala znaleziona w zadnym wywolaniu)";
+                                break;
+                            }
+
+                            rulePassed = allPathValues.Any(v => ValuesMatch(v, rule.TargetValue));
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", allPathValues)}', Oczekiwano: '{rule.TargetValue}')";
+                            break;
+
                         case "AnyOfArgumentMatch":
                             var candidateValues = test.RecordedToolCalls
                                 .Where(c => c.Arguments != null)
