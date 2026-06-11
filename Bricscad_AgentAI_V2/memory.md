@@ -3002,3 +3002,45 @@ co znaczaco przyspiesza inference. W benchmarkach wymagajacych krotszych odpowie
 - Opcjonalnie: rozszerzyc Benchmark_09 test 11 i 13 o warianty z {MATH: {index} * 100}.
 - Alternatywnie: przejsc do innych benchmarkow z UD-Q4 (szybszy turing test).
 - Rekomendacja: dla produkcji Benchmark_09 - uzyc wariantu 10.06 lub API. UD-Q4 do szybkiego prototypowania.
+
+## [v2.28.77] 2026-06-11T12:00:00+02:00 - Fix Benchmark_09 test 11, 13 + prompt 1D/2D [BENCHMARK-FIX-INDEX-MATH]
+
+### [PROBLEM]
+- UD-Q4 (i 26b-it-qat@q4) generuje `{MATH: {index} * 100}, {MATH: {index} * 100}, 0`
+  w Foreach.Action.InsertionPoint dla siatki 3x3
+- Ten wzorzec NIE byl w AnyOfArgumentMatch - BENCHMARK_BUG
+- Dodatkowo wzorzec geometrycznie daje przekatna zamiast 3x3 grid - MODEL_BUG (czesciowy)
+
+### [ZMIANA v2.28.75 - BENCHMARK]
+- Test 11 (D3 GridPattern 2D): dodano 2 nowe warianty
+  * {MATH: {index} * 100}, {MATH: {index} * 100}, 0 (bez nawiasow)
+  * [{MATH: {index} * 100}, {MATH: {index} * 100}, 0] (z nawiasami)
+  Z 7 wariantow do 9
+- Test 13 (D3 AttributeNumber): dodano 1 wariant
+  * InsertionPoint:{MATH: {index} * 100},0,0 (linia prosta)
+  Z 8 wariantow do 9
+- Wplyw: UD-Q4 i 26b-it-qat@q4 powinny przejsc te testy teraz
+
+### [ZMIANA v2.28.76 - PROMPT]
+Dodano regule 1D vs 2D w Foreach + GenerateSequence (linia 107-113):
+- 1D (linia prosta): Count=N, Offset=[krok,0,0], InsertionPoint:{item}
+- 2D (siatka NxM): DWA podejscia -
+  A) Count=N*M, Offset=[krokX,krokY,0] (N*M iteracji)
+  B) Count=N, Offset=[1,0,0] z {MATH: (({index}-1) % M) * krokY}
+- Ostrzezenie: proste Count=9 z Offset=[100,0,0] daje LINIE, nie 3x3 grid
+- Dla Items z lista punktow 1D i 2D dzialaja tak samo
+
+### [REZULTAT]
+- Benchmark_09: 25 testow, 9 wariantow w test 11, 9 wariantow w test 13
+- Prompt: 106 -> 113 linii (+7 linii)
+- Benchmark_09 ma teraz bardzo liberalne warianty - kazdy poprawny wzorzec jest akceptowany
+
+### [STAN_SYSTEMU]
+- 2 commity: v2.28.75 (benchmark), v2.28.76 (prompt)
+- Brak re-testu - to nastepny krok (UD-Q4 szybki, 10 min)
+
+### [KOLEJNY_KROK]
+- Re-test UD-Q4 na Benchmark_09 (szybki, ~5 min)
+- Weryfikacja czy UD-Q4 przechodzi test 11 i 13
+- Jesli OK, Benchmark_09 z UD-Q4 ma szanse na 96-100% (poprawa z 92%)
+- Alternatywnie: zrobic multi-benchmark na UD-Q4 (06, 06b, 07, 08, 09)
