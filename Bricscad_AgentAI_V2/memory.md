@@ -3097,3 +3097,51 @@ Dodano regule 1D vs 2D w Foreach + GenerateSequence (linia 107-113):
 - Re-test z roznych modeli - weryfikacja osobnych folderow
 - Jesli OK, multi-benchmark na UD-Q4 z poprawnymi folderami
 - Opcjonalnie: przemigrowac 4 istniejace raporty z UD-Q4 folder do wlasciwych folderow (na podstawie czasu, score, avg ms)
+
+## [v2.28.80] 2026-06-11T15:50:00+02:00 - Identyfikacja testow UD-Q4 po bugu v2.28.78 [DIAGNOZA]
+
+### [KONTEKST]
+- User zrobil 5 testow Benchmark_09 (jego slowa):
+  1. gemma 4 31b QAT MTP
+  2. gemma 4 26b QAT MTP
+  3. gemma 4 26b QAT unsloth
+  4. gemma 4 26b QAT google
+  5. gemma 4 31b QAT google
+- Wszystkie 6 plikow w `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/` (bo fix v2.28.78 nie dzialal)
+- Brak plikow w innych folderach - to potwierdza ze user robil tylko przez llama.cpp
+
+### [IDENTYFIKACJA NA PODSTAWIE AVG MS + WZORCOW]
+| Czas | Score | Avg | Identify |
+|------|-------|-----|----------|
+| 15:19 | 88% | 10422 | **31B QAT MTP** (Test 1) - pierwszy prompt fix widoczny; FAIL ID 11,13,25 |
+| 15:23 | 84% | 7245 | **26B QAT MTP** (Test 2) - floor/100; FAIL ID 6,7,15,16 |
+| 15:27 | 76% | 3894 | **26B QAT unsloth** (Test 3) - floor/100; FAIL ID 6,11,13,15,16,24 |
+| 15:28 | 0% | 0 | **TIMEOUT** - test 4 (gemma 4 26b QAT google) - prawdopodobnie load timeout |
+| 15:30 | 84% | 4174 | **Kontynuacja 26B unsloth** - wznowienie po 15:28 timeout; ID 1 ma 2779ms (=15:28 ID 1) |
+| 15:36 | 88% | 13418 | **31B QAT MTP DRUGI raz** (Test 5? albo powtorka 1) - prompt fix widoczny |
+
+### [BRAK TESTOW 4, 5 (GOOGLE API)]
+- User mowil ze zrobil 5 testow (1=31B MTP, 2=26B MTP, 3=26B unsloth, 4=26B google, 5=31B google)
+- Ale UD-Q4 ma tylko 6 plikow - wszystkie llama.cpp
+- GOOGLE API testy (4, 5) **NIE** pojawily sie - prawdopodobnie:
+  - Nie zostaly zrobione (user mowil ze zrobil ale ich nie ma)
+  - Lub test 4 to wlasnie 15:28 (timeout przy ladowaniu Google)
+  - Lub test 5 to 15:36 (znow 31B MTP zamiast Google - user pomylil sie?)
+
+### [KLUCZOWE WNIOSKI]
+- ID 6 FAIL w 15:23, 15:27, ale PASS w 15:30 - to potwierdza ze modele sa rozne
+- 15:23, 15:27: floor() - funkcja w QAT MTP / unsloth
+- 15:30: 31B QAT MTP prompt fix widoczny (brak floor)
+- Fix v2.28.79 (llama.cpp wsparcie w GetLoadedModelInfoAsync) zostal zaimplementowany
+  ale NIE przetestowany - potrzebna kompilacja BricsCAD
+
+### [STAN_SYSTEMU]
+- 1 commit: v2.28.80 (memory notes)
+- 6 raportow FULL w UD-Q4/folder (5 modeli, 1 timeout)
+- Rozpoznane modele: 31B QAT MTP, 26B QAT MTP, 26B QAT unsloth (z pytajnikiem dla 4 i 5)
+
+### [KOLEJNY_KROK]
+- Kompilacja BricsCAD z v2.28.79 (najnowszy fix)
+- Re-test - kazdy model powinien trafic do swojego folderu
+- Opcjonalnie: organizacja istniejacych raportow UD-Q4 do wlasciwych folderow
+  (na podstawie wzorca i avg ms)
