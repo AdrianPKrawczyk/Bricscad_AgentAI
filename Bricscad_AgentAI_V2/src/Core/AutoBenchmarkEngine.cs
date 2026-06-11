@@ -188,6 +188,30 @@ namespace Bricscad_AgentAI_V2.Core
             }
             OnLogMessage?.Invoke(this, $"Model benchmarku: {config.RunMetadata.ModelName} | Provider: {config.RunMetadata.ProviderName}");
 
+            // v2.28.78: Jesli provider to llama.cpp/LM Studio, pobierz aktualnie zaladowany model
+            // z /api/v1/models i zaktualizuj RunMetadata.ModelName (inaczej zostaje stary z llm_providers.json).
+            if (activeProvider != null && !string.IsNullOrEmpty(activeProvider.EndpointUrl))
+            {
+                try
+                {
+                    var llmClientForModelCheck = new LLMClient(ToolOrchestrator.Instance);
+                    var loadedDesc = await llmClientForModelCheck.GetLoadedModelInfoAsync(activeProvider);
+                    if (loadedDesc != null)
+                    {
+                        string detectedModel = !string.IsNullOrEmpty(loadedDesc.DisplayName) ? loadedDesc.DisplayName : loadedDesc.Id;
+                        if (!string.IsNullOrEmpty(detectedModel) && detectedModel != config.RunMetadata.ModelName)
+                        {
+                            OnLogMessage?.Invoke(this, $"Wykryto aktualnie zaladowany model: {detectedModel} (poprzednio: {config.RunMetadata.ModelName})");
+                            config.RunMetadata.ModelName = detectedModel;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnLogMessage?.Invoke(this, $"Nie udalo sie wykryc aktualnego modelu: {ex.Message}");
+                }
+            }
+
             int passedCount = 0;
             long totalTimeMs = 0;
             int currentIndex = 0;
