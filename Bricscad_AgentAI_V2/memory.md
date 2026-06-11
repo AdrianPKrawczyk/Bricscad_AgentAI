@@ -2942,14 +2942,30 @@ Dodano linie 106 w system_prompt_blocks.txt:
 | gemma-4-26b-a4b-it-qat@q4_k_xl | LM Studio | 72% | 18/25 | 4670 | dla porownania |
 | google_gemma-4-26b-a4b-qat | LM Studio | 84% | 21/25 | 4101 | dla porownania |
 
-### [DIAGNOZA 2 FAIL]
-- **Test 11** (D3 InsertBlock_GridPattern_2D): Foreach z `{MATH: {index} * 100}, {MATH: {index} * 100}, 0`
-  Walidator akceptuje `{item}`, `{MATH: {item_x}, {item_y}, 0}`, ale NIE ten wariant z `{index}` (powinno byc {MATH: (({index}-1) % 3) * 100} itp.)
-  - **BENCHMARK_BUG**: wariant `{MATH: {index} * 100}, {MATH: {index} * 100}, 0` jest poprawny matematycznie ale test go nie akceptuje
-  - **PROMPT_GAP**: model nie rozumie, ze dla 3x3 grid potrzebne 2D math (index_x, index_y)
-- **Test 13** (D3 AttributeNumber_WithForeach): `InsertionPoint:"{MATH: {index} * 100},0,0"` - podobny problem
-  - Walidator akceptuje wariant z `{item}` ale NIE z `{MATH: {index} * 100}`
-  - **BENCHMARK_BUG**
+### [DIAGNOZA 2 FAIL - KOREKTA po porownaniu z innymi wariantami]
+- **Test 11** (D3 InsertBlock_GridPattern_2D): UD-Q4 wygenerowal `{MATH: {index} * 100}, {MATH: {index} * 100}, 0`
+  - **Inne warianty 31b/26b (PASS)**: uzywaja `{item}`, `{MATH: {item_x}, {item_y}, 0}`, `{MATH: (({index}-1) % 3) * 100}` lub `[{MATH: {index_x} * 100},{MATH: {index_y} * 100},0]`
+  - **UD-Q4 MODEL_BUG**: zly wzorzec `{MATH: {index} * 100}` (dla index=1..9 daje 9 punktow na linii X=Y, NIE 3x3 grid)
+  - **BENCHMARK_BUG (czesciowy)**: warianty UD-Q4 NIE sa w `AnyOfArgumentMatch`, mimo ze sa matematycznie proste
+  - **Werdykt**: 50/50 MODEL_BUG + BENCHMARK_BUG
+- **Test 13** (D3 AttributeNumber_WithForeach): UD-Q4 wygenerowal `{MATH: {index} * 100},0,0` (linia prosta, OK)
+  - **Inne warianty (PASS)**: uzywaja `{item}` (z GenerateSequence Count=4)
+  - **UD-Q4 MODEL_BUG**: nie zrozumial, ze 4 etykiety w linii prostej wymagaja tylko 1D przesuniecia (a uzywa tego samego co dla grid 3x3)
+  - **Werdykt**: glownie MODEL_BUG, ale wariant NIE jest w `AnyOfArgumentMatch` (BENCHMARK_BUG)
+
+### [POROWNANIE Z INNYMI WARIANTAMI - kto tez oblewa?]
+- google_gemma-4-31b-qat (API): test 11 PASS (`{MATH: {index}-1} * 100, {MATH: (({index}-1) % 3) * 100}, 0`), test 13 PASS (`{item}`)
+- gemma-4-31b-it-qat@q4_k_xl: oba PASS (`{item}` - 9 kopii w jednej linii, ale dziala)
+- google_gemma-4-26b-a4b-qat: oba PASS (inny wariant 2D math)
+- gemma-4-26b-a4b-it-qat@q4_k_xl: oba FAIL (inny wariant `[..]`, tez BENCHMARK_BUG)
+- **gemma-4-31B-it-qat-UD-Q4**: oba FAIL (wariant `{MATH: {index} * 100}`)
+
+### [WNIOSEK - BENCHMARK vs MODEL BUG]
+- **Warianty UD-Q4 sa proste i matematycznie poprawne** (niektore moga nawet dzialac dla 1D)
+- **Ale NIE sa w `AnyOfArgumentMatch` w Benchmark_09** - to BENCHMARK_BUG
+- **Jednoczesnie UD-Q4 ma slabsze rozumienie 2D/3D matematyki** niz API/10.06 - to MODEL_BUG
+- **Oba testy powinny przejsc po naprawie benchmarku** (dodac 2-3 warianty), ale UD-Q4 moze oblewac inne, bardziej zlozone wzorce
+- **Walidator jest restrykcyjny** - akceptuje tylko konkretne wzorce, a nie "matematycznie rownowazne"
 
 ### [ANALIZA SZYBKOSCI]
 Nowy model UD-Q4 jest 1.9x SZYBSZY niz wariant 10.06 (10175ms vs 19494ms) dzieki MTP.
