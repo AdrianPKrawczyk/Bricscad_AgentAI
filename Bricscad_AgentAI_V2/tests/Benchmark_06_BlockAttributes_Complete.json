@@ -1,4 +1,4 @@
-{
+﻿{
   "RunMetadata": {
     "BenchmarkName": "Benchmark_06_BlockAttributes_Complete",
     "ModelName": "LLM-Benchmark-V2",
@@ -127,10 +127,10 @@
           "ErrorMessage": "BLAD: Oczekiwano EntityType='*BlockReference'."
         },
         {
-          "RuleType": "ArgumentMatch",
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
           "TargetArgument": "Mode",
           "TargetValue": "New",
-          "ErrorMessage": "BLAD: Oczekiwano Mode='New' dla nowej selekcji."
+          "ErrorMessage": "BLAD: Oczekiwano Mode=New dla nowej selekcji (LUB brak Mode - jest opcjonalny)."
         },
         {
           "RuleType": "ArgumentMatch",
