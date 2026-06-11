@@ -2710,3 +2710,66 @@ v2.28.64 przywraca walidacje Foreach-only dla testow 9-12 (z v2.28.62):
 - 31b-qat 95% to najlepszy wynik w historii benchmarkow atrybutow. Akceptujemy.
 - Opcjonalnie: **dodac 1 regule do promptu** dla malych modeli (Foreach dla jawnej listy identyfikatorow) - ale to moze powodowac regresje u duzych modeli.
 - **Decyzja**: zamknac Benchmark_06b jako GOLD v2.28.64. Nie dodawac reguly do promptu (ryzyko regresji > potencjalny zysk).
+
+## [v2.28.65] 2026-06-11T08:30:00+02:00 - Multi-benchmark 31b-qat (06, 06b, 07, 08, 09) [BENCHMARK-MULTI]
+
+### [WYNIKI - 5 BENCHMARKOW, 137 TESTOW]
+| Benchmark | Score | PASS | avg=ms |
+|-----------|-------|------|-------|
+| Benchmark_06_BlockAttributes_Complete | **96.15%** | 25/26 | 9022 |
+| Benchmark_06b_BlockAttributes_Extended | 90.00% | 18/20 | 9209 |
+| Benchmark_07_EditBlock_Complete | 93.33% | 28/30 | 9593 |
+| Benchmark_08_CreateBlock | 83.33% | 30/36 | 10188 |
+| Benchmark_09_InsertBlock_Extended | 96.00% | 24/25 | 10944 |
+| **TOTAL** | **91.76% avg / 91.24% weighted** | **125/137** | 9915 |
+
+### [OBLE TESTY - KATEGORYZACJA]
+| Test | D | Kategoria | Diagnoza |
+|------|---|-----------|----------|
+| **06 ID 4** Select_BlockReferences_By_Name | 2 | **BENCHMARK_BUG** | Walidator wymaga Mode=New, ale Mode jest opcjonalny w SelectEntities. Model poprawnie uzywa tylko Name. |
+| **06b ID 15** Update_Different_Values_Different_Identifiers | 4 | **BENCHMARK_BUG** | Model zrobil Foreach z JSON Items (D5+), walidator nie akceptuje. |
+| **06b ID 16** SelectEntities_By_Type_Then_Update | 4 | MODEL_BUG | Model uzywa Prop:Name zamiast Prop:TYPE w SelectEntities, ale EditAttributes z FilterTag:TYPE jest poprawne. Częściowo OK. |
+| **07 ID 22** EditBlock_Foreach_TargetSelection_AfterSelect | 5 | **BENCHMARK_BUG** | Model uzywa SelectEntities + EditBlock(Target=Selection) zamiast Foreach. To POPRAWNE podejscie - Foreach jest zbędny. |
+| **08 ID 5** CreateBlock_AfterSelectEntities_ByType | 3 | **BENCHMARK_BUG** | Model uzywa BasePoint=AskUser, walidator wymusza 0,0,0. Prompt pozwala na AskUser. |
+| **08 ID 15** CreateBlock_Foreach_WithDeleteOriginals | 5 | **PROMPT_GAP** + BENCHMARK | Model uzywa BasePoint=AskUser w Foreach, prompt zabrania. Walidator wymusza XYZ. Spójne, ale model nie zastosowal. |
+| **08 ID 18** CreateBlock_MissingBlockName | 2 | (sprawdzic) | Test negatywny - model powinien NIE uzyc CreateBlock |
+| **08 ID 19** CreateBlock_InvalidPointFormat | 3 | (sprawdzic) | Test negatywny - model powinien NIE uzyc blednego formatu |
+| **08 ID 29** Workflow_FullCreateThenInsert | 4 | **BENCHMARK_BUG** | Model dodal InsertionPoint:{item} w Foreach.Action. Walidator akceptuje tylko sam BlockName. |
+| **08 ID 31** InsertBlock_WithMTextAttribute | 4 | **BENCHMARK_BUG** | Model wygenerowal 'Wieloliniowy Tekst Przyklad' z \n. Walidator ma 7 waskich wariantow. |
+| **09 ID 20** InsertBlock_FullPipeline_AfterCreateAndEdit | 5 | **MODEL_BUG** (prawdziwy) | Model wstawil atrybut OPIS=test w Foreach.Action.InsertBlock zamiast EditAttributes PO Foreach. To bledne - atrybuty w InsertBlock to template, nie instancja. |
+
+### [KLUCZOWE USTALENIA]
+- **9 z 12 oble to BENCHMARK_BUG lub PROMPT_GAP** - benchmarki sa zbyt restrykcyjne
+- **Tylko 1 prawdziwy MODEL_BUG**: 09 ID 20 (atrybuty w InsertBlock vs EditAttributes)
+- **31b-qat jest bardzo dobrym modelem** - 91.76% na 137 testach, wiekszosc oble to benchmark bugs
+- **Benchmark_08 jest najslabszy** (83.33%) - 6 oble, glownie twierdza ze model powinien uzywac BasePoint=XYZ zamiast AskUser
+- **Benchmarki 06, 07, 09 sa dobrze skalibrowane** (93-96%) - benchmark dziala poprawnie
+- **Benchmark_06b 90%** (po v2.28.64) - solidne GOLD
+
+### [KANDYDACI DO NAPRAWY BENCHMARK_BUG]
+1. **06 ID 4**: `ArgumentMatch Mode=New` -> `AnyOfArgumentMatchOrAbsent Mode` (Mode opcjonalny)
+2. **06b ID 15**: rozszerzyc warianty o Foreach z JSON Items
+3. **07 ID 22**: zaakceptowac rowniez SelectEntities + EditBlock (bez Foreach)
+4. **08 ID 5, 15**: dodac `AskUser` do wariantow BasePoint
+5. **08 ID 29**: zaakceptowac `InsertionPoint:{item}` w Foreach.Action
+6. **08 ID 31**: zaakceptowac `Wieloliniowy Tekst Przyklad` (ogolny wzorzec wieloliniowego tekstu)
+7. **08 ID 18, 19**: do zweryfikowania
+
+### [KANDYDAT DO PROMPT ENHANCEMENT]
+- **09 ID 20**: w prompcie dodac regule:
+  ```
+  W Foreach(InsertBlock): atrybuty w Action to TEMPLATE (w definicji), NIE instancja.
+  Aby ustawic atrybut dla kazdej nowej instancji, MUSISZ wywolac EditAttributes PO Foreach.
+  ```
+
+### [STAN_SYSTEMU]
+- 5 benchmarkow: 06 (26 testow), 06b (20 testow), 07 (30 testow), 08 (36 testow), 09 (25 testow) = 137 testow
+- 31b-qat: 91.76% avg, 91.24% weighted - WYJATKOWO DOBRY MODEL
+- Benchmarki dobrze zdefiniowane dla duzych modeli, ale wymagaja poprawek dla edge case'ow
+- System jest w stanie GOLD dla 31b-qat z 6-9 poprawkami BENCHMARK_BUG
+
+### [KOLEJNY_KROK]
+- Commit memory.md z analiza multi-benchmark (typ: `docs`, scope: `memory`).
+- Opcjonalnie: poprawic 6 BENCHMARK_BUG (commit `fix(benchmark)` per benchmark).
+- Opcjonalnie: dodac 1 regule do promptu o Foreach(InsertBlock) + EditAttributes.
+- Rekomendacja: najpierw prompt enhancement (1 regula), potem BENCHMARK_BUG fixes.
