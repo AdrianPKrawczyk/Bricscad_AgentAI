@@ -427,6 +427,30 @@ namespace Bricscad_AgentAI_V2.Core
                             break;
 
 
+                        // v2.28.69: Sprawdzenie czy wartosc argumentu zawiera znak nowej linii (\n).
+                        // Uzywane dla testow wieloliniowych (np. MText, OPIS z wielolinijkowym tekstem).
+                        // Akceptuje \n w roznych formach: \\n (escaped w JSON), rzeczywisty newline (\n).
+                        case "StringContainsNewline":
+                            var newlineValues = test.RecordedToolCalls
+                                .Where(c => c.Arguments != null)
+                                .Select(c => ResolveJsonPath(c.Arguments, rule.TargetArgument))
+                                .Where(v => v != null)
+                                .ToList();
+
+                            if (newlineValues.Count == 0)
+                            {
+                                rulePassed = false;
+                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie zostal znaleziony w zadnym wywolaniu)";
+                                break;
+                            }
+
+                            // Sprawdzamy czy wartosc zawiera \n (escaped lub rzeczywisty)
+                            rulePassed = newlineValues.Any(v => v.Contains("\\n") || v.Contains("\n"));
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", newlineValues)}', oczekiwano wartosci z \\n)";
+                            break;
+
+
                         case "ToolCallCountMax":
                             if (!int.TryParse(rule.ExpectedOutput, out int maxAllowedCalls))
                             {
