@@ -105,6 +105,7 @@
     <Compile Include="src\Models\FormulaMetadata.cs" />
     <Compile Include="src\Models\ToolModels.cs" />
     <Compile Include="src\Models\LLMModels.cs" />
+    <Compile Include="src\Models\MetricVisionModels.cs" />
     <Compile Include="src\Models\LLMConfigModels.cs" />
     <Compile Include="src\Models\LlmApiModels.cs" />
     <Compile Include="src\Models\AgentExecutionResult.cs" />
@@ -131,6 +132,7 @@
     <Compile Include="src\Core\BielikLogger.cs" />
     <Compile Include="src\Core\UISettingsManager.cs" />
     <Compile Include="src\Core\FileExtractor.cs" />
+    <Compile Include="src\Core\MetricVisionRenderer.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
@@ -170,6 +172,10 @@
     <Compile Include="src\Tools\WriteXDataTool.cs" />
     <Compile Include="src\Tools\FindXDataTool.cs" />
     <Compile Include="src\Tools\CaptureVisionAreaTool.cs" />
+    <Compile Include="src\Tools\CaptureMetricVisionAreaTool.cs" />
+    <Compile Include="src\Tools\ScanMetricVisionDrawingTool.cs" />
+    <Compile Include="src\Tools\QueryVisionScanIndexTool.cs" />
+    <Compile Include="src\Tools\DiagnoseMetricVisionGraphicsSystemTool.cs" />
     <Compile Include="src\Tools\ReadProjectFileTool.cs" />
     <Compile Include="src\Tools\WriteProjectFileTool.cs" />
     <Compile Include="src\Tools\ManageRecipesTool.cs" />
@@ -212,6 +218,7 @@
     <Compile Include="tests\Tools\ReadXDataToolTests.cs" />
     <Compile Include="tests\Tools\WriteXDataToolTests.cs" />
     <Compile Include="tests\Tools\FindXDataToolTests.cs" />
+    <Compile Include="tests\Tools\MetricVisionToolTests.cs" />
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />

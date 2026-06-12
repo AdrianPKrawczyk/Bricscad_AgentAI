@@ -1,9 +1,53 @@
 # System Autonomicznej Optymalizacji Promptu Profilu
 
-> **Wersja dokumentu**: 1.0
-> **Data**: 2026-06-10
-> **Status**: Wytyczne do implementacji (handoff dla agenta kodującego)
-> **Cel**: Aplikacja terminalowa .NET 8/9 (niezależna od BricsCAD) do autonomicznej optymalizacji promptów profilowych z wykorzystaniem benchmarków i agentów LLM.
+> **Wersja dokumentu**: 1.0 (ARCHIWALNY)  
+> **Data**: 2026-06-10  
+> **Status**: ⚠️ **PRZESTARZAŁY** — zobacz [`docs/15_Prompt_Candidate_Optimizer.md`](./15_Prompt_Candidate_Optimizer.md) dla aktualnej, obowiązującej architektury. Ten dokument jest zachowany jako kontekst historyczny decyzji, które NIE zostały zaimplementowane.  
+> **Cel**: Pierwotna propozycja (odrzucona) autonomicznego runnera benchmarków poza BricsCAD.
+
+---
+
+## 0. Dlaczego ten dokument jest archiwalny
+
+Po weryfikacji z użytkownikiem (2026-06-10) przyjęto architekturę opartą na:
+
+- **BricsCAD pozostaje źródłem prawdy** dla benchmarków (profile, tool schemas, LLM config, raporty FULL/ERRORS).
+- **Optimizer jest generatorem kandydatów promptu**, nie autonomicznym runnerem.
+- **Prompt produkcyjny jest read-only** — kandydat zawsze jest osobnym plikiem w `prompt-lab/<profile>/candidate_NNN/`.
+- **BricsCAD Benchmark Lab Worker** (z `PromptOverridePath` + `BenchmarkRunOptions`) wykonuje joby laboratoryjne.
+- **Człowiek promuje** kandydata do produkcji.
+
+Realizacja: `PromptCandidateOptimizer/` (`.NET 8`, ~30 KB kodu), skill `.agents/skills/prompt-candidate-optimizer/SKILL.md`, dokument `docs/15_Prompt_Candidate_Optimizer.md`.
+
+### Kluczowe różnice vs. propozycja z tego dokumentu
+
+| Aspekt | Ten dokument (odrzucony) | Implementacja (docs/15) |
+|--------|--------------------------|--------------------------|
+| Silnik benchmarków | Re-implementacja poza BricsCAD | BricsCAD pozostaje workerem |
+| Walidator | Kopiowany do Bench | Zostaje w BricsCAD |
+| Profile + Tool Schemas | Duplikowane | Czytane z BricsCAD |
+| Uruchamianie benchmarków | `dotnet bench run` | BricsCAD Lab Worker z COM |
+| Promocja do produkcji | Automatyczna | Ręczna z `--confirm` |
+| Izolacja wyników | Słaba (folder `labs/`) | `OutputRoot` + `SaveToUserBenchmarkHistory=false` |
+| Job queue | Brak | `pending/running/done/failed/` |
+| Batch benchmarków | Brak | `BenchmarkPaths` z `SUMMARY` |
+
+### Co z tego dokumentu można jeszcze wykorzystać
+
+- **Sekcja 3.3 (Nowe klasy)** — podział odpowiedzialności w `PromptCandidateOptimizer` częściowo pokrywa się z `Candidate/`, `Analysis/`, `Reports/`, `Safety/` w docs/15.
+- **Sekcja 5 (Algorytm optymalizacji)** — heurystyki generowania sugestii częściowo pokrywają się z `FailureClassifier` w docs/15.
+- **Sekcja 7 (Testowanie)** — lista testów jednostkowych jest wciąż aktualna, ale ich realizacja jest w BricsCAD V2 (nie w Bench).
+
+### Status zadań z tego dokumentu
+
+Wszystkie zadania implementacyjne opisane w sekcjach 3-8 tego dokumentu są **anulowane** lub **przeniesione** do `docs/15_Prompt_Candidate_Optimizer.md`:
+
+- ❌ Sekcja 3.1 (pliki 1:1 z V2) → anulowane (nie kopiujemy AutoBenchmarkEngine)
+- ❌ Sekcja 3.2 (częściowa kopia) → anulowane (LLMClient, ToolConfigManager zostają w V2)
+- ⚠️ Sekcja 3.3 (nowe klasy) → częściowo przeniesiona do docs/15 (Candidate, Analysis, Safety)
+- ❌ Sekcja 4 (CLI) → przeniesiona i uproszczona (docs/15: `suggest`, `inspect`, `compare`, `create-job`, `record-result`)
+- ⚠️ Sekcja 5 (algorytm) → uproszczony (docs/15: heurystyczny classifier, agent-driven loop)
+- ❌ Sekcja 8 (deployment .NET 8/9 Bench) → zrealizowane inaczej (.NET 8, ale tylko `PromptCandidateOptimizer`, nie pełna replika V2)
 
 ---
 

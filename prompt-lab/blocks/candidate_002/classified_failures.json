@@ -1,0 +1,53 @@
+﻿{
+  "failures": [
+    {
+      "testId": 5,
+      "testName": "ListBlocks_ThenForeachInsert",
+      "category": "ListBlocksAdvanced",
+      "difficulty": 3,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Foreach powinien miec TargetVariable=\u0027BlockList\u0027 (iterator z ListBlocks, BEZ znaku @). (Argument \u0027TargetVariable\u0027 nie zosta\u0139\u201A znaleziony w \u0139\u013Dadnym wywo\u0139\u201Aaniu)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 6,
+      "testName": "ListBlocks_ForeachSaveAs_NoAtSign",
+      "category": "ListBlocksAdvanced",
+      "difficulty": 4,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Oczekiwano ListBlocks -\u003E Foreach. (Nie znaleziono \u0027Foreach\u0027 po pozycji 0)",
+        "BLAD: Foreach.TargetVariable=\u0027AllBlocks\u0027 (BEZ znaku @). (Argument \u0027TargetVariable\u0027 nie zosta\u0139\u201A znaleziony w \u0139\u013Dadnym wywo\u0139\u201Aaniu)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 18,
+      "testName": "InsertBlock_AfterCreateBlock_WithEdit",
+      "category": "InsertBlockWorkflows",
+      "difficulty": 4,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Foreach powinien wywolywac InsertBlock z BlockName=\u0027DETAL_A\u0027 w Action. (Znaleziono: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022DETAL_A\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022,\u0022Rotation\u0022:0,\u0022Scale\u0022:1}\u0027, Dozwolone: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022DETAL_A\u0022} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022DETAL_A\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022DETAL_A\u0022,\u0022InsertionPoint\u0022:\u0022[0,0,0]\u0022} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022DETAL_A\u0022,\u0022InsertionPoint\u0022:\u00220,0,0\u0022}\u0027)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 20,
+      "testName": "InsertBlock_FullPipeline_AfterCreateAndEdit",
+      "category": "InsertBlockWorkflows",
+      "difficulty": 5,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Oczekiwano dlugiej sekwencji SelectEntities -\u003E CreateBlock -\u003E EditBlock -\u003E Foreach (InsertBlock) -\u003E EditAttributes. (Nie znaleziono \u0027EditAttributes\u0027 po pozycji 3)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    }
+  ]
+}

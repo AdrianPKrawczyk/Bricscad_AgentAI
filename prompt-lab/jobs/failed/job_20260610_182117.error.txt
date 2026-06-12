@@ -1,0 +1,14 @@
+System.IO.FileNotFoundException: Nie znaleziono benchmarku: Bricscad_AgentAI_V2\tests\Benchmark_09_InsertBlock_Extended.json
+Nazwa pliku: 'Bricscad_AgentAI_V2\tests\Benchmark_09_InsertBlock_Extended.json'
+   w Bricscad_AgentAI_V2.Core.BenchmarkLabWorker.ValidateJob(BenchmarkLabJob job) w D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\BenchmarkLabWorker.cs:wiersz 125
+   w Bricscad_AgentAI_V2.Core.BenchmarkLabWorker.<RunJobAsync>d__3.MoveNext() w D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\BenchmarkLabWorker.cs:wiersz 47
+--- Koniec śladu stosu z poprzedniej lokalizacji, w której wystąpił wyjątek ---
+   w System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   w System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   w System.Runtime.CompilerServices.TaskAwaiter`1.GetResult()
+   w Bricscad_AgentAI_V2.Core.BenchmarkLabWorker.<RunJobFileAsync>d__2.MoveNext() w D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\BenchmarkLabWorker.cs:wiersz 42
+--- Koniec śladu stosu z poprzedniej lokalizacji, w której wystąpił wyjątek ---
+   w System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   w System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   w System.Runtime.CompilerServices.TaskAwaiter`1.GetResult()
+   w Bricscad_AgentAI_V2.Core.BenchmarkLabWorker.<RunPendingJobsOnceAsync>d__4.MoveNext() w D:\GitHub\Bricscad_AgentAI\Bricscad_AgentAI_V2\src\Core\BenchmarkLabWorker.cs:wiersz 99

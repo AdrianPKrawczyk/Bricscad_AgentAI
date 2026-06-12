@@ -282,6 +282,24 @@ namespace Bricscad_AgentAI_V2.Core
                     _config.Tools[name] = new ToolSettings { IsCore = false, Tags = "", SupportsEarlyExit = false };
                     changed = true;
                 }
+
+                if (name.Equals("CaptureMetricVisionArea", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ScanMetricVisionDrawing", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("QueryVisionScanIndex", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("DiagnoseMetricVisionGraphicsSystem", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#vision", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? "#vision" : settings.Tags + ", #vision";
+                        changed = true;
+                    }
+                    if (settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = false;
+                        changed = true;
+                    }
+                }
             }
 
             if (_config.Profiles == null)
@@ -329,7 +347,7 @@ namespace Bricscad_AgentAI_V2.Core
                 "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                 "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                 "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps"
+                "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps"
             };
             if (cadProf.AllowedTools == null)
             {
@@ -382,7 +400,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = MetadataPromptFile, 
-                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "manage_lisps" },
+                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" },
                     AllowedTags = new List<string> { "#xdata" }
                 };
                 _config.Profiles["CadMetadataProfile"] = metadataProf;
@@ -393,7 +411,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf.SystemPromptFile = MetadataPromptFile;
                 changed = true;
             }
-            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "manage_lisps" })) changed = true;
+            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" })) changed = true;
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
@@ -492,7 +510,7 @@ namespace Bricscad_AgentAI_V2.Core
                     "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                     "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                     "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                    "FindXData", "CaptureVisionArea", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes"
+                    "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes"
                 },
                 AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
             };
@@ -514,7 +532,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["CadMetadataProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = MetadataPromptFile,
-                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea" },
+                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem" },
                 AllowedTags = new List<string> { "#xdata" }
             };
 

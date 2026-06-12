@@ -1,0 +1,340 @@
+﻿{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_09_InsertBlock_Extended",
+    "ModelName": "google/gemma-4-26b-a4b-qat",
+    "ProviderName": "LM Studio (Lokalny)",
+    "ProviderEndpoint": "http://100.104.226.29:1234/v1/chat/completions",
+    "ProfileName": "CadBlocksProfile",
+    "Temperature": 0.2,
+    "MaxTokens": 3500,
+    "TopP": 0.95,
+    "TopK": 0,
+    "MinP": 0.0,
+    "RepetitionPenalty": 1.0,
+    "ReasoningEffort": "none",
+    "AutoLoadModel": false,
+    "GpuOffload": "default",
+    "LoadContextLength": 20000,
+    "TtlSeconds": 0,
+    "FlashAttention": true,
+    "OffloadKvCache": true,
+    "MaxContextTokens": 8192,
+    "ContextCompressionThreshold": 90,
+    "RunDate": "2026-06-10 22:38",
+    "Comment": "Benchmark_09 rozszrza pokrycie InsertBlock (ponad 12 testow z Benchmark_08) i wprowadza 8 testow dla ListBlocks. Lacznie 25 testow, 7 kategorii, 5 poziomow trudnosci (D1-D5). Powiazania: ListBlocks->SaveAs->Foreach(TargetVariable)->InsertBlock, CreateBlock->InsertBlock, EditBlock->InsertBlock, EditAttributes->InsertBlock, SelectEntities->InsertBlock. Wymaga CadBlocksProfile.\nPromptOverridePath=D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+    "RunMode": "optimizer_lab",
+    "PromptOverridePath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+    "OutputRoot": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\bricscad-results",
+    "CandidateId": "candidate_002",
+    "JobId": "job_20260610_223805",
+    "SaveToUserBenchmarkHistory": false,
+    "GlobalScore": 84.0,
+    "CategoriesScores": {
+      "ListBlocksBasic": 100.0,
+      "ListBlocksAdvanced": 80.0,
+      "InsertBlockMultiInsertion": 100.0,
+      "InsertBlockDynamicAttributes": 75.0,
+      "InsertBlockWorkflows": 75.0,
+      "InsertBlockEdgeCases": 100.0,
+      "InsertBlockAdvancedForeach": 50.0
+    },
+    "AverageExecutionTimeMs": 3911.0
+  },
+  "Tests": [
+    {
+      "Id": 6,
+      "Category": "ListBlocksAdvanced",
+      "Difficulty": 4,
+      "TestName": "ListBlocks_ForeachSaveAs_NoAtSign",
+      "Description": "Walidacja: Foreach.TargetVariable NIE zawiera znaku @ (jest to przekazywane do ListBlocks.SaveAs jako nazwa zmiennej).",
+      "UserPrompt": "Pobierz liste blokow do @AllBlocks, a nastepnie wstaw kazdy z nich w siatce 3x3 uzywajac Foreach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 2 definicji blokow: B1, B2.",
+        "Foreach": "SUKCES: Wykonano 9/9 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano ListBlocks -> Foreach."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "AllBlocks",
+          "TargetArgument": "SaveAs",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: ListBlocks.SaveAs='AllBlocks' (BEZ znaku @ - mimo ze user uzywa @ w prompt). Model MUSI sam usunac @ przy zapisie."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "AllBlocks",
+          "TargetArgument": "TargetVariable",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach.TargetVariable='AllBlocks' (BEZ znaku @)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "AllBlocks"
+          }
+        },
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{MATH: {index} % 3 * 100}, {MATH: floor({index} / 3) * 100}, 0\"}\",\"Rotation\":0,\"Scale\":1}",
+            "GenerateSequence": {
+              "Count": 9,
+              "OffsetVector": "0,0,0",
+              "StartVector": "0,0,0"
+            },
+            "Items": [
+              "B1",
+              "B1",
+              "B1",
+              "B2",
+              "B2",
+              "B2",
+              "B1",
+              "B2",
+              "B1"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach.TargetVariable='AllBlocks' (BEZ znaku @). (Argument 'TargetVariable' nie zostaĹ‚ znaleziony w ĹĽadnym wywoĹ‚aniu)"
+      ],
+      "ExecutionTimeMs": 6521
+    },
+    {
+      "Id": 13,
+      "Category": "InsertBlockDynamicAttributes",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_AttributeNumber_WithForeach",
+      "Description": "Foreach + InsertBlock z atrybutem NUMER przyjmujacym {index} (1, 2, 3, ...).",
+      "UserPrompt": "Wstaw 4 etykiety w linii prostej, kazda z atrybutem NUMER ustawionym na numer iteracji (1, 2, 3, 4).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 4/4 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "4",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec Count=4 (ALTERNATYWNIE Items z 4 wartosciami)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Value\":\"{index}\",\"Tag\":\"NUMER\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"etykieta\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{MATH: {index} * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{MATH: ({index} - 1) * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{MATH: {index}}\"}]}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z BlockName w stylu ETYKIETA (case-insensitive) i Attributes=[{Tag=NUMER, Value={index} lub {MATH: {index}}}]."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\": \"InsertBlock\", \"BlockName\": \"ETKIETA\", \"InsertionPoint\": \"{MATH: {index} * 100, 0, 0}\", \"Attributes\": [{\"Tag\": \"NUMER\", \"Value\": \"{index}\"}]}",
+            "GenerateSequence": {
+              "Count": 4,
+              "OffsetVector": "100,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach powinien wywolac InsertBlock z BlockName w stylu ETYKIETA (case-insensitive) i Attributes=[{Tag=NUMER, Value={index} lub {MATH: {index}}}]. (Znaleziono: '{\"ToolName\": \"InsertBlock\", \"BlockName\": \"ETKIETA\", \"InsertionPoint\": \"{MATH: {index} * 100, 0, 0}\", \"Attributes\": [{\"Tag\": \"NUMER\", \"Value\": \"{index}\"}]}', Dozwolone: '{\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Value\":\"{index}\",\"Tag\":\"NUMER\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"etykieta\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{MATH: {index} * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{MATH: ({index} - 1) * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{MATH: {index}}\"}]}')"
+      ],
+      "ExecutionTimeMs": 4426
+    },
+    {
+      "Id": 20,
+      "Category": "InsertBlockWorkflows",
+      "Difficulty": 5,
+      "TestName": "InsertBlock_FullPipeline_AfterCreateAndEdit",
+      "Description": "Najdluzszy workflow: SelectEntities -> CreateBlock -> EditBlock (kolor) -> InsertBlock x 3 (Foreach) -> EditAttributes (ustaw atrybut).",
+      "UserPrompt": "Zaznacz okregi, utworz z nich blok KONCOWY w [0,0,0], zmien warstwe jego definicji na 'WARSZTATY', a potem wstaw 3 kopie w siatce (Offset=[150,0,0]) i ustaw atrybut OPIS='test' dla kazdej nowej instancji.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 5 obiektow.",
+        "CreateBlock": "WYNIK: Pomyslnie utworzono nowa definicje bloku 'KONCOWY' z 5 obiektow.",
+        "EditBlock": "WYNIK: Zmodyfikowano 5 obiektow wewnatrz definicji bloku/blokow.",
+        "Foreach": "SUKCES: Wykonano 3/3 operacji.",
+        "EditAttributes": "SUKCES: Zaktualizowano 3 atrybutow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock, EditBlock, Foreach, EditAttributes",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano dlugiej sekwencji SelectEntities -> CreateBlock -> EditBlock -> Foreach (InsertBlock) -> EditAttributes."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "KONCOWY",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='KONCOWY' (w CreateBlock, EditBlock lub Foreach Action)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "150,0,0 || [150,0,0] || (150,0,0)",
+          "TargetArgument": "GenerateSequence.OffsetVector",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec OffsetVector=[150,0,0]."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "EntityType": "*Circle",
+            "Mode": "New"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "[0,0,0]",
+            "BlockName": "KONCOWY",
+            "DeleteOriginals": false
+          }
+        },
+        {
+          "ToolName": "EditBlock",
+          "Arguments": {
+            "BlockName": "KONCOWY",
+            "Modifications": [
+              {
+                "Prop": "Layer",
+                "Val": "WARSZTATY"
+              }
+            ],
+            "Target": "ByName"
+          }
+        },
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\": \"InsertBlock\", \"BlockName\": \"KONCOWY\", \"InsertionPoint\": \"{item}\", \"Attributes\": [{\"Tag\": \"OPIS\", \"Value\": \"test\"}]}",
+            "GenerateSequence": {
+              "Count": 3,
+              "OffsetVector": "150,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano dlugiej sekwencji SelectEntities -> CreateBlock -> EditBlock -> Foreach (InsertBlock) -> EditAttributes. (Nie znaleziono 'EditAttributes' po pozycji 3)"
+      ],
+      "ExecutionTimeMs": 10496
+    },
+    {
+      "Id": 25,
+      "Category": "InsertBlockAdvancedForeach",
+      "Difficulty": 5,
+      "TestName": "InsertBlock_ListBlocksForeach_NoAtSign",
+      "Description": "Najdluzszy test ListBlocks->Foreach: ListBlocks(SaveAs=All) -> Foreach(TargetVariable=All) -> InsertBlock z {item} jako BlockName. Weryfikacja ze model NIE dodaje @ do TargetVariable i SaveAs.",
+      "UserPrompt": "Pobierz liste wszystkich blokow do @All, a nastepnie wstaw kazdy z nich w 2 miejscach ([0,0,0] i [200,200,0]) uzywajac Foreach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 3 definicji blokow: MEBEL, LAMPA, STOL.",
+        "Foreach": "SUKCES: Wykonano 6/6 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji ListBlocks -> Foreach (LUB 2x Foreach - obie sa poprawne)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "All || AllBlocks || AllBlockNames",
+          "TargetArgument": "SaveAs",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: ListBlocks.SaveAs='All' (BEZ znaku @ - mimo ze user prompt ma @All). Akceptuj rowniez 'AllBlocks'/'AllBlockNames'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "All || AllBlocks || AllBlockNames",
+          "TargetArgument": "TargetVariable",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach.TargetVariable='All' (BEZ znaku @) - WYMAGANE gdy model uzywa TargetVariable zamiast Items, ale moze tez uzyc Items bez TargetVariable."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "2",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach moze miec Count=2 (2 miejsca na blok) ALBO uzyc 2 osobnych Foreach z Items."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "MEBEL || LAMPA || STOL || [0,0,0] || [200,200,0] || 1 || 2",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Jesli model uzywa Items, Items[0] powinien zawierac nazwy blokow (MEBEL/LAMPA/STOL) LUB wspolrzedne ([0,0,0]/[200,200,0]) LUB indeksy (1,2)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{MATH: {item_x}, {item_y}, 0}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[200,200,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{point}\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z InsertionPoint={item}, {MATH:...}, {point}, [0,0,0]/[200,200,0] recznie lub brak)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "All"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano sekwencji ListBlocks -> Foreach (LUB 2x Foreach - obie sa poprawne). (Nie znaleziono 'Foreach' po pozycji 0)",
+        "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z InsertionPoint={item}, {MATH:...}, {point}, [0,0,0]/[200,200,0] recznie lub brak). (Argument 'Action' nie zostal znaleziony w zadnym wywolaniu)"
+      ],
+      "ExecutionTimeMs": 1067
+    }
+  ]
+}

@@ -55,6 +55,14 @@ namespace Bricscad_AgentAI_V2.Core
             return Path.Combine(GetCustomKnowledgePath(), "PromptOverrides");
         }
 
+        public static string GetVisionScansPath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Bricscad_AgentAI",
+                "VisionScans");
+        }
+
         public static string GetPromptOverrideFilePath(string profileName)
         {
             if (string.IsNullOrWhiteSpace(profileName))
@@ -112,6 +120,11 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(promptOverrides))
             {
                 Directory.CreateDirectory(promptOverrides);
+            }
+            string visionScans = GetVisionScansPath();
+            if (!Directory.Exists(visionScans))
+            {
+                Directory.CreateDirectory(visionScans);
             }
         }
     }

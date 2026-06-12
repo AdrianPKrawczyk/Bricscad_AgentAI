@@ -1,0 +1,13 @@
+﻿{
+  "schemaVersion": 1,
+  "jobId": "job_20260610_215635",
+  "runMode": "optimizer_lab",
+  "benchmarkPath": "D:\\GitHub\\Bricscad_AgentAI\\Bricscad_AgentAI_V2\\tests\\Benchmark_09_InsertBlock_Extended.json",
+  "profileName": "CadBlocksProfile",
+  "providerId": "gemma-4-12b-qat",
+  "promptOverridePath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_001\\system_prompt_blocks.candidate.txt",
+  "candidateId": "candidate_001",
+  "outputRoot": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_001\\bricscad-results",
+  "targetScore": 90,
+  "saveToUserBenchmarkHistory": false
+}

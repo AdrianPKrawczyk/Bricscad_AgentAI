@@ -259,9 +259,68 @@ namespace Bricscad_AgentAI_V2.Core
 
                     // 5. Dodaj odpowiedź z roli zastrzeżonej "tool"
                     // V2 VISION: Specjalne traktowanie zrzutów ekranu
-                    if (toolExecutionResult.StartsWith("[VISION_IMAGE_CAPTURED]|"))
+                    if (toolExecutionResult.StartsWith(MetricVisionRenderer.MetricVisionToken))
+                    {
+                        string metricJson = toolExecutionResult.Substring(MetricVisionRenderer.MetricVisionToken.Length);
+                        try
+                        {
+                            JObject metricPayload = JObject.Parse(metricJson);
+                            string imagePath = metricPayload["tile"]?["image_path"]?.ToString();
+                            if (string.IsNullOrWhiteSpace(imagePath) || !System.IO.File.Exists(imagePath))
+                            {
+                                throw new System.IO.FileNotFoundException("Nie znaleziono pliku obrazu metrycznego.", imagePath);
+                            }
+
+                            byte[] imageBytes = System.IO.File.ReadAllBytes(imagePath);
+                            string base64String = Convert.ToBase64String(imageBytes);
+
+                            conversationHistory.Add(new ChatMessage
+                            {
+                                Role = "tool",
+                                ToolCallId = toolCall.Id,
+                                Content = "Metryczny obraz CAD zostal wyrenderowany. Dolaczam obraz i dane kalibracyjne pixel->CAD jako kolejna wiadomosc uzytkownika."
+                            });
+
+                            var visionContent = new List<VisionContentPart>
+                            {
+                                new VisionContentPart { Type = "text", Text = "Oto metryczny render CAD. Uzyj danych kalibracyjnych JSON do przeliczania pikseli na wspolrzedne CAD:\n" + metricPayload.ToString(Newtonsoft.Json.Formatting.Indented) },
+                                new VisionContentPart
+                                {
+                                    Type = "image_url",
+                                    ImageUrl = new VisionImageUrl { Url = $"data:image/png;base64,{base64String}" }
+                                }
+                            };
+
+                            conversationHistory.Add(new ChatMessage { Role = "user", Content = visionContent });
+                            OnStatusUpdate?.Invoke("Metryczny obraz Vision wstrzykniety do rozmowy z kalibracja pixel->CAD.");
+                        }
+                        catch (Exception ex)
+                        {
+                            conversationHistory.Add(new ChatMessage
+                            {
+                                Role = "tool",
+                                ToolCallId = toolCall.Id,
+                                Content = $"Blad przetwarzania metrycznego obrazu Vision: {ex.Message}. Surowy wynik narzedzia: {metricJson}"
+                            });
+                            OnStatusUpdate?.Invoke($"Blad przetwarzania Metric Vision: {ex.Message}");
+                            canEarlyExitThisTurn = false;
+                        }
+                    }
+                    else if (toolExecutionResult.StartsWith("[VISION_IMAGE_CAPTURED]|"))
                     {
                         string imagePath = toolExecutionResult.Split('|')[1];
+                        if (string.IsNullOrWhiteSpace(imagePath) || !System.IO.File.Exists(imagePath))
+                        {
+                            conversationHistory.Add(new ChatMessage
+                            {
+                                Role = "tool",
+                                ToolCallId = toolCall.Id,
+                                Content = $"Blad przetwarzania obrazu Vision: nie znaleziono pliku '{imagePath}'."
+                            });
+                            OnStatusUpdate?.Invoke($"Blad przetwarzania obrazu Vision: nie znaleziono pliku '{imagePath}'.");
+                            canEarlyExitThisTurn = false;
+                            continue;
+                        }
                         
                         // Dodajemy standardową odpowiedź 'tool' aby zamknąć strukturę wywołania
                         conversationHistory.Add(new ChatMessage

@@ -3182,3 +3182,446 @@ User zrobil 4 testy Benchmark_09 - kazdy trafil do OSOBNEGO folderu:
 - Stare raporty UD-Q4 (15:19-15:36) byly w glowie - w rzeczywistosci wszystkie byly w `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf/`
   (ale zostaly zostawione/zapisane w poprzedniej sesji z blednym ModelName, stad heurystyczna identyfikacja)
 - Biezacy stan: 11 folderow z raportami, kazdy ma poprawny ModelName po v2.28.79
+
+## [v2.28.82] 2026-06-11T22:40:00+02:00 - Metric Vision Scan MVP [VISION-SCAN]
+
+### [CEL]
+Dodano pierwszy milestone metrycznego podsystemu Vision:
+- render/capture wskazanego bbox CAD do skalibrowanego kafla PNG,
+- atlas kafli dla calego rysunku / selekcji / warstw,
+- indeks `VisionScanIndex.json` z metadanymi pixel->CAD,
+- narzedzie do odpytywania ostatniego lub wskazanego indeksu.
+
+### [NOWE PLIKI / KOMPONENTY]
+- `src/Models/MetricVisionModels.cs`
+  - `MetricVisionBounds`, `MetricVisionTile`, `MetricVisionObservation`, `MetricVisionScanIndex`.
+- `src/Core/MetricVisionRenderer.cs`
+  - centralny renderer kafla i helpery skanu,
+  - token `[VISION_METRIC_IMAGE_CAPTURED]|`,
+  - normalizacja bbox do kwadratu dla kafli,
+  - `PixelToCad`,
+  - katalog skanow: `%APPDATA%\Bricscad_AgentAI\VisionScans\<scan_id>\`.
+- `src/Tools/CaptureMetricVisionAreaTool.cs`
+  - narzedzie `CaptureMetricVisionArea`,
+  - parametry: `MinX`, `MinY`, `MaxX`, `MaxY`, `Resolution`, `Profile`, `AddOverlay`.
+- `src/Tools/ScanMetricVisionDrawingTool.cs`
+  - narzedzie `ScanMetricVisionDrawing`,
+  - parametry: `Scope=Model|Selection|Layer`, `LayerNames`, `TileCadSize`, `Resolution`, `OverlapPercent`, `Profile`, `AnalyzeNow`, `AddOverlay`.
+- `src/Tools/QueryVisionScanIndexTool.cs`
+  - narzedzie `QueryVisionScanIndex`,
+  - parametry: `ScanId`, `Query`, `Profile`, `Limit`.
+- `tests/Tools/MetricVisionToolTests.cs`
+  - testy schematow nowych narzedzi.
+
+### [INTEGRACJE]
+- `Bricscad_AgentAI_V2.csproj`: dodano nowe pliki do kompilacji.
+- `AppPaths.cs`: dodano `GetVisionScansPath()` oraz tworzenie katalogu `VisionScans`.
+- `ToolConfigManager.cs`:
+  - nowe narzedzia dostaja tag `#vision`,
+  - dodane do `CadProfile` i `CadMetadataProfile`,
+  - `SupportsEarlyExit=false` dla narzedzi vision scan.
+- `LLMClient.cs`:
+  - dodano obsluge tokenu `[VISION_METRIC_IMAGE_CAPTURED]|{json}`,
+  - LLM dostaje obraz PNG jako `image_url` oraz JSON kalibracyjny pixel->CAD,
+  - stara sciezka `[VISION_IMAGE_CAPTURED]` ma guard na brak pliku obrazu.
+
+### [WAZNA DECYZJA IMPLEMENTACYJNA]
+MVP nie uzywa jeszcze czystego headless `Teigha.GraphicsSystem.GetSnapshot`.
+Renderer ma stabilny kontrakt metryczny, ale wewnetrznie korzysta z kontrolowanego widoku + capture client-area jako fallback.
+Publiczny kontrakt narzedzi jest przygotowany tak, aby pozniej podmienic wnetrze `MetricVisionRenderer` na prawdziwy off-screen GS snapshot bez zmian w API.
+
+### [TESTY W BRICSCAD - POTWIERDZONE]
+User przetestowal przez `AI_RUN`:
+
+1. `CaptureMetricVisionArea`
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true}}
+```
+Wynik:
+- `status=success`,
+- `scan_id=20260611_223457_634e2534`,
+- `image_path=C:\Users\Adrian\AppData\Roaming\Bricscad_AgentAI\VisionScans\20260611_223457_634e2534\tiles\tile_r000_c000.png`,
+- `index_path=C:\Users\Adrian\AppData\Roaming\Bricscad_AgentAI\VisionScans\20260611_223457_634e2534\VisionScanIndex.json`,
+- `cad_bounds=[0,0]-[5000,5000]`,
+- `resolution=1024`,
+- `cad_units_per_pixel_x=4.8828125`,
+- `cad_units_per_pixel_y=4.8828125`,
+- `unit_type=Centimeters`,
+- `profile=OcrLabels`.
+
+2. `QueryVisionScanIndex`
+```json
+{"toolName":"QueryVisionScanIndex","arguments":{"ScanId":"latest","Query":"r000","Limit":10}}
+```
+Wynik:
+- poprawnie odczytany ostatni indeks,
+- `tile_count=1`,
+- zwrocony kafel `r000_c000`,
+- `observation_count=0` (zgodne z MVP, brak automatycznej analizy VLM).
+
+3. `ScanMetricVisionDrawing`
+```json
+{"toolName":"ScanMetricVisionDrawing","arguments":{"Scope":"Model","TileCadSize":5000,"Resolution":1024,"OverlapPercent":10,"Profile":"OcrLabels","AnalyzeNow":false,"AddOverlay":true}}
+```
+Wynik:
+- `status=success`,
+- `scan_id=20260611_223622_34f7c5f5`,
+- `tile_count=1`,
+- `scope=Model`,
+- `profile=OcrLabels`,
+- `cad_bounds=[-5,174.034]-[1354.6129,1100.384]`,
+- komunikat: atlas i indeks utworzone bez automatycznej analizy VLM.
+
+### [UWAGI TESTOWE]
+- `tile_count=1` przy `TileCadSize=5000` jest poprawne, bo zakres modelu miesci sie w jednym kaflu.
+- Kolejny test zalecany: `TileCadSize=500`, aby wymusic wiele kafli i sprawdzic `neighbors`.
+- Naturalny czat Supervisora nie widzi bezposrednio `CaptureMetricVisionArea`; testy wykonywac przez `AI_RUN` albo pozniej nauczyc Supervisora delegowania tego do `CadMetadataProfile`.
+
+### [STAN_SYSTEMU]
+- Metric Vision MVP dziala w BricsCAD przez `AI_RUN`.
+- Atlas i Query indeksu potwierdzone praktycznie.
+- Pelne automatyczne OCR/VLM na calej siatce nie jest jeszcze wdrozone (`AnalyzeNow` zarezerwowane dla kolejnego etapu).
+
+### [KOLEJNY_KROK]
+- Test `ScanMetricVisionDrawing` z `TileCadSize=500` i weryfikacja wielu kafli oraz list `neighbors`.
+- Otworzyc PNG kafla i ocenic czy overlay nie zaslania opisow.
+- Kolejny etap rozwoju: prawdziwy headless `Teigha.GraphicsSystem.GetSnapshot` w `MetricVisionRenderer` oraz opcjonalny pipeline VLM dla `AnalyzeNow=true`.
+
+## [v2.28.83] 2026-06-11T22:50:00+02:00 - Fix edge sliver tiles w Metric Vision [VISION-TILING-FIX]
+
+### [PROBLEM]
+User przetestowal `ScanMetricVisionDrawing` z `TileCadSize=500`.
+Indeks wygenerowal poprawnie wiele kafli, ale ostatnie kafle na krawedzi mogly byc bardzo male.
+Przyklad:
+- `r002_c002`: normalny kafel ok. `459.6 x 459.6` CAD units, scale `0.44884` cad/px.
+- `r002_c003`: mikrokafel ok. `26.35 x 26.35` CAD units, scale `0.02573` cad/px.
+
+To jest niekorzystne dla VLM, bo atlas ma nagle kafle o zupelnie innej skali i bardzo waskie resztki przy krawedziach.
+
+### [DIAGNOZA]
+Stara logika `BuildTiles` robila petle po `x += step`, `y += step`, a `MaxX/MaxY` przycinala przez `Math.Min(..., extents.Max*)`.
+Gdy ostatni start wypadl blisko krawedzi extents, powstawal cienki skrawek zamiast pelnego kafla brzegowego.
+
+### [FIX]
+`MetricVisionRenderer.BuildTiles` zostal zmieniony:
+- dodano `BuildAxisStarts(min, max, tileCadSize, step)`,
+- ostatni kafel osi ma start `max - tileCadSize`,
+- kafel brzegowy jest przesuwany do krawedzi, a nie przycinany do mikroskrawka,
+- dodano deduplikacje startow osi przez `AddDistinctStart`.
+
+### [OCZEKIWANY EFEKT]
+Dla extents ok. `1360 x 926`, `TileCadSize=500`, `OverlapPercent=10`:
+- zamiast mikrokafli na koncu powinny powstac pelne kafle brzegowe,
+- spodziewana siatka to ok. `3 x 2 = 6` kafli,
+- skala kafli powinna byc stabilna, ok. `500 / 1024 = 0.488` cad/px dla pelnych kafli,
+- brak kafli typu `26 x 26`.
+
+### [KOLEJNY_KROK]
+- Skompilowac plugin i powtorzyc:
+```json
+{"toolName":"ScanMetricVisionDrawing","arguments":{"Scope":"Model","TileCadSize":500,"Resolution":1024,"OverlapPercent":10,"Profile":"OcrLabels","AnalyzeNow":false,"AddOverlay":true}}
+```
+- Potem:
+```json
+{"toolName":"QueryVisionScanIndex","arguments":{"ScanId":"latest","Query":"","Limit":50}}
+```
+- Sprawdzic, czy `tile_count` spadl do sensownej liczby i czy nie ma kafli o skali `0.025...` cad/px.
+
+## [v2.28.84] 2026-06-11T23:15:00+02:00 - MaxTiles guard i ograniczenie fallback capture [VISION-SAFETY]
+
+### [PROBLEM]
+User przetestowal `ScanMetricVisionDrawing` z:
+```json
+{"toolName":"ScanMetricVisionDrawing","arguments":{"Scope":"Model","TileCadSize":500,"Resolution":1024,"OverlapPercent":10,"Profile":"OcrLabels","AnalyzeNow":false,"AddOverlay":true}}
+```
+Wynik:
+- `tile_count=132`,
+- `cad_bounds=[-5,0]-[5000,5000]`,
+- podczas renderowania user robil `Alt+Tab`, wiec czesc PNG mogla przechwycic zasloniete okno.
+
+### [DIAGNOZA]
+- MVP renderer nadal uzywa fallbacku `CopyFromScreen` po kontrolowanym ustawieniu widoku.
+- To NIE jest jeszcze prawdziwy headless/off-screen capture.
+- Jesli okno BricsCAD zostanie zasloniete, `CopyFromScreen` moze zlapac inne okna.
+- Skaner nie mial bezpiecznika liczby kafli, wiec potrafil wygenerowac setki obrazow bez potwierdzenia.
+
+### [FIX]
+`ScanMetricVisionDrawingTool`:
+- dodano parametr `MaxTiles` (domyslnie `64`),
+- dodano parametr `AllowLargeScan` (domyslnie `false`),
+- jesli `tileBounds.Count > MaxTiles` i `AllowLargeScan=false`, narzedzie zwraca:
+  - `status=blocked`,
+  - `reason=tile_count_exceeds_limit`,
+  - `tile_count`,
+  - `max_tiles`,
+  - `cad_bounds`,
+  - komunikat z sugestia zwiekszenia `TileCadSize`, zawezenia scope albo jawnego `AllowLargeScan=true`.
+
+### [ZALECENIE TESTOWE]
+Dopoki renderer uzywa fallbacku ekranowego:
+- nie robic `Alt+Tab` podczas skanu,
+- uzywac malych testow `Scope=Selection` lub wiekszego `TileCadSize`,
+- przy pelnym skanie ustawic jawnie `MaxTiles` i `AllowLargeScan=true` tylko gdy wiemy, ze liczba kafli jest akceptowalna.
+
+### [KOLEJNY_KROK]
+- Priorytet kolejnego etapu: wymienic fallback `CopyFromScreen` w `MetricVisionRenderer` na prawdziwy off-screen `Teigha.GraphicsSystem.GetSnapshot`, aby skanowanie dzialalo faktycznie w tle.
+
+## [v2.28.85] 2026-06-11T23:25:00+02:00 - Fix deformacji fallback PNG + guard foreground [VISION-CAPTURE-FIX]
+
+### [PROBLEM]
+User wykonal test geometrii:
+- w modelu byl kwadrat o boku 200 jednostek,
+- w wygenerowanym PNG krawedz pozioma miala ok. `155 px`,
+- krawedz pionowa miala ok. `202 px`.
+
+Dodatkowo przy `Alt+Tab` fallback nadal lapal elementy Windows/inne okna.
+
+### [DIAGNOZA]
+W `MetricVisionRenderer.RenderViaControlledView` fallback robil:
+```csharp
+g.DrawImage(screen, new Rectangle(0, 0, resolution, resolution));
+```
+czyli bral prostokatny client-area okna BricsCAD i rozciagal go do kwadratowego PNG.
+Jesli client-area mial aspekt ok. `202/155 = 1.30`, kwadrat CAD stawal sie prostokatem w PNG.
+
+### [FIX]
+`MetricVisionRenderer`:
+- dodano `GetCenteredSquare(width, height)`,
+- po `CopyFromScreen` brany jest najwiekszy centralny kwadratowy crop,
+- dopiero ten kwadrat jest skalowany do `resolution x resolution`,
+- dodano `EnsureDocumentIsForeground(doc)`,
+- przed `CopyFromScreen` sprawdzane jest `GetForegroundWindow()` oraz relacja `IsChild(...)`,
+- jesli okno BricsCAD nie jest aktywne, render rzuca blad zamiast przechwytywac okna Windows.
+
+### [OGRANICZENIE]
+To nadal jest fallback ekranowy, nie prawdziwy headless render.
+Guard ogranicza przypadkowe przechwycenie innych okien, ale prawdziwe rozwiazanie to nadal `Teigha.GraphicsSystem.GetSnapshot`.
+
+### [TEST PO KOMPILACJI]
+1. Wykonac ponownie `CaptureMetricVisionArea` lub maly `ScanMetricVisionDrawing`.
+2. Nie robic `Alt+Tab`.
+3. Zmierzyc ten sam kwadrat 200 units w PNG.
+4. Oczekiwane: krawedz pozioma i pionowa powinny miec zblizona liczbe pikseli.
+5. Wykonac test negatywny: podczas skanu zrobic `Alt+Tab`; oczekiwany wynik to blad/przerwanie, nie PNG z oknem Windows.
+
+## [v2.28.86] 2026-06-11T23:40:00+02:00 - Screen fallback domyslnie wylaczony dla Metric Vision [VISION-CALIBRATION-SAFETY]
+
+### [PROBLEM]
+User wykonal kolejny test z osiami CAD:
+- brazowe linie byly narysowane dokladnie w osi X i Y,
+- wygenerowany obraz byl przesuniety,
+- w PNG widac bylo fragmenty opisow arkuszy/zakladek, m.in. `A1-0.2xp`, `A1-0.1xp`.
+
+### [DIAGNOZA]
+Centralny crop ograniczyl deformacje, ale nie rozwiazal glownego problemu:
+- `doc.Window.Handle`/client rect nie oznacza czystego viewportu modelu,
+- `CopyFromScreen` potrafi obejmowac UI dokumentu BricsCAD, zakladki/layouty albo marginesy,
+- dlatego metadane `pixel -> CAD` sa falszywie skalibrowane i nie wolno ich traktowac jako metryczne.
+
+### [FIX]
+`MetricVisionRenderer.RenderTile`:
+- dodano parametr `allowScreenFallback`,
+- gdy `allowScreenFallback=false`, renderer przerywa z komunikatem, ze `CopyFromScreen` nie jest wiarygodnym backendem metrycznym,
+- fallback ekranowy nadal istnieje tylko jako tryb diagnostyczny,
+- kafle wygenerowane fallbackiem dostaja `status=rendered_screen_fallback`.
+
+`CaptureMetricVisionAreaTool` i `ScanMetricVisionDrawingTool`:
+- dodano parametr `AllowScreenFallback` domyslnie `false`,
+- przy `true` komunikat wyniku ostrzega, ze kalibracja `pixel->CAD` moze byc niewiarygodna.
+
+### [KONSEKWENCJA]
+Od tego momentu narzedzia Metric Vision nie powinny domyslnie produkowac PNG udajacych metrycznie skalibrowane obrazy, dopoki nie zostanie wdrozony prawdziwy backend off-screen `Teigha.GraphicsSystem`.
+
+### [KOLEJNY_KROK]
+Zaimplementowac realny renderer off-screen przez `Document.GraphicsManager` / `Teigha.GraphicsSystem.Device/View/GetSnapshot`.
+Do tego czasu `AllowScreenFallback=true` uzywac tylko do diagnostycznego podgladu kadrowania, nie do OCR z pozycjami CAD.
+
+## [v2.28.87] 2026-06-11T23:55:00+02:00 - Pierwszy backend off-screen GraphicsSystem dla Metric Vision [VISION-OFFSCREEN-GS]
+
+### [TEST USERA]
+User potwierdzil:
+- bez `AllowScreenFallback` narzedzie blokuje ekranowy backend,
+- z `AllowScreenFallback=true` kafel ma `status=rendered_screen_fallback`,
+- PNG nadal pokazuje przesuniecie oraz UI/zakladki arkuszy, wiec fallback jest tylko diagnostyczny.
+
+### [FIX]
+`MetricVisionRenderer.RenderTile`:
+- najpierw probuje `RenderViaOffScreenGraphicsSystem`,
+- dopiero po bledzie off-screen i tylko gdy `AllowScreenFallback=true` wraca do `CopyFromScreen`,
+- status kafla to:
+  - `rendered_offscreen_gs` dla nowego backendu,
+  - `rendered_screen_fallback` dla trybu diagnostycznego.
+
+`RenderViaOffScreenGraphicsSystem`:
+- uzywa `doc.GraphicsManager`,
+- tworzy `CreateAutoCADOffScreenDevice()`,
+- ustawia `device.OnSize(new Size(resolution, resolution))`,
+- tworzy widok przez `manager.CreateAutoCADView(currentSpaceBlockTableRecord)`,
+- dodaje view do device,
+- ustawia `view.Viewport = new Extents2d(0, 0, resolution, resolution)`,
+- ustawia bbox przez `view.ZoomWindow(min, max)`,
+- pobiera obraz przez `device.GetSnapshot(new Rectangle(0, 0, resolution, resolution))`,
+- zapisuje PNG i opcjonalny overlay.
+
+### [UWAGA]
+Kompilacja lokalna w srodowisku Codex nadal zatrzymuje sie na globalnych brakach pakietow (`Newtonsoft`, `Roslyn`, `UnitsNet`, `PdfPig`), wiec pierwszy backend GS wymaga praktycznego testu kompilacji/run-time w BricsCAD.
+
+### [TEST PO KOMPILACJI]
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true}}
+```
+Oczekiwane:
+- `status=success`,
+- `tile.status=rendered_offscreen_gs`,
+- brak elementow UI/zakladek arkuszy w PNG,
+- osie/bbox zgodne z overlayem.
+
+Jesli backend GS rzuci blad, wynik powinien zawierac szczegoly off-screen.
+
+## [v2.28.88] 2026-06-12T00:05:00+02:00 - Off-screen GS przeniesiony za jawna flage [VISION-OFFSCREEN-SAFETY]
+
+### [TEST USERA]
+User uruchomil:
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true}}
+```
+W BricsCAD wynik byl ogolny:
+`Błąd wykonania "AI_RUN".`
+
+### [DIAGNOZA]
+Poniewaz narzedzie nie zwrocilo kontrolowanego `BLAD METRIC VISION`, pierwszy backend `CreateAutoCADOffScreenDevice/CreateAutoCADView/GetSnapshot` prawdopodobnie powoduje blad runtime poza zwyklym `catch (Exception)` lub w handlerze komendy.
+Nie powinien byc uruchamiany domyslnie.
+
+### [FIX]
+`MetricVisionRenderer.RenderTile`:
+- dodano parametr `useExperimentalOffscreen`,
+- off-screen GS uruchamia sie tylko gdy `UseExperimentalOffscreen=true`,
+- jesli `UseExperimentalOffscreen=false` i `AllowScreenFallback=false`, narzedzie zwraca kontrolowany blad z wyjasnieniem,
+- jesli `AllowScreenFallback=true`, nadal dziala tylko diagnostyczny screenshot.
+
+`CaptureMetricVisionAreaTool` i `ScanMetricVisionDrawingTool`:
+- dodano parametr `UseExperimentalOffscreen` domyslnie `false`.
+
+### [TEST PO KOMPILACJI]
+Bezpieczny test kontrolowany:
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true}}
+```
+Oczekiwane: `BLAD METRIC VISION` z komunikatem, ze trzeba jawnie wlaczyc `UseExperimentalOffscreen=true`.
+
+Eksperymentalny test GS:
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true,"UseExperimentalOffscreen":true}}
+```
+Jesli znowu da ogolny `Błąd wykonania AI_RUN`, trzeba przebudowac backend GS mniejszymi krokami albo dodac osobne narzedzie diagnostyczne dla etapow `GraphicsManager`, `Device`, `View`, `Snapshot`.
+## [v2.28.89] 2026-06-12T00:35:00+02:00 - Diagnostyka etapowa GraphicsSystem dla Metric Vision [VISION-GS-DIAGNOSTICS]
+
+### [TEST USERA]
+User przetestowal nowe narzedzie diagnostyczne `DiagnoseMetricVisionGraphicsSystem` w BricsCAD na pliku `Z:\OCR.dwg`.
+
+Wyniki etapow:
+- `GraphicsManager`: success, manager type `Bricscad.GraphicsSystem.Manager`.
+- `CreateOffscreenDevice`: success, device type `Teigha.GraphicsSystem.ImpDevice`; device poczatkowo ma `IsValid=false`, `NumViews=0`, size `0x0`.
+- `OffscreenOnSize`: success, `device.OnSize(256x256)` ustawia rect/size poprawnie.
+- `GetDbModel`: success, model type `Teigha.GraphicsSystem.Model`.
+- `CreateViewFromCurrentSpace`: success dla `manager.CreateAutoCADView(btr)`, ale view ma `IsValid=false`.
+- `DeviceAddView`: ogolny `Blad wykonania AI_RUN`.
+- `DeviceInsertManagerViewOnly`: kontrolowany `SEHException` z `Teigha.GraphicsSystem.ImpDevice.InsertView`.
+- `SetViewportOnManagerView`: success, dopoki view nie jest dodawany do device.
+
+### [DIAGNOZA]
+Widoki tworzone przez `manager.CreateAutoCADView(btr)` sa niebezpieczne dla tego scenariusza off-screen w BricsCAD V22: samo utworzenie potrafi przejsc, ale `device.Add(view)` / `device.InsertView(...)` moze powodowac natywny wyjatek ODA/Teigha.
+
+### [FIX / NOWA SCIEZKA]
+Dodano alternatywna sciezke diagnostyczna oparta o:
+- `device.CreateView()`,
+- `view.Add(currentSpaceBtr, manager.GetDBModel())`,
+- `device.Add(view)`.
+
+User potwierdzil, ze ta sciezka przechodzi etapy:
+- `DeviceAddDeviceViewOnly`: success,
+- `ViewAddCurrentSpaceToDeviceView`: success,
+- `DeviceViewSetViewport`: success,
+- `DeviceViewZoomWindow`: success,
+- `DeviceViewShow`: success,
+- `DeviceViewUpdate`: success,
+- `DeviceViewSnapshot`: success, snapshot `256x256`.
+
+### [KONSEKWENCJA]
+Backend Metric Vision powinien uzywac `device.CreateView()` + `view.Add(btr, model)`, a nie `manager.CreateAutoCADView(btr)`.
+
+## [v2.28.90] 2026-06-12T00:55:00+02:00 - Pierwszy dzialajacy off-screen GS i blad kadrowania [VISION-OFFSCREEN-CROP]
+
+### [TEST USERA]
+Po migracji renderera na `device.CreateView()` user uruchomil:
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true,"UseExperimentalOffscreen":true}}
+```
+
+Wynik:
+- `status=success`,
+- kafel zapisany jako PNG,
+- `tile.status=rendered_offscreen_gs`,
+- brak przechwycenia UI Windows/BricsCAD.
+
+Jednak obraz nie pokazal calego obszaru `0,0 - 5000,5000`. Widoczny byl tylko wyrywek z duzym przyblizeniem, nadal z malym przesunieciem wzgledem geometrii CAD.
+
+### [DIAGNOZA]
+W rendererze i diagnostyce `View.Viewport` byl ustawiany jako:
+```csharp
+new Extents2d(0, 0, resolution, resolution)
+```
+
+Dla `Teigha.GraphicsSystem.View.Viewport` prawdopodobna konwencja to wspolrzedne znormalizowane `0..1`, a nie piksele urzadzenia. Ustawienie `0..1024` powoduje, ze `ZoomWindow` nie mapuje sie na pelny kadr i daje efekt powiekszonego wycinka.
+
+### [FIX]
+`MetricVisionRenderer.RenderViaOffScreenGraphicsSystem`:
+- zmieniono `view.Viewport` na:
+```csharp
+new Extents2d(0.0, 0.0, 1.0, 1.0)
+```
+- `view.ZoomWindow(...)` nadal dostaje realne granice CAD kafla.
+
+`DiagnoseMetricVisionGraphicsSystemTool`:
+- dodano parametry `MinX`, `MinY`, `MaxX`, `MaxY` z domyslnym bboxem `0,0 - 5000,5000`,
+- w sciezce device-view `Viewport` ustawiany jest na `0,0,1,1`,
+- `ZoomWindow` uzywa teraz podanych granic CAD, a nie `0..Resolution`,
+- wynik diagnostyczny zwraca `cad_bounds`, `device_view_viewport`, `device_view_zoom_min`, `device_view_zoom_max`.
+
+`MetricVisionToolTests`:
+- rozszerzono test schematu diagnostyki o `MinX`, `MinY`, `MaxX`, `MaxY`.
+
+### [UWAGA BUILD]
+W srodowisku Codex `dotnet build Bricscad_AgentAI_V2/Bricscad_AgentAI_V2.csproj` nadal zatrzymuje sie na globalnych brakach referencji (`Newtonsoft.Json`, `Microsoft.CodeAnalysis`, `UnitsNet`, `PdfPig` itd.), wiec walidacja kompilacji musi byc wykonana w lokalnym srodowisku usera, gdzie poprzednie buildy przechodzily.
+
+### [TEST PO KOMPILACJI]
+Najpierw diagnostyka tego samego bboxu:
+```json
+{"toolName":"DiagnoseMetricVisionGraphicsSystem","arguments":{"Stage":"DeviceViewSnapshot","Resolution":256,"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000}}
+```
+
+Potem wlasciwy capture:
+```json
+{"toolName":"CaptureMetricVisionArea","arguments":{"MinX":0,"MinY":0,"MaxX":5000,"MaxY":5000,"Resolution":1024,"Profile":"OcrLabels","AddOverlay":true,"UseExperimentalOffscreen":true}}
+```
+
+Oczekiwane:
+- caly bbox `0,0 - 5000,5000` widoczny w jednym kaflu,
+- brak UI Windows/BricsCAD,
+- brak deformacji skali X/Y,
+- overlay `CAD [0,0] - [5000,5000]` zgodny z widoczna geometria.
+
+Jesli po tej poprawce zostanie tylko przesuniecie rzedu okolo 1 jednostki CAD, kolejny krok to kalibracja mapowania krawedzi/polpiksela (`pixel center` vs `pixel edge`) w `pixel -> CAD` i/lub korekta interpretacji `ZoomWindow`.
+
+## [v2.28.36] 2026-06-12T08:00:00+02:00 - Zaawansowane filtry i marginesy w narzedziach Metric Vision
+### [ZREALIZOWANO]
+- Wdrożono zaawansowane skanowanie w ScanMetricVisionDrawingTool.cs:
+  - Dodano odrzucanie odstających elementów (Outliers) używając IQR. Parametr FilterOutliers z domyślną wartością true dla Scope: Model.
+  - Wdrożono możliwość powiększenia marginesu przez argument MarginPercent.
+  - Zaimplementowano tryb wycinania po wyznaczonym oknie (Scope: Window) oczekujący koordynatów w obiekcie WindowBounds.
+### [STAN_SYSTEMU]
+- System renderowania i segmentacji obszaru wzbogacony o pełną inteligencję selekcji przed generacją kafli PNG.
+### [BLOKADY / PROBLEMY]
+- Brak. Testowane na poprawność składniową.
+### [KOLEJNY_KROK]
+- Testowanie poprawności nowych marginesów w rzeczywistym środowisku CAD.

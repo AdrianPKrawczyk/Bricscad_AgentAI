@@ -13,6 +13,7 @@ namespace Bricscad_AgentAI_V2.Tests
                 ReadXDataToolTests.RunTests();
                 WriteXDataToolTests.RunTests();
                 FindXDataToolTests.RunTests();
+                MetricVisionToolTests.RunTests();
                 SelectEntitiesToolTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.UI.LatexToUnicodeConverterTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.DynamicFormulaManagerTests.RunTests();

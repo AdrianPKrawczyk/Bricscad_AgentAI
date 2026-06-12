@@ -1,0 +1,5 @@
+﻿--- system_prompt_blocks.txt
++++ system_prompt_blocks.candidate.txt
+@@
++Dodatkowe zasady po analizie Benchmark_09_InsertBlock_Extended:
++- Gdy zadanie dotyczy wielu elementow tego samego typu, preferuj Foreach zamiast serii osobnych wywolan narzedzia.

@@ -1,0 +1,930 @@
+﻿{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_08_CreateBlock",
+    "ModelName": "google/gemma-4-26b-a4b-qat",
+    "ProviderName": "LM Studio (Lokalny)",
+    "ProviderEndpoint": "http://100.104.226.29:1234/v1/chat/completions",
+    "ProfileName": "CadBlocksProfile",
+    "Temperature": 0.2,
+    "MaxTokens": 3500,
+    "TopP": 0.95,
+    "TopK": 0,
+    "MinP": 0.0,
+    "RepetitionPenalty": 1.0,
+    "ReasoningEffort": "none",
+    "AutoLoadModel": false,
+    "GpuOffload": "default",
+    "LoadContextLength": 20000,
+    "TtlSeconds": 0,
+    "FlashAttention": true,
+    "OffloadKvCache": true,
+    "MaxContextTokens": 8192,
+    "ContextCompressionThreshold": 90,
+    "RunDate": "2026-06-10 22:39",
+    "Comment": "Benchmark dla CreateBlock (tworzenie definicji bloku z zaznaczenia) i InsertBlock (wstawianie instancji) w profilu CadBlocksProfile. 30 testow, 8 kategorii, 5 poziomow trudnosci. Pokrywa: wzorzec SelectEntities->CreateBlock, formaty BasePoint, DeleteOriginals, Foreach+CreateBlock, InsertBlock z Scale/Rotation/Attributes, scenariusze bledow (pusta selekcja, blok istnieje, niepoprawny format punktu).\nPromptOverridePath=D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+    "RunMode": "optimizer_lab",
+    "PromptOverridePath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+    "OutputRoot": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\bricscad-results",
+    "CandidateId": "candidate_002",
+    "JobId": "job_20260610_223805",
+    "SaveToUserBenchmarkHistory": false,
+    "GlobalScore": 66.67,
+    "CategoriesScores": {
+      "CreateBlockBasic": 100.0,
+      "CreateBlockSequence": 50.0,
+      "CreateBlockPointFormats": 100.0,
+      "CreateBlockAdvanced": 66.67,
+      "CreateBlockForeach": 60.0,
+      "CreateBlockNegative": 0.0,
+      "InsertBlockBasic": 100.0,
+      "InsertBlockAdvanced": 80.0,
+      "InsertBlockNegative": 33.33,
+      "WorkflowCombined": 33.33
+    },
+    "AverageExecutionTimeMs": 3909.0
+  },
+  "Tests": [
+    {
+      "Id": 5,
+      "Category": "CreateBlockSequence",
+      "Difficulty": 3,
+      "TestName": "CreateBlock_AfterSelectEntities_ByType",
+      "Description": "Sekwencja SelectEntities (EntityType=Line) -> CreateBlock.",
+      "UserPrompt": "Zaznacz wszystkie linie, a potem z nich utworz blok SCHEMAT_ELEKTRYCZNY.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 12 obiektow.",
+        "CreateBlock": "WYNIK: Pomyślnie utworzono nowa definicje bloku 'SCHEMAT_ELEKTRYCZNY' z 12 obiektow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "SCHEMAT_ELEKTRYCZNY",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Nie wskazano BlockName='SCHEMAT_ELEKTRYCZNY'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "0,0,0 || [0,0,0] || (0,0,0)",
+          "TargetArgument": "BasePoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BasePoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "EntityType": "*Line",
+            "Mode": "New"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "SCHEMAT_ELEKTRYCZNY",
+            "DeleteOriginals": false
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Brak BasePoint (wymagane). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0). (Znaleziono: 'AskUser', Dozwolone: '0,0,0 || [0,0,0] || (0,0,0)')"
+      ],
+      "ExecutionTimeMs": 3870
+    },
+    {
+      "Id": 7,
+      "Category": "CreateBlockSequence",
+      "Difficulty": 3,
+      "TestName": "CreateBlock_BlockNameAlreadyExists_ErrorPath",
+      "Description": "CreateBlock z BlockName ktory juz istnieje (walidacja CreateBlockTool.cs:74).",
+      "UserPrompt": "Utworz blok ISTNIEJACY z zaznaczonych obiektow.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CreateBlock": "BŁĄD: Definicja bloku o nazwie 'ISTNIEJACY' juz istnieje. Wybierz inna nazwe."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "ISTNIEJACY",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='ISTNIEJACY' (nawet jesli powoduje blad - model musi podac nazwe)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "ISTNIEJACY"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "ISTNIEJACY_NOWY"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "BLOK_ZAZNACZONY_1"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Brak BlockName='ISTNIEJACY' (nawet jesli powoduje blad - model musi podac nazwe). (Znaleziono: 'BLOK_ZAZNACZONY_1', Oczekiwano: 'ISTNIEJACY')"
+      ],
+      "ExecutionTimeMs": 5187
+    },
+    {
+      "Id": 11,
+      "Category": "CreateBlockAdvanced",
+      "Difficulty": 3,
+      "TestName": "CreateBlock_DeleteOriginalsTrue_WithSequence",
+      "Description": "Sekwencja SelectEntities -> CreateBlock z DeleteOriginals=true. Pamiec ma byc wyczyszczona po operacji (CreateBlockTool.cs:97).",
+      "UserPrompt": "Zaznacz te obiekty, nastepnie utworz z nich blok USUNIETE z punktem bazowym [0,0,0] i usun oryginaly.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 4 obiekty.",
+        "CreateBlock": "WYNIK: Pomyślnie utworzono nowa definicje bloku 'USUNIETE' z 4 obiektow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "USUNIETE",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='USUNIETE'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "0,0,0 || [0,0,0] || (0,0,0)",
+          "TargetArgument": "BasePoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BasePoint (wymagane, np. [0,0,0]). Dozwolone formaty: 0,0,0 | [0,0,0] | (0,0,0)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "true",
+          "TargetArgument": "DeleteOriginals",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak jawnego DeleteOriginals=true (gdy oryginaly maja byc usuniete)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "[0,0,0]",
+            "BlockName": "USUNIETE",
+            "DeleteOriginals": true
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock. (Nie znaleziono 'SelectEntities' po pozycji -1)"
+      ],
+      "ExecutionTimeMs": 2758
+    },
+    {
+      "Id": 15,
+      "Category": "CreateBlockForeach",
+      "Difficulty": 5,
+      "TestName": "CreateBlock_Foreach_WithDeleteOriginals",
+      "Description": "Foreach+CreateBlock z DeleteOriginals=true dla wielu blokow.",
+      "UserPrompt": "Dla blokow KOMP1, KOMP2, KOMP3 wywolaj Foreach tworzacy nowe bloki (oryginaly usuniete).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "KOMP1",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='KOMP1'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\",\"DeleteOriginals\":true}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName, BasePoint i DeleteOriginals=true."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Przy Foreach model nie powinien wywolywac CreateBlock bezposrednio poza Foreach."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"AskUser\",\"DeleteOriginals\":true}",
+            "Items": [
+              "KOMP1",
+              "KOMP2",
+              "KOMP3"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName, BasePoint i DeleteOriginals=true. (Znaleziono: '{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"AskUser\",\"DeleteOriginals\":true}', Dozwolone: '{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\",\"DeleteOriginals\":true} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\",\"DeleteOriginals\":true}')"
+      ],
+      "ExecutionTimeMs": 3462
+    },
+    {
+      "Id": 16,
+      "Category": "CreateBlockForeach",
+      "Difficulty": 5,
+      "TestName": "CreateBlock_Foreach_BlackboardList",
+      "Description": "Foreach z TargetVariable (z @Items blackboard) jako zrodlem listy nazw do tworzenia blokow.",
+      "UserPrompt": "Lista nazw do stworzenia blokow jest w @Items. Uzyj Foreach do stworzenia kazdego z nich.",
+      "MockMemoryVariables": {
+        "Items": "BLK_A | BLK_B | BLK_C"
+      },
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach z @Items."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "Items",
+          "TargetArgument": "TargetVariable",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien korzystac z @Items (TargetVariable)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Przy Foreach z listy agent nie powinien wywolywac CreateBlock bezposrednio poza Foreach."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"AskUser\"}",
+            "TargetVariable": "Items"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach powinien wywolac CreateBlock z {item} jako BlockName. (Znaleziono: '{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"AskUser\"}', Dozwolone: '{\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"0,0,0\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"[0,0,0]\"} || {\"ToolName\":\"CreateBlock\",\"BlockName\":\"{item}\",\"BasePoint\":\"(0,0,0)\"}')"
+      ],
+      "ExecutionTimeMs": 3226
+    },
+    {
+      "Id": 18,
+      "Category": "CreateBlockNegative",
+      "Difficulty": 2,
+      "TestName": "CreateBlock_MissingBlockName",
+      "Description": "CreateBlock bez BlockName (pole Required w schemacie).",
+      "UserPrompt": "Z zaznaczonych obiektow utworz nowy blok. Sprawdzam czy model doda BlockName.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CreateBlock": "BŁĄD: Parametr 'BlockName' jest wymagany."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "NowyBlok || Nowy_Blok_Zaznaczenia || NowyBlok1 || NowyBlok01 || Blok_Nowy_1 || NowyBlok_Zaznaczenie || NOWY_BLOK_TESTOWY || NowyBlokTestowy || BlokZaznaczenia || TestBlock",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName (wymagane przez schemat - model powinien sam wymyslec nazwe). Akceptowalne przykladowe nazwy: NowyBlok, Nowy_Blok_Zaznaczenia, NowyBlok1, NowyBlok_Zaznaczenie, NOWY_BLOK_TESTOWY, NowyBlokTestowy, BlokZaznaczenia, TestBlock."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": "1",
+          "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock dokladnie 1 raz, a nie powtarzac w petli."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "Nowy_Blok_Zaznaczenia"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "Nowy_Blok_Zaznaczenia"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "Nowy_Blok_Zaznaczenia"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "Nowy_Blok_Zaznaczenia"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Model powinien wywolac CreateBlock dokladnie 1 raz, a nie powtarzac w petli. (Znaleziono 4 wywolan narzedzia 'CreateBlock', limit: 1)"
+      ],
+      "ExecutionTimeMs": 8791
+    },
+    {
+      "Id": 19,
+      "Category": "CreateBlockNegative",
+      "Difficulty": 3,
+      "TestName": "CreateBlock_InvalidPointFormat",
+      "Description": "BasePoint w niepoprawnym formacie (np. 'origin' zamiast wspolrzednych). Walidacja CreateBlockTool.cs:62-63.",
+      "UserPrompt": "Z zaznaczonych obiektow utworz blok BLEDNY_PUNKT. Punkt bazowy origin.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "CreateBlock": "BŁĄD: Niepoprawny format punktu bazowego: 'origin'. Oczekiwano [x,y,z] lub AskUser."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "BLEDNY_PUNKT",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='BLEDNY_PUNKT'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "origin || 0,0,0 || [0,0,0] || (0,0,0)",
+          "TargetArgument": "BasePoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BasePoint (model powinien przekazac 'origin' jak w UserPrompt LUB poprawic na poprawny format XYZ)."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": "1",
+          "ErrorMessage": "BLAD: Model powinien wywolac CreateBlock dokladnie 1 raz (z BasePoint='origin' lub poprawionym formatem), a nie powtarzac w petli."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "0,0,0",
+            "BlockName": "BLEDNY_PUNKT"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Model powinien wywolac CreateBlock dokladnie 1 raz (z BasePoint='origin' lub poprawionym formatem), a nie powtarzac w petli. (Znaleziono 10 wywolan narzedzia 'CreateBlock', limit: 1)"
+      ],
+      "ExecutionTimeMs": 12473
+    },
+    {
+      "Id": 27,
+      "Category": "InsertBlockNegative",
+      "Difficulty": 2,
+      "TestName": "InsertBlock_BlockNotFound",
+      "Description": "InsertBlock z BlockName ktory nie istnieje w rysunku (walidacja InsertBlockTool.cs:81).",
+      "UserPrompt": "Wstaw blok NIEISTNIEJACY w punkcie [0,0,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InsertBlock": "BŁAD: Blok 'NIEISTNIEJACY' nie istnieje w tabeli blokow biezacego rysunku."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "NIEISTNIEJACY",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='NIEISTNIEJACY' (nawet jesli nie istnieje)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "ExistingBlocks"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Model powinien wywolac InsertBlock.",
+        "BLAD: Brak BlockName='NIEISTNIEJACY' (nawet jesli nie istnieje). (Argument 'BlockName' nie zostaĹ‚ znaleziony w ĹĽadnym wywoĹ‚aniu)"
+      ],
+      "ExecutionTimeMs": 2548
+    },
+    {
+      "Id": 29,
+      "Category": "WorkflowCombined",
+      "Difficulty": 4,
+      "TestName": "Workflow_FullCreateThenInsert",
+      "Description": "Pelny workflow: SelectEntities -> CreateBlock -> InsertBlock (z nowo utworzonego bloku).",
+      "UserPrompt": "Zaznacz obiekty, utworz z nich blok NOWY_MEBEL z punktem bazowym [0,0,0], a potem wstaw ten blok 3 razy w siatce.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 4 obiekty.",
+        "CreateBlock": "WYNIK: Pomyślnie utworzono nowa definicje bloku 'NOWY_MEBEL' z 4 obiektow.",
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock, Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock -> Foreach (InsertBlock)."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "NOWY_MEBEL",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='NOWY_MEBEL' w CreateBlock."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOWY_MEBEL\"",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolywac InsertBlock z BlockName='NOWY_MEBEL'."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "[0,0,0]",
+            "BlockName": "NOWY_MEBEL",
+            "DeleteOriginals": false
+          }
+        },
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOWY_MEBEL\",\"InsertionPoint\":\"{item}\"}",
+            "GenerateSequence": {
+              "Count": 3,
+              "OffsetVector": "100,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock -> Foreach (InsertBlock). (Nie znaleziono 'SelectEntities' po pozycji -1)",
+        "BLAD: Foreach powinien wywolywac InsertBlock z BlockName='NOWY_MEBEL'. (Znaleziono: '{\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOWY_MEBEL\",\"InsertionPoint\":\"{item}\"}', Oczekiwano: '{\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOWY_MEBEL\"')"
+      ],
+      "ExecutionTimeMs": 5707
+    },
+    {
+      "Id": 32,
+      "Category": "InsertBlockAdvanced",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_Foreach_ItemsList",
+      "Description": "Foreach z Items=[A1,A2,A3] + Action=InsertBlock z {item} jako BlockName.",
+      "UserPrompt": "Dla blokow A1, A2, A3 wywolaj Foreach wstawiajacy kazdy z nich w innym punkcie ([0,0,0], [100,0,0], [200,0,0]).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "A1 || [0,0,0]",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='A1' LUB '[0,0,0]' (dopuszczalne dwa warianty)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "A2 || [100,0,0]",
+          "TargetArgument": "Items[1]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='A2' LUB '[100,0,0]' (dopuszczalne dwa warianty)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{point}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z opcjonalnym InsertionPoint - {item}, {point} z blackboard, lub {MATH:...})."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{MATH: [0,0,0] + [{MATH: {index}-1} * 100, 0, 0]}\"}",
+            "GenerateSequence": {
+              "Count": 3,
+              "OffsetVector": "100,0,0",
+              "StartVector": "0,0,0"
+            },
+            "Items": [
+              "A1",
+              "A2",
+              "A3"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z opcjonalnym InsertionPoint - {item}, {point} z blackboard, lub {MATH:...}). (Znaleziono: '{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{MATH: [0,0,0] + [{MATH: {index}-1} * 100, 0, 0]}\"}', Dozwolone: '{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{point}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":')"
+      ],
+      "ExecutionTimeMs": 4643
+    },
+    {
+      "Id": 35,
+      "Category": "WorkflowCombined",
+      "Difficulty": 5,
+      "TestName": "Workflow_CreateInsertEdit",
+      "Description": "Pelny workflow 3-krokowy: SelectEntities -> CreateBlock -> InsertBlock -> EditBlock (caly cykl zycia bloku).",
+      "UserPrompt": "Zaznacz obiekty, utworz z nich blok CYCLE_BLOCK z punktem bazowym [0,0,0], wstaw go w [0,0,0], potem zmien kolor w jego definicji na 5.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 3 obiekty.",
+        "CreateBlock": "WYNIK: Pomyślnie utworzono nowa definicje bloku 'CYCLE_BLOCK' z 3 obiektow.",
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'CYCLE_BLOCK' w punkcie (0,0,0).",
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock, InsertBlock, EditBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock -> InsertBlock -> EditBlock."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "CYCLE_BLOCK",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='CYCLE_BLOCK' (w CreateBlock, InsertBlock lub EditBlock)."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "5",
+          "TargetArgument": "Modifications[0].Val",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak koloru 5 w Modifications EditBlock."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "[0,0,0]",
+            "BlockName": "CYCLE_BLOCK",
+            "DeleteOriginals": false
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "CYCLE_BLOCK",
+            "InsertionPoint": "[0,0,0]"
+          }
+        },
+        {
+          "ToolName": "EditBlock",
+          "Arguments": {
+            "BlockName": "CYCLE_BLOCK",
+            "Modifications": [
+              {
+                "Prop": "Color",
+                "Val": 5
+              }
+            ],
+            "Target": "ByName"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock -> InsertBlock -> EditBlock. (Nie znaleziono 'SelectEntities' po pozycji -1)"
+      ],
+      "ExecutionTimeMs": 6253
+    },
+    {
+      "Id": 36,
+      "Category": "InsertBlockNegative",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_InvalidPointFormat",
+      "Description": "InsertBlock z InsertionPoint w niepoprawnym formacie (np. 'origin' zamiast wspolrzednych). Walidacja InsertBlockTool.cs:70.",
+      "UserPrompt": "Wstaw blok TEST_PT w punkcie origin (niepoprawny format).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InsertBlock": "BŁĄD: Niepoprawny format punktu: 'origin'. Oczekiwano [x,y,z] lub AskUser."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "TEST_PT",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='TEST_PT'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "origin || 0,0,0 || [0,0,0] || (0,0,0)",
+          "TargetArgument": "InsertionPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak InsertionPoint (model powinien przekazac 'origin' jak w UserPrompt LUB poprawic na poprawny format XYZ)."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": "1",
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock dokladnie 1 raz, a nie powtarzac w petli."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "TEST_PT",
+            "InsertionPoint": "0,0,0"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Model powinien wywolac InsertBlock dokladnie 1 raz, a nie powtarzac w petli. (Znaleziono 10 wywolan narzedzia 'InsertBlock', limit: 1)"
+      ],
+      "ExecutionTimeMs": 15195
+    }
+  ]
+}

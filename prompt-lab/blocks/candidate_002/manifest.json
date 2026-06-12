@@ -1,0 +1,29 @@
+﻿{
+  "schemaVersion": 1,
+  "candidateId": "candidate_002",
+  "createdAt": "2026-06-10T22:03:41.3912339+02:00",
+  "profileName": "CadBlocksProfile",
+  "sourcePromptPath": "prompt-lab\\blocks\\candidate_001\\system_prompt_blocks.candidate.txt",
+  "candidatePromptPath": "prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+  "fullReportPath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_001\\bricscad-results\\Benchmark_09_InsertBlock_Extended_FULL_20260610_2200.json",
+  "errorsReportPath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_001\\bricscad-results\\Benchmark_09_InsertBlock_Extended_ERRORS_20260610_2200.json",
+  "benchmarkName": "Benchmark_09_InsertBlock_Extended",
+  "modelName": "google/gemma-4-26b-a4b-qat",
+  "baselineScore": 84,
+  "failedTestsCount": 4,
+  "proposedChangesCount": 2,
+  "status": "benchmarked",
+  "productionPromptModified": false,
+  "labRun": {
+    "enabled": true,
+    "targetScore": 90,
+    "lastScore": 73.77,
+    "lastJobId": "job_20260610_223805",
+    "lastResultPath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\bricscad-results\\job_20260610_223805_SUMMARY.json",
+    "lastSummaryPath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\bricscad-results\\job_20260610_223805_SUMMARY.json",
+    "benchmarkPaths": [
+      "D:\\GitHub\\Bricscad_AgentAI\\Bricscad_AgentAI_V2\\tests\\Benchmark_09_InsertBlock_Extended.json",
+      "D:\\GitHub\\Bricscad_AgentAI\\Bricscad_AgentAI_V2\\tests\\Benchmark_08_CreateBlock.json"
+    ]
+  }
+}

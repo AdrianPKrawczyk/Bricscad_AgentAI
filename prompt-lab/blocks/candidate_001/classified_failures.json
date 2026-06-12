@@ -1,0 +1,83 @@
+﻿{
+  "failures": [
+    {
+      "testId": 13,
+      "testName": "InsertBlock_AttributeNumber_WithForeach",
+      "category": "InsertBlockDynamicAttributes",
+      "difficulty": 3,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Model powinien uzyc Foreach.",
+        "BLAD: Foreach powinien miec Count=4. (Argument \u0027GenerateSequence.Count\u0027 nie zostal znaleziony w zadnym wywolaniu)",
+        "BLAD: Foreach powinien wywolac InsertBlock z Attributes=[{Tag=NUMER, Value={index}}] (1..4 z {index}). (Argument \u0027Action\u0027 nie zostal znaleziony w zadnym wywolaniu)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 14,
+      "testName": "InsertBlock_AttributeName_WithItem",
+      "category": "InsertBlockDynamicAttributes",
+      "difficulty": 3,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Model powinien uzyc Foreach.",
+        "BLAD: Foreach powinien miec Items[0]=\u0027A\u0027. (Argument \u0027Items[0]\u0027 nie zostal znaleziony w zadnym wywolaniu)",
+        "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName I w atrybucie NAZWA={item}. (Argument \u0027Action\u0027 nie zostal znaleziony w zadnym wywolaniu)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 15,
+      "testName": "InsertBlock_MultipleAttributes_Foreach",
+      "category": "InsertBlockDynamicAttributes",
+      "difficulty": 4,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Model powinien uzyc Foreach.",
+        "BLAD: Foreach powinien wywolac InsertBlock z 2 atrybutami: TYP=\u0027analog\u0027 (staly) i KOD=\u0027{item}\u0027 (dynamiczny z Items). (Argument \u0027Action\u0027 nie zostal znaleziony w zadnym wywolaniu)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 16,
+      "testName": "InsertBlock_AttributeMText_Foreach",
+      "category": "InsertBlockDynamicAttributes",
+      "difficulty": 4,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Foreach powinien miec Count=2. (Argument \u0027GenerateSequence.Count\u0027 nie zostal znaleziony w zadnym wywolaniu)",
+        "BLAD: Foreach powinien wywolac InsertBlock z atrybutem MText TRESC zawierajacym wieloliniowy tekst (\\n w Value). (Znaleziono: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022NOTATKA\u0022,\u0022InsertionPoint\u0022:\u0022[0,0,0]\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022MText\u0022,\u0022Value\u0022:\u0022{item}\u0022}]}\u0027, Dozwolone: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022NOTATKA\u0022,\u0022InsertionPoint\u0022:\u0022[0,0,0]\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022TRESC\u0022,\u0022Value\u0022:\u0022Linia 1\\\\nLinia 2\u0022}]} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022NOTATKA\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022TRESC\u0022,\u0022Value\u0022:\u0022Linia 1\\\\nLinia 2\u0022}]} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022NOTATKA\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022TRESC\u0022,\u0022Value\u0022:\u0022Tekst\\\\nwieloliniowy\u0022}]}\u0027)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 24,
+      "testName": "InsertBlock_Foreach_GenerateWithMText",
+      "category": "InsertBlockAdvancedForeach",
+      "difficulty": 4,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Foreach powinien wywolac InsertBlock z Attributes uzywajacym {index} w wartosci (MText moze uzyc \u0027Komentarz nr {index}\u0027 albo atrybut NR=\u0027{index}\u0027 albo Tag=MText z {index}). Akceptuj rowniez wstawienie punktu przez {MATH:...} jesli model wyliczyl recznie. (Znaleziono: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022KOMENTARZ\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022MText\u0022,\u0022Value\u0022:\u0022Komentarz nr {index}\u0022}]}\u0027, Dozwolone: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022KOMENTARZ\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022KOMENTARZ\u0022,\u0022Value\u0022:\u0022Komentarz nr {index}\u0022}]} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022KOMENTARZ\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022,\u0022Attributes\u0022:[{\u0022Value\u0022:\u0022Komentarz nr {index}\u0022,\u0022Tag\u0022:\u0022KOMENTARZ\u0022}]} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022KOMENTARZ\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022NR\u0022,\u0022Value\u0022:\u0022{index}\u0022}]} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022KOMENTARZ\u0022,\u0022InsertionPoint\u0022:\u0022[0, {MATH: 100 * {index}}, 0]\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022MText\u0022,\u0022Value\u0022:\u0022Komentarz nr {index}\u0022}]} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022KOMENTARZ\u0022,\u0022InsertionPoint\u0022:\u0022[0, {MATH: {index} * 100}, 0]\u0022,\u0022Attributes\u0022:[{\u0022Tag\u0022:\u0022MText\u0022,\u0022Value\u0022:\u0022Komentarz nr {index}\u0022}]}\u0027)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    },
+    {
+      "testId": 25,
+      "testName": "InsertBlock_ListBlocksForeach_NoAtSign",
+      "category": "InsertBlockAdvancedForeach",
+      "difficulty": 5,
+      "classification": "prompt_gap",
+      "confidence": 0.75,
+      "failedRules": [
+        "BLAD: Foreach powinien miec Count=2 (2 miejsca na blok). (Argument \u0027GenerateSequence.Count\u0027 nie zostal znaleziony w zadnym wywolaniu)",
+        "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z InsertionPoint={item} LUB {MATH:...} LUB brak). (Znaleziono: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022{item}\u0022,\u0022InsertionPoint\u0022:\u0022[0,0,0]\u0022} | {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022{item}\u0022,\u0022InsertionPoint\u0022:\u0022[200,200,0]\u0022}\u0027, Dozwolone: \u0027{\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022{item}\u0022,\u0022InsertionPoint\u0022:\u0022{item}\u0022} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022{item}\u0022,\u0022InsertionPoint\u0022:\u0022{MATH: {item_x}, {item_y}, 0}\u0022} || {\u0022ToolName\u0022:\u0022InsertBlock\u0022,\u0022BlockName\u0022:\u0022{item}\u0022}\u0027)"
+      ],
+      "recommendedAction": "Add a small, concrete rule tied to the failed workflow."
+    }
+  ]
+}

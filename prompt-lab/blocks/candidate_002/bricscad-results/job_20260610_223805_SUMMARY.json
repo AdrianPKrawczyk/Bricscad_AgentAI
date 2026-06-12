@@ -1,0 +1,33 @@
+{
+  "jobId": "job_20260610_223805",
+  "runMode": "optimizer_lab",
+  "candidateId": "candidate_002",
+  "promptOverridePath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+  "outputRoot": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\bricscad-results",
+  "runDate": "2026-06-10 22:42",
+  "totalBenchmarks": 2,
+  "totalTests": 61,
+  "passedTests": 45,
+  "failedTests": 16,
+  "weightedGlobalScore": 73.77,
+  "benchmarks": [
+    {
+      "benchmarkPath": "D:\\GitHub\\Bricscad_AgentAI\\Bricscad_AgentAI_V2\\tests\\Benchmark_09_InsertBlock_Extended.json",
+      "benchmarkName": "Benchmark_09_InsertBlock_Extended",
+      "score": 84.0,
+      "testCount": 25,
+      "passedCount": 21,
+      "failedCount": 4,
+      "averageExecutionTimeMs": 3911.0
+    },
+    {
+      "benchmarkPath": "D:\\GitHub\\Bricscad_AgentAI\\Bricscad_AgentAI_V2\\tests\\Benchmark_08_CreateBlock.json",
+      "benchmarkName": "Benchmark_08_CreateBlock",
+      "score": 66.67,
+      "testCount": 36,
+      "passedCount": 24,
+      "failedCount": 12,
+      "averageExecutionTimeMs": 3909.0
+    }
+  ]
+}

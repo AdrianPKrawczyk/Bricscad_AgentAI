@@ -1,0 +1,1531 @@
+﻿{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_09_InsertBlock_Extended",
+    "ModelName": "google/gemma-4-26b-a4b-qat",
+    "ProviderName": "LM Studio (Lokalny)",
+    "ProviderEndpoint": "http://100.104.226.29:1234/v1/chat/completions",
+    "ProfileName": "CadBlocksProfile",
+    "Temperature": 0.2,
+    "MaxTokens": 3500,
+    "TopP": 0.95,
+    "TopK": 0,
+    "MinP": 0.0,
+    "RepetitionPenalty": 1.0,
+    "ReasoningEffort": "none",
+    "AutoLoadModel": false,
+    "GpuOffload": "default",
+    "LoadContextLength": 20000,
+    "TtlSeconds": 0,
+    "FlashAttention": true,
+    "OffloadKvCache": true,
+    "MaxContextTokens": 8192,
+    "ContextCompressionThreshold": 90,
+    "RunDate": "2026-06-10 22:38",
+    "Comment": "Benchmark_09 rozszrza pokrycie InsertBlock (ponad 12 testow z Benchmark_08) i wprowadza 8 testow dla ListBlocks. Lacznie 25 testow, 7 kategorii, 5 poziomow trudnosci (D1-D5). Powiazania: ListBlocks->SaveAs->Foreach(TargetVariable)->InsertBlock, CreateBlock->InsertBlock, EditBlock->InsertBlock, EditAttributes->InsertBlock, SelectEntities->InsertBlock. Wymaga CadBlocksProfile.\nPromptOverridePath=D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+    "RunMode": "optimizer_lab",
+    "PromptOverridePath": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\system_prompt_blocks.candidate.candidate.txt",
+    "OutputRoot": "D:\\GitHub\\Bricscad_AgentAI\\prompt-lab\\blocks\\candidate_002\\bricscad-results",
+    "CandidateId": "candidate_002",
+    "JobId": "job_20260610_223805",
+    "SaveToUserBenchmarkHistory": false,
+    "GlobalScore": 84.0,
+    "CategoriesScores": {
+      "ListBlocksBasic": 100.0,
+      "ListBlocksAdvanced": 80.0,
+      "InsertBlockMultiInsertion": 100.0,
+      "InsertBlockDynamicAttributes": 75.0,
+      "InsertBlockWorkflows": 75.0,
+      "InsertBlockEdgeCases": 100.0,
+      "InsertBlockAdvancedForeach": 50.0
+    },
+    "AverageExecutionTimeMs": 3911.0
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "ListBlocksBasic",
+      "Difficulty": 1,
+      "TestName": "ListBlocks_NoArgs",
+      "Description": "ListBlocks bez zadnych parametrow - zwraca wszystkie bloki z rysunku.",
+      "UserPrompt": "Wylistuj wszystkie bloki dostepne w biezacym rysunku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 3 definicji blokow: A1, A2, OKNO."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ListBlocks",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc ListBlocks do wylistowania blokow."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {}
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2014
+    },
+    {
+      "Id": 2,
+      "Category": "ListBlocksBasic",
+      "Difficulty": 1,
+      "TestName": "ListBlocks_EmptyDrawing",
+      "Description": "ListBlocks gdy rysunek nie ma zadnych blokow uzytkownika (tylko *Model_Space, *Paper_Space).",
+      "UserPrompt": "Jakie bloki sa dostepne w tym pustym rysunku?",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Brak dostepnych blokow uzytkownika."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ListBlocks",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac ListBlocks."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {}
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 1187
+    },
+    {
+      "Id": 3,
+      "Category": "ListBlocksBasic",
+      "Difficulty": 2,
+      "TestName": "ListBlocks_WithLongName",
+      "Description": "ListBlocks gdy w rysunku sa bloki z długimi nazwami (np. KRZESLO_BIUROWE_OBROTOWE).",
+      "UserPrompt": "Wyswietl wszystkie definicje blokow w projekcie.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 5 definicji blokow: KRZESLO_BIUROWE_OBROTOWE, LAMPA_STOLOWA, STOL_OKRAGLY, OKNO_DUZE, DRZWI_PRZESUWNE."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ListBlocks",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac ListBlocks."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {}
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2384
+    },
+    {
+      "Id": 4,
+      "Category": "ListBlocksAdvanced",
+      "Difficulty": 2,
+      "TestName": "ListBlocks_SaveAs",
+      "Description": "ListBlocks z SaveAs=BlockList - zapisuje wynik do zmiennej w blackboard (bez @).",
+      "UserPrompt": "Wylistuj bloki i zapisz ich nazwy do zmiennej BlockList w pamieci.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 4 definicji blokow: MEBEL_A, MEBEL_B, MEBEL_C, MEBEL_D."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ListBlocks",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc ListBlocks."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "BlockList",
+          "TargetArgument": "SaveAs",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak SaveAs='BlockList' (bez znaku @)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "BlockList"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2389
+    },
+    {
+      "Id": 5,
+      "Category": "ListBlocksAdvanced",
+      "Difficulty": 3,
+      "TestName": "ListBlocks_ThenForeachInsert",
+      "Description": "Workflow: ListBlocks (z SaveAs) -> Foreach (TargetVariable=BlockList) -> InsertBlock z {item} jako BlockName. Model musi uzyc TargetVariable zamiast Items.",
+      "UserPrompt": "Wylistuj wszystkie bloki, zapisz do BlockList, a potem dla kazdego z nich wstaw nowa instancje w punkcie [0,0,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 3 definicji blokow: A1, A2, A3.",
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji ListBlocks -> Foreach."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "BlockList",
+          "TargetArgument": "SaveAs",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: ListBlocks powinien zapisac do SaveAs='BlockList'."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "BlockList",
+          "TargetArgument": "TargetVariable",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec TargetVariable='BlockList' (iterator z ListBlocks, BEZ znaku @)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"0,0,0\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolywac InsertBlock z BlockName='{item}' (bez @, z klamrami)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "BlockList"
+          }
+        },
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\"}",
+            "TargetVariable": "BlockList"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 3591
+    },
+    {
+      "Id": 6,
+      "Category": "ListBlocksAdvanced",
+      "Difficulty": 4,
+      "TestName": "ListBlocks_ForeachSaveAs_NoAtSign",
+      "Description": "Walidacja: Foreach.TargetVariable NIE zawiera znaku @ (jest to przekazywane do ListBlocks.SaveAs jako nazwa zmiennej).",
+      "UserPrompt": "Pobierz liste blokow do @AllBlocks, a nastepnie wstaw kazdy z nich w siatce 3x3 uzywajac Foreach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 2 definicji blokow: B1, B2.",
+        "Foreach": "SUKCES: Wykonano 9/9 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano ListBlocks -> Foreach."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "AllBlocks",
+          "TargetArgument": "SaveAs",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: ListBlocks.SaveAs='AllBlocks' (BEZ znaku @ - mimo ze user uzywa @ w prompt). Model MUSI sam usunac @ przy zapisie."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "AllBlocks",
+          "TargetArgument": "TargetVariable",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach.TargetVariable='AllBlocks' (BEZ znaku @)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "AllBlocks"
+          }
+        },
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{MATH: {index} % 3 * 100}, {MATH: floor({index} / 3) * 100}, 0\"}\",\"Rotation\":0,\"Scale\":1}",
+            "GenerateSequence": {
+              "Count": 9,
+              "OffsetVector": "0,0,0",
+              "StartVector": "0,0,0"
+            },
+            "Items": [
+              "B1",
+              "B1",
+              "B1",
+              "B2",
+              "B2",
+              "B2",
+              "B1",
+              "B2",
+              "B1"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach.TargetVariable='AllBlocks' (BEZ znaku @). (Argument 'TargetVariable' nie zostaĹ‚ znaleziony w ĹĽadnym wywoĹ‚aniu)"
+      ],
+      "ExecutionTimeMs": 6521
+    },
+    {
+      "Id": 7,
+      "Category": "ListBlocksAdvanced",
+      "Difficulty": 3,
+      "TestName": "ListBlocks_BeforeCreate_VerifyUniqueness",
+      "Description": "Workflow: ListBlocks (sprawdzenie czy blok juz istnieje) -> CreateBlock z unikalna nazwa.",
+      "UserPrompt": "Sprawdz jakie bloki juz istnieja. Jesli blok 'UNIKALNY' jeszcze nie istnieje, zaznacz linie i utworz z nich blok UNIKALNY.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 2 definicji blokow: A1, A2.",
+        "SelectEntities": "WYNIK: Zaznaczono 5 obiektow.",
+        "CreateBlock": "WYNIK: Pomyslnie utworzono nowa definicje bloku 'UNIKALNY' z 5 obiektow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, SelectEntities, CreateBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji ListBlocks -> SelectEntities -> CreateBlock (najpierw weryfikacja unikalnosci)."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "UNIKALNY",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='UNIKALNY' w CreateBlock."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {}
+        },
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "EntityType": "*Line"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "AskUser",
+            "BlockName": "UNIKALNY"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 4219
+    },
+    {
+      "Id": 8,
+      "Category": "ListBlocksAdvanced",
+      "Difficulty": 4,
+      "TestName": "ListBlocks_BeforeInsert_VerifyExists",
+      "Description": "Workflow: ListBlocks (sprawdzenie dostepnych) -> InsertBlock z BlockName ktory musi istniec. Model NIE powinien wywolywac InsertBlock bez wczesniejszej weryfikacji ListBlocks.",
+      "UserPrompt": "Sprawdz jakie bloki sa dostepne, a nastepnie wstaw blok 'STOL' w punkcie [500,300,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 4 definicji blokow: STOL, KRZESLO, LAMPA, OKNO.",
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'STOL' w punkcie (500,300,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano ListBlocks -> InsertBlock (najpierw weryfikacja istnienia)."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "STOL",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='STOL' w InsertBlock."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "500,300,0 || [500,300,0] || (500,300,0)",
+          "TargetArgument": "InsertionPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak InsertionPoint (wymagane)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {}
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "STOL",
+            "InsertionPoint": "[500,300,0]"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 3639
+    },
+    {
+      "Id": 9,
+      "Category": "InsertBlockMultiInsertion",
+      "Difficulty": 2,
+      "TestName": "InsertBlock_SameBlock_Twice",
+      "Description": "Dwa niezależne wywolania InsertBlock z tym samym BlockName w dwoch roznych punktach (np. A na 0,0,0 i A na 100,0,0).",
+      "UserPrompt": "Wstaw ten sam blok DRZWI w dwoch miejscach: na [0,0,0] i na [100,0,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'DRZWI' w punkcie (0,0,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": "2",
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock DOKLADNIE 2 razy ALBO 1x Foreach z Items=[2 punkty] (obczie sa rownowazne)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "DRZWI",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='DRZWI' w InsertBlock na top-level (LUB w Foreach Action - patrz nizej)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "0,0,0 || 100,0,0 || [0,0,0] || [100,0,0] || (0,0,0) || (100,0,0)",
+          "TargetArgument": "InsertionPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak InsertionPoint=[0,0,0] LUB [100,0,0] (kombinacja 2 punktow) na top-level (LUB w Foreach Action - patrz nizej)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"DRZWI\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"DRZWI\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Jesli model uzywa Foreach, Action powinien miec BlockName='DRZWI' i InsertionPoint={item}."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "0,0,0 || [0,0,0] || (0,0,0) || [100,0,0] || 100,0,0",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Jesli model uzywa Foreach z Items, Items[0] powinien byc pierwszym z 2 punktow."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "100,0,0 || [100,0,0] || (100,0,0) || [0,0,0] || 0,0,0",
+          "TargetArgument": "Items[1]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Jesli model uzywa Foreach z Items, Items[1] powinien byc drugim z 2 punktow."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "DRZWI",
+            "InsertionPoint": "[0,0,0]"
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "DRZWI",
+            "InsertionPoint": "[100,0,0]"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2987
+    },
+    {
+      "Id": 10,
+      "Category": "InsertBlockMultiInsertion",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_SameBlock_ForeachGenerate",
+      "Description": "Foreach z GenerateSequence (Count=5) + InsertBlock - wstawia 5 instancji tego samego bloku w siatce 1D.",
+      "UserPrompt": "Wstaw 5 kopii bloku SYMBOL_GPS w linii prostej, zaczynajac od [0,0,0] i przesuwajac sie o [50,0,0] w kazdym kroku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 5/5 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "5",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec GenerateSequence.Count=5."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "50,0,0 || [50,0,0] || (50,0,0)",
+          "TargetArgument": "GenerateSequence.OffsetVector",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec OffsetVector=[50,0,0] (przesuniecie 50 w X)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"SYMBOL_GPS\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"SYMBOL_GPS\",\"InsertionPoint\":\"{MATH: {item_x}, {item_y}, 0}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"SYMBOL_GPS\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolywac InsertBlock z BlockName='SYMBOL_GPS' (caly Foreach wstawia 1 typ bloku w {item} LUB {MATH:...})."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"SYMBOL_GPS\",\"InsertionPoint\":\"{item}\"}",
+            "GenerateSequence": {
+              "Count": 5,
+              "OffsetVector": "50,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 3414
+    },
+    {
+      "Id": 11,
+      "Category": "InsertBlockMultiInsertion",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_GridPattern_2D",
+      "Description": "Foreach z GenerateSequence Count=9 OffsetVector=[100,100,0] - 3x3 siatka tego samego bloku.",
+      "UserPrompt": "Stworz siatke 3x3 (9 kopii) bloku KWADRAT w odstepach 100 jednostek w X i Y, zaczynajac od [0,0,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 9/9 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "9 || 3",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach moze miec Count=9 (siatka 3x3) LUB Count=3 (1D z {MATH} dla Y) LUB Items z 9 punktami."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "100,100,0 || [100,100,0] || (100,100,0) || 1,0,0 || 100,0,0",
+          "TargetArgument": "GenerateSequence.OffsetVector",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach moze miec OffsetVector=[100,100,0] (krok siatki), [1,0,0] z {MATH: index_x} w Action, lub [100,0,0] z {MATH: index_y} w Action."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"{MATH: {item_x}, {item_y}, 0}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"[0,0,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"{MATH: {index}-1} * 100, {MATH: (({index}-1) % 3) * 100}, 0\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"[{MATH: {index_x} * 100}, {MATH: {index_y} * 100}, 0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"{MATH: {index_x} * 100},{MATH: {index_y} * 100},0\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KWADRAT\",\"InsertionPoint\":\"{MATH: {index_x} * 100}, {MATH: {index_y} * 100}, 0\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolywac InsertBlock z BlockName='KWADRAT' (z {item}, {MATH:...} lub recznie wyliczonym punktem - akceptuj nawiasy [..] lub bez)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\": \"InsertBlock\", \"BlockName\": \"KWADRAT\", \"InsertionPoint\": \"[{MATH: {index_x} * 100}, {MATH: {index_y} * 100}, 0]\"}",
+            "GenerateSequence": {
+              "Count": 9
+            },
+            "Items": [
+              "0,0",
+              "1,0",
+              "2,0",
+              "0,1",
+              "1,1",
+              "2,1",
+              "0,2",
+              "1,2",
+              "2,2"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 5394
+    },
+    {
+      "Id": 12,
+      "Category": "InsertBlockMultiInsertion",
+      "Difficulty": 4,
+      "TestName": "InsertBlock_MultipleBlocks_ForeachItems",
+      "Description": "Foreach z Items=[A1,B2,C3] (lista roznych nazw blokow) - kazda iteracja wstawia inny blok w tym samym punkcie [0,0,0].",
+      "UserPrompt": "Wstaw bloki A1, B2, C3 wszystkie w punkcie [0,0,0] (jeden na drugim - do testu) uzywajac Foreach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "A1",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='A1'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "B2",
+          "TargetArgument": "Items[1]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='B2'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "C3",
+          "TargetArgument": "Items[2]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[2]='C3'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"0,0,0\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName i InsertionPoint=[0,0,0] (lub bez, jesli default)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\"}",
+            "Items": [
+              "A1",
+              "B2",
+              "C3"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2764
+    },
+    {
+      "Id": 13,
+      "Category": "InsertBlockDynamicAttributes",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_AttributeNumber_WithForeach",
+      "Description": "Foreach + InsertBlock z atrybutem NUMER przyjmujacym {index} (1, 2, 3, ...).",
+      "UserPrompt": "Wstaw 4 etykiety w linii prostej, kazda z atrybutem NUMER ustawionym na numer iteracji (1, 2, 3, 4).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 4/4 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "4",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec Count=4 (ALTERNATYWNIE Items z 4 wartosciami)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Value\":\"{index}\",\"Tag\":\"NUMER\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"etykieta\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{MATH: {index} * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{MATH: ({index} - 1) * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{MATH: {index}}\"}]}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z BlockName w stylu ETYKIETA (case-insensitive) i Attributes=[{Tag=NUMER, Value={index} lub {MATH: {index}}}]."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\": \"InsertBlock\", \"BlockName\": \"ETKIETA\", \"InsertionPoint\": \"{MATH: {index} * 100, 0, 0}\", \"Attributes\": [{\"Tag\": \"NUMER\", \"Value\": \"{index}\"}]}",
+            "GenerateSequence": {
+              "Count": 4,
+              "OffsetVector": "100,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Foreach powinien wywolac InsertBlock z BlockName w stylu ETYKIETA (case-insensitive) i Attributes=[{Tag=NUMER, Value={index} lub {MATH: {index}}}]. (Znaleziono: '{\"ToolName\": \"InsertBlock\", \"BlockName\": \"ETKIETA\", \"InsertionPoint\": \"{MATH: {index} * 100, 0, 0}\", \"Attributes\": [{\"Tag\": \"NUMER\", \"Value\": \"{index}\"}]}', Dozwolone: '{\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Value\":\"{index}\",\"Tag\":\"NUMER\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"etykieta\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{MATH: {index} * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETYKIETA\",\"InsertionPoint\":\"{MATH: ({index} - 1) * 100},0,0\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"ETKIETA\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NUMER\",\"Value\":\"{MATH: {index}}\"}]}')"
+      ],
+      "ExecutionTimeMs": 4426
+    },
+    {
+      "Id": 14,
+      "Category": "InsertBlockDynamicAttributes",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_AttributeName_WithItem",
+      "Description": "Foreach + InsertBlock z atrybutem NAZWA przyjmujacym {item} (nazwa bloku = nazwa atrybutu).",
+      "UserPrompt": "Wstaw 3 bloki TYPOWANE (A, B, C) w [0,0,0] kazdy z atrybutem NAZWA odpowiadajacym nazwie bloku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "A || TYPOWANE_A || TYP_A",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='A' (lub pochodne jak 'TYPOWANE_A')."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"NAZWA\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"Attributes\":[{\"Tag\":\"NAZWA\",\"Value\":\"{item}\"}]}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName I w atrybucie NAZWA={item}."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"NAZWA\",\"Value\":\"{item}\"}]}",
+            "Items": [
+              "A",
+              "B",
+              "C"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 3462
+    },
+    {
+      "Id": 15,
+      "Category": "InsertBlockDynamicAttributes",
+      "Difficulty": 4,
+      "TestName": "InsertBlock_MultipleAttributes_Foreach",
+      "Description": "Foreach + InsertBlock z 2+ atrybutami (TYP + WARTOSC), oba z {item} LUB rozne wartosci.",
+      "UserPrompt": "Wstaw 3 bloki CZUJNIK (A, B, C) z dwoma atrybutami: TYP='analog' i KOD odpowiadajacy nazwie bloku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"Attributes\":[{\"Tag\":\"TYP\",\"Value\":\"analog\"},{\"Tag\":\"KOD\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"Attributes\":[{\"Value\":\"analog\",\"Tag\":\"TYP\"},{\"Value\":\"{item}\",\"Tag\":\"KOD\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"CZUJNIK\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"TYP\",\"Value\":\"analog\"},{\"Tag\":\"KOD\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"CZUJNIK\",\"InsertionPoint\":\"AskUser\",\"Attributes\":[{\"Tag\":\"TYP\",\"Value\":\"analog\"},{\"Tag\":\"KOD\",\"Value\":\"{item}\"}]}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z 2 atrybutami: TYP='analog' (staly) i KOD='{item}' (dynamiczny z Items). Akceptuj BlockName={item} LUB BlockName=CZUJNIK (staly, ale KOD={item} jest placeholderem)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"CZUJNIK\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"TYP\",\"Value\":\"analog\"},{\"Tag\":\"KOD\",\"Value\":\"{item}\"}]}",
+            "Items": [
+              "A",
+              "B",
+              "C"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 3463
+    },
+    {
+      "Id": 16,
+      "Category": "InsertBlockDynamicAttributes",
+      "Difficulty": 4,
+      "TestName": "InsertBlock_AttributeMText_Foreach",
+      "Description": "Foreach + InsertBlock z atrybutem MText (wieloliniowy tekst) generowanym per iteracja.",
+      "UserPrompt": "Wstaw 2 bloki NOTATKA w [0,0,0] z atrybutem MText TRESC. Dla 1. iteracji TRESC='Linia 1\\nLinia 2', dla 2. iteracji TRESC='Kolejny\\n blok'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "2",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach moze miec Count=2 (ALBO uzyc Items z 2 wartosciami MText - oba poprawne)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "Linia 1\\\\nLinia 2 || Kolejny\\\\n blok || Linia 1\\nLinia 2",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Jesli model uzywa Items, Items[0] powinien zawierac wieloliniowy tekst (np. 'Linia 1\\nLinia 2')."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"TRESC\",\"Value\":\"Linia 1\\\\nLinia 2\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"Attributes\":[{\"Tag\":\"TRESC\",\"Value\":\"Linia 1\\\\nLinia 2\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"Attributes\":[{\"Tag\":\"TRESC\",\"Value\":\"Tekst\\\\nwieloliniowy\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"TRESC\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"Attributes\":[{\"Tag\":\"MText TRESC\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"Attributes\":[{\"Tag\":\"MText\",\"Value\":\"{item}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"MText\",\"Value\":\"{item}\"}]}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z atrybutem (MText) TRESC zawierajacym wieloliniowy tekst ({item} LUB literal \\n w Value). Tag moze byc TRESC/MText/MText TRESC."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"NOTATKA\",\"InsertionPoint\":\"[0,0,0]\",\"Attributes\":[{\"Tag\":\"TRESC\",\"Value\":\"{item}\"}]}",
+            "Items": [
+              "Linia 1\\nLinia 2",
+              "Kolejny\\n blok"
+            ]
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 3453
+    },
+    {
+      "Id": 17,
+      "Category": "InsertBlockWorkflows",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_AfterCreateBlock_SamePrompt",
+      "Description": "W jednym promptcie: zaznacz -> utworz blok -> wstaw go. Wszystko 3 krokami.",
+      "UserPrompt": "Zaznacz wszystkie okregi, utworz z nich blok KOLO_MACIERZYSTE, a nastepnie wstaw go w punkcie [1000,1000,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 8 obiektow.",
+        "CreateBlock": "WYNIK: Pomyslnie utworzono nowa definicje bloku 'KOLO_MACIERZYSTE' z 8 obiektow.",
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'KOLO_MACIERZYSTE' w punkcie (1000,1000,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock, InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> CreateBlock -> InsertBlock (caly cykl zycia)."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "KOLO_MACIERZYSTE",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='KOLO_MACIERZYSTE' w CreateBlock lub InsertBlock."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "1000,1000,0 || [1000,1000,0] || (1000,1000,0)",
+          "TargetArgument": "InsertionPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak InsertionPoint=[1000,1000,0] w InsertBlock."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "Conditions": [
+              {
+                "Op": "==",
+                "Prop": "EntityType",
+                "Val": "Circle"
+              }
+            ],
+            "EntityType": "*Circle"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "[0,0,0]",
+            "BlockName": "KOLO_MACIERZYSTE",
+            "DeleteOriginals": false
+          }
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "KOLO_MACIERZYSTE",
+            "InsertionPoint": "[1000,1000,0]"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 5979
+    },
+    {
+      "Id": 18,
+      "Category": "InsertBlockWorkflows",
+      "Difficulty": 4,
+      "TestName": "InsertBlock_AfterCreateBlock_WithEdit",
+      "Description": "InsertBlock + EditBlock w jednym promptcie: wstaw 3 kopie, potem zmien kolor wszystkich instancji.",
+      "UserPrompt": "Wstaw 3 kopie bloku DETAL_A w siatce (Count=3, Offset=[200,0,0]), a potem zmien kolor wszystkich instancji na 1 (czerwony).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji.",
+        "EditBlock": "WYNIK: Zmodyfikowano 3 obiektow wewnatrz definicji bloku/blokow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "Foreach, EditBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji Foreach (InsertBlock) -> EditBlock (modyfikacja definicji)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"DETAL_A\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"DETAL_A\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"DETAL_A\",\"InsertionPoint\":\"[0,0,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"DETAL_A\",\"InsertionPoint\":\"0,0,0\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolywac InsertBlock z BlockName='DETAL_A' w Action."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "200,0,0 || [200,0,0] || (200,0,0)",
+          "TargetArgument": "GenerateSequence.OffsetVector",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec OffsetVector=[200,0,0]."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "1",
+          "TargetArgument": "Modifications[0].Val",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak koloru 1 w Modifications EditBlock."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"DETAL_A\",\"InsertionPoint\":\"{item}\"}",
+            "GenerateSequence": {
+              "Count": 3,
+              "OffsetVector": "200,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        },
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "Conditions": [
+              {
+                "Op": "==",
+                "Prop": "Name",
+                "Val": "DETAL_A"
+              }
+            ],
+            "EntityType": "*BlockReference",
+            "Mode": "New"
+          }
+        },
+        {
+          "ToolName": "EditBlock",
+          "Arguments": {
+            "Modifications": [
+              {
+                "Prop": "Color",
+                "Val": "1"
+              }
+            ],
+            "Target": "Selection"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 6834
+    },
+    {
+      "Id": 19,
+      "Category": "InsertBlockWorkflows",
+      "Difficulty": 4,
+      "TestName": "InsertBlock_WithSelectEntities_Verify",
+      "Description": "SelectEntities (zaznacz blok) -> ReadSelectedBlockInfo (weryfikacja) -> InsertBlock (wstaw nowa instancje w innym miejscu).",
+      "UserPrompt": "Zaznacz blok ISTNIEJACY_STOL, zweryfikuj jego nazwe (powinna byc STOL), a potem wstaw nowa instancje tego bloku w [0,0,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 1 obiekt.",
+        "ReadSelectedBlockInfo": "WYNIK: Informacje o zaznaczonym bloku:\n- InstanceName: STOL\n- DefinitionName: STOL\n- DynamicDefinitionName: STOL",
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'STOL' w punkcie (0,0,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, ReadSelectedBlockInfo, InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> ReadSelectedBlockInfo -> InsertBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "STOL",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='STOL' w InsertBlock (na podstawie odczytu z ReadSelectedBlockInfo)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "0,0,0 || [0,0,0] || (0,0,0)",
+          "TargetArgument": "InsertionPoint",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak InsertionPoint=[0,0,0]."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "Conditions": [
+              {
+                "Op": "==",
+                "Prop": "Name",
+                "Val": "ISTNIEJACY_STOL"
+              }
+            ],
+            "EntityType": "*BlockReference",
+            "Mode": "New"
+          }
+        },
+        {
+          "ToolName": "ReadSelectedBlockInfo",
+          "Arguments": {}
+        },
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "STOL",
+            "InsertionPoint": "[0,0,0]"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 5638
+    },
+    {
+      "Id": 20,
+      "Category": "InsertBlockWorkflows",
+      "Difficulty": 5,
+      "TestName": "InsertBlock_FullPipeline_AfterCreateAndEdit",
+      "Description": "Najdluzszy workflow: SelectEntities -> CreateBlock -> EditBlock (kolor) -> InsertBlock x 3 (Foreach) -> EditAttributes (ustaw atrybut).",
+      "UserPrompt": "Zaznacz okregi, utworz z nich blok KONCOWY w [0,0,0], zmien warstwe jego definicji na 'WARSZTATY', a potem wstaw 3 kopie w siatce (Offset=[150,0,0]) i ustaw atrybut OPIS='test' dla kazdej nowej instancji.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 5 obiektow.",
+        "CreateBlock": "WYNIK: Pomyslnie utworzono nowa definicje bloku 'KONCOWY' z 5 obiektow.",
+        "EditBlock": "WYNIK: Zmodyfikowano 5 obiektow wewnatrz definicji bloku/blokow.",
+        "Foreach": "SUKCES: Wykonano 3/3 operacji.",
+        "EditAttributes": "SUKCES: Zaktualizowano 3 atrybutow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, CreateBlock, EditBlock, Foreach, EditAttributes",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano dlugiej sekwencji SelectEntities -> CreateBlock -> EditBlock -> Foreach (InsertBlock) -> EditAttributes."
+        },
+        {
+          "RuleType": "AnyArgumentMatch",
+          "TargetValue": "KONCOWY",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='KONCOWY' (w CreateBlock, EditBlock lub Foreach Action)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "150,0,0 || [150,0,0] || (150,0,0)",
+          "TargetArgument": "GenerateSequence.OffsetVector",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec OffsetVector=[150,0,0]."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "SelectEntities",
+          "Arguments": {
+            "EntityType": "*Circle",
+            "Mode": "New"
+          }
+        },
+        {
+          "ToolName": "CreateBlock",
+          "Arguments": {
+            "BasePoint": "[0,0,0]",
+            "BlockName": "KONCOWY",
+            "DeleteOriginals": false
+          }
+        },
+        {
+          "ToolName": "EditBlock",
+          "Arguments": {
+            "BlockName": "KONCOWY",
+            "Modifications": [
+              {
+                "Prop": "Layer",
+                "Val": "WARSZTATY"
+              }
+            ],
+            "Target": "ByName"
+          }
+        },
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\": \"InsertBlock\", \"BlockName\": \"KONCOWY\", \"InsertionPoint\": \"{item}\", \"Attributes\": [{\"Tag\": \"OPIS\", \"Value\": \"test\"}]}",
+            "GenerateSequence": {
+              "Count": 3,
+              "OffsetVector": "150,0,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano dlugiej sekwencji SelectEntities -> CreateBlock -> EditBlock -> Foreach (InsertBlock) -> EditAttributes. (Nie znaleziono 'EditAttributes' po pozycji 3)"
+      ],
+      "ExecutionTimeMs": 10496
+    },
+    {
+      "Id": 21,
+      "Category": "InsertBlockEdgeCases",
+      "Difficulty": 2,
+      "TestName": "InsertBlock_WithScale_Half",
+      "Description": "InsertBlock z Scale=0.5 (zmniejszenie 50%).",
+      "UserPrompt": "Wstaw blok MEBEL w [0,0,0] w skali 0.5 (50% normalnego rozmiaru).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'MEBEL' w punkcie (0,0,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "MEBEL",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='MEBEL'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "0.5",
+          "TargetArgument": "Scale",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak Scale=0.5 (50% rozmiar)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "MEBEL",
+            "InsertionPoint": "[0,0,0]",
+            "Scale": 0.5
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2250
+    },
+    {
+      "Id": 22,
+      "Category": "InsertBlockEdgeCases",
+      "Difficulty": 2,
+      "TestName": "InsertBlock_WithRotation_45deg",
+      "Description": "InsertBlock z Rotation=45 (obrot 45 stopni).",
+      "UserPrompt": "Wstaw blok STRZALKA w [0,0,0] obrocona o 45 stopni.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'STRZALKA' w punkcie (0,0,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "STRZALKA",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='STRZALKA'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "45",
+          "TargetArgument": "Rotation",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak Rotation=45 (stopnie)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "STRZALKA",
+            "InsertionPoint": "[0,0,0]",
+            "Rotation": 45
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2234
+    },
+    {
+      "Id": 23,
+      "Category": "InsertBlockEdgeCases",
+      "Difficulty": 3,
+      "TestName": "InsertBlock_LongBlockName_30Chars",
+      "Description": "InsertBlock z dluga nazwa (30+ znakow) - test obslugi nazw dlugich.",
+      "UserPrompt": "Wstaw blok SUPER_DLUGA_NAZWA_BLOKU_TESTOWEGO_XYZ w [0,0,0].",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InsertBlock": "WYNIK: Pomyslnie wstawiono blok 'SUPER_DLUGA_NAZWA_BLOKU_TESTOWEGO_XYZ' w punkcie (0,0,0)."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "InsertBlock",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien wywolac InsertBlock."
+        },
+        {
+          "RuleType": "ArgumentMatch",
+          "TargetValue": "SUPER_DLUGA_NAZWA_BLOKU_TESTOWEGO_XYZ",
+          "TargetArgument": "BlockName",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Brak BlockName='SUPER_DLUGA_NAZWA_BLOKU_TESTOWEGO_XYZ' (dluga nazwa 38 znakow)."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "InsertBlock",
+          "Arguments": {
+            "BlockName": "SUPER_DLUGA_NAZWA_BLOKU_TESTOWEGO_XYZ",
+            "InsertionPoint": "[0,0,0]"
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 2952
+    },
+    {
+      "Id": 24,
+      "Category": "InsertBlockAdvancedForeach",
+      "Difficulty": 4,
+      "TestName": "InsertBlock_Foreach_GenerateWithMText",
+      "Description": "Foreach GenerateSequence (Count=3, Offset=[0,100,0]) + InsertBlock z atrybutem MText per {index}.",
+      "UserPrompt": "Wstaw 3 kopie bloku KOMENTARZ w pionie (Offset=[0,100,0]) z atrybutem MText 'Komentarz nr X' gdzie X to numer iteracji.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "3",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec Count=3 (ALTERNATYWNIE Items z 3 wartosciami)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "0,100,0 || [0,100,0] || (0,100,0)",
+          "TargetArgument": "GenerateSequence.OffsetVector",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien miec OffsetVector=[0,100,0] (pion) - ALTERNATYWNIE brak jesli model wstawil recznie w MATH."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"KOMENTARZ\",\"Value\":\"Komentarz nr {index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Value\":\"Komentarz nr {index}\",\"Tag\":\"KOMENTARZ\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"NR\",\"Value\":\"{index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"MText\",\"Value\":\"Komentarz nr {index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"MTEXT\",\"Value\":\"Komentarz nr {index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"[0, {MATH: 100 * {index}}, 0]\",\"Attributes\":[{\"Tag\":\"MText\",\"Value\":\"Komentarz nr {index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"[0, {MATH: {index} * 100}, 0]\",\"Attributes\":[{\"Tag\":\"MText\",\"Value\":\"Komentarz nr {index}\"}]} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"KOMENTARZ\",\"InsertionPoint\":\"{item}\",\"Attributes\":[{\"Tag\":\"MText\",\"Value\":\"Komentarz nr {MATH: {index}}\"}]}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z Attributes uzywajacym {index} w wartosci (Tag moze byc KOMENTARZ/MText/MTEXT/NR, Value zawiera 'Komentarz nr {index}')."
+        }
+      ],
+      "Passed": true,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "Foreach",
+          "Arguments": {
+            "Action": "{\"ToolName\": \"InsertBlock\", \"BlockName\": \"KOMENTARZ\", \"InsertionPoint\": \"{item}\", \"Attributes\": [{\"Tag\": \"MText\", \"Value\": \"Komentarz nr {MATH: {index}}\"}]}",
+            "GenerateSequence": {
+              "Count": 3,
+              "OffsetVector": "0,100,0",
+              "StartVector": "0,0,0"
+            }
+          }
+        }
+      ],
+      "FailedRulesErrors": [],
+      "ExecutionTimeMs": 5014
+    },
+    {
+      "Id": 25,
+      "Category": "InsertBlockAdvancedForeach",
+      "Difficulty": 5,
+      "TestName": "InsertBlock_ListBlocksForeach_NoAtSign",
+      "Description": "Najdluzszy test ListBlocks->Foreach: ListBlocks(SaveAs=All) -> Foreach(TargetVariable=All) -> InsertBlock z {item} jako BlockName. Weryfikacja ze model NIE dodaje @ do TargetVariable i SaveAs.",
+      "UserPrompt": "Pobierz liste wszystkich blokow do @All, a nastepnie wstaw kazdy z nich w 2 miejscach ([0,0,0] i [200,200,0]) uzywajac Foreach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListBlocks": "WYNIK: Znaleziono 3 definicji blokow: MEBEL, LAMPA, STOL.",
+        "Foreach": "SUKCES: Wykonano 6/6 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ListBlocks, Foreach",
+          "TargetArgument": null,
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji ListBlocks -> Foreach (LUB 2x Foreach - obie sa poprawne)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "All || AllBlocks || AllBlockNames",
+          "TargetArgument": "SaveAs",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: ListBlocks.SaveAs='All' (BEZ znaku @ - mimo ze user prompt ma @All). Akceptuj rowniez 'AllBlocks'/'AllBlockNames'."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "All || AllBlocks || AllBlockNames",
+          "TargetArgument": "TargetVariable",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach.TargetVariable='All' (BEZ znaku @) - WYMAGANE gdy model uzywa TargetVariable zamiast Items, ale moze tez uzyc Items bez TargetVariable."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "2",
+          "TargetArgument": "GenerateSequence.Count",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach moze miec Count=2 (2 miejsca na blok) ALBO uzyc 2 osobnych Foreach z Items."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatchOrAbsent",
+          "TargetValue": "MEBEL || LAMPA || STOL || [0,0,0] || [200,200,0] || 1 || 2",
+          "TargetArgument": "Items[0]",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Jesli model uzywa Items, Items[0] powinien zawierac nazwy blokow (MEBEL/LAMPA/STOL) LUB wspolrzedne ([0,0,0]/[200,200,0]) LUB indeksy (1,2)."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetValue": "{\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{MATH: {item_x}, {item_y}, 0}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[0,0,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"[200,200,0]\"} || {\"ToolName\":\"InsertBlock\",\"BlockName\":\"{item}\",\"InsertionPoint\":\"{point}\"}",
+          "TargetArgument": "Action",
+          "MockData": null,
+          "ExpectedOutput": null,
+          "ErrorMessage": "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z InsertionPoint={item}, {MATH:...}, {point}, [0,0,0]/[200,200,0] recznie lub brak)."
+        }
+      ],
+      "Passed": false,
+      "RecordedToolCalls": [
+        {
+          "ToolName": "ListBlocks",
+          "Arguments": {
+            "SaveAs": "All"
+          }
+        }
+      ],
+      "FailedRulesErrors": [
+        "BLAD: Oczekiwano sekwencji ListBlocks -> Foreach (LUB 2x Foreach - obie sa poprawne). (Nie znaleziono 'Foreach' po pozycji 0)",
+        "BLAD: Foreach powinien wywolac InsertBlock z {item} jako BlockName (z InsertionPoint={item}, {MATH:...}, {point}, [0,0,0]/[200,200,0] recznie lub brak). (Argument 'Action' nie zostal znaleziony w zadnym wywolaniu)"
+      ],
+      "ExecutionTimeMs": 1067
+    }
+  ]
+}
