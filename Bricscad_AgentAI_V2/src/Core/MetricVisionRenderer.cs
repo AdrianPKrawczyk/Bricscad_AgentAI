@@ -541,6 +541,7 @@ namespace Bricscad_AgentAI_V2.Core
                 return;
 
             LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+            var grayedLayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (ObjectId layerId in lt)
             {
@@ -566,13 +567,30 @@ namespace Bricscad_AgentAI_V2.Core
                         ltr.UpgradeOpen();
                         if (grayOtherLayers)
                         {
-                            ltr.Color = Teigha.Colors.Color.FromColorIndex(Teigha.Colors.ColorMethod.ByAci, 8); // szary
+                            ltr.Color = Teigha.Colors.Color.FromRgb(128, 128, 128); // szary (RGB)
+                            grayedLayers.Add(name);
                         }
                         if (fadeOtherLayers)
                         {
                             // Ustawienie przezroczystości (ok. 70% fade)
                             ltr.Transparency = new Teigha.Colors.Transparency(70);
                         }
+                    }
+                }
+            }
+
+            // Fallback: Wymuszenie koloru bezposrednio na encjach (obejscie buga BricsCAD z brakiem regenu koloru warstwy off-screen)
+            if (grayOtherLayers && grayedLayers.Count > 0)
+            {
+                BlockTableRecord btr = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead);
+                foreach (ObjectId entId in btr)
+                {
+                    Entity ent = tr.GetObject(entId, OpenMode.ForRead) as Entity;
+                    if (ent != null && grayedLayers.Contains(ent.Layer))
+                    {
+                        ent.UpgradeOpen();
+                        ent.Color = Teigha.Colors.Color.FromRgb(128, 128, 128);
+                        ent.RecordGraphicsModified(true);
                     }
                 }
             }

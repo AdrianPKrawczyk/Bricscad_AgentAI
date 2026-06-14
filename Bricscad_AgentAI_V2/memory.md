@@ -3754,3 +3754,8 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Kompilacja BricsCAD z v2.28.85 (build.ps1)
 - Przetestowac na PC2 - tym razem raport powinien pokazac `_LLM_ERROR_500` z `model_load_failed`
 - Zidentyfikowac model w LM Studio PC2 ktory sie nie laduje (user sprawdzi)
+
+### [STAN_SYSTEMU_AKTUALIZACJA] 2026-06-14
+- Rozwiązano problem z ignorowaniem zmiany koloru na szary (`GrayOtherLayers`) przez `BricsCAD OffScreen Device`.
+- Wprowadzono kod obchodzący brak regenu (`fallback`) - wymuszenie `ent.Color = RGB(128,128,128)` oraz co ważniejsze, wywołanie `ent.RecordGraphicsModified(true)` podczas tymczasowej transakcji. 
+- Narzędzia wizyjne do izolacji warstw (Fade i Gray) zostały w pełni przetestowane i zatwierdzone przez użytkownika.
