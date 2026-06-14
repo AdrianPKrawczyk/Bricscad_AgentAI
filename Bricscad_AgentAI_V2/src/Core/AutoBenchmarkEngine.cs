@@ -157,6 +157,8 @@ namespace Bricscad_AgentAI_V2.Core
             config.RunMetadata.ProfileName = profileName ?? string.Empty;
             config.RunMetadata.ProviderName = activeProvider?.Name ?? string.Empty;
             config.RunMetadata.ProviderEndpoint = activeProvider?.EndpointUrl ?? string.Empty;
+            // v2.28.83: ProviderId dla rozroznienia providerow (np. 2 PC z tym samym modelem).
+            config.RunMetadata.ProviderId = activeProvider?.Id;
             config.RunMetadata.ModelName = activeProvider?.ModelName ?? config.RunMetadata.ModelName;
             config.RunMetadata.Temperature = activeProvider?.Temperature ?? 0.0;
             config.RunMetadata.MaxTokens = activeProvider?.MaxTokens ?? 0;
@@ -749,6 +751,23 @@ namespace Bricscad_AgentAI_V2.Core
         // ==========================================
         // RAPORTOWANIE
         // ==========================================
+        // v2.28.83: Buduje klucz folderu z ModelName + 6-znakowym skrotem ProviderId.
+        // Zapobiega kolizji folderow gdy 2+ providerow (np. 2 PC) uzywa tego samego modelu.
+        // Format: "gemma-4-31b-it-qat@a1b2c3" (ModelName + "@" + 6 hex z GUID-a).
+        // Gdy providerId jest null/Empty - zwraca sam ModelName (kompatybilnosc wsteczna).
+        private string BuildModelDirKey(string modelName, Guid? providerId)
+        {
+            string safeModel = string.Join("_", (modelName ?? "UnknownModel")
+                .Split(Path.GetInvalidFileNameChars()));
+            if (providerId.HasValue && providerId.Value != Guid.Empty)
+            {
+                // "N" = 32 znaki hex bez kresek. Bierzemy pierwsze 6 - wystarczajaco unikalne dla 2-3 PC.
+                string shortId = providerId.Value.ToString("N").Substring(0, 6);
+                return $"{safeModel}@{shortId}";
+            }
+            return safeModel;
+        }
+
         private void SaveReports(BenchmarkConfig config, string sourceJsonPath, bool saveErrors, BenchmarkRunOptions options = null)
         {
             try
@@ -758,8 +777,7 @@ namespace Bricscad_AgentAI_V2.Core
                 string rootDir = Path.GetDirectoryName(sourceJsonPath);
                 string origName = Path.GetFileNameWithoutExtension(sourceJsonPath);
 
-                string safeModel = string.Join("_", (config.RunMetadata.ModelName ?? "UnknownModel")
-                    .Split(Path.GetInvalidFileNameChars()));
+                string safeModel = BuildModelDirKey(config.RunMetadata.ModelName, config.RunMetadata.ProviderId);
                 bool labOutput = options != null
                     && !options.SaveToUserBenchmarkHistory
                     && !string.IsNullOrWhiteSpace(options.OutputRoot);
@@ -816,8 +834,7 @@ namespace Bricscad_AgentAI_V2.Core
                     ? Path.GetDirectoryName(firstPath)
                     : Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-                string safeModel = string.Join("_", (modelName ?? "UnknownModel")
-                    .Split(Path.GetInvalidFileNameChars()));
+                string safeModel = BuildModelDirKey(modelName, null);
                 string modelDir = Path.Combine(rootDir, safeModel);
                 if (!Directory.Exists(modelDir))
                 {

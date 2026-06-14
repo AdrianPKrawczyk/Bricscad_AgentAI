@@ -122,6 +122,10 @@ namespace Bricscad_AgentAI_V2.Core
         public string ModelName { get; set; }
         public string ProviderName { get; set; }
         public string ProviderEndpoint { get; set; }
+
+        // v2.28.83: Unikalne ID providera (z llm_providers.json) - rozroznia komputery z tym samym modelem.
+        // Pusty/null = kompatybilnosc wsteczna (folder budowany tylko z ModelName).
+        public Guid? ProviderId { get; set; }
         public string ProfileName { get; set; }
         public double Temperature { get; set; }
         public int MaxTokens { get; set; }
