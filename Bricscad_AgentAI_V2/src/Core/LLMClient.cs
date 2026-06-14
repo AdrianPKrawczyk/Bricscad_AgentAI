@@ -593,11 +593,41 @@ namespace Bricscad_AgentAI_V2.Core
                 try
                 {
                     response = await _httpClient.SendAsync(request, ct);
-                    response.EnsureSuccessStatusCode();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        // v2.28.85: Lepsza diagnostyka bledow HTTP - czytamy body i logujemy pelna odpowiedz.
+                        // Wczesniej: cichy return - RecordedToolCalls zostawaly puste, benchmark dawal 0% bez wyjasnienia.
+                        // Teraz: zarejestruj specjalny tool call z kodem bledu i body,
+                        //       nastepnie dodaj asystencka wiadomosc z opisem bledu i return.
+                        string errBody = await response.Content.ReadAsStringAsync();
+                        int status = (int)response.StatusCode;
+                        string errMsg = $"[Benchmark] Błąd HTTP {status} z LLM ({response.StatusCode}): {errBody}";
+                        OnStatusUpdate?.Invoke(errMsg);
+
+                        // Rejestrujemy "blad" jako specjalny tool call - widoczne w raporcie i materiale dowodowym
+                        recordedCalls.Add(new RecordedToolCall
+                        {
+                            ToolName = $"_LLM_ERROR_{status}",
+                            Arguments = JObject.Parse($"{{\"HttpStatus\":{status},\"ErrorBody\":\"{System.Text.RegularExpressions.Regex.Replace(errBody, @"[\\\""]", " ").Substring(0, Math.Min(500, errBody.Length))}\"}}")
+                        });
+
+                        // Dodaj asystencka wiadomosc - walidator widzi ze LLM nie zwrocil poprawnej odpowiedzi
+                        history.Add(new ChatMessage
+                        {
+                            Role = "assistant",
+                            Content = $"[LLM ERROR {status}] Nie udalo sie uzyskac odpowiedzi z LLM. Body: {errBody.Substring(0, Math.Min(500, errBody.Length))}"
+                        });
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {
                     OnStatusUpdate?.Invoke($"[Benchmark] Błąd połączenia z LLM: {ex.Message}");
+                    recordedCalls.Add(new RecordedToolCall
+                    {
+                        ToolName = "_LLM_ERROR_CONNECTION",
+                        Arguments = JObject.Parse($"{{\"ErrorMessage\":\"{System.Text.RegularExpressions.Regex.Replace(ex.Message, @"[\\\""]", " ")}\"}}")
+                    });
                     return;
                 }
 

@@ -288,6 +288,16 @@ namespace Bricscad_AgentAI_V2.Core
                     break;
                 }
 
+                // v2.28.85: Jesli LLM zwrocil blad HTTP (recordedCalls ma _LLM_ERROR_*),
+                // zaloguj to WYRAZNIE z body bledu - inaczej walidator pokaze tylko
+                // "tool not called" co nie wyjasnia prawdziwej przyczyny.
+                var llmError = test.RecordedToolCalls.FirstOrDefault(c => c.ToolName != null && c.ToolName.StartsWith("_LLM_ERROR_"));
+                if (llmError != null)
+                {
+                    string errArgs = llmError.Arguments?.ToString() ?? "(brak args)";
+                    OnLogMessage?.Invoke(this, $"  ⚠ LLM ERROR (HTTP): {llmError.ToolName} | {errArgs}");
+                }
+
                 // FAZA 2: Walidacja
                 test.Passed = ValidateTest(test);
                 if (test.Passed)

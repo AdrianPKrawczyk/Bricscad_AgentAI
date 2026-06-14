@@ -3701,3 +3701,56 @@ Nastepne kroki diagnostyczne: dodac surowy log odpowiedzi LLM w trybie benchmark
 - Przetestowac nowy test z PC1 - folder powinien miec format `model@xxxxxx`
 - Przetestowac polaczenie z PC2 (debug problemu z pustymi RecordedToolCalls)
 - Opcjonalnie: dodac surowy log odpowiedzi LLM w trybie benchmark
+
+## [v2.28.85] 2026-06-14T12:00:00+02:00 - Lepsza diagnostyka bledow HTTP 500 w benchmarkach [LLM-ERROR-LOG]
+
+### [PROBLEM - ZDIAGNOZOWANY]
+User zrobil screenshot z PC2: `Błąd serwera (500): model_load_failed`.
+To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
+1. LLMClient wysyła request do LM Studio PC2 (`192.168.100.190:1234`)
+2. PC2 zwraca HTTP 500 z `{"error":{"type":"model_load_failed","message":"..."}}`
+3. `SendMessageBenchmarkAsync` linia 595-602: `EnsureSuccessStatusCode()` rzuca wyjatek
+4. `catch (Exception ex)` loguje "Błąd połączenia z LLM" i **cicho return**
+5. Benchmark widzi puste `RecordedToolCalls` → walidator daje 0% PASS
+6. Raport NIE wyjasnia ze problem jest w modelu/VRAM/endpoincie - tylko "tool not called"
+
+### [FIX v2.28.85]
+1. `LLMClient.SendMessageBenchmarkAsync` (linia ~592-632):
+   - Wczesniej: `EnsureSuccessStatusCode()` → throw → catch → silent return
+   - Teraz: jawnie sprawdzam `IsSuccessStatusCode`. Jesli falsz:
+     - Czytam `response.Content` (body z bledem)
+     - Loguje przez `OnStatusUpdate` pelna odpowiedz HTTP
+     - Rejestruje specjalny `_LLM_ERROR_{status}` tool call z HttpStatus + ErrorBody (substring 500 znakow)
+     - Dodaje asystencka wiadomosc `[LLM ERROR {status}]` do historii
+     - return (kontynuacja petli niemozliwa - model nie odpowiedzial)
+
+2. `LLMClient.SendMessageBenchmarkAsync` catch block:
+   - Rejestruje `_LLM_ERROR_CONNECTION` tool call z ErrorMessage
+   - Dzieki temu nawet timeout/connection refused widac w raporcie
+
+3. `AutoBenchmarkEngine.RunBenchmarkAsync` (linia ~283-292):
+   - Po wywolaniu LLM, SPRAWDZA czy w `RecordedToolCalls` jest `_LLM_ERROR_*`
+   - Jesli tak: loguje przez `OnLogMessage` z pelnym args (HttpStatus + ErrorBody)
+   - To wyjasnia PRZED walidacja ze problem jest z LLM (a nie z promptem/regulami)
+
+### [EFEKT]
+- Raport benchmarku z bledem HTTP bedzie mial:
+  - `RecordedToolCalls: [{"ToolName": "_LLM_ERROR_500", "Arguments": {"HttpStatus": 500, "ErrorBody": "model_load_failed:..."}}]`
+  - `FailedRulesErrors: ["Brak ToolCalled:InsertBlock", ...]` (walidator nie wie o bledzie HTTP)
+  - W logu: `"⚠ LLM ERROR (HTTP): _LLM_ERROR_500 | {...HttpStatus: 500, ErrorBody: model_load_failed...}"`
+- User zobaczy w UI/raporcie pelna przyczyne (model sie nie zaladowal)
+- Przy nastepnym PC2 bedzie mozna zobaczyc DOKLADNY blad
+
+### [KOMPATYBILNOSC WSTECZNA]
+- Specjalne tool calls z prefiksem `_LLM_ERROR_` nie sa normalnymi tool calls
+- Walidator ich NIE akceptuje jako poprawne wywolania (zgodnie z oczekiwaniem)
+- To oznacza: benchmark z bledem HTTP ZAWSZE da 0%, ale teraz z wyjasnieniem
+
+### [STAN_SYSTEMU]
+- 394 bledow kompilacji (pre-existing, +0 od mojej zmiany)
+- 1 commit: v2.28.85 (LLMClient + AutoBenchmarkEngine)
+
+### [KOLEJNY_KROK]
+- Kompilacja BricsCAD z v2.28.85 (build.ps1)
+- Przetestowac na PC2 - tym razem raport powinien pokazac `_LLM_ERROR_500` z `model_load_failed`
+- Zidentyfikowac model w LM Studio PC2 ktory sie nie laduje (user sprawdzi)
