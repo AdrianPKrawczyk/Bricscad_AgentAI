@@ -40,7 +40,9 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "MaxTiles", new ToolParameter { Type = "integer", Description = "Bezpiecznik liczby kafli. Domyslnie 64. Jesli wyliczony atlas jest wiekszy, narzedzie przerwie przed renderowaniem." } },
                             { "AllowLargeScan", new ToolParameter { Type = "boolean", Description = "Ustaw true tylko gdy swiadomie chcesz przekroczyc MaxTiles. Domyslnie false." } },
                             { "UseExperimentalOffscreen", new ToolParameter { Type = "boolean", Description = "Uruchamia eksperymentalny backend BricsCAD GraphicsSystem off-screen. Domyslnie false, bo w V22 moze wywolywac bledy runtime." } },
-                            { "AllowScreenFallback", new ToolParameter { Type = "boolean", Description = "Diagnostycznie pozwala uzyc zrzutu ekranu CopyFromScreen. Domyslnie false, bo fallback moze lapac UI i nie jest metrycznie wiarygodny." } }
+                            { "AllowScreenFallback", new ToolParameter { Type = "boolean", Description = "Diagnostycznie pozwala uzyc zrzutu ekranu CopyFromScreen. Domyslnie false, bo fallback moze lapac UI i nie jest metrycznie wiarygodny." } },
+                            { "FadeOtherLayers", new ToolParameter { Type = "boolean", Description = "Jeśli true, warstwy niespełniające warunków LayerNames (lub niewybrane do izolacji) otrzymają 70% przezroczystości (zamiast zostać wyłączone)." } },
+                            { "GrayOtherLayers", new ToolParameter { Type = "boolean", Description = "Jeśli true, warstwy niespełniające warunków otrzymają szary kolor (ColorIndex 8)." } }
                         },
                         Required = new List<string>()
                     }
@@ -62,6 +64,8 @@ namespace Bricscad_AgentAI_V2.Tools
                 bool allowLargeScan = args["AllowLargeScan"]?.Value<bool?>() ?? false;
                 bool useExperimentalOffscreen = args["UseExperimentalOffscreen"]?.Value<bool?>() ?? false;
                 bool allowScreenFallback = args["AllowScreenFallback"]?.Value<bool?>() ?? false;
+                bool fadeOtherLayers = args["FadeOtherLayers"]?.Value<bool?>() ?? false;
+                bool grayOtherLayers = args["GrayOtherLayers"]?.Value<bool?>() ?? false;
                 List<string> layerNames = ReadLayerNames(args["LayerNames"]);
 
                 bool filterOutliers = args["FilterOutliers"]?.Value<bool?>() ?? true;
@@ -115,7 +119,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     int col = cols > 0 ? i % cols : i;
                     string tileId = $"r{row:000}_c{col:000}";
                     string imagePath = Path.Combine(tilesFolder, tileId + ".png");
-                    MetricVisionTile tile = MetricVisionRenderer.RenderTile(doc, tileBounds[i], imagePath, resolution, profile, addOverlay, useExperimentalOffscreen, allowScreenFallback, tileId, row, col);
+                    MetricVisionTile tile = MetricVisionRenderer.RenderTile(doc, tileBounds[i], imagePath, resolution, profile, addOverlay, useExperimentalOffscreen, allowScreenFallback, tileId, row, col, layerNames, null, fadeOtherLayers, grayOtherLayers);
                     index.Tiles.Add(tile);
                 }
 

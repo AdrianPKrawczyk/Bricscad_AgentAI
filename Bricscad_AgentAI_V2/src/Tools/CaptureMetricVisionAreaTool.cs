@@ -33,7 +33,10 @@ namespace Bricscad_AgentAI_V2.Tools
                             { "Profile", new ToolParameter { Type = "string", Enum = new List<string> { "OcrLabels", "Symbols", "Diagnostics" }, Description = "Profil analizy docelowej. Domyslnie OcrLabels." } },
                             { "AddOverlay", new ToolParameter { Type = "boolean", Description = "Czy nalozyc delikatna siatke i opis kalibracyjny na obraz. Domyslnie true." } },
                             { "UseExperimentalOffscreen", new ToolParameter { Type = "boolean", Description = "Uruchamia eksperymentalny backend BricsCAD GraphicsSystem off-screen. Domyslnie false, bo w V22 moze wywolywac bledy runtime." } },
-                            { "AllowScreenFallback", new ToolParameter { Type = "boolean", Description = "Diagnostycznie pozwala uzyc zrzutu ekranu CopyFromScreen. Domyslnie false, bo fallback moze lapac UI i nie jest metrycznie wiarygodny." } }
+                            { "AllowScreenFallback", new ToolParameter { Type = "boolean", Description = "Diagnostycznie pozwala uzyc zrzutu ekranu CopyFromScreen. Domyslnie false, bo fallback moze lapac UI i nie jest metrycznie wiarygodny." } },
+                            { "LayerNames", new ToolParameter { Type = "array", Description = "Opcjonalna lista nazw warstw do wyizolowania na zrzucie.", Items = new JObject { ["type"] = "string" } } },
+                            { "FadeOtherLayers", new ToolParameter { Type = "boolean", Description = "Jeśli true, pozostałe warstwy zostaną wygaszone (70% przezroczystości) zamiast być całkowicie ukryte." } },
+                            { "GrayOtherLayers", new ToolParameter { Type = "boolean", Description = "Jeśli true, pozostałe warstwy będą szare (Color 8)." } }
                         },
                         Required = new List<string> { "MinX", "MinY", "MaxX", "MaxY" }
                     }
@@ -58,13 +61,21 @@ namespace Bricscad_AgentAI_V2.Tools
                 bool addOverlay = args["AddOverlay"]?.Value<bool?>() ?? true;
                 bool useExperimentalOffscreen = args["UseExperimentalOffscreen"]?.Value<bool?>() ?? false;
                 bool allowScreenFallback = args["AllowScreenFallback"]?.Value<bool?>() ?? false;
+                
+                List<string> layerNames = null;
+                if (args["LayerNames"] != null && args["LayerNames"].Type == JTokenType.Array)
+                {
+                    layerNames = args["LayerNames"].ToObject<List<string>>();
+                }
+                bool fadeOtherLayers = args["FadeOtherLayers"]?.Value<bool?>() ?? false;
+                bool grayOtherLayers = args["GrayOtherLayers"]?.Value<bool?>() ?? false;
 
                 string scanId = MetricVisionRenderer.CreateScanId();
                 string folder = Path.Combine(AppPaths.GetVisionScansPath(), scanId);
                 string tilesFolder = Path.Combine(folder, "tiles");
                 string imagePath = Path.Combine(tilesFolder, "tile_r000_c000.png");
 
-                MetricVisionTile tile = MetricVisionRenderer.RenderTile(doc, bounds, imagePath, resolution, profile, addOverlay, useExperimentalOffscreen, allowScreenFallback, "r000_c000", 0, 0);
+                MetricVisionTile tile = MetricVisionRenderer.RenderTile(doc, bounds, imagePath, resolution, profile, addOverlay, useExperimentalOffscreen, allowScreenFallback, "r000_c000", 0, 0, layerNames, null, fadeOtherLayers, grayOtherLayers);
 
                 MetricVisionScanIndex index = new MetricVisionScanIndex
                 {

@@ -32,7 +32,11 @@ namespace Bricscad_AgentAI_V2.Core
             bool allowScreenFallback,
             string tileId,
             int row,
-            int col)
+            int col,
+            IEnumerable<string> isolateLayers = null,
+            IEnumerable<string> hideLayers = null,
+            bool fadeOtherLayers = false,
+            bool grayOtherLayers = false)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (bounds == null) throw new ArgumentNullException(nameof(bounds));
@@ -48,7 +52,7 @@ namespace Bricscad_AgentAI_V2.Core
                 backendStatus = "rendered_offscreen_gs";
                 try
                 {
-                    RenderViaOffScreenGraphicsSystem(doc, bounds, outputPath, resolution, addOverlay);
+                    RenderViaOffScreenGraphicsSystem(doc, bounds, outputPath, resolution, addOverlay, isolateLayers, hideLayers, fadeOtherLayers, grayOtherLayers);
                 }
                 catch (Exception offscreenEx)
                 {
@@ -57,13 +61,13 @@ namespace Bricscad_AgentAI_V2.Core
                         throw new InvalidOperationException("Nie udalo sie wyrenderowac kafla przez eksperymentalny off-screen GraphicsSystem. Fallback ekranowy CopyFromScreen jest wylaczony, bo nie daje wiarygodnej kalibracji pixel->CAD. Szczegoly off-screen: " + offscreenEx.Message, offscreenEx);
                     }
 
-                    RenderViaControlledView(doc, bounds, outputPath, resolution, addOverlay, true);
+                    RenderViaControlledView(doc, bounds, outputPath, resolution, addOverlay, true, isolateLayers, hideLayers, fadeOtherLayers, grayOtherLayers);
                     backendStatus = "rendered_screen_fallback";
                 }
             }
             else if (allowScreenFallback)
             {
-                RenderViaControlledView(doc, bounds, outputPath, resolution, addOverlay, true);
+                RenderViaControlledView(doc, bounds, outputPath, resolution, addOverlay, true, isolateLayers, hideLayers, fadeOtherLayers, grayOtherLayers);
                 backendStatus = "rendered_screen_fallback";
             }
             else
@@ -381,7 +385,7 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
-        private static void RenderViaOffScreenGraphicsSystem(Document doc, MetricVisionBounds bounds, string outputPath, int resolution, bool addOverlay)
+        private static void RenderViaOffScreenGraphicsSystem(Document doc, MetricVisionBounds bounds, string outputPath, int resolution, bool addOverlay, IEnumerable<string> isolateLayers, IEnumerable<string> hideLayers, bool fadeOtherLayers, bool grayOtherLayers)
         {
             Bricscad.GraphicsSystem.Manager manager = doc.GraphicsManager;
             if (manager == null) throw new InvalidOperationException("Document.GraphicsManager zwrocil null.");
@@ -395,6 +399,7 @@ namespace Bricscad_AgentAI_V2.Core
 
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
                 {
+                    ApplyTemporaryLayerStates(tr, doc.Database, isolateLayers, hideLayers, fadeOtherLayers, grayOtherLayers);
                     BlockTableRecord btr = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForRead);
                     Teigha.GraphicsSystem.Model model = manager.GetDBModel();
                     if (model == null) throw new InvalidOperationException("manager.GetDBModel() zwrocil null.");
@@ -450,12 +455,12 @@ namespace Bricscad_AgentAI_V2.Core
                         }
                     }
 
-                    tr.Commit();
+                    tr.Abort();
                 }
             }
         }
 
-        private static void RenderViaControlledView(Document doc, MetricVisionBounds bounds, string outputPath, int resolution, bool addOverlay, bool allowScreenFallback)
+        private static void RenderViaControlledView(Document doc, MetricVisionBounds bounds, string outputPath, int resolution, bool addOverlay, bool allowScreenFallback, IEnumerable<string> isolateLayers, IEnumerable<string> hideLayers, bool fadeOtherLayers, bool grayOtherLayers)
         {
             if (!allowScreenFallback)
             {
@@ -464,8 +469,12 @@ namespace Bricscad_AgentAI_V2.Core
 
             Editor ed = doc.Editor;
             ViewTableRecord originalView = ed.GetCurrentView();
+            Transaction tr = null;
             try
             {
+                tr = doc.TransactionManager.StartTransaction();
+                ApplyTemporaryLayerStates(tr, doc.Database, isolateLayers, hideLayers, fadeOtherLayers, grayOtherLayers);
+
                 using (ViewTableRecord view = ed.GetCurrentView())
                 {
                     view.CenterPoint = new Point2d((bounds.MinX + bounds.MaxX) / 2.0, (bounds.MinY + bounds.MaxY) / 2.0);
@@ -503,6 +512,11 @@ namespace Bricscad_AgentAI_V2.Core
             }
             finally
             {
+                if (tr != null)
+                {
+                    try { tr.Abort(); tr.Dispose(); } catch { }
+                }
+
                 if (originalView != null)
                 {
                     try
@@ -513,6 +527,52 @@ namespace Bricscad_AgentAI_V2.Core
                     }
                     catch
                     {
+                    }
+                }
+            }
+        }
+
+        private static void ApplyTemporaryLayerStates(Transaction tr, Database db, IEnumerable<string> isolateLayers, IEnumerable<string> hideLayers, bool fadeOtherLayers, bool grayOtherLayers)
+        {
+            var isolateSet = new HashSet<string>((isolateLayers ?? Enumerable.Empty<string>()).Where(s => !string.IsNullOrWhiteSpace(s)), StringComparer.OrdinalIgnoreCase);
+            var hideSet = new HashSet<string>((hideLayers ?? Enumerable.Empty<string>()).Where(s => !string.IsNullOrWhiteSpace(s)), StringComparer.OrdinalIgnoreCase);
+
+            if (isolateSet.Count == 0 && hideSet.Count == 0)
+                return;
+
+            LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+
+            foreach (ObjectId layerId in lt)
+            {
+                LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(layerId, OpenMode.ForRead);
+                string name = ltr.Name;
+
+                bool shouldIsolate = isolateSet.Count > 0 && isolateSet.Contains(name);
+                bool shouldHide = hideSet.Count > 0 && hideSet.Contains(name);
+
+                bool isIsolated = isolateSet.Count == 0 || shouldIsolate;
+                bool isVisible = isIsolated && !shouldHide;
+
+                if (!isVisible)
+                {
+                    if (!fadeOtherLayers && !grayOtherLayers)
+                    {
+                        // Całkowite ukrycie
+                        ltr.UpgradeOpen();
+                        ltr.IsOff = true;
+                    }
+                    else
+                    {
+                        ltr.UpgradeOpen();
+                        if (grayOtherLayers)
+                        {
+                            ltr.Color = Teigha.Colors.Color.FromColorIndex(Teigha.Colors.ColorMethod.ByAci, 8); // szary
+                        }
+                        if (fadeOtherLayers)
+                        {
+                            // Ustawienie przezroczystości (ok. 70% fade)
+                            ltr.Transparency = new Teigha.Colors.Transparency(70);
+                        }
                     }
                 }
             }

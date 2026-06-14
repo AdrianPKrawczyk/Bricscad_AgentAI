@@ -3625,3 +3625,13 @@ Jesli po tej poprawce zostanie tylko przesuniecie rzedu okolo 1 jednostki CAD, k
 - Brak. Testowane na poprawność składniową.
 ### [KOLEJNY_KROK]
 - Testowanie poprawności nowych marginesów w rzeczywistym środowisku CAD.
+
+## [v2.28.37] 2026-06-14T10:35:00+02:00 - Rozwiązanie problemu kompilacji projektów .NET 4.8
+### [ZREALIZOWANO]
+- Zidentyfikowano problem z cichym failowaniem kompilatora `dotnet build` podczas rozwiązywania pakietów NuGet w .NET Framework 4.8.
+- Stworzono skrypt `build.ps1` wykorzystujący `vswhere.exe` do znalezienia natywnego `MSBuild.exe` z Visual Studio.
+- Skrypt `build.ps1` stał się nowym standardem kompilacji zamiast `dotnet build` dla Bricscad_AgentAI_V2.
+### [STAN_SYSTEMU]
+- Uaktualniono instrukcje agentów (SKILL.md dla `project-compiler`), aby polegały wyłącznie na `build.ps1`. Projekt buduje się poprawnie bez rzucania błędów CS0246.
+### [KOLEJNY_KROK]
+- Testowanie nowej funkcjonalności FadeOtherLayers i GrayOtherLayers przez użytkownika w BricsCAD.
