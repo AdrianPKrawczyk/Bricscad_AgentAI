@@ -5,6 +5,7 @@ namespace Bricscad_AgentAI_V2.Models
     public class LlmModelDescriptor
     {
         public string Id { get; set; }
+        public string ModelKey { get; set; }
         public string DisplayName { get; set; }
         public string Quantization { get; set; }
         public string ParamsString { get; set; }

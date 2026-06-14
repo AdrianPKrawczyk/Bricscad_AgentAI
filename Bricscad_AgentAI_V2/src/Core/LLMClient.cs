@@ -46,13 +46,14 @@ namespace Bricscad_AgentAI_V2.Core
             PreProcessRecipes(conversationHistory);
             PreProcessLisps(conversationHistory);
 
-            var config = LLMConfigManager.GetActiveProvider();
+            var config = LLMConfigManager.ResolveProviderForProfile(profileName);
+            var llmBinding = ToolConfigManager.GetAgentLlmBinding(profileName);
             
             // Dynamiczne ładowanie modelu (tylko lokalnie dla LM Studio)
-            if (config.AutoLoadModel && (config.EndpointUrl.Contains("1234") || config.EndpointUrl.Contains("localhost") || config.EndpointUrl.Contains("127.0.0.1") || config.EndpointUrl.Contains("100.104.")))
+            if (config.AutoLoadModel && SupportsLocalModelManagement(config))
             {
                 OnStatusUpdate?.Invoke("Inicjalizacja automatycznego ładowania modelu...");
-                await TryLoadModelAsync(config);
+                await TryLoadModelAsync(config, llmBinding?.ContextPolicy);
             }
 
             List<ToolDefinition> staticToolsPayload;
@@ -76,7 +77,6 @@ namespace Bricscad_AgentAI_V2.Core
                 iterations++;
                 OnStatusUpdate?.Invoke($"Wysyłanie zapytania do struktury (iteracja {iterations}/{maxIterations})...");
 
-                config = LLMConfigManager.GetActiveProvider();
                 var requestPayload = new Dictionary<string, object>
                 {
                     { "model", config.ModelName },
@@ -524,11 +524,12 @@ namespace Bricscad_AgentAI_V2.Core
         {
             simulatedResponses = simulatedResponses ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             int iterations = 0;
-            var initialConfig = LLMConfigManager.GetActiveProvider();
+            var initialConfig = LLMConfigManager.ResolveProviderForProfile(profileName);
+            var llmBinding = ToolConfigManager.GetAgentLlmBinding(profileName);
             if (initialConfig != null && initialConfig.AutoLoadModel && SupportsLocalModelManagement(initialConfig))
             {
                 OnStatusUpdate?.Invoke("[Benchmark] Inicjalizacja automatycznego ladowania modelu...");
-                await TryLoadModelAsync(initialConfig);
+                await TryLoadModelAsync(initialConfig, llmBinding?.ContextPolicy);
             }
 
             while (iterations < maxIterations)
@@ -536,7 +537,7 @@ namespace Bricscad_AgentAI_V2.Core
                 if (ct.IsCancellationRequested) break;
                 iterations++;
 
-                var config = LLMConfigManager.GetActiveProvider();
+                var config = initialConfig;
                 
                 List<ToolDefinition> toolsPayload;
                 if (!string.IsNullOrEmpty(profileName))
@@ -706,21 +707,37 @@ namespace Bricscad_AgentAI_V2.Core
         /// <summary>
         /// Wysyła żądanie ładowania modelu do LM Studio REST API (wywoływane automatycznie przed czatem, gdy AutoLoadModel=true).
         /// </summary>
-        private async Task TryLoadModelAsync(LLMProviderConfig config)
+        private async Task TryLoadModelAsync(LLMProviderConfig config, string contextPolicy = null)
         {
-            if (config != null && config.LoadContextLength > 0 && SupportsLocalModelManagement(config))
+            if (config != null && SupportsLocalModelManagement(config))
             {
                 try
                 {
                     var loaded = await GetLoadedModelInfoAsync(config);
-                    if (loaded != null && loaded.LoadedContextLength > 0 && loaded.LoadedContextLength < config.LoadContextLength)
+                    if (loaded != null && IsSameLoadedModel(loaded, config.ModelName))
                     {
+                        if (config.LoadContextLength <= 0 || loaded.LoadedContextLength <= 0 || loaded.LoadedContextLength >= config.LoadContextLength)
+                        {
+                            OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} juz zaladowany; pomijam ponowne ladowanie.");
+                            return;
+                        }
+
+                        if (string.Equals(contextPolicy, "NeverReloadAutomatically", StringComparison.OrdinalIgnoreCase))
+                        {
+                            OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} ma ctx={loaded.LoadedContextLength}, wymagane ctx={config.LoadContextLength}; polityka profilu blokuje przeladowanie.");
+                            return;
+                        }
+
                         OnStatusUpdate?.Invoke($"[Auto-Load] Zaladowany kontekst ({loaded.LoadedContextLength}) jest mniejszy niz wymagany ({config.LoadContextLength}). Przeladowuje model...");
                         var (unloadOk, unloadMessage) = await UnloadModelAsync(config);
                         if (!unloadOk)
                         {
                             OnStatusUpdate?.Invoke($"[Auto-Load] Nie udalo sie rozladowac modelu przed zmiana kontekstu: {unloadMessage}");
                         }
+                    }
+                    else if (loaded != null && config.LoadContextLength > 0 && loaded.LoadedContextLength > config.LoadContextLength)
+                    {
+                        OnStatusUpdate?.Invoke($"[Auto-Load] Aktualnie zaladowany model ma wiekszy kontekst ({loaded.LoadedContextLength}) niz wymagany ({config.LoadContextLength}); nie zmniejszam kontekstu.");
                     }
                 }
                 catch (Exception ex)
@@ -734,6 +751,14 @@ namespace Bricscad_AgentAI_V2.Core
                 OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} załadowany pomyślnie. {message}");
             else if (!string.IsNullOrEmpty(message))
                 OnStatusUpdate?.Invoke($"[Auto-Load] {message}");
+        }
+
+        private static bool IsSameLoadedModel(LlmModelDescriptor loaded, string requestedModel)
+        {
+            if (loaded == null || string.IsNullOrWhiteSpace(requestedModel)) return false;
+            return string.Equals(loaded.ModelKey, requestedModel, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(loaded.DisplayName, requestedModel, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(loaded.Id, requestedModel, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -989,6 +1014,7 @@ namespace Bricscad_AgentAI_V2.Core
                             var desc = new LlmModelDescriptor
                             {
                                 Id = id,
+                                ModelKey = id,
                                 DisplayName = id,
                                 Quantization = null,
                                 ParamsString = null,
@@ -1026,6 +1052,7 @@ namespace Bricscad_AgentAI_V2.Core
                         var desc = new LlmModelDescriptor
                         {
                             Id = !string.IsNullOrEmpty(instanceId) ? instanceId : modelKey,
+                            ModelKey = modelKey,
                             DisplayName = m["display_name"]?.ToString(),
                             Quantization = m["quantization"]?["name"]?.ToString(),
                             ParamsString = m["params_string"]?.ToString(),
@@ -1040,8 +1067,7 @@ namespace Bricscad_AgentAI_V2.Core
                         }
 
                         if (firstLoaded == null) firstLoaded = desc;
-                        if (!string.IsNullOrEmpty(config.ModelName) &&
-                            string.Equals(desc.Id, config.ModelName, StringComparison.OrdinalIgnoreCase))
+                        if (IsSameLoadedModel(desc, config.ModelName))
                         {
                             match = desc;
                             break;

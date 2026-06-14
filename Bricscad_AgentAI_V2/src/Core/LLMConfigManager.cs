@@ -72,6 +72,84 @@ namespace Bricscad_AgentAI_V2.Core
                 ?? GenerateDefaultConfig().Providers.First();
         }
 
+        public static LLMProviderConfig GetProviderById(Guid id)
+        {
+            return _config?.Providers?.FirstOrDefault(p => p.Id == id);
+        }
+
+        public static LLMProviderConfig CloneProvider(LLMProviderConfig source)
+        {
+            if (source == null) return null;
+            return new LLMProviderConfig
+            {
+                Id = source.Id,
+                Name = source.Name,
+                EndpointUrl = source.EndpointUrl,
+                ApiKey = source.ApiKey,
+                ModelName = source.ModelName,
+                Temperature = source.Temperature,
+                MaxTokens = source.MaxTokens,
+                TopP = source.TopP,
+                TopK = source.TopK,
+                MinP = source.MinP,
+                RepetitionPenalty = source.RepetitionPenalty,
+                ReasoningEffort = source.ReasoningEffort,
+                AutoLoadModel = source.AutoLoadModel,
+                GpuOffload = source.GpuOffload,
+                LoadContextLength = source.LoadContextLength,
+                TtlSeconds = source.TtlSeconds,
+                FlashAttention = source.FlashAttention,
+                OffloadKvCache = source.OffloadKvCache,
+                SiteUrl = source.SiteUrl,
+                SiteName = source.SiteName
+            };
+        }
+
+        public static LLMProviderConfig ResolveProviderForProfile(string profileName)
+        {
+            var binding = ToolConfigManager.GetAgentLlmBinding(profileName);
+            LLMProviderConfig baseProvider = null;
+
+            if (binding != null && !binding.UseDefaultProvider && binding.ProviderId != null)
+            {
+                baseProvider = GetProviderById(binding.ProviderId.Value);
+            }
+
+            if (binding != null && !binding.UseDefaultProvider && baseProvider == null && !string.IsNullOrWhiteSpace(binding.ProviderNameFallback))
+            {
+                baseProvider = _config?.Providers?.FirstOrDefault(p =>
+                    string.Equals(p.Name, binding.ProviderNameFallback, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (baseProvider == null)
+            {
+                baseProvider = GetActiveProvider();
+            }
+
+            var effective = CloneProvider(baseProvider);
+            if (effective == null || binding == null) return effective;
+
+            if (!binding.UseDefaultProvider && !string.IsNullOrWhiteSpace(binding.ModelName))
+            {
+                effective.ModelName = binding.ModelName;
+            }
+
+            if (binding.OverridePayload)
+            {
+                if (binding.Temperature.HasValue) effective.Temperature = binding.Temperature.Value;
+                if (binding.MaxTokens.HasValue) effective.MaxTokens = binding.MaxTokens.Value;
+                if (binding.TopP.HasValue) effective.TopP = binding.TopP.Value;
+                if (binding.TopK.HasValue) effective.TopK = binding.TopK.Value;
+                if (binding.MinP.HasValue) effective.MinP = binding.MinP.Value;
+                if (binding.RepetitionPenalty.HasValue) effective.RepetitionPenalty = binding.RepetitionPenalty.Value;
+                if (!string.IsNullOrWhiteSpace(binding.ReasoningEffort)) effective.ReasoningEffort = binding.ReasoningEffort;
+                if (binding.AutoLoadModel.HasValue) effective.AutoLoadModel = binding.AutoLoadModel.Value;
+                if (binding.LoadContextLength.HasValue) effective.LoadContextLength = binding.LoadContextLength.Value;
+            }
+
+            return effective;
+        }
+
         /// <summary>
         /// Ustawia aktywnego providera po Id i zapisuje konfigurację.
         /// </summary>

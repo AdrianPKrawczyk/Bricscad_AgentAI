@@ -19,6 +19,26 @@ namespace Bricscad_AgentAI_V2.Core
         public string SystemPromptFile { get; set; }
         public List<string> AllowedTools { get; set; } = new List<string>();
         public List<string> AllowedTags { get; set; } = new List<string>();
+        public AgentLlmBinding LlmBinding { get; set; }
+    }
+
+    public class AgentLlmBinding
+    {
+        public bool UseDefaultProvider { get; set; } = true;
+        public Guid? ProviderId { get; set; }
+        public string ProviderNameFallback { get; set; }
+        public string ModelName { get; set; }
+        public bool OverridePayload { get; set; } = false;
+        public double? Temperature { get; set; }
+        public int? MaxTokens { get; set; }
+        public double? TopP { get; set; }
+        public int? TopK { get; set; }
+        public double? MinP { get; set; }
+        public double? RepetitionPenalty { get; set; }
+        public string ReasoningEffort { get; set; }
+        public bool? AutoLoadModel { get; set; }
+        public int? LoadContextLength { get; set; }
+        public string ContextPolicy { get; set; } = "UseLoadedIfAtLeastRequested";
     }
 
     public class ToolConfigRoot
@@ -571,6 +591,13 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static Dictionary<string, AgentProfileConfig> GetProfiles() => _config.Profiles;
 
+        public static AgentLlmBinding GetAgentLlmBinding(string profileName)
+        {
+            if (string.IsNullOrWhiteSpace(profileName)) return null;
+            if (_config?.Profiles == null) return null;
+            return _config.Profiles.TryGetValue(profileName, out var profile) ? profile.LlmBinding : null;
+        }
+
         public static void UpdateSettings(Dictionary<string, ToolSettings> newSettings)
         {
             _config.Tools = newSettings;
@@ -583,6 +610,17 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 profile.SystemPromptFile = GetDefaultSystemPromptFile(profileName);
                 profile.AllowedTools = allowedTools;
+                SaveConfig();
+            }
+        }
+
+        public static void UpdateAgentProfile(string profileName, string promptFile, List<string> allowedTools, AgentLlmBinding llmBinding)
+        {
+            if (_config.Profiles.TryGetValue(profileName, out var profile))
+            {
+                profile.SystemPromptFile = GetDefaultSystemPromptFile(profileName);
+                profile.AllowedTools = allowedTools;
+                profile.LlmBinding = llmBinding;
                 SaveConfig();
             }
         }

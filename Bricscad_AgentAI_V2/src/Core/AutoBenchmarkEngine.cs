@@ -146,7 +146,7 @@ namespace Bricscad_AgentAI_V2.Core
                 config.RunMetadata = new RunMetadata();
             }
 
-            var activeProvider = LLMConfigManager.GetActiveProvider();
+            var activeProvider = LLMConfigManager.ResolveProviderForProfile(profileName);
             string benchmarkName = !string.IsNullOrWhiteSpace(config.RunMetadata.BenchmarkName)
                 ? config.RunMetadata.BenchmarkName
                 : (!string.IsNullOrWhiteSpace(config.RunMetadata.ModelName)

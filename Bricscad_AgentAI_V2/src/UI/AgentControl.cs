@@ -92,6 +92,23 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnOpenAgentPromptInOverview;
         private CheckedListBox chlbAgentTools;
         private Button btnSaveAgentProfile;
+        private ComboBox cbAgentLlmProvider;
+        private ComboBox cbAgentLlmModel;
+        private ComboBox cbAgentReasoning;
+        private ComboBox cbAgentContextPolicy;
+        private CheckBox chkAgentUseProviderPayload;
+        private CheckBox chkAgentAutoLoad;
+        private NumericUpDown numAgentTemp;
+        private NumericUpDown numAgentContext;
+        private NumericUpDown numAgentMaxTokens;
+        private NumericUpDown numAgentTopP;
+        private NumericUpDown numAgentTopK;
+        private NumericUpDown numAgentMinP;
+        private NumericUpDown numAgentRepPenalty;
+        private Label lblAgentLlmPreview;
+        private Button btnRefreshAgentModels;
+        private CheckBox chkAgentUseDefaultProvider;
+        private bool _suppressAgentLlmUiEvents;
         // Prompt
         private TabPage tabAgentPrompt;
         private RichTextBox txtSystemPromptEditor;
@@ -187,6 +204,7 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 UpdateStatusHUD("Gotowy.");
             }
+            RefreshAgentProviderDropdown();
         }
 
         private void RebuildSystemPrompt()
@@ -510,7 +528,7 @@ namespace Bricscad_AgentAI_V2.UI
             Panel panAgentOverviewRight = new Panel { Dock = DockStyle.Fill };
             
             // GÄâ€šĹâ€šrny panel opisu i wyboru promptu
-            Panel panAgentOverviewTop = new Panel { Dock = DockStyle.Top, Height = 130, Padding = new Padding(10) };
+            Panel panAgentOverviewTop = new Panel { Dock = DockStyle.Top, Height = 260, Padding = new Padding(10) };
             txtAgentDescription = new TextBox
             {
                 Dock = DockStyle.Top,
@@ -533,7 +551,59 @@ namespace Bricscad_AgentAI_V2.UI
             panAgentPromptSelection.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5 });
             panAgentPromptSelection.Controls.Add(cbAgentPromptFile);
             panAgentPromptSelection.Controls.Add(lblAgentPrompt);
+
+            Panel panAgentLlm = new Panel { Dock = DockStyle.Top, Height = 120, Padding = new Padding(0, 8, 0, 0) };
+            FlowLayoutPanel panAgentLlmRow1 = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32, FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight, WrapContents = false };
+            FlowLayoutPanel panAgentLlmRow2 = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32, FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight, WrapContents = false };
+            FlowLayoutPanel panAgentLlmRow3 = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32, FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight, WrapContents = false };
+
+            panAgentLlmRow1.Controls.Add(new Label { Text = "LLM:", Width = 38, Height = 24, ForeColor = Color.White, TextAlign = ContentAlignment.MiddleLeft });
+            chkAgentUseDefaultProvider = new CheckBox { Text = "Domyślny provider", Checked = true, AutoSize = true, Height = 24, ForeColor = Color.LightGray };
+            chkAgentUseDefaultProvider.CheckedChanged += AgentLlmControlChanged;
+            panAgentLlmRow1.Controls.Add(chkAgentUseDefaultProvider);
+            cbAgentLlmProvider = new ComboBox { Width = 190, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            cbAgentLlmProvider.SelectedIndexChanged += CbAgentLlmProvider_SelectedIndexChanged;
+            panAgentLlmRow1.Controls.Add(cbAgentLlmProvider);
+            panAgentLlmRow1.Controls.Add(new Label { Text = "Model:", Width = 48, Height = 24, ForeColor = Color.White, TextAlign = ContentAlignment.MiddleLeft });
+            cbAgentLlmModel = new ComboBox { Width = 265, DropDownStyle = ComboBoxStyle.DropDown, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            cbAgentLlmModel.TextChanged += AgentLlmControlChanged;
+            panAgentLlmRow1.Controls.Add(cbAgentLlmModel);
+            btnRefreshAgentModels = new Button { Text = "Modele", Width = 70, Height = 24, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnRefreshAgentModels.Click += async (s, e) => await RefreshAgentModelsAsync();
+            panAgentLlmRow1.Controls.Add(btnRefreshAgentModels);
+            chkAgentUseProviderPayload = new CheckBox { Text = "Payload providera", Checked = true, AutoSize = true, Height = 24, ForeColor = Color.LightGray };
+            chkAgentUseProviderPayload.CheckedChanged += AgentLlmControlChanged;
+            panAgentLlmRow1.Controls.Add(chkAgentUseProviderPayload);
+
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("Temp", out numAgentTemp, 0.0m, 2.0m, 2, 0.1m, 58));
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("Ctx", out numAgentContext, 0m, 128000m, 0, 1000m, 78));
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("Max", out numAgentMaxTokens, 1m, 128000m, 0, 1000m, 78));
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("TopP", out numAgentTopP, 0.0m, 1.0m, 2, 0.05m, 58));
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("TopK", out numAgentTopK, 0m, 200m, 0, 1m, 58));
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("MinP", out numAgentMinP, 0.0m, 1.0m, 2, 0.05m, 58));
+            panAgentLlmRow2.Controls.Add(CreateAgentNumericField("Rep", out numAgentRepPenalty, 1.0m, 2.0m, 2, 0.05m, 58));
+            cbAgentReasoning = new ComboBox { Width = 80, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            cbAgentReasoning.Items.AddRange(new object[] { "none", "low", "medium", "high" });
+            cbAgentReasoning.SelectedIndexChanged += AgentLlmControlChanged;
+            panAgentLlmRow2.Controls.Add(new Label { Text = "Reason", Width = 52, Height = 24, ForeColor = Color.White, TextAlign = ContentAlignment.MiddleLeft });
+            panAgentLlmRow2.Controls.Add(cbAgentReasoning);
+
+            chkAgentAutoLoad = new CheckBox { Text = "AutoLoad", AutoSize = true, Height = 24, ForeColor = Color.LightGray };
+            chkAgentAutoLoad.CheckedChanged += AgentLlmControlChanged;
+            panAgentLlmRow3.Controls.Add(chkAgentAutoLoad);
+            cbAgentContextPolicy = new ComboBox { Width = 190, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            cbAgentContextPolicy.Items.AddRange(new object[] { "UseLoadedIfAtLeastRequested", "NeverReloadAutomatically", "ReloadOnlyIfTooSmall" });
+            cbAgentContextPolicy.SelectedIndexChanged += AgentLlmControlChanged;
+            panAgentLlmRow3.Controls.Add(new Label { Text = "Kontekst:", Width = 64, Height = 24, ForeColor = Color.White, TextAlign = ContentAlignment.MiddleLeft });
+            panAgentLlmRow3.Controls.Add(cbAgentContextPolicy);
+            lblAgentLlmPreview = new Label { Width = 520, Height = 24, ForeColor = Color.LightGreen, TextAlign = ContentAlignment.MiddleLeft };
+            panAgentLlmRow3.Controls.Add(lblAgentLlmPreview);
+
+            panAgentLlm.Controls.Add(panAgentLlmRow3);
+            panAgentLlm.Controls.Add(panAgentLlmRow2);
+            panAgentLlm.Controls.Add(panAgentLlmRow1);
             
+            panAgentOverviewTop.Controls.Add(panAgentLlm);
             panAgentOverviewTop.Controls.Add(panAgentPromptSelection);
             panAgentOverviewTop.Controls.Add(txtAgentDescription);
             
@@ -575,6 +645,7 @@ namespace Bricscad_AgentAI_V2.UI
 
             // Inicjalizacja profili po zbudowaniu prawej strony
             lbAgents.SelectedIndexChanged += LbAgents_SelectedIndexChanged;
+            RefreshAgentProviderDropdown();
             
             // Zasilenie profili
             var profiles = ToolConfigManager.GetProfiles();
@@ -1828,6 +1899,300 @@ Ostatnia rozmowa:
                     bool isActive = profile.AllowedTools != null && profile.AllowedTools.Contains(toolName, StringComparer.OrdinalIgnoreCase);
                     chlbAgentTools.SetItemChecked(i, isActive);
                 }
+
+                LoadAgentLlmBindingToUi(profileName, profile);
+            }
+        }
+
+        private Control CreateAgentNumericField(string label, out NumericUpDown numeric, decimal min, decimal max, int decimalPlaces, decimal increment, int width)
+        {
+            var panel = new Panel { Width = width + 42, Height = 26, Margin = new Padding(0, 0, 4, 0) };
+            panel.Controls.Add(new Label { Text = label, Dock = DockStyle.Left, Width = 38, ForeColor = Color.White, TextAlign = ContentAlignment.MiddleLeft });
+
+            numeric = new NumericUpDown
+            {
+                Dock = DockStyle.Fill,
+                Minimum = min,
+                Maximum = max,
+                DecimalPlaces = decimalPlaces,
+                Increment = increment,
+                Width = width,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            numeric.ValueChanged += AgentLlmControlChanged;
+            panel.Controls.Add(numeric);
+            return panel;
+        }
+
+        private void RefreshAgentProviderDropdown()
+        {
+            if (cbAgentLlmProvider == null) return;
+            try
+            {
+                _suppressAgentLlmUiEvents = true;
+                var providers = LLMConfigManager.Current?.Providers ?? new List<LLMProviderConfig>();
+                cbAgentLlmProvider.DataSource = null;
+                cbAgentLlmProvider.DataSource = providers.ToList();
+                cbAgentLlmProvider.DisplayMember = "Name";
+            }
+            finally
+            {
+                _suppressAgentLlmUiEvents = false;
+            }
+        }
+
+        private LLMProviderConfig GetSelectedAgentProvider()
+        {
+            return cbAgentLlmProvider?.SelectedItem as LLMProviderConfig;
+        }
+
+        private void SelectAgentProvider(Guid? providerId)
+        {
+            var providers = LLMConfigManager.Current?.Providers;
+            if (providers == null || cbAgentLlmProvider == null) return;
+
+            Guid targetId = providerId ?? LLMConfigManager.GetActiveProvider()?.Id ?? Guid.Empty;
+            int idx = providers.FindIndex(p => p.Id == targetId);
+            if (idx < 0) idx = 0;
+            cbAgentLlmProvider.SelectedIndex = idx;
+        }
+
+        private void LoadAgentLlmBindingToUi(string profileName, AgentProfileConfig profile)
+        {
+            if (cbAgentLlmProvider == null || profile == null) return;
+
+            try
+            {
+                _suppressAgentLlmUiEvents = true;
+                RefreshAgentProviderDropdown();
+
+                var binding = profile.LlmBinding;
+                bool useDefaultProvider = binding == null || binding.UseDefaultProvider;
+                chkAgentUseDefaultProvider.Checked = useDefaultProvider;
+                SelectAgentProvider(useDefaultProvider ? LLMConfigManager.GetActiveProvider()?.Id : binding?.ProviderId);
+                var provider = useDefaultProvider
+                    ? LLMConfigManager.GetActiveProvider()
+                    : (GetSelectedAgentProvider() ?? LLMConfigManager.GetActiveProvider());
+                var effective = LLMConfigManager.ResolveProviderForProfile(profileName) ?? provider;
+
+                cbAgentLlmModel.Items.Clear();
+                if (!string.IsNullOrWhiteSpace(effective?.ModelName))
+                {
+                    cbAgentLlmModel.Items.Add(effective.ModelName);
+                }
+                cbAgentLlmModel.Text = !useDefaultProvider && !string.IsNullOrWhiteSpace(binding?.ModelName)
+                    ? binding.ModelName
+                    : effective?.ModelName ?? string.Empty;
+
+                bool overridePayload = binding?.OverridePayload == true;
+                chkAgentUseProviderPayload.Checked = !overridePayload;
+
+                ApplyAgentPayloadToControls(effective);
+
+                string policy = string.IsNullOrWhiteSpace(binding?.ContextPolicy) ? "UseLoadedIfAtLeastRequested" : binding.ContextPolicy;
+                cbAgentContextPolicy.SelectedItem = cbAgentContextPolicy.Items.Contains(policy) ? policy : "UseLoadedIfAtLeastRequested";
+            }
+            finally
+            {
+                _suppressAgentLlmUiEvents = false;
+            }
+
+            UpdateAgentPayloadControlsEnabled();
+            UpdateAgentLlmPreview();
+        }
+
+        private void ApplyAgentPayloadToControls(LLMProviderConfig config)
+        {
+            if (config == null || numAgentTemp == null) return;
+
+            numAgentTemp.Value = ClampAgentDecimal((decimal)config.Temperature, numAgentTemp.Minimum, numAgentTemp.Maximum);
+            numAgentContext.Value = ClampAgentDecimal(config.LoadContextLength, numAgentContext.Minimum, numAgentContext.Maximum);
+            numAgentMaxTokens.Value = ClampAgentDecimal(config.MaxTokens, numAgentMaxTokens.Minimum, numAgentMaxTokens.Maximum);
+            numAgentTopP.Value = ClampAgentDecimal((decimal)config.TopP, numAgentTopP.Minimum, numAgentTopP.Maximum);
+            numAgentTopK.Value = ClampAgentDecimal(config.TopK, numAgentTopK.Minimum, numAgentTopK.Maximum);
+            numAgentMinP.Value = ClampAgentDecimal((decimal)config.MinP, numAgentMinP.Minimum, numAgentMinP.Maximum);
+            numAgentRepPenalty.Value = ClampAgentDecimal((decimal)config.RepetitionPenalty, numAgentRepPenalty.Minimum, numAgentRepPenalty.Maximum);
+            chkAgentAutoLoad.Checked = config.AutoLoadModel;
+
+            string reasoning = string.IsNullOrWhiteSpace(config.ReasoningEffort) ? "none" : config.ReasoningEffort;
+            cbAgentReasoning.SelectedItem = cbAgentReasoning.Items.Contains(reasoning) ? reasoning : "none";
+        }
+
+        private decimal ClampAgentDecimal(decimal value, decimal min, decimal max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
+        private void AgentLlmControlChanged(object sender, EventArgs e)
+        {
+            if (_suppressAgentLlmUiEvents) return;
+
+            if (sender == chkAgentUseDefaultProvider)
+            {
+                var provider = chkAgentUseDefaultProvider.Checked
+                    ? LLMConfigManager.GetActiveProvider()
+                    : GetSelectedAgentProvider();
+                if (provider != null)
+                {
+                    try
+                    {
+                        _suppressAgentLlmUiEvents = true;
+                        cbAgentLlmModel.Items.Clear();
+                        if (!string.IsNullOrWhiteSpace(provider.ModelName))
+                        {
+                            cbAgentLlmModel.Items.Add(provider.ModelName);
+                            cbAgentLlmModel.Text = provider.ModelName;
+                        }
+                        if (chkAgentUseProviderPayload.Checked)
+                        {
+                            ApplyAgentPayloadToControls(provider);
+                        }
+                    }
+                    finally
+                    {
+                        _suppressAgentLlmUiEvents = false;
+                    }
+                }
+            }
+
+            if (sender == chkAgentUseProviderPayload && chkAgentUseProviderPayload.Checked)
+            {
+                var provider = chkAgentUseDefaultProvider?.Checked == true
+                    ? LLMConfigManager.GetActiveProvider()
+                    : GetSelectedAgentProvider();
+                if (provider != null)
+                {
+                    try
+                    {
+                        _suppressAgentLlmUiEvents = true;
+                        ApplyAgentPayloadToControls(provider);
+                    }
+                    finally
+                    {
+                        _suppressAgentLlmUiEvents = false;
+                    }
+                }
+            }
+
+            UpdateAgentPayloadControlsEnabled();
+            UpdateAgentLlmPreview();
+        }
+
+        private void CbAgentLlmProvider_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_suppressAgentLlmUiEvents) return;
+
+            var provider = GetSelectedAgentProvider();
+            if (provider != null)
+            {
+                cbAgentLlmModel.Items.Clear();
+                if (!string.IsNullOrWhiteSpace(provider.ModelName))
+                {
+                    cbAgentLlmModel.Items.Add(provider.ModelName);
+                    cbAgentLlmModel.Text = provider.ModelName;
+                }
+
+                if (chkAgentUseProviderPayload.Checked)
+                {
+                    ApplyAgentPayloadToControls(provider);
+                }
+            }
+
+            UpdateAgentLlmPreview();
+        }
+
+        private void UpdateAgentPayloadControlsEnabled()
+        {
+            bool enabled = chkAgentUseProviderPayload != null && !chkAgentUseProviderPayload.Checked;
+            bool useDefaultProvider = chkAgentUseDefaultProvider?.Checked == true;
+            if (numAgentTemp == null) return;
+
+            cbAgentLlmProvider.Enabled = !useDefaultProvider;
+            cbAgentLlmModel.Enabled = !useDefaultProvider;
+            btnRefreshAgentModels.Enabled = !useDefaultProvider;
+            numAgentTemp.Enabled = enabled;
+            numAgentContext.Enabled = enabled;
+            numAgentMaxTokens.Enabled = enabled;
+            numAgentTopP.Enabled = enabled;
+            numAgentTopK.Enabled = enabled;
+            numAgentMinP.Enabled = enabled;
+            numAgentRepPenalty.Enabled = enabled;
+            cbAgentReasoning.Enabled = enabled;
+            chkAgentAutoLoad.Enabled = enabled;
+            cbAgentContextPolicy.Enabled = enabled;
+        }
+
+        private void UpdateAgentLlmPreview()
+        {
+            if (lblAgentLlmPreview == null) return;
+
+            bool useDefaultProvider = chkAgentUseDefaultProvider?.Checked == true;
+            var provider = useDefaultProvider ? LLMConfigManager.GetActiveProvider() : GetSelectedAgentProvider();
+            string model = cbAgentLlmModel?.Text;
+            string payloadMode = chkAgentUseProviderPayload?.Checked == true ? "payload providera" : "payload profilu";
+            string providerMode = useDefaultProvider ? "domyślny provider" : "provider profilu";
+            lblAgentLlmPreview.Text = provider == null
+                ? "LLM: aktywny provider globalny"
+                : $"{provider.Name} -> {model} ({providerMode}, {payloadMode})";
+        }
+
+        private AgentLlmBinding BuildAgentLlmBindingFromUi()
+        {
+            bool useDefaultProvider = chkAgentUseDefaultProvider?.Checked == true;
+            var provider = useDefaultProvider ? null : GetSelectedAgentProvider();
+            if (!useDefaultProvider && provider == null) return null;
+
+            bool overridePayload = chkAgentUseProviderPayload == null || !chkAgentUseProviderPayload.Checked;
+            var binding = new AgentLlmBinding
+            {
+                UseDefaultProvider = useDefaultProvider,
+                ProviderId = useDefaultProvider ? (Guid?)null : provider.Id,
+                ProviderNameFallback = useDefaultProvider ? null : provider.Name,
+                ModelName = useDefaultProvider || string.IsNullOrWhiteSpace(cbAgentLlmModel?.Text) ? null : cbAgentLlmModel.Text.Trim(),
+                OverridePayload = overridePayload,
+                ContextPolicy = cbAgentContextPolicy?.SelectedItem?.ToString() ?? "UseLoadedIfAtLeastRequested"
+            };
+
+            if (overridePayload)
+            {
+                binding.Temperature = (double)numAgentTemp.Value;
+                binding.LoadContextLength = (int)numAgentContext.Value;
+                binding.MaxTokens = (int)numAgentMaxTokens.Value;
+                binding.TopP = (double)numAgentTopP.Value;
+                binding.TopK = (int)numAgentTopK.Value;
+                binding.MinP = (double)numAgentMinP.Value;
+                binding.RepetitionPenalty = (double)numAgentRepPenalty.Value;
+                binding.ReasoningEffort = cbAgentReasoning.Text;
+                binding.AutoLoadModel = chkAgentAutoLoad.Checked;
+            }
+
+            return binding;
+        }
+
+        private async Task RefreshAgentModelsAsync()
+        {
+            var provider = GetSelectedAgentProvider();
+            if (provider == null || cbAgentLlmModel == null) return;
+
+            btnRefreshAgentModels.Enabled = false;
+            try
+            {
+                var models = await _llmClient.GetAvailableModelsAsync(provider);
+                string current = cbAgentLlmModel.Text;
+                cbAgentLlmModel.Items.Clear();
+                foreach (var model in models.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    cbAgentLlmModel.Items.Add(model);
+                }
+                cbAgentLlmModel.Text = !string.IsNullOrWhiteSpace(current) ? current : provider.ModelName;
+            }
+            finally
+            {
+                btnRefreshAgentModels.Enabled = true;
             }
         }
 
@@ -1865,7 +2230,7 @@ Ostatnia rozmowa:
                 selectedTools.Add(item.ToString());
             }
 
-            ToolConfigManager.UpdateAgentProfile(profileName, promptFile, selectedTools);
+            ToolConfigManager.UpdateAgentProfile(profileName, promptFile, selectedTools, BuildAgentLlmBindingFromUi());
             MessageBox.Show($"Zaktualizowano profil: {profileName}", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
