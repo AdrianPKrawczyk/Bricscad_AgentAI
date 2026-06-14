@@ -524,6 +524,12 @@ namespace Bricscad_AgentAI_V2.Core
         {
             simulatedResponses = simulatedResponses ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             int iterations = 0;
+            var initialConfig = LLMConfigManager.GetActiveProvider();
+            if (initialConfig != null && initialConfig.AutoLoadModel && SupportsLocalModelManagement(initialConfig))
+            {
+                OnStatusUpdate?.Invoke("[Benchmark] Inicjalizacja automatycznego ladowania modelu...");
+                await TryLoadModelAsync(initialConfig);
+            }
 
             while (iterations < maxIterations)
             {
@@ -702,6 +708,27 @@ namespace Bricscad_AgentAI_V2.Core
         /// </summary>
         private async Task TryLoadModelAsync(LLMProviderConfig config)
         {
+            if (config != null && config.LoadContextLength > 0 && SupportsLocalModelManagement(config))
+            {
+                try
+                {
+                    var loaded = await GetLoadedModelInfoAsync(config);
+                    if (loaded != null && loaded.LoadedContextLength > 0 && loaded.LoadedContextLength < config.LoadContextLength)
+                    {
+                        OnStatusUpdate?.Invoke($"[Auto-Load] Zaladowany kontekst ({loaded.LoadedContextLength}) jest mniejszy niz wymagany ({config.LoadContextLength}). Przeladowuje model...");
+                        var (unloadOk, unloadMessage) = await UnloadModelAsync(config);
+                        if (!unloadOk)
+                        {
+                            OnStatusUpdate?.Invoke($"[Auto-Load] Nie udalo sie rozladowac modelu przed zmiana kontekstu: {unloadMessage}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnStatusUpdate?.Invoke($"[Auto-Load] Nie udalo sie sprawdzic aktualnego kontekstu: {ex.Message}");
+                }
+            }
+
             var (ok, message) = await LoadModelAsync(config);
             if (ok)
                 OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} załadowany pomyślnie. {message}");
@@ -905,38 +932,39 @@ namespace Bricscad_AgentAI_V2.Core
                     if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
                         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
 
-                    // v2.28.79: Najpierw probuj OpenAI-compat /v1/models (llama.cpp, vLLM, etc.)
-                    // Fallback do LM Studio /api/v1/models (LM Studio specyficzne)
+                    // Najpierw probuj natywne LM Studio /api/v1/models, bo tylko tam
+                    // widac loaded_instances, instance_id i rzeczywisty context_length.
+                    // Fallback do OpenAI-compat /v1/models zostaje dla llama.cpp/vLLM.
                     string openAIPath = "/v1/models";
                     string lmStudioPath = "/api/v1/models";
                     JArray modelsArray = null;
                     string responseBody = null;
 
-                    // Proba 1: OpenAI-compat (llama.cpp)
+                    // Proba 1: LM Studio /api/v1/models
                     try
                     {
-                        var openAIResp = await client.GetAsync(baseUrl + openAIPath, ct);
-                        if (openAIResp.IsSuccessStatusCode)
+                        var lmResp = await client.GetAsync(baseUrl + lmStudioPath, ct);
+                        if (lmResp.IsSuccessStatusCode)
                         {
-                            responseBody = await openAIResp.Content.ReadAsStringAsync();
-                            var openAIJson = JObject.Parse(responseBody);
-                            // llama.cpp: {"object":"list","data":[{"id":"...gguf","object":"model",...}]}
-                            modelsArray = openAIJson["data"] as JArray;
+                            responseBody = await lmResp.Content.ReadAsStringAsync();
+                            var lmJson = JObject.Parse(responseBody);
+                            modelsArray = lmJson["models"] as JArray;
                         }
                     }
                     catch { /* fallback */ }
 
-                    // Proba 2: LM Studio /api/v1/models
+                    // Proba 2: OpenAI-compat (llama.cpp)
                     if (modelsArray == null)
                     {
                         try
                         {
-                            var lmResp = await client.GetAsync(baseUrl + lmStudioPath, ct);
-                            if (lmResp.IsSuccessStatusCode)
+                            var openAIResp = await client.GetAsync(baseUrl + openAIPath, ct);
+                            if (openAIResp.IsSuccessStatusCode)
                             {
-                                responseBody = await lmResp.Content.ReadAsStringAsync();
-                                var lmJson = JObject.Parse(responseBody);
-                                modelsArray = lmJson["models"] as JArray;
+                                responseBody = await openAIResp.Content.ReadAsStringAsync();
+                                var openAIJson = JObject.Parse(responseBody);
+                                // llama.cpp: {"object":"list","data":[{"id":"...gguf","object":"model",...}]}
+                                modelsArray = openAIJson["data"] as JArray;
                             }
                         }
                         catch { /* fallback */ }

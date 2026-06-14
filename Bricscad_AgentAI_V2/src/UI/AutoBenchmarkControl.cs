@@ -41,6 +41,11 @@ namespace Bricscad_AgentAI_V2.UI
         private Label lblModelStatus;
         private System.Windows.Forms.Timer liveStatusTimer;
         private bool _suppressModelChangedEvent;
+        private NumericUpDown numBenchTemp, numBenchContext, numBenchMaxTokens, numBenchTopP, numBenchTopK, numBenchMinP, numBenchRepPenalty;
+        private ComboBox cbBenchReasoning;
+        private CheckBox chkBenchAutoLoad, chkBenchSavePayload;
+        private bool _suppressPayloadChangedEvent;
+        private bool _isSavingBenchmarkPayload;
         private const string REG_PATH = @"Software\BricscadAgentAI";
         private const string REG_KEY = "LastBenchmarkPath";
 
@@ -217,6 +222,28 @@ namespace Bricscad_AgentAI_V2.UI
             liveStatusTimer = new System.Windows.Forms.Timer { Interval = 3000 };
             liveStatusTimer.Tick += LiveStatusTimer_Tick;
 
+            // === Trzeci pasek: parametry payloadu LLM dla benchmarkow ===
+            Panel panPayloadParams = new Panel { Dock = DockStyle.Top, Height = 38, Padding = new Padding(5, 2, 5, 2) };
+
+            panPayloadParams.Controls.Add(CreatePayloadSaveCheckBox());
+            panPayloadParams.Controls.Add(CreatePayloadAutoLoadCheckBox());
+            panPayloadParams.Controls.Add(CreatePayloadReasoningField());
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("Rep", out numBenchRepPenalty, 1.0m, 2.0m, 2, 0.05m));
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("MinP", out numBenchMinP, 0.0m, 1.0m, 2, 0.05m));
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("TopK", out numBenchTopK, 0m, 200m, 0, 1m));
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("TopP", out numBenchTopP, 0.0m, 1.0m, 2, 0.05m));
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("Max", out numBenchMaxTokens, 1m, 128000m, 0, 1000m));
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("Ctx", out numBenchContext, 0m, 128000m, 0, 1000m));
+            panPayloadParams.Controls.Add(CreatePayloadNumericField("Temp", out numBenchTemp, 0.0m, 2.0m, 2, 0.1m));
+            panPayloadParams.Controls.Add(new Label
+            {
+                Text = "Payload:",
+                ForeColor = Color.White,
+                Dock = DockStyle.Left,
+                Width = 58,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+
             // Stopka (Progres)
             Panel panFooter = new Panel { Dock = DockStyle.Bottom, Height = 68, Padding = new Padding(5) };
             lblBatchStatus = new Label { Text = "Kolejka benchmarkow: 0 plikow.", Dock = DockStyle.Top, Height = 18, ForeColor = Color.LightGray };
@@ -323,8 +350,103 @@ namespace Bricscad_AgentAI_V2.UI
 
             this.Controls.Add(tabLogs);
             this.Controls.Add(panFooter);
+            this.Controls.Add(panPayloadParams);
             this.Controls.Add(panModelPicker);
             this.Controls.Add(panTop);
+        }
+
+        private Control CreatePayloadNumericField(string label, out NumericUpDown numeric, decimal min, decimal max, int decimalPlaces, decimal increment)
+        {
+            Panel panel = new Panel { Dock = DockStyle.Left, Width = label == "Max" ? 118 : 98, Padding = new Padding(3, 0, 3, 0) };
+            Label lbl = new Label
+            {
+                Text = label,
+                Dock = DockStyle.Left,
+                Width = label == "Max" ? 32 : 34,
+                ForeColor = Color.LightGray,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            numeric = new NumericUpDown
+            {
+                Dock = DockStyle.Fill,
+                Minimum = min,
+                Maximum = max,
+                DecimalPlaces = decimalPlaces,
+                Increment = increment,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                ThousandsSeparator = label == "Max"
+            };
+            numeric.ValueChanged += BenchmarkPayloadControlChanged;
+            panel.Controls.Add(numeric);
+            panel.Controls.Add(lbl);
+            return panel;
+        }
+
+        private Control CreatePayloadReasoningField()
+        {
+            Panel panel = new Panel { Dock = DockStyle.Left, Width = 150, Padding = new Padding(3, 0, 3, 0) };
+            Label lbl = new Label
+            {
+                Text = "Reason",
+                Dock = DockStyle.Left,
+                Width = 52,
+                ForeColor = Color.LightGray,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            cbBenchReasoning = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cbBenchReasoning.Items.AddRange(new object[] { "none", "low", "medium", "high" });
+            cbBenchReasoning.SelectedIndexChanged += BenchmarkPayloadControlChanged;
+            panel.Controls.Add(cbBenchReasoning);
+            panel.Controls.Add(lbl);
+            return panel;
+        }
+
+        private Control CreatePayloadSaveCheckBox()
+        {
+            chkBenchSavePayload = new CheckBox
+            {
+                Text = "Zapisz",
+                Dock = DockStyle.Left,
+                Width = 76,
+                Checked = true,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(6, 0, 0, 0)
+            };
+            chkBenchSavePayload.CheckedChanged += (s, e) =>
+            {
+                if (chkBenchSavePayload.Checked)
+                {
+                    SaveBenchmarkPayloadSettings();
+                }
+            };
+            return chkBenchSavePayload;
+        }
+
+        private Control CreatePayloadAutoLoadCheckBox()
+        {
+            chkBenchAutoLoad = new CheckBox
+            {
+                Text = "AutoLoad",
+                Dock = DockStyle.Left,
+                Width = 90,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(6, 0, 0, 0)
+            };
+            chkBenchAutoLoad.CheckedChanged += BenchmarkPayloadControlChanged;
+            return chkBenchAutoLoad;
         }
 
         private void dgvTestsColumnsInit()
@@ -828,6 +950,10 @@ namespace Bricscad_AgentAI_V2.UI
         private async void BtnStart_Click(object sender, EventArgs e)
         {
             if (_benchmarkQueue.Count == 0) return;
+            if (chkBenchSavePayload != null && chkBenchSavePayload.Checked)
+            {
+                SaveBenchmarkPayloadSettings();
+            }
 
             _isBatchRunning = _benchmarkQueue.Count > 1;
             if (_isBatchRunning)
@@ -840,6 +966,7 @@ namespace Bricscad_AgentAI_V2.UI
             btnClearQueue.Enabled = false;
             btnStop.Enabled = true;
             cbProfiles.Enabled = false;
+            SetBenchmarkPayloadControlsEnabled(false);
             
             _cts = new CancellationTokenSource();
             progressBarBatch.Maximum = Math.Max(_benchmarkQueue.Count, 1);
@@ -923,6 +1050,8 @@ namespace Bricscad_AgentAI_V2.UI
                         _benchmarkQueue,
                         selectedProfile,
                         provider?.Name,
+                        provider?.EndpointUrl,
+                        provider?.Id,
                         provider?.ModelName);
 
                     if (_lastBatchSummary != null)
@@ -968,6 +1097,7 @@ namespace Bricscad_AgentAI_V2.UI
             btnStop.Enabled = false;
             btnStop.Text = "⏹ Stop";
             cbProfiles.Enabled = true;
+            SetBenchmarkPayloadControlsEnabled(true);
             _isBatchRunning = false;
             _engine.OnBenchmarkCompleted -= Engine_OnBenchmarkCompleted;
             _engine.OnBenchmarkCompleted += Engine_OnBenchmarkCompleted;
@@ -977,6 +1107,21 @@ namespace Bricscad_AgentAI_V2.UI
                 _cts.Dispose();
                 _cts = null;
             }
+        }
+
+        private void SetBenchmarkPayloadControlsEnabled(bool enabled)
+        {
+            if (numBenchTemp == null) return;
+            numBenchTemp.Enabled = enabled;
+            numBenchContext.Enabled = enabled;
+            numBenchMaxTokens.Enabled = enabled;
+            numBenchTopP.Enabled = enabled;
+            numBenchTopK.Enabled = enabled;
+            numBenchMinP.Enabled = enabled;
+            numBenchRepPenalty.Enabled = enabled;
+            cbBenchReasoning.Enabled = enabled;
+            chkBenchAutoLoad.Enabled = enabled;
+            chkBenchSavePayload.Enabled = enabled;
         }
 
         private void Engine_OnLogMessage(object sender, string message)
@@ -1161,12 +1306,18 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void OnExternalConfigChanged()
         {
+            if (_isSavingBenchmarkPayload)
+            {
+                return;
+            }
+
             if (this.InvokeRequired)
             {
                 this.BeginInvoke(new Action(OnExternalConfigChanged));
                 return;
             }
             RefreshProviderDropdown();
+            UpdateBenchmarkPayloadControlsFromActive();
             _ = RefreshModelsForCurrentProviderAsync();
             _ = UpdateLiveStatusAsync();
         }
@@ -1189,6 +1340,7 @@ namespace Bricscad_AgentAI_V2.UI
                     int idx = config.Providers.FindIndex(p => p.Id == active.Id);
                     if (idx >= 0) cbProviders.SelectedIndex = idx;
                 }
+                UpdateBenchmarkPayloadControlsFromActive();
             }
             finally
             {
@@ -1202,8 +1354,80 @@ namespace Bricscad_AgentAI_V2.UI
             if (cbProviders.SelectedItem is LLMProviderConfig selected)
             {
                 LLMConfigManager.SetActiveProvider(selected.Id);
+                UpdateBenchmarkPayloadControlsFromActive();
                 _ = RefreshModelsForCurrentProviderAsync();
                 _ = UpdateLiveStatusAsync();
+            }
+        }
+
+        private void UpdateBenchmarkPayloadControlsFromActive()
+        {
+            if (numBenchTemp == null || cbBenchReasoning == null) return;
+            var active = LLMConfigManager.GetActiveProvider();
+            if (active == null) return;
+
+            try
+            {
+                _suppressPayloadChangedEvent = true;
+                numBenchTemp.Value = ClampDecimal((decimal)active.Temperature, numBenchTemp.Minimum, numBenchTemp.Maximum);
+                numBenchContext.Value = ClampDecimal(active.LoadContextLength, numBenchContext.Minimum, numBenchContext.Maximum);
+                numBenchMaxTokens.Value = ClampDecimal(active.MaxTokens, numBenchMaxTokens.Minimum, numBenchMaxTokens.Maximum);
+                numBenchTopP.Value = ClampDecimal((decimal)active.TopP, numBenchTopP.Minimum, numBenchTopP.Maximum);
+                numBenchTopK.Value = ClampDecimal(active.TopK, numBenchTopK.Minimum, numBenchTopK.Maximum);
+                numBenchMinP.Value = ClampDecimal((decimal)active.MinP, numBenchMinP.Minimum, numBenchMinP.Maximum);
+                numBenchRepPenalty.Value = ClampDecimal((decimal)active.RepetitionPenalty, numBenchRepPenalty.Minimum, numBenchRepPenalty.Maximum);
+                chkBenchAutoLoad.Checked = active.AutoLoadModel;
+
+                string reasoning = string.IsNullOrWhiteSpace(active.ReasoningEffort) ? "none" : active.ReasoningEffort;
+                cbBenchReasoning.SelectedItem = cbBenchReasoning.Items.Contains(reasoning) ? reasoning : "none";
+            }
+            finally
+            {
+                _suppressPayloadChangedEvent = false;
+            }
+        }
+
+        private decimal ClampDecimal(decimal value, decimal min, decimal max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
+        private void BenchmarkPayloadControlChanged(object sender, EventArgs e)
+        {
+            if (_suppressPayloadChangedEvent) return;
+            if (chkBenchSavePayload == null || !chkBenchSavePayload.Checked) return;
+            SaveBenchmarkPayloadSettings();
+        }
+
+        private void SaveBenchmarkPayloadSettings()
+        {
+            if (numBenchTemp == null || cbBenchReasoning == null) return;
+            var active = LLMConfigManager.GetActiveProvider();
+            if (active == null) return;
+
+            try
+            {
+                _isSavingBenchmarkPayload = true;
+                LLMConfigManager.UpdateActiveProvider(p =>
+                {
+                    p.Temperature = (double)numBenchTemp.Value;
+                    p.LoadContextLength = (int)numBenchContext.Value;
+                    p.MaxTokens = (int)numBenchMaxTokens.Value;
+                    p.TopP = (double)numBenchTopP.Value;
+                    p.TopK = (int)numBenchTopK.Value;
+                    p.MinP = (double)numBenchMinP.Value;
+                    p.RepetitionPenalty = (double)numBenchRepPenalty.Value;
+                    p.ReasoningEffort = cbBenchReasoning.Text;
+                    p.AutoLoadModel = chkBenchAutoLoad.Checked;
+                    return p;
+                });
+                Engine_OnLogMessage(this, $"[Payload] Zapisano parametry: temp={numBenchTemp.Value}, ctx={numBenchContext.Value}, max={numBenchMaxTokens.Value}, top_p={numBenchTopP.Value}, top_k={numBenchTopK.Value}, min_p={numBenchMinP.Value}, rep={numBenchRepPenalty.Value}, reasoning={cbBenchReasoning.Text}, autoload={chkBenchAutoLoad.Checked}");
+            }
+            finally
+            {
+                _isSavingBenchmarkPayload = false;
             }
         }
 

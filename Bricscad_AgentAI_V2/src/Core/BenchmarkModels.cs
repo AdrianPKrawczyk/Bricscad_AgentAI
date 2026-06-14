@@ -86,6 +86,8 @@ namespace Bricscad_AgentAI_V2.Core
         public string BatchName { get; set; }
         public string ProfileName { get; set; }
         public string ProviderName { get; set; }
+        public string ProviderEndpoint { get; set; }
+        public Guid? ProviderId { get; set; }
         public string ModelName { get; set; }
         public string RunDate { get; set; }
         public int TotalBenchmarks { get; set; }

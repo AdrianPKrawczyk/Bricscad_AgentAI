@@ -783,7 +783,7 @@ namespace Bricscad_AgentAI_V2.Core
             try
             {
                 string resultJson = JsonConvert.SerializeObject(config, Formatting.Indented);
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string rootDir = Path.GetDirectoryName(sourceJsonPath);
                 string origName = Path.GetFileNameWithoutExtension(sourceJsonPath);
 
@@ -829,6 +829,8 @@ namespace Bricscad_AgentAI_V2.Core
             IReadOnlyList<BenchmarkQueueItem> items,
             string profileName,
             string providerName,
+            string providerEndpoint,
+            Guid? providerId,
             string modelName)
         {
             if (items == null || items.Count == 0)
@@ -838,13 +840,25 @@ namespace Bricscad_AgentAI_V2.Core
 
             try
             {
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string firstPath = items.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.FilePath))?.FilePath;
                 string rootDir = !string.IsNullOrWhiteSpace(firstPath)
                     ? Path.GetDirectoryName(firstPath)
                     : Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-                string safeModel = BuildModelDirKey(modelName, null);
+                var firstMeta = items.FirstOrDefault(i => i.FinalConfig?.RunMetadata != null)?.FinalConfig?.RunMetadata;
+                string effectiveModelName = !string.IsNullOrWhiteSpace(firstMeta?.ModelName)
+                    ? firstMeta.ModelName
+                    : modelName;
+                Guid? effectiveProviderId = firstMeta?.ProviderId ?? providerId;
+                string effectiveProviderName = !string.IsNullOrWhiteSpace(firstMeta?.ProviderName)
+                    ? firstMeta.ProviderName
+                    : providerName;
+                string effectiveProviderEndpoint = !string.IsNullOrWhiteSpace(firstMeta?.ProviderEndpoint)
+                    ? firstMeta.ProviderEndpoint
+                    : providerEndpoint;
+
+                string safeModel = BuildModelDirKey(effectiveModelName, effectiveProviderId);
                 string modelDir = Path.Combine(rootDir, safeModel);
                 if (!Directory.Exists(modelDir))
                 {
@@ -859,8 +873,10 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     BatchName = $"BenchmarkBatch_{timestamp}",
                     ProfileName = profileName ?? string.Empty,
-                    ProviderName = providerName ?? string.Empty,
-                    ModelName = modelName ?? string.Empty,
+                    ProviderName = effectiveProviderName ?? string.Empty,
+                    ProviderEndpoint = effectiveProviderEndpoint ?? string.Empty,
+                    ProviderId = effectiveProviderId,
+                    ModelName = effectiveModelName ?? string.Empty,
                     RunDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                     TotalBenchmarks = items.Count,
                     CompletedBenchmarks = items.Count(i => string.Equals(i.Status, "Zakonczono", StringComparison.OrdinalIgnoreCase)),
