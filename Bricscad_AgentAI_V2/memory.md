@@ -3635,3 +3635,69 @@ Jesli po tej poprawce zostanie tylko przesuniecie rzedu okolo 1 jednostki CAD, k
 - Uaktualniono instrukcje agentów (SKILL.md dla `project-compiler`), aby polegały wyłącznie na `build.ps1`. Projekt buduje się poprawnie bez rzucania błędów CS0246.
 ### [KOLEJNY_KROK]
 - Testowanie nowej funkcjonalności FadeOtherLayers i GrayOtherLayers przez użytkownika w BricsCAD.
+
+## [v2.28.84] 2026-06-14T11:45:00+02:00 - Rozroznienie providerow w folderach benchmarkow [PROVIDER-ID]
+
+### [PROBLEM]
+User przetestowal Benchmark_09 z drugiego komputera (LM Studio na 192.168.100.190).
+- Folder `google_gemma-4-31b-qat/` juz istnial z testami z PC1
+- Test z PC2 (LM studio-dom) zapisal sie DO TEGO SAMEGO FOLDERU
+- Provider rozny, model ten sam - kolizja folderow
+- Test PC2 mial 0% (1/25) z avg 154ms i `RecordedToolCalls: []` - **nie udalo sie polaczyc z PC2** (problem niezdiagnozowany, user wykasowal raport)
+
+### [DIAGNOZA]
+W `AutoBenchmarkEngine.SaveReports` (linia 761) folder budowany wylacznie z `ModelName`:
+```csharp
+string safeModel = string.Join("_", (ModelName ?? "UnknownModel")
+    .Split(Path.GetInvalidFileNameChars()));
+```
+Dla 2 PC z tym samym modelem (np. gemma-4-31b) powstaje 1 folder.
+Brak rozroznienia providera.
+
+### [FIX v2.28.83 - w commit 5869ac0]
+Uzytkownik commit-owal moja implementacje (autor AdrianPKrawczyk, dzis 11:35:54) razem z Metric Vision:
+1. `BenchmarkModels.cs`: dodano `public Guid? ProviderId { get; set; }` do `RunMetadata`
+2. `AutoBenchmarkEngine.cs`: 
+   - `BuildModelDirKey(modelName, providerId)` - helper zwracajacy `"model@a1b2c3"` (6-znakowy hex z GUID-a)
+   - W `RunBenchmarkAsync`: `config.RunMetadata.ProviderId = activeProvider?.Id;`
+   - W `SaveReports` i `SaveBatchSummaryReport`: `BuildModelDirKey` zamiast inline
+3. Kompatybilnosc wsteczna: gdy `ProviderId == null/Empty` - folder budowany jak wczesniej
+
+### [FIX v2.28.84 - moj commit]
+Dodano `using System;` do `BenchmarkModels.cs` (linia 1). Bez tego `Guid?` nie kompiluje sie (CS0246). To brakujacy element z commit 5869ac0.
+
+### [KONSEKWENCJE]
+- 2 PC z `gemma-4-31b-it-qat`:
+  - PC1: `gemma-4-31b-it-qat@abc123/` (np. domyslny LM Studio GUID)
+  - PC2: `gemma-4-31b-it-qat@def456/` (inny PC/provider)
+- Mozna porownywac ten sam model na 2 komputerach
+- Stare foldery (bez `@xxxxxx`) zostaja - kompatybilnosc wsteczna
+- Raport FULL/SUMMARY: w nazwie pliku rowniez `safeModel` z `@xxxxxx`
+
+### [DIAGNOSTYKA PC2 - DO ZROBIENIA]
+Test na PC2 (192.168.100.190) mial:
+- 0% (1/25 PASS - test 9, ktory ma malo rygorystyczne walidacje)
+- avg 154ms (za szybko - cos natychmiast zwraca puste)
+- `RecordedToolCalls: []` we wszystkich oblenych testach
+
+Mozliwe przyczyny:
+- Firewall blokuje polaczenie z PC2
+- Zly endpoint URL w llm_providers.json
+- Model nie wgrany w LM Studio PC2
+- Timeout zbyt krotki
+- Brak kompatybilnosci API (inny format niz LM Studio OC)
+- Bardzo szybka odpowiedz "pusta" (model zbyt maly?)
+
+User: **"Nie - nie wiem"** - nie wie co to jest.
+Nastepne kroki diagnostyczne: dodac surowy log odpowiedzi LLM w trybie benchmarkowym.
+
+### [STAN_SYSTEMU]
+- 1 commit: v2.28.84 (using System)
+- Kod ProviderId juz w HEAD (commit 5869ac0, autor: user)
+- 11 folderow benchmarkow, po v2.28.83+ beda miec format `model@xxxxxx`
+
+### [KOLEJNY_KROK]
+- Kompilacja BricsCAD z v2.28.84 (build.ps1)
+- Przetestowac nowy test z PC1 - folder powinien miec format `model@xxxxxx`
+- Przetestowac polaczenie z PC2 (debug problemu z pustymi RecordedToolCalls)
+- Opcjonalnie: dodac surowy log odpowiedzi LLM w trybie benchmark
