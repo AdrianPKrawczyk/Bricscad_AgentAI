@@ -27,29 +27,31 @@ namespace Bricscad_AgentAI_V2.Core
 
         public List<ChatMessage> GetHistory() => SessionManager.CurrentSession.Messages;
 
+        public string BuildSupervisorSystemPrompt(string activeDwgPath = "")
+        {
+            string sysPrompt = "Jestes Glownym Menedzerem (Supervisorem). Przeanalizuj problem i zidentyfikuj najlepszego Agenta Eksperta. Nie wykonujesz pracy sam.";
+            string loadedPrompt = ToolConfigManager.LoadEffectivePromptForProfile("SupervisorProfile");
+            if (!string.IsNullOrWhiteSpace(loadedPrompt))
+            {
+                sysPrompt = loadedPrompt;
+            }
+
+            string note = DrawingNoteManager.ReadNote(activeDwgPath);
+            if (string.IsNullOrWhiteSpace(note))
+            {
+                note = "[Brak notatki. Uzytkownik nie stworzyl jeszcze notatki inzynierskiej dla tego rysunku. Mozesz ja wygenerowac delegujac zadanie do agenta NotesProfile uzywajac narzedzia DelegateTask, albo powiedziec uzytkownikowi o komendzie /notatka]";
+            }
+
+            return sysPrompt + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
+        }
+
         public async Task<AgentExecutionResult> ProcessInputAsync(object userContent, IExecutionContext context, string activeDwgPath = "")
         {
             var history = SessionManager.CurrentSession.Messages;
 
             if (history.Count == 0)
             {
-                string sysPrompt = "Jestes Glownym Menedzerem (Supervisorem). Przeanalizuj problem i zidentyfikuj najlepszego Agenta Eksperta. Nie wykonujesz pracy sam.";
-                string loadedPrompt = ToolConfigManager.LoadEffectivePromptForProfile("SupervisorProfile");
-                if (!string.IsNullOrWhiteSpace(loadedPrompt))
-                {
-                    sysPrompt = loadedPrompt;
-                }
-
-                // RAG: Doklejamy notatke do promptu systemowego
-                string note = DrawingNoteManager.ReadNote(activeDwgPath);
-                if (string.IsNullOrWhiteSpace(note))
-                {
-                    note = "[Brak notatki. Uzytkownik nie stworzyl jeszcze notatki inzynierskiej dla tego rysunku. Mozesz ja wygenerowac delegujac zadanie do agenta NotesProfile uzywajac narzedzia DelegateTask, albo powiedziec uzytkownikowi o komendzie /notatka]";
-                }
-
-                sysPrompt += $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
-
-                history.Add(new ChatMessage { Role = "system", Content = sysPrompt });
+                history.Add(new ChatMessage { Role = "system", Content = BuildSupervisorSystemPrompt(activeDwgPath) });
             }
             else
             {

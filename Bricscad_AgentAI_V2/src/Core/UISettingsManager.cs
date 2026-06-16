@@ -15,7 +15,12 @@ namespace Bricscad_AgentAI_V2.Core
         public string CustomKnowledgePath { get; set; } = string.Empty;
         public System.Collections.Generic.List<string> BenchmarkVisibleColumns { get; set; } = new System.Collections.Generic.List<string>();
         public string LastBenchmarkProfileName { get; set; } = string.Empty;
-        
+        public string CustomLLMConfigPath { get; set; } = string.Empty;
+        public bool EnablePromptWarmup { get; set; } = true;
+        public bool PromptWarmupOnAiOpen { get; set; } = true;
+        public bool PromptWarmupOnSessionLoad { get; set; } = true;
+        public int PromptWarmupAfterTypingIdleMs { get; set; } = 2500;
+
         // Workflow Settings
         public int AIStartupBehavior { get; set; } = 0; // 0 = Ładuj poprzednią, 1 = Twórz nową, 2 = Wybór manualny
         public int BricsCADStartupBehavior { get; set; } = 1; // 0 = Automatycznie uruchom agenta, 1 = Uruchomienie manualne
@@ -26,8 +31,10 @@ namespace Bricscad_AgentAI_V2.Core
     /// </summary>
     public static class UISettingsManager
     {
-        private static string ConfigPath => Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), 
+        private static string ConfigPath => AppPaths.GetUISettingsPath();
+
+        private static string LegacyConfigPath => Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
             "ui_settings.json"
         );
 
@@ -38,9 +45,9 @@ namespace Bricscad_AgentAI_V2.Core
             Load();
         }
 
-        public static UISettings Settings 
-        { 
-            get 
+        public static UISettings Settings
+        {
+            get
             {
                 if (_settings == null) Load();
                 return _settings;
@@ -49,6 +56,20 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static void Load()
         {
+            // Migracja ze starej lokalizacji (obok DLL) do AppData - jednorazowa
+            if (!File.Exists(ConfigPath) && File.Exists(LegacyConfigPath))
+            {
+                try
+                {
+                    AppPaths.EnsureDirectoriesExist();
+                    File.Copy(LegacyConfigPath, ConfigPath, true);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Nie udało się zmigrować ui_settings.json: {ex.Message}");
+                }
+            }
+
             if (File.Exists(ConfigPath))
             {
                 try
@@ -71,6 +92,7 @@ namespace Bricscad_AgentAI_V2.Core
         {
             try
             {
+                AppPaths.EnsureDirectoriesExist();
                 string json = JsonConvert.SerializeObject(_settings, Formatting.Indented);
                 File.WriteAllText(ConfigPath, json);
             }
@@ -85,6 +107,13 @@ namespace Bricscad_AgentAI_V2.Core
             if (distance <= 0) return;
             Settings.DatasetStudioSplitterDistance = distance;
             Save();
+        }
+
+        public static void UpdateCustomLLMConfigPath(string path)
+        {
+            Settings.CustomLLMConfigPath = path ?? string.Empty;
+            Save();
+            AppPaths.InvalidateAppDataRootCache();
         }
     }
 }

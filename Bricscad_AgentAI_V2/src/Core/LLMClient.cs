@@ -400,6 +400,90 @@ namespace Bricscad_AgentAI_V2.Core
         /// Skanuje historię w poszukiwaniu triggerów recept ($trigger) i wstrzykuje 
         /// przykłady Few-Shot bezpośrednio po system prompcie.
         /// </summary>
+        /// <summary>
+        /// Wysyla minimalny cichy request bez narzedzi, aby lokalny serwer LLM mogl zbudowac prompt/KV cache.
+        /// Nie modyfikuje historii rozmowy ani sesji.
+        /// </summary>
+        public async Task<bool> WarmupPromptAsync(List<ChatMessage> messages, string profileName = "SupervisorProfile", CancellationToken ct = default)
+        {
+            if (messages == null || messages.Count == 0) return false;
+
+            var config = LLMConfigManager.ResolveProviderForProfile(profileName);
+            if (config == null || string.IsNullOrWhiteSpace(config.EndpointUrl)) return false;
+            if (IsCloudProvider(config))
+            {
+                BielikLogger.LogInfo($"[LLM WARMUP] Pomijam warmup dla providera chmurowego: {config.EndpointUrl}");
+                return false;
+            }
+
+            var llmBinding = ToolConfigManager.GetAgentLlmBinding(profileName);
+            if (config.AutoLoadModel && SupportsLocalModelManagement(config))
+            {
+                await TryLoadModelAsync(config, llmBinding?.ContextPolicy);
+            }
+
+            var warmupMessages = new List<ChatMessage>(messages);
+            warmupMessages.Add(new ChatMessage
+            {
+                Role = "user",
+                Content = "Przygotuj kontekst. Odpowiedz jednym tokenem."
+            });
+
+            var requestPayload = new Dictionary<string, object>
+            {
+                { "model", config.ModelName },
+                { "messages", warmupMessages },
+                { "temperature", 0.0 },
+                { "max_tokens", 1 }
+            };
+
+            string jsonContent = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore
+            });
+
+            using (var request = new HttpRequestMessage(HttpMethod.Post, config.EndpointUrl))
+            {
+                if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                {
+                    request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                }
+
+                request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                try
+                {
+                    BielikLogger.LogInfo($"[LLM WARMUP] Model={config.ModelName}, Endpoint={config.EndpointUrl}, Messages={warmupMessages.Count}");
+                    using (var response = await _httpClient.SendAsync(request, ct))
+                    {
+                        string body = await response.Content.ReadAsStringAsync();
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            BielikLogger.LogWarn($"[LLM WARMUP] Nieudany status {(int)response.StatusCode}: {body}");
+                            return false;
+                        }
+
+                        BielikLogger.LogInfo($"[LLM WARMUP] OK, BodyLength={body.Length}");
+                        return true;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    BielikLogger.LogInfo("[LLM WARMUP] Anulowano.");
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    BielikLogger.LogWarn($"[LLM WARMUP] Blad: {ex.Message}");
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Skanuje historie w poszukiwaniu triggerow recept ($trigger) i wstrzykuje
+        /// przyklady Few-Shot bezposrednio po system prompcie.
+        /// </summary>
         private void PreProcessRecipes(List<ChatMessage> history)
         {
             var userMsgs = history.Where(m => m.Role == "user" && m.Content != null).ToList();
@@ -769,9 +853,16 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (config == null || string.IsNullOrEmpty(config.EndpointUrl)) return false;
             string u = config.EndpointUrl.ToLowerInvariant();
-            if (u.Contains("openrouter.ai") || u.Contains("api.openai.com") || u.Contains("openai.azure.com"))
+            if (IsCloudProvider(config))
                 return false;
             return true;
+        }
+
+        private static bool IsCloudProvider(LLMProviderConfig config)
+        {
+            if (config == null || string.IsNullOrEmpty(config.EndpointUrl)) return false;
+            string u = config.EndpointUrl.ToLowerInvariant();
+            return u.Contains("openrouter.ai") || u.Contains("api.openai.com") || u.Contains("openai.azure.com");
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Bricscad.ApplicationServices;
@@ -109,6 +110,9 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnRefreshAgentModels;
         private CheckBox chkAgentUseDefaultProvider;
         private bool _suppressAgentLlmUiEvents;
+        private CancellationTokenSource _promptWarmupCts;
+        private System.Windows.Forms.Timer _promptWarmupTypingTimer;
+        private string _lastPromptWarmupKey;
         // Prompt
         private TabPage tabAgentPrompt;
         private RichTextBox txtSystemPromptEditor;
@@ -164,6 +168,8 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 tabControl.SelectedTab = tabSessions;
             }
+
+            SchedulePromptWarmup("ai-open", 250);
         }        private void InitializeEngineV2()
         {
             _orchestrator = ToolOrchestrator.Instance;
@@ -205,6 +211,8 @@ namespace Bricscad_AgentAI_V2.UI
                 UpdateStatusHUD("Gotowy.");
             }
             RefreshAgentProviderDropdown();
+            CancelPromptWarmup();
+            SchedulePromptWarmup("config-changed", 500);
         }
 
         private void RebuildSystemPrompt()
@@ -220,6 +228,166 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             _supervisor?.ClearHistory();
+        }
+
+        private void SchedulePromptWarmup(string reason, int delayMs = 0)
+        {
+            var settings = UISettingsManager.Settings;
+            if (!settings.EnablePromptWarmup) return;
+            if (reason == "ai-open" && !settings.PromptWarmupOnAiOpen) return;
+            if (reason == "session-load" && !settings.PromptWarmupOnSessionLoad) return;
+
+            if (reason == "typing")
+            {
+                if (settings.PromptWarmupAfterTypingIdleMs <= 0) return;
+                if (_promptWarmupTypingTimer == null)
+                {
+                    _promptWarmupTypingTimer = new System.Windows.Forms.Timer();
+                    _promptWarmupTypingTimer.Tick += (s, e) =>
+                    {
+                        _promptWarmupTypingTimer.Stop();
+                        _ = RunPromptWarmupAsync("typing", 0);
+                    };
+                }
+
+                _promptWarmupTypingTimer.Stop();
+                _promptWarmupTypingTimer.Interval = Math.Max(500, settings.PromptWarmupAfterTypingIdleMs);
+                _promptWarmupTypingTimer.Start();
+                return;
+            }
+
+            _ = RunPromptWarmupAsync(reason, delayMs);
+        }
+
+        private async Task RunPromptWarmupAsync(string reason, int delayMs)
+        {
+            CancelPromptWarmup();
+            var cts = new CancellationTokenSource();
+            _promptWarmupCts = cts;
+
+            try
+            {
+                if (delayMs > 0)
+                {
+                    await Task.Delay(delayMs, cts.Token);
+                }
+
+                var messages = BuildPromptWarmupMessages();
+                if (messages.Count == 0) return;
+
+                string key = BuildPromptWarmupKey(messages);
+                if (reason != "typing" && string.Equals(_lastPromptWarmupKey, key, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                UpdateStatusHUD("[Warmup] Rozgrzewam prompt Supervisora...");
+                bool ok = await _llmClient.WarmupPromptAsync(messages, "SupervisorProfile", cts.Token);
+                if (cts.IsCancellationRequested) return;
+
+                if (ok)
+                {
+                    _lastPromptWarmupKey = key;
+                    UpdateStatusHUD("[Warmup] Prompt Supervisora rozgrzany.");
+                }
+                else
+                {
+                    UpdateStatusHUD("Gotowy.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Realne zapytanie uzytkownika ma pierwszenstwo przed warmupem.
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogWarn($"[Warmup] Blad koordynatora: {ex.Message}");
+                UpdateStatusHUD("Gotowy.");
+            }
+            finally
+            {
+                if (_promptWarmupCts == cts)
+                {
+                    _promptWarmupCts = null;
+                }
+                cts.Dispose();
+            }
+        }
+
+        private List<ChatMessage> BuildPromptWarmupMessages()
+        {
+            string activeDwgPath = GetActiveDwgPath();
+            var session = SessionManager.CurrentSession;
+            var sourceMessages = session?.Messages;
+            var result = new List<ChatMessage>();
+
+            if (sourceMessages != null && sourceMessages.Count > 0)
+            {
+                foreach (var message in sourceMessages)
+                {
+                    result.Add(CloneChatMessage(message));
+                }
+
+                if (!result.Any(m => string.Equals(m.Role, "system", StringComparison.OrdinalIgnoreCase)))
+                {
+                    result.Insert(0, new ChatMessage { Role = "system", Content = _supervisor.BuildSupervisorSystemPrompt(activeDwgPath) });
+                }
+            }
+            else
+            {
+                result.Add(new ChatMessage { Role = "system", Content = _supervisor.BuildSupervisorSystemPrompt(activeDwgPath) });
+            }
+
+            return result;
+        }
+
+        private ChatMessage CloneChatMessage(ChatMessage message)
+        {
+            if (message == null) return new ChatMessage();
+            string json = JsonConvert.SerializeObject(message);
+            return JsonConvert.DeserializeObject<ChatMessage>(json) ?? new ChatMessage();
+        }
+
+        private string BuildPromptWarmupKey(List<ChatMessage> messages)
+        {
+            var config = LLMConfigManager.ResolveProviderForProfile("SupervisorProfile");
+            var session = SessionManager.CurrentSession;
+            string endpoint = config?.EndpointUrl ?? string.Empty;
+            string model = config?.ModelName ?? string.Empty;
+            string sessionId = session?.Id ?? string.Empty;
+            string updated = session?.UpdatedAt.ToString("O") ?? string.Empty;
+            return $"{endpoint}|{model}|{sessionId}|{updated}|{messages.Count}|{GetActiveDwgPath()}";
+        }
+
+        private string GetActiveDwgPath()
+        {
+            try
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                return doc?.Name ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private void CancelPromptWarmup()
+        {
+            try
+            {
+                _promptWarmupTypingTimer?.Stop();
+                _promptWarmupCts?.Cancel();
+            }
+            catch { }
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            CancelPromptWarmup();
+            _promptWarmupTypingTimer?.Dispose();
+            _promptWarmupCts?.Dispose();
+            base.OnHandleDestroyed(e);
         }
 
         private void TabBenchmarkAnalytics_Enter(object sender, EventArgs e)
@@ -1082,6 +1250,48 @@ namespace Bricscad_AgentAI_V2.UI
                 }
             };
 
+            Panel panLLMConfigSetup = new Panel { Dock = DockStyle.Top, Height = 60, Padding = new Padding(10) };
+            Label lblLLMConfigCurrent = new Label { Text = "Folder konfig. LLM:", Left = 10, Top = 10, Width = 180 };
+            TextBox txtCurrentLLMConfigPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
+            txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
+
+            Button btnChangeLLMConfigPath = new Button { Text = "Wybierz inny folder...", Left = 610, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            Button btnResetLLMConfigPath = new Button { Text = "Domyślny (AppData)", Left = 760, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(80, 80, 80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+
+            panLLMConfigSetup.Controls.Add(lblLLMConfigCurrent);
+            panLLMConfigSetup.Controls.Add(txtCurrentLLMConfigPath);
+            panLLMConfigSetup.Controls.Add(btnChangeLLMConfigPath);
+            panLLMConfigSetup.Controls.Add(btnResetLLMConfigPath);
+
+            Label lblLLMConfigTitle = new Label { Text = "Folder plików konfiguracyjnych LLM (llm_providers.json, ui_settings.json)", Dock = DockStyle.Top, Height = 26, Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(10, 10, 0, 0) };
+            Label lblLLMConfigInfo = new Label { Text = "Domyślnie pliki konfiguracyjne LLM (Providerzy, UI) zapisywane są w %APPDATA%\\Bricscad_AgentAI — dzięki temu przetrwają kompilacje projektu. Możesz wskazać inny folder (np. OneDrive), aby synchronizować ustawienia między komputerami. Zmiany wchodzą w życie po restarcie BricsCAD.", Dock = DockStyle.Top, Height = 80, Padding = new Padding(10), ForeColor = Color.DarkGray };
+
+            tabPathsSub.Controls.Add(panLLMConfigSetup);
+            tabPathsSub.Controls.Add(lblLLMConfigInfo);
+            tabPathsSub.Controls.Add(lblLLMConfigTitle);
+
+            btnChangeLLMConfigPath.Click += (s, e) =>
+            {
+                using (var fbd = new FolderBrowserDialog())
+                {
+                    fbd.Description = "Wybierz folder docelowy dla plików konfiguracyjnych LLM:";
+                    if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        string newPath = fbd.SelectedPath;
+                        UISettingsManager.UpdateCustomLLMConfigPath(newPath);
+                        txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
+                        MessageBox.Show("Ścieżka została zaktualizowana. Uruchom ponownie BricsCAD, aby zmiany weszły w życie.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            };
+
+            btnResetLLMConfigPath.Click += (s, e) =>
+            {
+                UISettingsManager.UpdateCustomLLMConfigPath(string.Empty);
+                txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
+                MessageBox.Show("Przywrócono domyślną lokalizację (AppData). Uruchom ponownie BricsCAD.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
             tabSettingsSub.TabPages.Add(tabPathsSub);
 
             TabPage tabWorkflowSub = new TabPage("Workflow");
@@ -1107,10 +1317,47 @@ namespace Bricscad_AgentAI_V2.UI
                 UISettingsManager.Save();
             };
 
+            CheckBox chkEnablePromptWarmup = new CheckBox { Text = "WĹ‚Ä…cz ciche rozgrzewanie promptu Supervisora", Location = new Point(20, 155), AutoSize = true, Checked = UISettingsManager.Settings.EnablePromptWarmup };
+            chkEnablePromptWarmup.CheckedChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.EnablePromptWarmup = chkEnablePromptWarmup.Checked;
+                UISettingsManager.Save();
+            };
+
+            CheckBox chkPromptWarmupOnAiOpen = new CheckBox { Text = "Rozgrzewaj prompt po otwarciu AI", Location = new Point(40, 180), AutoSize = true, Checked = UISettingsManager.Settings.PromptWarmupOnAiOpen };
+            chkPromptWarmupOnAiOpen.CheckedChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.PromptWarmupOnAiOpen = chkPromptWarmupOnAiOpen.Checked;
+                UISettingsManager.Save();
+            };
+
+            CheckBox chkPromptWarmupAfterTyping = new CheckBox { Text = "OdĹ›wieĹĽ rozgrzanie po pauzie w pisaniu", Location = new Point(40, 205), AutoSize = true, Checked = UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs > 0 };
+            chkPromptWarmupAfterTyping.CheckedChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs = chkPromptWarmupAfterTyping.Checked ? Math.Max(500, UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs) : 0;
+                UISettingsManager.Save();
+            };
+
+            Label lblWarmupIdle = new Label { Text = "Pauza pisania (ms):", Location = new Point(60, 232), AutoSize = true };
+            NumericUpDown numWarmupIdle = new NumericUpDown { Location = new Point(190, 228), Width = 90, Minimum = 500, Maximum = 30000, Increment = 500, Value = Math.Max(500, UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs > 0 ? UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs : 2500) };
+            numWarmupIdle.ValueChanged += (s, e) =>
+            {
+                if (chkPromptWarmupAfterTyping.Checked)
+                {
+                    UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs = (int)numWarmupIdle.Value;
+                    UISettingsManager.Save();
+                }
+            };
+
             tabWorkflowSub.Controls.Add(lblAIStartup);
             tabWorkflowSub.Controls.Add(cmbAIStartup);
             tabWorkflowSub.Controls.Add(lblBricsCADStartup);
             tabWorkflowSub.Controls.Add(cmbBricsCADStartup);
+            tabWorkflowSub.Controls.Add(chkEnablePromptWarmup);
+            tabWorkflowSub.Controls.Add(chkPromptWarmupOnAiOpen);
+            tabWorkflowSub.Controls.Add(chkPromptWarmupAfterTyping);
+            tabWorkflowSub.Controls.Add(lblWarmupIdle);
+            tabWorkflowSub.Controls.Add(numWarmupIdle);
 
             tabSettingsSub.TabPages.Add(tabWorkflowSub);
 
@@ -1256,6 +1503,11 @@ namespace Bricscad_AgentAI_V2.UI
 
         private void TxtInput_TextChanged(object sender, EventArgs e)
         {
+            if (!string.IsNullOrWhiteSpace(txtInput.Text))
+            {
+                SchedulePromptWarmup("typing");
+            }
+
             int index = txtInput.SelectionStart;
             if (index <= 0)
             {
@@ -1372,6 +1624,7 @@ namespace Bricscad_AgentAI_V2.UI
             _supervisor?.ClearHistory();
             RebuildSystemPrompt();
             AppendToHistory("SYSTEM", "Konwersacja i pamiÄ‚â€žĂ˘â€žËÄ‚â€žĂ˘â‚¬Ë‡ zresetowane.", isDarkMode ? Color.Orange : Color.DarkOrange);
+            SchedulePromptWarmup("session-load", 250);
         }
 
         public void UpdateStatusHUD(string status)
@@ -1451,6 +1704,7 @@ namespace Bricscad_AgentAI_V2.UI
         public async Task ProcessInputAsync(string rawInput, string activeDwgPath = "")
         {
             if (string.IsNullOrEmpty(rawInput) && string.IsNullOrEmpty(_attachedFilePath) && _attachedClipboardImage == null) return;
+            CancelPromptWarmup();
 
             string attachedFilePath = _attachedFilePath;
             _attachedFilePath = null;
@@ -2374,6 +2628,7 @@ Ostatnia rozmowa:
                 RefreshSessionsGrid();
                 ReloadChatHistoryFromSession();
                 tabControl.SelectedTab = tabChat;
+                SchedulePromptWarmup("session-load", 250);
             }
         }
 
@@ -2386,6 +2641,7 @@ Ostatnia rozmowa:
                 RefreshSessionsGrid();
                 ReloadChatHistoryFromSession();
                 tabControl.SelectedTab = tabChat;
+                SchedulePromptWarmup("session-load", 250);
             }
         }
 
@@ -2399,6 +2655,7 @@ Ostatnia rozmowa:
                     SessionManager.DeleteSession(id);
                     RefreshSessionsGrid();
                     ReloadChatHistoryFromSession();
+                    SchedulePromptWarmup("session-load", 250);
                 }
             }
         }

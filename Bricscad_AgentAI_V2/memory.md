@@ -124,6 +124,20 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.28.19 FEAT [AGENT CHAT] - Dodanie zakładki Agent-Czat do ręcznego testowania wybranego subagenta, z panelem tool JSON i eksportem debugowym.
 - v2.28.34 FEAT [BENCHMARK MODEL PICKER] - Selektor providera/modelu w zakładce Benchmark z unload + load do VRAM, etykieta stanu LM Studio, deduplikacja load w LLMConfigDialog, przycisk Rozładuj.
 - v2.28.35 HOTFIX [UNLOAD INSTANCE_ID] - Fix unload LM Studio: pobiera instance_id z loaded_instances, naprawia błąd 400 Missing required field. Dodaje przycisk Rozładuj w benchmarku.
+- v2.29.0 GOLD [ROOM DATA PIPELINE] - Wdrożenie dwóch współpracujących narzędzi realizujących architekturę Ekstraktor -> Agent -> Batch Writer:
+    * `ExtractRoomDataEntitiesTool` (tylko odczyt): skanuje Model Space w poszukiwaniu polilinii-obrysów pomieszczeń na warstwie `boundaryLayer` oraz bloków-metek z atrybutami na `tagLayer`. Wykonuje test Point-in-Polygon (ray casting) dla każdej pary. Zwraca JSON z listami: Matched (pary handle + atrybuty), UnmatchedBoundaries, UnmatchedTags.
+    * `BatchWriteXDataTool` (zapis): zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD z auto-rejestracją RegApp. Pomija obiekty o nieistniejących Handle'ach z raportem. Nadpisuje istniejące XData dla danej appName.
+    * Tagi: #xdata, #metadata, #pokoje (automatycznie ustawiane w `ToolConfigManager.SyncWithTools`).
+    * Profile: CadMetadataProfile (oba narzędzia) + SupervisorProfile (tylko ExtractRoomDataEntities do planowania pipeline'u).
+    * Rozszerzono prompt system_prompt_metadata.txt o opis pipeline'u.
+- v2.29.1 GOLD [ROOM DATA BLOCKNAME] - Rozszerzenie JSON zwracanego przez `ExtractRoomDataEntities` o trzy pola identyfikujące blok: `BlockName` (InstanceName), `BlockDefinition` (nazwa definicji) oraz `BlockDynamicName` (nazwa dynamiczna, jeśli istnieje). Pola dodane zarówno do elementów listy `Matched` jak i `UnmatchedTags`. Umożliwia Agentowi odróżnienie rzeczywistych metek od innych bloków (np. mebli) leżących na tej samej warstwie. Zaktualizowano prompt metadata, USER_GUIDE i memory.
+- v2.29.2 GOLD [PERSISTENT CONFIG] - Krytyczny fix utraty konfiguracji przy buildach projektu. Pliki `llm_providers.json` i `ui_settings.json` przeniesione z `bin\Debug\` (obok DLL) do `%APPDATA%\Bricscad_AgentAI\`. Dodano jednorazową auto-migrację ze starej lokalizacji przy pierwszym uruchomieniu. Wdrożono nowe pole `CustomLLMConfigPath` w `UISettings` (sekcja "Ścieżki i Dane" w Ustawieniach) pozwalające użytkownikowi wskazać własny folder konfiguracyjny (np. OneDrive/Dropbox) dla synchronizacji między komputerami. Nowe metody `AppPaths.GetLLMConfigPath()` i `AppPaths.GetUISettingsPath()`.
+- v2.29.3 FEAT [SUPERVISOR PROMPT WARMUP] - Dodano ciche rozgrzewanie promptu `SupervisorProfile` dla lokalnych providerów OpenAI-compatible (LM Studio/llama.cpp). Po otwarciu AI, wczytaniu sesji albo pauzie w pisaniu program wysyła w tle minimalny request bez narzędzi (`temperature=0`, `max_tokens=1`), aby lokalny serwer mógł zbudować prompt/KV cache przed pierwszym właściwym zapytaniem. Warmup nie modyfikuje historii sesji, nie uruchamia auto-namingu, anuluje się przed realnym requestem i pomija providerów chmurowych OpenAI/OpenRouter/Azure.
+    * `ExtractRoomDataEntitiesTool` (tylko odczyt): skanuje Model Space w poszukiwaniu polilinii-obrysów pomieszczeń na warstwie `boundaryLayer` oraz bloków-metek z atrybutami na `tagLayer`. Wykonuje test Point-in-Polygon (ray casting) dla każdej pary. Zwraca JSON z listami: Matched (pary handle + atrybuty), UnmatchedBoundaries, UnmatchedTags.
+    * `BatchWriteXDataTool` (zapis): zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD z auto-rejestracją RegApp. Pomija obiekty o nieistniejących Handle'ach z raportem. Nadpisuje istniejące XData dla danej appName.
+    * Tagi: #xdata, #metadata, #pokoje (automatycznie ustawiane w `ToolConfigManager.SyncWithTools`).
+    * Profile: CadMetadataProfile (oba narzędzia) + SupervisorProfile (tylko ExtractRoomDataEntities do planowania pipeline'u).
+    * Rozszerzono prompt system_prompt_metadata.txt o opis pipeline'u.
 
 ## Decyzje Architektoniczne
 - **Semantic Tool Routing**: System dynamicznego dobierania narzędzi na podstawie tagów (#core, #bloki, itp.). Od v2.8.0 zarządzany przez `ToolConfigManager`.
@@ -3759,3 +3773,42 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Rozwiązano problem z ignorowaniem zmiany koloru na szary (`GrayOtherLayers`) przez `BricsCAD OffScreen Device`.
 - Wprowadzono kod obchodzący brak regenu (`fallback`) - wymuszenie `ent.Color = RGB(128,128,128)` oraz co ważniejsze, wywołanie `ent.RecordGraphicsModified(true)` podczas tymczasowej transakcji. 
 - Narzędzia wizyjne do izolacji warstw (Fade i Gray) zostały w pełni przetestowane i zatwierdzone przez użytkownika.
+
+## [v2.29.0] 2026-06-15 - Wdrożenie Pipeline'u Danych Pomieszczeń (Room Data Pipeline)
+### [ZREALIZOWANO]
+- Utworzono dwa nowe narzędzia IToolV2 w architekturze Ekstraktor -> Agent -> Batch Writer:
+  1. `ExtractRoomDataEntitiesTool` (tylko odczyt) - skanuje Model Space, paruje polilinie-obrysy z blokami-metkami testem Point-in-Polygon (ray casting), zwraca JSON z listami Matched / UnmatchedBoundaries / UnmatchedTags.
+  2. `BatchWriteXDataTool` (zapis) - zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD z auto-rejestracją RegApp. Nadpisuje istniejące dane. Pomija obiekty o nieistniejących Handle'ach z raportem.
+- Dodano testy jednostkowe schematu dla obu narzędzi (`ExtractRoomDataEntitiesToolTests`, `BatchWriteXDataToolTests`) i wpięto je w `TestRunner.cs`.
+- Rozszerzono `ToolConfigManager.SyncWithTools` o auto-tagi `#xdata, #metadata, #pokoje` dla obu narzędzi.
+- Dodano oba narzędzia do listy `AllowedTools` profilu `CadMetadataProfile` (w obu miejscach: `SyncWithTools` i `GenerateDefaultConfig`).
+- Dodano `ExtractRoomDataEntities` do listy `AllowedTools` profilu `SupervisorProfile` (do planowania pipeline'u).
+- Rozszerzono `resources/prompts/system_prompt_metadata.txt` o opis architektury pipeline'u i zasad działania BatchWriteXData.
+- Dodano wpisy w `Bricscad_AgentAI_V2.csproj` dla obu nowych plików narzędzi i obu testów.
+- Zaktualizowano `memory.md` (historia wersji + dziennik deweloperski).
+### [STAN_SYSTEMU]
+- Kod źródłowy kompletny i zgodny z konwencjami projektu.
+- 0 błędów specyficznych dla moich plików (build 398 błędów dotyczy globalnego problemu z referencjami Newtonsoft.Json po wyczyszczeniu cache - identyczny dla wszystkich plików w projekcie, nie jest regresją mojej zmiany).
+- Narzędzia będą automatycznie wykryte przez `ToolOrchestrator` przy pierwszym uruchomieniu w BricsCAD (po zbudowaniu DLL w MSBuild/VS).
+### [BLOKADY / PROBLEMY]
+- Brak MSBuild w środowisku - kompilacja wymaga pełnego Visual Studio z BricsCAD V22 SDK.
+### [KOLEJNY_KROK]
+- Zbudować projekt w Visual Studio / MSBuild.
+- Załadować DLL w BricsCAD i przetestować pipeline z przykładowym rysunkiem (polilinie + bloki z atrybutami).
+- Rozważyć dodanie benchmarków AutoBenchmark dla pipeline'u.
+
+## [v2.29.3] 2026-06-16 - Ciche rozgrzewanie promptu Supervisora
+### [ZREALIZOWANO]
+- Dodano ustawienia `EnablePromptWarmup`, `PromptWarmupOnAiOpen`, `PromptWarmupOnSessionLoad` i `PromptWarmupAfterTypingIdleMs` w `UISettings`.
+- Dodano checkboxy w `Ustawienia -> Workflow`: rozgrzewanie po otwarciu AI oraz odświeżanie po pauzie w pisaniu, wraz z czasem pauzy w ms.
+- Wyciągnięto budowę promptu systemowego Supervisora do `SupervisorOrchestrator.BuildSupervisorSystemPrompt(activeDwgPath)`, żeby realny request i warmup używały tego samego prefixu.
+- Dodano `LLMClient.WarmupPromptAsync(...)`, wysyłające minimalny request bez tool callingu: historia + techniczna wiadomość użytkownika, `temperature=0`, `max_tokens=1`.
+- Dodano koordynator warmupu w `AgentControl`: start po otwarciu AI, po wczytaniu/zmianie sesji, po zmianie konfiguracji modelu oraz debounce po pisaniu.
+- Warmup klonuje historię sesji i nie dopisuje wiadomości do JSON sesji. Realne zapytanie użytkownika anuluje trwający warmup.
+- Providerzy chmurowi OpenAI/OpenRouter/Azure są pomijani, aby nie generować zbędnych kosztów. Funkcja jest przeznaczona głównie dla LM Studio i llama.cpp.
+### [STAN_SYSTEMU]
+- Użytkownik skompilował i sprawdził działanie funkcji.
+- Wcześniejsza weryfikacja `build.ps1` kończyła właściwy `Rebuild` wynikiem `0 Warning(s), 0 Error(s)`, mimo że etap restore zgłaszał brak dostępu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`.
+### [KOLEJNY_KROK]
+- Porównać czas pierwszego zapytania z włączonym i wyłączonym warmupem na LM Studio 24 GB oraz na drugim serwerze 2x 5060 Ti 16 GB.
+- Jeśli LM Studio przejmuje slot/cache przez inne aplikacje, dobrać `PromptWarmupAfterTypingIdleMs` eksperymentalnie.
