@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.9 GOLD [INFO vs WARNING] - PageSetupTool: separacja `infoMessages` (commit OK + info) od `warnings` (commit abort). Wczesniej fallback `_p` sukces -> ostrzezenie -> `tr.Abort()` wycofywal transakcje. Teraz: fallback sukces -> `infoMessages` -> `tr.Commit()` + INFO w outpucie. Fallback fail -> `warnings` -> `tr.Abort()` jak wczesniej. Ostateczny output: "SUKCES: Zastosowano 1 ustawien Page Setup | INFO: MediaName '594x1320' nie zostal zaakceptowany, uzyto '594x1320_p'".
 - v2.30.8 GOLD [_P AUTO-FALLBACK] - PageSetupTool: automatyczny fallback `594x1320` -> `594x1320_p` gdy driver odrzuca wersje bez sufiksu. Driver HP wymaga `_p` dla niektorych formatow (np. 594x1320_p dziala, 594x1320 zwraca eInvalidInput). PageSetupTool teraz: (1) probuje oryginalna nazwe, (2) jesli eInvalidInput + brak sufiksu `_p`/`_a` + wyglada na custom - probuje automatycznie z `_p`, (3) zwraca ostrzezenie z info o mapowaniu. Prompt CadLayoutProfile zaktualizowany: "Wystarczy podac wymiary, PageSetupTool sam doda _p jesli trzeba".
 - v2.30.7 GOLD [_P FOLD PATTERN] - Dodanie heurystyki sufiksu `_p` w `UserMediaResolver`: `dlugosc = N * 185 + 25` (gdzie 185 = 210 - 25, 25 = margines ciecia). Konwencja: format z `_p` sklada sie do A4 po pocieciu paskow 185mm z marginesem 25mm. Implementacja: `CountAPanelsForFoldableSize(h)` + `TryBuildAPanelsFoldableSize(w, n, margin, h)` + `DescribeFoldPattern(w, h, isFoldable)`. Sekcja CUSTOM SIZE w `ListPlotDevicesTool` rozszerzona o dokumentacje wzoru z 5 przykladami.
 - v2.30.6 GOLD [WIN32 CRASH FIX] - Krytyczny fix `Win32PrinterCapabilities.QueryMedia`: `Marshal.PtrToStringUni(IntPtr)` bez jawnej dlugosci powodowal `System.AccessViolationException` w `System.String.wcslen` gdy driver zwracal nazwy bez null-terminatora (np. dla `297x1320` i `594x1320`). Crashowal caly proces BricsCAD (PID 0x12e98, 0x54e8, dump 134MB). Fix: `Marshal.PtrToStringUni(IntPtr, int len=32)` z CCHFORMNAME + try/catch + safety limit `h > 1000 || w > 1000` pomija Win32 lookup dla duzych formatow.
@@ -4312,6 +4313,30 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Manualne testy z `PageSetupTool MediaName="594x1320"` - powinien zwrocic sukces + ostrzezenie o auto-fallbacku.
 - Sprawdzic czy dziala dla innych formatow: `297x1690` -> `297x1690_p`? (297 ma mniej wariantow).
 - Sprawdzic czy dziala dla 841x1820 (krotsza wersja 841x1820_p tez istnieje).
+
+## [v2.30.9] 2026-06-18 - Layout/Plot: Separacja infoMessages od warnings (KROK-30.12 fix)
+### [PROBLEM]
+- Po dodaniu auto-fallback `_p` (KROK-30.11) test `MediaName="594x1320"` zwracal:
+    ```
+    BLAD CZESCIOWY PAGE SETUP: MediaName '594x1320' nie zostal zaakceptowany...
+    Sprobowano automatycznie '594x1320_p'... - SUKCES.
+    | Nic nie zostalo zapisane (transakcja wycofana).
+    ```
+- Driver zaakceptowal `594x1320_p` (sukces!), ale transakcja byla wycofywana bo fallback dodawal ostrzezenie do listy `warnings`, ktora na koncu triggerowala `tr.Abort()`.
+### [NAPRAWIONE]
+- `src/Tools/Layout/PageSetupTool.cs`:
+    * Nowa lista `infoMessages` (informacje po sukcesie) - **NIE triggeruje abortu**.
+    * Fallback `_p` sukces -> `infoMessages.Add(...)` zamiast `warnings.Add(...)`.
+    * Fallback `_p` fail lub MediaName bez custom pattern -> `warnings.Add(...)` jak wczesniej (tr.Abort).
+    * Output:
+        - Sukces bez info: "SUKCES: Zastosowano 1 ustawien..."
+        - Sukces z info (np. fallback): "SUKCES: Zastosowano 1 ustawien... | INFO: MediaName 'X' nie zostal zaakceptowany, uzyto 'X_p'..."
+        - Fail: "BLAD CZESCIOWY PAGE SETUP: ... (transakcja wycofana)..."
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 3 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1150464 bytes).
+### [KOLEJNY_KROK]
+- Manualne testy z `MediaName="594x1320"` - powinien zwrocic "SUKCES ... | INFO: ...uzyto '594x1320_p'" i ustawic faktycznie format w layout (sprawdzic w GUI Page Setup).
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]

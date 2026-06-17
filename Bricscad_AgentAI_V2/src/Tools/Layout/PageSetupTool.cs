@@ -94,6 +94,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
                         var preflightErrors = new List<string>();
                         var preflightWarnings = new List<string>();
+                        var infoMessages = new List<string>();
                         if (args.TryGetValue("PlotDevice", out var tokDevPre))
                         {
                             string devName = tokDevPre.ToString();
@@ -204,7 +205,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                                     {
                                         validator.SetCanonicalMediaName(layout, mediaNameArg + "_p");
                                         applied++;
-                                        warnings.Add($"MediaName '{mediaNameArg}' nie zostal zaakceptowany przez driver. Sprobowano automatycznie '{mediaNameArg}_p' (sufiks _p = format skladany do A4) - SUKCES. Driver wymaga sufiksu _p dla tego formatu.");
+                                        infoMessages.Add($"INFO: MediaName '{mediaNameArg}' nie zostal zaakceptowany przez driver. Automatycznie uzyto '{mediaNameArg}_p' (sufiks _p = format skladany do A4).");
                                     }
                                     catch (Exception ex2)
                                     {
@@ -453,7 +454,12 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
 
                         tr.Commit();
 
-                        return $"SUKCES: Zastosowano {applied} ustawien Page Setup dla layoutu '{layout.LayoutName}'.";
+                        string result = $"SUKCES: Zastosowano {applied} ustawien Page Setup dla layoutu '{layout.LayoutName}'.";
+                        if (infoMessages.Count > 0)
+                        {
+                            result += " | " + string.Join(" | ", infoMessages);
+                        }
+                        return result;
                     }
                 }
             }
