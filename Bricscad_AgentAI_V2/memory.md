@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.4 GOLD [USER MEDIA MAPPER] - P/Invoke `DeviceCapabilities()` Win32 API + parser mapowania custom format (`297x600`, `297x1320_p`) na UserXXX (np. User254, User261) na podstawie wymiarow. Walidacja bounds z GPD MinSize/MaxSize w `PageSetupTool` - blokuje preflight gdy custom wymiary przekraczaja zakres plotera. Heurystyczny fallback na `_p` suffix (wielokrotnosc 600mm + offset).
 - v2.30.3 GOLD [GPD PARSER] - Parser plikow .gpd (Generic Printer Description Windows) z DriverStore FileRepository. Pelna lista formatow dla ploterow HP DesignJet/PageWide XL/Z-series - obejmuje standard (A4, A3, A2, A1, A0, B-series, ANSI, Architecture) + custom roll. Heurystyczne mapowanie PC3 device name na hpi<Model>.gpd (T120/T650/T520/T1500/Z2100/Z3200/Z5400/XL3600 itd.). Integracja z `ListPlotDevicesTool` przez `AppendGpdMediaList` - zwraca kompletna liste mediów z PageSetupTool MediaName.
 - v2.30.2 GOLD [PC3 PARSER] - Parser binarnych plikow PC3 (zlib-deflate + struktura blokowa) z diagnostyka driver'ow i aktualnie wybranych formatow dla ploterow HP. Nowy `Pc3Parser` utility class + integracja z `ListPlotDevicesTool`.
 - v2.30.1 GOLD [LAYOUT MEDIA] - Rozszerzenie `ListPlotDevicesTool` o parametr `IncludeMediaPerDevice` (HP/UserXXX). Walidacja `MediaName` w `PageSetupTool` wzgledem plotera z argumentu `PlotDevice`.
@@ -4156,8 +4157,39 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Drugi bug: `ExtractValue` z `StartsWith("\"") && EndsWith("\"")` nie stripowal cudzyslowiow z `name="value"` gdy parser nie czytal az do konca linii (miedzy blokami). Fix: dodano fallback strip pojedynczego otwierajacego cudzyslowia.
 - Brak mozliwosci uzyskania PELNEJ listy mediów z PC3/HDI z poziomu .NET - ograniczenie Win32 print spooler, pozostaje ostrzezenie w `ListPlotDevicesTool` i rekomendacja GUI BricsCAD.
 ### [KOLEJNY_KROK]
-- Manualne testy w BricsCAD-zie z nowym ListPlotDevicesTool (filtr `HP` powinien teraz zwracac pelna liste mediów z GPD dla T120/T650).
+- Manualne testy w BricsCAD-zie z nowym ListPlotDevicesTool (filtr `HP` powinien zwracac pelna liste mediów z GPD dla T120/T650).
 - Po stabilizacji layout tools: rozwazyc dodanie `Pc3Parser` + `GpdParser` do `PageSetupTool` jako walidacji preflight (sprawdzanie czy `MediaName` jest na liscie obslugiwanych przez dany ploter).
+
+## [v2.30.4] 2026-06-17 - Layout/Plot: Win32PrinterCapabilities + UserXXX mapping
+### [ODKRYCIE]
+- Pliki .pc3 NIE przechowuja mapowania custom format (`297x600`) na UserXXX (`User254`/`User261` itd.) - to mapowanie jest robione dynamicznie przez Windows GDI driver w runtime.
+- `RawPrivateDeviceData` w PC3 (4548-4580 bajtow DEVMODE) zawiera parametry drivera (`InputBin=FORMSOURCE`, `JobUserMargin=5mm`, `MediaType=AutoSelect`, `Resolution=300dpi`, `PrintQuality=Draft`), ale NIE zawiera wymiarow custom formatu jako wartosci numerycznych.
+- `DeviceCapabilities()` Win32 API z `DC_PAPERS` + `DC_PAPERSIZE` zwraca pelna liste formatow z wymiarami dla kazdego zainstalowanego drivera (w tym UserXXX) - to jedyne zrodlo prawdziwych wymiarow.
+### [ZREALIZOWANO]
+- Nowy `src/Core/Win32PrinterCapabilities.cs` (~150 LOC):
+    * P/Invoke `DeviceCapabilities()` z `winspool.drv` dla `DC_PAPERS` + `DC_PAPERSIZE`.
+    * `QueryMedia(deviceName) -> Win32PrinterCapabilitiesResult` z lista `Win32MediaInfo { FormName, WidthMm (0.01mm units), HeightMm, IsUserFormat }`.
+    * `ResolvePc3ToPrinterName` - dla `.pc3` obcina rozszerzenie (np. `DWG To PDF.pc3` → `DWG To PDF`).
+- Nowy `src/Core/UserMediaResolver.cs` (~110 LOC):
+    * `TryParseCustomMediaName(name, out w, out h, out isMultipleBaseUnit)` - regex `^(\d+)x(\d+)(_p)?$` rozpoznaje `297x600`, `297x1320_p`, `297.5x600.25`.
+    * `FindUserFormatsBySize(caps, w, h, tolerance)` - szuka UserXXX w driver o zadanych wymiarach z tolerancja 0.5mm.
+    * `ResolveCustomNameToUserFormat(name, caps)` - zwraca `UserMediaMatch { UserFormName, ExactMatch, ToleranceMm }` lub null.
+    * `IsWithinGpdBounds(w, h, gpd)` - walidacja bounds z GPD MinSize/MaxSize + 1mm tolerancji.
+- `PageSetupTool` enhancement:
+    * Preflight `MediaName`: gdy driver ma `mediaList.Count > 0` i `mediaName` nie jest na liscie, probuje `TryResolveCustomFormatViaWin32` - jesli user media jest resolvable, dodaje ostrzezenie do `preflightWarnings` (zamiast bloku krytycznego), mowiace ze driver zaakceptuje nazwe `297x600` ale rzeczywisty UserXXX to `User261`.
+    * Gdy `mediaList.Count == 0` (driver PC3 bez CanonicalMediaName) i `MediaName` wyglada na custom (`297x600`), wywoluje `CheckCustomSizeAgainstGpd` - jesli wymiary przekraczaja GPD bounds, dodaje blad preflight krytyczny.
+    * Gdy `SetCanonicalMediaName` rzuca wyjatek, ostrzezenie zawiera `userMapping` (np. `User261`) z sugestia uzycia `MediaName="User261"` lub zostawienia nazwy custom.
+- `tests/Core/UserMediaResolverTests.cs` (7 testow): parsowanie `297x600`, `297x1320_p`, `297.5x600.25`; bounds inside/outside GPD; null safety.
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 3 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1143296 bytes).
+- Weryfikacja reczna: dla T120 Adrian `297x600` → driver prawdopodobnie zwroci `User261` (297mm ≈ 11.69" jest bliskie standardowemu 11.69" HP DesignJet). Dla T650 `297x600` moze zwrocic ten sam UserXXX lub inny (zalezy od definicji drivera 36-in).
+### [BLOKADY / PROBLEMY]
+- C# 7.3 wymaga jawnej inicjalizacji `out double` parametrow - rozwiazane warunkiem `&& cw > 0 && ch > 0`.
+- Zmienna `warnings` zadeklarowana podwojnie w preflight i body - scalona do jednej listy.
+### [KOLEJNY_KROK]
+- Manualne testy w BricsCAD-zie z `PageSetupTool MediaName="297x600"` dla layoutu z T120/T650 - powinien zwrocic ostrzezenie `UserXXX` mapping + sukces (driver zaakceptuje custom nazwe).
+- Rozwazyc dodanie `Win32PrinterCapabilities.QueryMedia` jako opcjonalne narzedzie diagnostyczne `GetPrinterCapabilitiesTool` z lista mediow dla danego urzadzenia.
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]

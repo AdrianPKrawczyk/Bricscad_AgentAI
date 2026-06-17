@@ -93,6 +93,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         var validator = PlotSettingsValidator.Current;
 
                         var preflightErrors = new List<string>();
+                        var preflightWarnings = new List<string>();
                         if (args.TryGetValue("PlotDevice", out var tokDevPre))
                         {
                             string devName = tokDevPre.ToString();
@@ -104,23 +105,45 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                 preflightErrors.Add($"PlotDevice '{devName}' nie istnieje w systemie. Podobne: {preview}");
                             }
                         }
-                        if (args.TryGetValue("MediaName", out var tokMediaPre))
+if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             string mediaName = tokMediaPre.ToString();
-                            StringCollection mediaList = validator.GetCanonicalMediaNameList(new PlotSettings(false));
-                            if (mediaList != null && mediaList.Count > 0 && !mediaList.Contains(mediaName))
+                            string mediaDevice = args.TryGetValue("PlotDevice", out var tokDevForMedia)
+                                ? tokDevForMedia.ToString()
+                                : layout.PlotConfigurationName;
+                            List<string> mediaList = GetCanonicalMediaNamesForDevice(validator, mediaDevice, out string mediaWarning);
+                            if (mediaList.Count > 0 && !mediaList.Contains(mediaName))
                             {
-                                string isoMatches = string.Join(", ", mediaList.Cast<string>()
-                                    .Where(m => m.IndexOf("ISO", StringComparison.OrdinalIgnoreCase) >= 0
-                                             || m.IndexOf("A4", StringComparison.OrdinalIgnoreCase) >= 0
-                                             || m.IndexOf("A3", StringComparison.OrdinalIgnoreCase) >= 0)
-                                    .Take(20));
-                                if (string.IsNullOrEmpty(isoMatches))
+                                string resolved = TryResolveCustomFormatViaWin32(mediaName, mediaDevice);
+                                if (!string.IsNullOrEmpty(resolved))
                                 {
-                                    isoMatches = string.Join(", ", mediaList.Cast<string>().Take(15));
-                                    if (mediaList.Count > 15) isoMatches += ", ...";
+                                    preflightWarnings.Add($"MediaName '{mediaName}' jest formatem custom (np. '{resolved}'). Plotery HP uzywaja UserXXX wewnetrznie - driver zaakceptuje nazwe '{mediaName}' bez zmian, ale rzeczywisty UserXXX to '{resolved}'.");
                                 }
-                                preflightErrors.Add($"MediaName '{mediaName}' nie istnieje w systemie. Plotery HP moga uzywac formatow UserXXX albo nazw driver'a drukarki (np. 'A4', 'B2', 'Tabloid', '594x840') - sprawdz liste rozwijana w GUI BricsCAD przy ustawieniach strony. Dostepne CanonicalMediaName (filtrowane ISO/A3/A4): {isoMatches}. Jesli ploter nie udostepnia tej nazwy, moze byc potrzebne reczne skonfigurowanie formatu w driverze Windows dla plotera {layout.PlotConfigurationName}.");
+                                else
+                                {
+                                    string isoMatches = string.Join(", ", mediaList
+                                        .Where(m => m.IndexOf("ISO", StringComparison.OrdinalIgnoreCase) >= 0
+                                                 || m.IndexOf("A4", StringComparison.OrdinalIgnoreCase) >= 0
+                                                 || m.IndexOf("A3", StringComparison.OrdinalIgnoreCase) >= 0
+                                                 || m.IndexOf("User", StringComparison.OrdinalIgnoreCase) >= 0)
+                                        .Take(20));
+                                    if (string.IsNullOrEmpty(isoMatches))
+                                    {
+                                        isoMatches = string.Join(", ", mediaList.Take(15));
+                                        if (mediaList.Count > 15) isoMatches += ", ...";
+                                    }
+                                    string warn = string.IsNullOrWhiteSpace(mediaWarning) ? "" : $" Ostrzezenie od drivera: {mediaWarning}.";
+                                    preflightErrors.Add($"MediaName '{mediaName}' nie istnieje dla plotera '{mediaDevice}'. Plotery HP moga uzywac formatow UserXXX albo nazw driver'a drukarki (np. 'A4', 'B2', 'Tabloid', '594x840') - uzyj ListPlotDevicesTool z Filter='{mediaDevice}' i IncludeMediaPerDevice=true. Dostepne CanonicalMediaName (ISO/A3/A4/User): {isoMatches}.{warn}");
+                                }
+                            }
+                            else if (mediaList.Count == 0 &&
+                                     UserMediaResolver.TryParseCustomMediaName(mediaName, out double cw, out double ch, out bool isMult) && cw > 0 && ch > 0)
+                            {
+                                string gpdWarning = CheckCustomSizeAgainstGpd(mediaDevice, cw, ch);
+                                if (!string.IsNullOrEmpty(gpdWarning))
+                                {
+                                    preflightErrors.Add(gpdWarning);
+                                }
                             }
                         }
                         if (args.TryGetValue("StyleSheet", out var tokStylePre))
@@ -142,6 +165,11 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         }
 
                         var warnings = new List<string>();
+                        if (preflightWarnings.Count > 0)
+                        {
+                            warnings.AddRange(preflightWarnings);
+                        }
+
                         int applied = 0;
 
                         if (args.TryGetValue("PlotDevice", out var tokDevice))
@@ -166,7 +194,14 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             }
                             catch (Exception ex)
                             {
-                                warnings.Add($"MediaName '{tokMedia}': {ex.Message}. Lista dostepnych: uzyj ListPlotDevicesTool (uzytkownik musi podac nazwe z listy GUI drukarki, np. 'A4', 'B2', 'Tabloid').");
+                                string currentDevice = args.TryGetValue("PlotDevice", out var tokDevNow)
+                                    ? tokDevNow.ToString()
+                                    : layout.PlotConfigurationName;
+                                string userMapping = TryResolveCustomFormatViaWin32(tokMedia.ToString(), currentDevice);
+                                string extra = string.IsNullOrEmpty(userMapping)
+                                    ? "Lista dostepnych: uzyj ListPlotDevicesTool z Filter='" + currentDevice + "' i IncludeMediaPerDevice=true."
+                                    : "Format '" + tokMedia + "' wyglada na custom. UserXXX w driver to '" + userMapping + "'. Sprobuj MediaName=\"" + userMapping + "\" albo zostaw nazwe i zweryfikuj wynik w GUI BricsCAD.";
+                                warnings.Add($"MediaName '{tokMedia}': {ex.Message}. {extra}");
                             }
                         }
 
@@ -410,5 +445,85 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             "{ \"LayoutName\": \"A4-PION\", \"MediaName\": \"ISO_A4_(210.00_x_297.00_MM)\", \"PlotDevice\": \"DWG To PDF.pc3\", \"PlotType\": \"Layout\", \"PlotRotation\": \"Zero\", \"UseStandardScale\": true, \"StdScaleType\": \"1_50\" }",
             "{ \"StyleSheet\": \"acad.ctb\", \"PlotCentered\": true, \"PlotPlotStyles\": true }"
         };
+
+private static List<string> GetCanonicalMediaNamesForDevice(PlotSettingsValidator validator, string deviceName, out string warning)
+        {
+            warning = null;
+            var result = new List<string>();
+            try
+            {
+                using (var settings = new PlotSettings(false))
+                {
+                    if (!string.IsNullOrWhiteSpace(deviceName))
+                    {
+                        validator.SetPlotConfigurationName(settings, deviceName, null);
+                    }
+                    validator.RefreshLists(settings);
+                    StringCollection media = validator.GetCanonicalMediaNameList(settings);
+                    if (media != null)
+                    {
+                        foreach (string item in media)
+                        {
+                            if (!string.IsNullOrWhiteSpace(item) && !result.Contains(item))
+                            {
+                                result.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                warning = ex.Message;
+            }
+            return result;
+        }
+
+        private static string TryResolveCustomFormatViaWin32(string mediaName, string mediaDevice)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(mediaName)) return null;
+                if (!UserMediaResolver.TryParseCustomMediaName(mediaName, out double w, out double h, out _))
+                    return null;
+
+                var caps = Win32PrinterCapabilities.QueryMedia(mediaDevice);
+                if (caps == null || !caps.QuerySucceeded) return null;
+
+                var match = UserMediaResolver.ResolveCustomNameToUserFormat(mediaName, caps);
+                return match?.UserFormName;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string CheckCustomSizeAgainstGpd(string deviceName, double widthMm, double heightMm)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(deviceName)) return null;
+
+                string gpdPath = GpdParser.FindHpGpdForDevice(deviceName, null, null);
+                if (string.IsNullOrEmpty(gpdPath)) return null;
+
+                var gpd = GpdParser.Parse(gpdPath);
+                if (gpd == null || !gpd.ParseSucceeded || gpd.CustomSize == null) return null;
+
+                if (!UserMediaResolver.IsWithinGpdBounds(widthMm, heightMm, gpd))
+                {
+                    return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        "Custom MediaName '{0}x{1}mm' przekracza zakres GPD dla '{2}': {3:F1}x{4:F1}mm min, {5:F1}x{6:F1}mm max. Driver odmowi lub obetnie arkusz.",
+                        widthMm, heightMm, deviceName,
+                        gpd.CustomSize.MinWidthMm, gpd.CustomSize.MinHeightMm,
+                        gpd.CustomSize.MaxWidthMm, gpd.CustomSize.MaxHeightMm);
+                }
+            }
+            catch
+            {
+            }
+            return null;
+        }
     }
 }
