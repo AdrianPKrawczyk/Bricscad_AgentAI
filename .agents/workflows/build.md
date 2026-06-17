@@ -2,7 +2,7 @@
 description: Uruchamia kompilację projektu i naprawia ewentualne błędy krok po kroku (Loop-to-Fix).
 ---
 1. Przeczytaj wytyczne kompilacji z umiejętności `project-compiler`.
-2. Uruchom w terminalu `dotnet build Bricscad_AgentAI_V2/Bricscad_AgentAI_V2.csproj`.
+2. Uruchom w terminalu `powershell -ExecutionPolicy Bypass -File build.ps1`.
 3. Jeśli kompilacja powiodła się (Build succeeded, 0 Errors, 0 Warnings - lub wyłącznie zatwierdzone wyjątki/ostrzeżenia), przejdź dalej.
 4. Jeśli wystąpiły błędy kompilacji (Errors):
    - Odczytaj dokładną linię błędu oraz identyfikator "CSXXXX".

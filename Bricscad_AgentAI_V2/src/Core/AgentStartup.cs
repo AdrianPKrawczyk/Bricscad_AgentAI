@@ -147,6 +147,43 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
+        private static PaletteSet _chatPaletteSet = null;
+        private static LightChatControl _lightChatControl = null;
+
+        [CommandMethod("AI_CHAT")]
+        public void ShowLightChatPanel()
+        {
+            try
+            {
+                // Inicjalizacja AgentControl w tle, jeśli użytkownik uruchomił AI_CHAT jako pierwsze
+                if (AgentControl.Instance == null)
+                {
+                    Application.ShowAlertDialog("Uruchamiam silnik główny AI w tle...");
+                    var initControl = new AgentControl();
+                }
+
+                if (_chatPaletteSet == null)
+                {
+                    _chatPaletteSet = new PaletteSet("Bielik AI - Czat", new Guid("A1B2C3D4-E5F6-4A5B-8C9D-E0F1A2B3C4D5"));
+                    _chatPaletteSet.Style = PaletteSetStyles.ShowPropertiesMenu |
+                                            PaletteSetStyles.ShowAutoHideButton |
+                                            PaletteSetStyles.ShowCloseButton;
+                    
+                    _chatPaletteSet.MinimumSize = new System.Drawing.Size(300, 400);
+                    _chatPaletteSet.DockEnabled = DockSides.Left | DockSides.Right;
+
+                    _lightChatControl = new LightChatControl();
+                    _chatPaletteSet.Add("Czat", _lightChatControl);
+                }
+
+                _chatPaletteSet.Visible = true;
+            }
+            catch (System.Exception ex)
+            {
+                Application.ShowAlertDialog($"Błąd podczas uruchamiania panelu AI_CHAT: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
         [CommandMethod("AI")]
         public void ShowAgentPanel()
         {

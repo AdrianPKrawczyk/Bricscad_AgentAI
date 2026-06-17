@@ -4088,3 +4088,16 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Szybki test PDF oznacza raport jako `ERROR`, jesli render PDF sie udal, ale model Vision/OCR zwrocil `BLAD OCR PDF`.
 ### [STAN_SYSTEMU]
 - Do wykonania po zamknieciu BricsCAD: `powershell -ExecutionPolicy Bypass -File build.ps1`.
+## [v2.29.22] 2026-06-17 - Wydzielenie lekkiego panelu czatu (LightChatControl)
+### [ZREALIZOWANO]
+- Zaprojektowano i zaimplementowano nową kontrolkę LightChatControl.cs pełniącą rolę lekkiego interfejsu (Dumb View) dla czatu z LLM.
+- Przekierowano zdarzenia (OnHistoryAppended, OnSessionReloaded, OnStatusUpdated) z AgentControl do lekkiego panelu, zapewniając thread-safety przez InvokeRequired.
+- Rejestrację komendy AI_CHAT przeniesiono do pliku AgentStartup.cs, gwarantując natywne ładowanie komendy w BricsCAD bez problemów z wielokrotnym atrybutem CommandClass.
+- Wyizolowano ciężki, wielozakładkowy interfejs WinForms od podstawowego cyklu konwersacji, zmniejszając ryzyko zawieszania BricsCADa przy operacjach na PaletteSet.
+### [STAN_SYSTEMU]
+- System pomyślnie budowany przez MSBuild (uild.ps1). Komenda AI_CHAT jest prawidłowo rejestrowana.
+### [BLOKADY / PROBLEMY]
+- Wystąpił problem z brakiem ładowania komendy przez BricsCAD, gdy posiadała ona własny [assembly: CommandClass(...)] w nowym pliku. Rozwiązano przez bezpośrednie dodanie metody z atrybutem [CommandMethod("AI_CHAT")] do klasycznego punktu wejściowego AgentStartup.cs.
+### [KOLEJNY_KROK]
+- Ewentualne dodanie obsługi Markdown do natywnego BricsCAD-owego wyświetlacza lub udoskonalanie opcji odświeżania okna.
+

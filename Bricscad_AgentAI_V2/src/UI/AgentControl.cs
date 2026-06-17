@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -65,9 +65,11 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnCopyLogs;
 
         // --- Silnik V2 ---
+        public LLMClient LlmClient => _llmClient;
         private LLMClient _llmClient;
         public ToolOrchestrator Orchestrator => _orchestrator;
         private ToolOrchestrator _orchestrator;
+        public SupervisorOrchestrator Supervisor => _supervisor;
         private SupervisorOrchestrator _supervisor;
         private bool isDarkMode = true;
         private string _activeModel = "LM Studio / local-model"; // DomyÄÄ…Ă˘â‚¬Ĺźlny model
@@ -2319,8 +2321,11 @@ Ostatnia rozmowa:
             }
         }
 
+        public event Action<string, string, Color> OnHistoryAppended;
+
         public void AppendToHistory(string sender, string message, Color color)
         {
+            OnHistoryAppended?.Invoke(sender, message, color);
             if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
@@ -5262,11 +5267,14 @@ Ostatnia rozmowa:
             }
         }
 
+        public event Action OnSessionReloaded;
+
         private void ReloadChatHistoryFromSession()
         {
             txtHistory.Clear();
             var session = SessionManager.CurrentSession;
             if (lblSessionInfo != null) lblSessionInfo.Text = $"Sesja: {session?.Description ?? session?.Id ?? "Brak"}";
+            OnSessionReloaded?.Invoke();
             foreach (var msg in session.Messages)
             {
                 if (msg.Role == "user") AppendToHistory("TY", msg.Content.ToString(), Color.LightSkyBlue);
