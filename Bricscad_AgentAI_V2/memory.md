@@ -4088,6 +4088,18 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Szybki test PDF oznacza raport jako `ERROR`, jesli render PDF sie udal, ale model Vision/OCR zwrocil `BLAD OCR PDF`.
 ### [STAN_SYSTEMU]
 - Do wykonania po zamknieciu BricsCAD: `powershell -ExecutionPolicy Bypass -File build.ps1`.
+
+## [v2.29.23] 2026-06-17 - Vision/OCR jako cache zamiast automatycznego re-skanu
+### [PROBLEM]
+- Po zalaczeniu obrazu/PDF program potrafil przy kolejnych zwyklych poleceniach CAD ponownie analizowac ostatni obraz przez Vision/OCR.
+- Spowalnialo to komunikacje z agentem i niepotrzebnie obciazalo lokalny model wizyjny, np. przy poleceniach typu `narysuj polilinie` albo `wstaw wymiar`.
+### [ZREALIZOWANO]
+- `ShouldRequeryPreviousImage(...)` zostal zawężony do jawnych polecen ponownego OCR, np. `przeanalizuj jeszcze raz`, `zeskanuj ponownie`, `ponowny ocr`, `sprawdz dokladniej obraz`.
+- Dodano `TryBuildPreviousImageCachedPayload(...)`, ktory dla pytan o obraz/tabliczke/inwestora/legende dopina ostatni zapisany wynik OCR jako tekstowy kontekst bez uruchamiania modelu Vision/OCR.
+- Dla zwyklych polecen CAD, ktore nie odnosza sie do obrazu, program nie dolacza kontekstu obrazu i nie wykonuje re-skanu.
+- Supervisor nadal moze odpowiadac na pytania o poprzedni obraz z zapisanego OCR; jesli brakuje danych, ma poprosic uzytkownika o jawny ponowny OCR.
+### [STAN_SYSTEMU]
+- Do wykonania po zmianie: `powershell -ExecutionPolicy Bypass -File build.ps1`.
 ## [v2.29.22] 2026-06-17 - Wydzielenie lekkiego panelu czatu (LightChatControl)
 ### [ZREALIZOWANO]
 - Zaprojektowano i zaimplementowano nową kontrolkę LightChatControl.cs pełniącą rolę lekkiego interfejsu (Dumb View) dla czatu z LLM.

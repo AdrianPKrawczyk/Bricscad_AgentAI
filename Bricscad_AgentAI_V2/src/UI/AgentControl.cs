@@ -1873,6 +1873,21 @@ namespace Bricscad_AgentAI_V2.UI
                 true);
         }
 
+        private string TryBuildPreviousImageCachedPayload(string userPrompt)
+        {
+            if (!ShouldUsePreviousImageCachedContext(userPrompt)) return null;
+            var imageContext = GetLastVisionImageContext();
+            if (imageContext == null) return null;
+
+            string cachedContext = BuildCachedVisionOcrContext(imageContext);
+            if (string.IsNullOrWhiteSpace(cachedContext)) return null;
+
+            return userPrompt +
+                "\n\n[VISION/OCR CACHE - poprzedni obraz, bez ponownego skanowania]\n" +
+                cachedContext +
+                "\n\nJesli odpowiedzi nie ma w powyzszym zapisie OCR, napisz uzytkownikowi, ze moze poprosic o ponowny OCR ostatniego obrazu.";
+        }
+
         private VisionImageContext GetLastVisionImageContext()
         {
             EnsureSessionVisionImages();
@@ -1886,6 +1901,13 @@ namespace Bricscad_AgentAI_V2.UI
         {
             if (string.IsNullOrWhiteSpace(text)) return false;
             string t = text.ToLowerInvariant();
+            string[] explicitRequery =
+            {
+                "ponownie przeanaliz", "przeanalizuj ponownie", "przeanalizuj jeszcze raz",
+                "zeskanuj ponownie", "skanuj ponownie", "ponowny ocr", "zrob ocr",
+                "zrob ponowny ocr", "odczytaj ponownie", "sprawdz dokladniej",
+                "dokladniej obraz", "powieksz i odczytaj", "requery", "rescan"
+            };
             string[] imageRefs =
             {
                 "obraz", "obrazek", "rysunek", "załącz", "zalacz", "wcześniej", "wczesniej",
@@ -1897,7 +1919,87 @@ namespace Bricscad_AgentAI_V2.UI
                 "wymiar", "napis", "tekst", "odczyt", "znajd", "sprawd"
             };
 
-            return imageRefs.Any(t.Contains) || focusedTerms.Any(t.Contains);
+            return explicitRequery.Any(t.Contains) && imageRefs.Any(t.Contains);
+        }
+
+        private bool ShouldUsePreviousImageCachedContext(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string t = text.ToLowerInvariant();
+            if (ShouldRequeryPreviousImage(text)) return false;
+            if (LooksLikeCadCommand(t) && !MentionsPreviousImage(t)) return false;
+
+            string[] cachedContextTerms =
+            {
+                "tablicz", "inwestor", "projekt", "adres", "legenda", "wodomierz",
+                "wlaz", "właz", "skala", "data", "autor", "rysunku", "rysunek",
+                "obraz", "obrazek", "pdf", "plik", "zalacz", "załącz",
+                "poprzedni", "wczesniej", "wcześniej", "co widzisz", "co jest na",
+                "odczytaj", "dane z", "dane projektu"
+            };
+
+            return cachedContextTerms.Any(t.Contains);
+        }
+
+        private bool MentionsPreviousImage(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string t = text.ToLowerInvariant();
+            string[] imageRefs =
+            {
+                "obraz", "obrazek", "rysunek", "zalacz", "załącz", "wczesniej", "wcześniej",
+                "poprzedni", "ten plik", "tym pliku", "pdf", "plik", "ostatni"
+            };
+
+            return imageRefs.Any(t.Contains);
+        }
+
+        private bool LooksLikeCadCommand(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string[] cadVerbs =
+            {
+                "narysuj", "wstaw", "utworz", "zaznacz", "usun", "zmien",
+                "przesun", "skopiuj", "obroc", "polilin", "linia", "linie",
+                "kostk", "blok", "wymiarow", "wymiarowa", "warstw", "kolor",
+                "tekst o", "wysokosc"
+            };
+
+            return cadVerbs.Any(text.Contains);
+        }
+
+        private string BuildCachedVisionOcrContext(VisionImageContext imageContext)
+        {
+            if (imageContext == null || imageContext.OcrHistory == null) return null;
+            var observations = imageContext.OcrHistory
+                .Where(o => o != null && o.Success && !string.IsNullOrWhiteSpace(o.Result))
+                .OrderByDescending(o => o.CreatedAt)
+                .Take(2)
+                .ToList();
+
+            if (observations.Count == 0) return null;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("ImageId: " + imageContext.ImageId);
+            sb.AppendLine("Zrodlo: " + (imageContext.SourceLabel ?? imageContext.OriginalPath ?? imageContext.CachedPath));
+            if (!string.IsNullOrWhiteSpace(imageContext.ProviderName) || !string.IsNullOrWhiteSpace(imageContext.ModelName))
+            {
+                sb.AppendLine("OCR model: " + imageContext.ProviderName + " / " + imageContext.ModelName);
+            }
+
+            if (imageContext.TileCount > 0)
+            {
+                sb.AppendLine($"Tiling: {imageContext.TileRows}x{imageContext.TileColumns}, kafelkow={imageContext.TileCount}, overlap={imageContext.TileOverlap}px");
+            }
+
+            foreach (var observation in observations)
+            {
+                sb.AppendLine();
+                sb.AppendLine("[ZAPISANY WYNIK OCR " + observation.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") + "]");
+                sb.AppendLine(TruncateForPrompt(observation.Result, 8000));
+            }
+
+            return sb.ToString();
         }
 
         private void EnsureSessionVisionImages()
@@ -2159,6 +2261,14 @@ namespace Bricscad_AgentAI_V2.UI
                 {
                     payload = requeryPayload;
                     AppendToHistory("SYSTEM", "Ponownie przeanalizowano ostatni obraz przez Vision/OCR.", Color.Orange);
+                }
+                else
+                {
+                    string cachedVisionPayload = TryBuildPreviousImageCachedPayload(cleanMsg);
+                    if (!string.IsNullOrWhiteSpace(cachedVisionPayload))
+                    {
+                        payload = cachedVisionPayload;
+                    }
                 }
             }
 
