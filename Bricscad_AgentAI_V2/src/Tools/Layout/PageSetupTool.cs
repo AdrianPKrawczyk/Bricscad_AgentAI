@@ -120,7 +120,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                     isoMatches = string.Join(", ", mediaList.Cast<string>().Take(15));
                                     if (mediaList.Count > 15) isoMatches += ", ...";
                                 }
-                                preflightErrors.Add($"MediaName '{mediaName}' nie istnieje w systemie. Dostepne formaty (filtrowane ISO/A3/A4): {isoMatches}. Mozliwe ze format ma inna nazwe - sprawdz PlotConfigurationName.");
+                                preflightErrors.Add($"MediaName '{mediaName}' nie istnieje w systemie. Plotery HP moga uzywac formatow UserXXX albo nazw driver'a drukarki (np. 'A4', 'B2', 'Tabloid', '594x840') - sprawdz liste rozwijana w GUI BricsCAD przy ustawieniach strony. Dostepne CanonicalMediaName (filtrowane ISO/A3/A4): {isoMatches}. Jesli ploter nie udostepnia tej nazwy, moze byc potrzebne reczne skonfigurowanie formatu w driverze Windows dla plotera {layout.PlotConfigurationName}.");
                             }
                         }
                         if (args.TryGetValue("StyleSheet", out var tokStylePre))
@@ -166,7 +166,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             }
                             catch (Exception ex)
                             {
-                                warnings.Add($"MediaName '{tokMedia}': {ex.Message}");
+                                warnings.Add($"MediaName '{tokMedia}': {ex.Message}. Lista dostepnych: uzyj ListPlotDevicesTool (uzytkownik musi podac nazwe z listy GUI drukarki, np. 'A4', 'B2', 'Tabloid').");
                             }
                         }
 

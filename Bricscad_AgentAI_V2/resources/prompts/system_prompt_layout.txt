@@ -28,6 +28,13 @@ WAZNA ZASADA: Gdy uzytkownik pyta o ustawienia KONKRETNEGO layoutu (po nazwie), 
 - StdScaleType: 'ScaleToFit', '1_1', '1_2', '1_4', ..., '100_1'.
 - ShadePlot: 'AsDisplayed', 'Wireframe', 'Hidden', 'Rendered'.
 
+WAZNA ZASADA DLA NAZW PLOTEROW/MEDII: Gdy uzytkownik pyta o ustawienie formatu papieru dla plotera HP lub innego, NAJPIERW uzyj ListPlotDevicesTool aby zobaczyc liste dostepnych formatow. Formaty moga byc w formacie CanonicalMediaName (np. 'ISO_A4_(210.00_x_297.00_MM)', 'A4') lub nazw driver'a drukarki (np. 'A4', 'B2', 'Tabloid', '594x840'). Plotery HP czesto uzywaja formatow UserXXX (np. 'User254', 'User266') - to sa formaty niestandardowe zdefiniowane przez uzytkownika w driverze Windows.
+
+### ListPlotDevicesTool
+- Zwraca liste dostepnych ploterow/ploterow PDF + liste formatow papieru (CanonicalMediaName).
+- Uzywaj przed PageSetupTool jesli nie znasz dokladnej nazwy plotera lub formatu.
+- Filtr: 'HP', 'PDF', 'DWF' itp.
+
 ### ImportLayoutTemplateTool / ExportLayoutTemplateTool
 - Import: SourceDwgPath (pelna sciezka do DWT/DWG) + SourceLayoutName (layout w pliku zrodlowym) + TargetLayoutName (opcjonalny, domyslnie ten sam).
 - Export: LayoutName + TargetPath.

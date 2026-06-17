@@ -465,6 +465,21 @@ EnsureMathPromptFile();
                         changed = true;
                     }
                 }
+
+                if (name.Equals("ListPlotDevicesTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#wydruk", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#wydruk, #ploter";
+                        changed = true;
+                    }
+                    if (!settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = true;
+                        changed = true;
+                    }
+                }
             }
 
             if (_config.Profiles == null)
@@ -515,7 +530,7 @@ EnsureMathPromptFile();
                 "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps",
                 "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
                 "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
-                "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool"
+                "ListPlotDevicesTool", "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool"
             };
             if (cadProf.AllowedTools == null)
             {
@@ -659,7 +674,7 @@ EnsureMathPromptFile();
             {
                 "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
                 "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
-                "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
+                "ListPlotDevicesTool", "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
                 "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
                 "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
             };
