@@ -76,6 +76,16 @@ Przykladowe prompty dla listy ploterow (eksploracja):
 - Tryb MultiSheet: jeden PDF z wszystkimi arkuszami (limit 50).
 - Tryb SingleFiles: osobny PDF per layout.
 
+### ForeachTool (PETLA - KRYTYCZNE dla CadLayoutProfile)
+- Gdy user prosi o "ustaw na wszystkich arkuszach X", "zrob X dla kazdego layoutu", "wszedzie ustaw Y" - **ZAWSZE** uzyj `Foreach` zamiast wielokrotnie wolac PageSetupTool recznie.
+- Sposob uzycia:
+  1. Najpierw `ListLayoutsTool` BEZ `LayoutName` - dostaniesz liste layoutow.
+  2. Potem `Foreach` z `Items` = lista nazw layoutow, `ActionTemplate` z `{item}` w miejsce LayoutName.
+- Przyklad:
+  - User: "Ustaw na wszystkich arkuszach drukarke RICOH A3"
+  - LLM: `Foreach` Items=[Arkusz1, Arkusz2] ActionTemplate=`PageSetupTool LayoutName="{item}" PlotDevice="RICOH MP C4504ex PCL 6" MediaName="A3"`
+- NIE WOLNO wywolywac PageSetupTool recznie N razy dla N layoutow - to marnuje LLM tokens i czas.
+
 ### PlotStyleTool
 - Akcje: List, Load, GetInfo, Assign.
 - Load: FilePath do pliku CTB/STB.
@@ -85,7 +95,8 @@ Przykladowe prompty dla listy ploterow (eksploracja):
 - Najpierw uzyj ListLayoutsTool, aby zobaczyc jakie layouty juz istnieja (bez LayoutName).
 - Gdy pytanie dotyczy KONKRETNEGO layoutu, wywolaj ListLayoutsTool z LayoutName aby zobaczyc szczegoly.
 - Przed modyfikacja Page Setup sprawdz czy wybrany media name istnieje w systemie.
-- Dla importu szablonu uzyj ImportLayoutTemplateTool z SourcePath (pelna sciezka do DWT/DWG) i SourceLayoutName.
+- Dla importu szablonu uzyj ImportLayoutTemplateTool z SourcePath (pelna sciezke do DWT/DWG) i SourceLayoutName.
+- Dla operacji na WIELU layoutach (np. "ustaw na wszystkich arkuszach", "zrob X dla kazdego layoutu") ZAWSZE uzyj `Foreach` z `ActionTemplate` - NIE wywoluj PageSetupTool recznie N razy.
 - NIGDY nie usuwaj layoutu 'Model'.
 - NIGDY nie nadpisuj istniejacego pliku bez flagi OverwriteIfExists=true.
 

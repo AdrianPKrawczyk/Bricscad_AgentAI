@@ -676,7 +676,8 @@ EnsureMathPromptFile();
                 "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
                 "ListPlotDevicesTool", "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
                 "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
-                "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+                "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps",
+                "Foreach"
             };
             if (layoutProf.AllowedTools == null)
             {
@@ -784,7 +785,8 @@ EnsureMathPromptFile();
                     "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
                     "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
                     "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
-                    "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+                    "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps",
+                    "Foreach"
                 },
                 AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle" }
             };
