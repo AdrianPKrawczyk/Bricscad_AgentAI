@@ -28,19 +28,38 @@ WAZNA ZASADA: Gdy uzytkownik pyta o ustawienia KONKRETNEGO layoutu (po nazwie), 
 - StdScaleType: 'ScaleToFit', '1_1', '1_2', '1_4', ..., '100_1'.
 - ShadePlot: 'AsDisplayed', 'Wireframe', 'Hidden', 'Rendered'.
 
-WAZNA ZASADA DLA NAZW PLOTEROW/MEDII: Gdy uzytkownik pyta o ustawienie formatu papieru dla plotera HP lub innego, NAJPIERW uzyj ListPlotDevicesTool aby zobaczyc liste dostepnych formatow. Formaty moga byc w formacie CanonicalMediaName (np. 'ISO_A4_(210.00_x_297.00_MM)', 'A4') lub nazw driver'a drukarki (np. 'A4', 'B2', 'Tabloid', '594x840'). Plotery HP czesto uzywaja formatow UserXXX (np. 'User254', 'User266') - to sa formaty niestandardowe zdefiniowane przez uzytkownika w driverze Windows.
+WAZNA ZASADA DLA MediaName (formatu papieru):
+- Gdy user poda KONKRETNA nazwe MediaName wprost (np. 'A4', '297x600', 'User266', 'NorthAmericaTabloid', 'ISOA1') - wywolaj PageSetupTool BEZPOSREDNIO z ta nazwa. NIE pytaj o potwierdzenie, NIE wywoluj ListPlotDevicesTool przed PageSetupTool.
+- PageSetupTool sam waliduje nazwe i zwraca ostrzezenie z mapowaniem UserXXX jesli format jest custom. Driver HP zaakceptuje nazwe custom (np. '297x600') bez zmian.
+- ListPlotDevicesTool wywoluj TYLKO gdy:
+  (a) user pyta "jakie formaty obsluguje ploter X" (eksploracja)
+  (b) user poda czesciowa nazwe np. "format A" i nie wiesz czy to 'A4' czy 'A4Extra'
+  (c) chcesz zweryfikowac ze nazwa plotera istnieje w systemie
+- NIE wywoluj ListPlotDevicesTool przed PageSetupTool gdy user poda explicite nazwe!
+
+Przyklady prawidlowego uzycia PageSetupTool z MediaName:
+- `PageSetupTool LayoutName="IS.W.01" MediaName="297x600"` - ustaw custom format z PC3 (sterownik zaakceptuje)
+- `PageSetupTool LayoutName="IS.W.01" MediaName="A4"` - ustaw standard A4 (nie wymaga listy)
+- `PageSetupTool LayoutName="IS.W.01" MediaName="User266"` - ustaw format niestandardowy UserXXX
+- `PageSetupTool LayoutName="IS.W.01" MediaName="594x841"` - inny custom roll (594x841mm)
+
+PageSetupTool ZAWSZE wywoluj z LayoutName (nie modyfikuj 'Model'). PlotDevice i MediaName moga byc podane razem lub osobno.
 
 ### ListPlotDevicesTool
-- Zwraca liste dostepnych ploterow/ploterow PDF + liste formatow papieru (CanonicalMediaName).
-- Uzywaj przed PageSetupTool jesli nie znasz dokladnej nazwy plotera lub formatu.
+- Zwraca liste dostepnych ploterow/ploterow PDF + liste formatow papieru (CanonicalMediaName + diagnostyke PC3/GPD).
+- Uzywaj TYLKO w trybie EKSPLORACJA: "jakie plotery sa w systemie", "jakie formaty obsluguje HP T120".
+- NIE wywoluj rutynowo przed PageSetupTool - user zwykle wie jaki format chce ustawic.
 - Filtr: 'HP', 'PDF', 'DWF' itp.
-- Parametr `IncludeMediaPerDevice=true` (domyslnie wlaczony gdy jest Filter) - probuje pobrac CanonicalMediaName per urzadzenie. UWAGA: Dla ploterow z plikiem .pc3 (zewntrzne sterowniki) API zwraca pusta liste + ostrzezenie. W takim przypadku popros uzytkownika o sprawdzenie nazwy w GUI BricsCAD (Format -> Plotter Setup -> lista Papier) LUB uzyj ListLayoutsTool z LayoutName aby zobaczyc aktualny MediaName dla konkretnego layoutu.
+- Parametr `IncludeMediaPerDevice=true` (domyslnie wlaczony gdy jest Filter) - probuje pobrac CanonicalMediaName per urzadzenie.
+- UWAGA: Dla ploterow z plikiem .pc3 API zwraca pusta liste CanonicalMediaName, ALE ListPlotDevicesTool automatycznie pokazuje:
+  (1) Liste mediów z pliku GPD (Generic Printer Description Windows) - A4/A3/A2/A1/B-series/ANSI/Architecture + custom size bounds
+  (2) Aktualnie wybrany format z pliku PC3 (np. '297x600')
+  (3) Sterownik Windows (np. 'gdiplot7.hdi')
 
-Przykladowe prompty dla listy ploterow:
+Przykladowe prompty dla listy ploterow (eksploracja):
 - "Wypisz wszystkie dostepne plotery."
-- "Wypisz formaty papieru dla plotera HP."
 - "Jakie formaty obsluguje ploter HP Designjet T120 - Adrian.pc3?"
-- Dla ploterow HP i formatow niestandardowych UserXXX uzywaj `IncludeMediaPerDevice=true` z waskim filtrem nazwy plotera, np. `Filter='HP DesignJet T120'`. Lista globalna moze nie pokazac mediow specyficznych dla drivera.
+- Dla ploterow HP: `Filter='HP DesignJet T120'` (wasim filtrem) + `IncludeMediaPerDevice=true`. Pokazuje liste z GPD.
 
 ### ImportLayoutTemplateTool / ExportLayoutTemplateTool
 - Import: SourceDwgPath (pelna sciezka do DWT/DWG) + SourceLayoutName (layout w pliku zrodlowym) + TargetLayoutName (opcjonalny, domyslnie ten sam).

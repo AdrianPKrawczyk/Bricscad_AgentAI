@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.5 GOLD [PROMPT FIX] - Naprawa system prompt `CadLayoutProfile`: usuniecie niejednoznacznej reguly "NAJPIERW ListPlotDevicesTool". Nowa regula: "Gdy user poda KONKRETNA nazwe MediaName (np. 'A4', '297x600', 'User266') - wywolaj PageSetupTool BEZPOSREDNIO". Dodano 4 przyklady prawidlowego uzycia PageSetupTool z custom format. Dodano sekcje 13.7 w USER_GUIDE o custom formatach papieru HP.
 - v2.30.4 GOLD [USER MEDIA MAPPER] - P/Invoke `DeviceCapabilities()` Win32 API + parser mapowania custom format (`297x600`, `297x1320_p`) na UserXXX (np. User254, User261) na podstawie wymiarow. Walidacja bounds z GPD MinSize/MaxSize w `PageSetupTool` - blokuje preflight gdy custom wymiary przekraczaja zakres plotera. Heurystyczny fallback na `_p` suffix (wielokrotnosc 600mm + offset).
 - v2.30.3 GOLD [GPD PARSER] - Parser plikow .gpd (Generic Printer Description Windows) z DriverStore FileRepository. Pelna lista formatow dla ploterow HP DesignJet/PageWide XL/Z-series - obejmuje standard (A4, A3, A2, A1, A0, B-series, ANSI, Architecture) + custom roll. Heurystyczne mapowanie PC3 device name na hpi<Model>.gpd (T120/T650/T520/T1500/Z2100/Z3200/Z5400/XL3600 itd.). Integracja z `ListPlotDevicesTool` przez `AppendGpdMediaList` - zwraca kompletna liste mediów z PageSetupTool MediaName.
 - v2.30.2 GOLD [PC3 PARSER] - Parser binarnych plikow PC3 (zlib-deflate + struktura blokowa) z diagnostyka driver'ow i aktualnie wybranych formatow dla ploterow HP. Nowy `Pc3Parser` utility class + integracja z `ListPlotDevicesTool`.
@@ -4190,6 +4191,28 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 ### [KOLEJNY_KROK]
 - Manualne testy w BricsCAD-zie z `PageSetupTool MediaName="297x600"` dla layoutu z T120/T650 - powinien zwrocic ostrzezenie `UserXXX` mapping + sukces (driver zaakceptuje custom nazwe).
 - Rozwazyc dodanie `Win32PrinterCapabilities.QueryMedia` jako opcjonalne narzedzie diagnostyczne `GetPrinterCapabilitiesTool` z lista mediow dla danego urzadzenia.
+
+## [v2.30.5] 2026-06-17 - Layout/Plot: Fix system prompt CadLayoutProfile dla custom MediaName
+### [PROBLEM]
+- Test z `PageSetupTool MediaName="297x600"` wykazal ze LLM (gemma-4-31B) pominął intencje usera i wywolal `ListPlotDevicesTool` zamiast `PageSetupTool`.
+- Przyczyna: stary prompt `system_prompt_layout.txt` mial regule "WAZNA ZASADA DLA NAZW PLOTEROW/MEDII: Gdy uzytkownik pyta o ustawienie formatu papieru dla plotera HP lub innego, NAJPIERW uzyj ListPlotDevicesTool aby zobaczyc liste dostepnych formatow" + "Uzywaj przed PageSetupTool jesli nie znasz dokladnej nazwy plotera lub formatu" - LLM interpretowal to jako "ZAWSZE uzywaj ListPlotDevicesTool przed PageSetupTool".
+- W konsekwencji LLM wywolywal zbedne narzedzie diagnostyczne zamiast bezposrednio ustawic format.
+### [NAPRAWIONE]
+- `system_prompt_layout.txt`:
+    * Sekcja `### PageSetupTool` - nowa regula: "Gdy user poda KONKRETNA nazwe MediaName wprost (np. 'A4', '297x600', 'User266', 'NorthAmericaTabloid', 'ISOA1') - wywolaj PageSetupTool BEZPOSREDNIO z ta nazwa. NIE pytaj o potwierdzenie, NIE wywoluj ListPlotDevicesTool przed PageSetupTool."
+    * Dodano 4 przyklady prawidlowego uzycia: `MediaName="297x600"`, `MediaName="A4"`, `MediaName="User266"`, `MediaName="594x841"`.
+    * Sekcja `### ListPlotDevicesTool` - zmieniona: "Uzywaj TYLKO w trybie EKSPLORACJA: 'jakie plotery sa w systemie', 'jakie formaty obsluguje HP T120'. NIE wywoluj rutynowo przed PageSetupTool - user zwykle wie jaki format chce ustawic."
+- `USER_GUIDE.md` - nowa sekcja `13.7. Custom formaty papieru (297x600, User266)`:
+    * 3 sposoby obslugi custom formatow (bezposrednia nazwa, UserXXX, standardowe GPD).
+    * Przyklady promptow: "Ustaw layout IS.W.01 na papier 297x600", "Ustaw layout IS.W.01 na User266", "Ustaw layout IS.W.01 na papier 1000x600" (z walidacja GPD bounds).
+    * Opis roznic T120 (22 formaty) vs T650 36-in (35 formatow).
+### [STAN_SYSTEMU]
+- Build MSBuild: 0 errors (bez zmian w kodzie - tylko prompt).
+- Nowy prompt bedzie uzyty przy nastepnym zaladowaniu BricsCAD (refresh przez EnsureLayoutPromptFile).
+- memory.md v2.30.5.
+### [KOLEJNY_KROK]
+- Manualne testy z poprawionym promptem - LLM powinien teraz wywolac `PageSetupTool MediaName="297x600"` bezposrednio bez `ListPlotDevicesTool`.
+- Sprawdzic czy User Guide 13.7 nie wymaga dodatkowych jezykow (EN/PL/DE) - obecnie tylko polski.
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]

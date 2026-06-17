@@ -368,11 +368,34 @@ Agent zarzadza tablicami stylow wydruku:
 - Ladowanie z pliku: *"Zaladuj styl z C:/Users/Adrian/AppData/Roaming/Bricsys/BricsCAD/V22/pl/PlotStyles/acad.ctb."*
 - Przypisanie: *"Przypisz styl acad.ctb do wszystkich layoutow oprocz Model."*
 
+### 13.7. Custom formaty papieru (297x600, User266)
+
+Plotery HP DesignJet (i inne plotery z driverem gdiplot7.hdi) czesto uzywaja **formatow niestandardowych** zdefiniowanych przez uzytkownika w driverze Windows. Przykladowo: `297x600` (297mm szerokosci, 600mm dlugosci), `594x841` (format ISOA1), `594x1320_p` (594x1320mm z sufiksem `_p` oznaczajacym wielokrotnosc standardowej dlugosci).
+
+Agent obsluguje te formaty na 3 sposoby:
+
+**1. Bezposrednie ustawienie z custom nazwa:**
+- *"Ustaw layout IS.W.01 na papier 297x600."*
+- Agent wywola `PageSetupTool MediaName="297x600"` - driver HP zaakceptuje te nazwe.
+
+**2. Mapowanie na UserXXX (np. User266):**
+- Niektore sterowniki zwracaja formaty jako `User254`, `User266` itp. zamiast nazwy custom.
+- Mozna ustawic bezposrednio: *"Ustaw layout IS.W.01 na User266."*
+
+**3. Standardowe formaty z GPD:**
+- HP DesignJet T120 obsluguje 22 standardowe formaty: A4, A3, A2, A1, B-series (ISO + JIS), ANSI (Letter/Tabloid/C-Sheet/D-Sheet/Legal), Architecture (A/B/C/D), oraz custom roll.
+- HP DesignJet T650 36-in obsluguje 35 formatow (dodatkowo A0, B1, F-Sheet, 11x14).
+- Agent widzi te formaty w `ListPlotDevicesTool` z diagnostyka GPD.
+
+Przyklad ustawienia z walidacja:
+- *"Ustaw layout IS.W.01 na papier 1000x600 na ploterze HP T120."*
+- Agent zwroci blad: *"Custom MediaName '1000x600mm' przekracza zakres GPD dla HP T120: 79.0x140.0mm min, 609.6x91000.0mm max"*
+
+> [!TIP]
+> Aby zobaczyc pelna liste obslugiwanych formatow dla plotera HP, uzyj `ListPlotDevicesTool Filter="HP"` - pokaze liste z pliku GPD (Generic Printer Description Windows) wraz z przykladowymi nazwami do PageSetupTool.
+
 > [!TIP]
 > Jesli nie znasz dokladnej nazwy stylu CTB/STB, popros Agenta o liste. W odpowiedzi zobaczysz pelna liste dostepnych tablic stylow wydruku.
-
-> [!WARNING]
-> Narzedzia layout/plot operuja bezposrednio na aktywnym dokumencie. Przed wykonaniem masowych operacji (np. publish wielu arkuszy) upewnij sie, ze rysunek jest zapisany. Agent nie modyfikuje oryginalu bez wyraznego polecenia.
 
 ---
 
