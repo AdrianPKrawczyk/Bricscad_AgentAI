@@ -2213,8 +2213,13 @@ namespace Bricscad_AgentAI_V2.UI
         private async void btnSend_Click(object sender, EventArgs e)
         {
             string userMsg = txtInput.Text.Trim();
+            if (string.IsNullOrWhiteSpace(userMsg)) return;
             txtInput.Clear();
-            
+            await HandleUserInputAsync(userMsg);
+        }
+
+        public async Task HandleUserInputAsync(string userMsg)
+        {
             // Pobieranie aktywnego dokumentu bezpiecznie na gĹ‚Ăłwnym wÄ…tku UI
             string activeDwgPath = "";
             try {

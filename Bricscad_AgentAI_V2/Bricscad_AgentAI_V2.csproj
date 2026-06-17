@@ -58,6 +58,8 @@
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json">
@@ -185,9 +187,7 @@
     <Compile Include="src\UI\AgentControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="src\UI\LightChatControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    
     <Compile Include="src\UI\AutoBenchmarkControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -290,4 +290,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <Page Include="src\UI\LightChatControlWpf.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="src\UI\LightChatControlWpf.xaml.cs">
+      <DependentUpon>LightChatControlWpf.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
 </Project>
+
+

@@ -1,0 +1,54 @@
+<UserControl x:Class="Bricscad_AgentAI_V2.UI.LightChatControlWpf"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300"
+             Background="#1E1E1E"
+             KeyDown="UserControl_KeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- HUD -->
+            <RowDefinition Height="Auto"/>
+            <!-- History -->
+            <RowDefinition Height="*"/>
+            <!-- Input -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HUD Panel -->
+        <Border Grid.Row="0" BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="5">
+            <StackPanel Orientation="Vertical">
+                <TextBlock x:Name="lblStatus" Text="[Model] Brak podłączonego silnika" Foreground="Cyan" FontSize="11" TextWrapping="Wrap"/>
+                <TextBlock x:Name="lblSession" Text="Sesja: Brak" Foreground="Gold" FontSize="11" Margin="0,2,0,0"/>
+                <TextBlock x:Name="lblStats" Text="Tokeny: 0 | Czas: 0s" Foreground="DarkGray" FontSize="10" Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Chat History -->
+        <ScrollViewer Grid.Row="1" x:Name="scrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <RichTextBox x:Name="rtbHistory" Background="Transparent" Foreground="White" BorderThickness="0" IsReadOnly="True" Padding="5">
+                <FlowDocument>
+                    <!-- Initial content will be added in code behind -->
+                </FlowDocument>
+            </RichTextBox>
+        </ScrollViewer>
+
+        <!-- Input Panel -->
+        <Border Grid.Row="2" BorderBrush="#333333" BorderThickness="0,1,0,0" Padding="5" Background="#252526">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="txtInput" Grid.Column="0" TextWrapping="Wrap" AcceptsReturn="True" 
+                         MinHeight="30" MaxHeight="100" Background="#333333" Foreground="White" BorderThickness="1" 
+                         BorderBrush="#555555" Padding="4" VerticalScrollBarVisibility="Auto"
+                         PreviewKeyDown="txtInput_PreviewKeyDown"/>
+                <Button x:Name="btnSend" Grid.Column="1" Content="Wyślij" Width="50" Margin="5,0,0,0" 
+                        Background="#007ACC" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnSend_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

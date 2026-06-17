@@ -148,7 +148,8 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         private static PaletteSet _chatPaletteSet = null;
-        private static LightChatControl _lightChatControl = null;
+        private static LightChatControlWpf _lightChatControlWpf = null;
+        private static System.Windows.Forms.Integration.ElementHost _wpfHost = null;
 
         [CommandMethod("AI_CHAT")]
         public void ShowLightChatPanel()
@@ -172,8 +173,12 @@ namespace Bricscad_AgentAI_V2.Core
                     _chatPaletteSet.MinimumSize = new System.Drawing.Size(300, 400);
                     _chatPaletteSet.DockEnabled = DockSides.Left | DockSides.Right;
 
-                    _lightChatControl = new LightChatControl();
-                    _chatPaletteSet.Add("Czat", _lightChatControl);
+                    _lightChatControlWpf = new LightChatControlWpf();
+                    _wpfHost = new System.Windows.Forms.Integration.ElementHost();
+                    _wpfHost.Dock = System.Windows.Forms.DockStyle.Fill;
+                    _wpfHost.Child = _lightChatControlWpf;
+
+                    _chatPaletteSet.Add("Czat", _wpfHost);
                 }
 
                 _chatPaletteSet.Visible = true;
