@@ -60,6 +60,7 @@ namespace Bricscad_AgentAI_V2.Core
                 var session = JsonConvert.DeserializeObject<ChatSession>(json);
                 if (session != null)
                 {
+                    NormalizeSession(session);
                     CurrentSession = session;
                     // Skonfiguruj istniejący stan tablicy dla załadowanej sesji
                     SharedMemoryState.LoadFromDictionary(session.Blackboard);
@@ -78,10 +79,24 @@ namespace Bricscad_AgentAI_V2.Core
             session.UpdatedAt = DateTime.Now;
             // Odśwież blackboard przed zapisem
             session.Blackboard = SharedMemoryState.GetAll();
+            NormalizeSession(session);
 
             string path = Path.Combine(SessionsDirectory, $"{session.Id}.json");
             string json = JsonConvert.SerializeObject(session, Formatting.Indented);
             File.WriteAllText(path, json);
+        }
+
+        private static void NormalizeSession(ChatSession session)
+        {
+            if (session == null) return;
+            if (session.Messages == null) session.Messages = new List<ChatMessage>();
+            if (session.Blackboard == null) session.Blackboard = new Dictionary<string, string>();
+            if (session.VisionImages == null) session.VisionImages = new List<VisionImageContext>();
+            foreach (var image in session.VisionImages)
+            {
+                if (image.OcrHistory == null) image.OcrHistory = new List<VisionOcrObservation>();
+                if (image.Tiles == null) image.Tiles = new List<VisionImageTileContext>();
+            }
         }
 
         public static List<ChatSession> GetAllSessions()

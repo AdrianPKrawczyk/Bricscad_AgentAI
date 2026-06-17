@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -41,7 +44,7 @@ namespace Bricscad_AgentAI_V2.Core
                     return ExtractExcel(path);
 
                 case ".pdf":
-                    return ExtractPdf(path);
+                    return RepairPolishMojibake(ExtractPdf(path));
 
                 default:
                     throw new NotSupportedException($"Format {ext} nie jest obsługiwany przez ekstrakcję tekstu.");
@@ -86,13 +89,111 @@ namespace Bricscad_AgentAI_V2.Core
             return sb.ToString();
         }
 
-        public static string GetImageBase64(Image originalImage, string ext = ".png")
+        public static string RepairPolishMojibake(string text)
+        {
+            if (string.IsNullOrEmpty(text) || !LooksLikePolishMojibake(text))
+            {
+                return text;
+            }
+
+            try
+            {
+                Encoding windows1250 = Encoding.GetEncoding(1250);
+                string repaired = Encoding.UTF8.GetString(windows1250.GetBytes(text));
+                return ScorePolishText(repaired) > ScorePolishText(text) ? repaired : text;
+            }
+            catch
+            {
+                return text;
+            }
+        }
+
+        private static bool LooksLikePolishMojibake(string text)
+        {
+            string[] markers =
+            {
+                "Ä…", "Ä‡", "Ä™", "Ĺ‚", "Ĺ„", "Ăł", "Ĺ›", "Ĺş", "ĹĽ",
+                "Ä„", "Ä†", "Ä", "Ĺ", "Ĺ", "Ă“", "Ĺš", "Ĺą", "Ĺ»"
+            };
+
+            return markers.Any(marker => text.IndexOf(marker, StringComparison.Ordinal) >= 0);
+        }
+
+        private static int ScorePolishText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return int.MinValue;
+
+            int score = 0;
+            foreach (char c in text)
+            {
+                if ("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ".IndexOf(c) >= 0) score += 4;
+                if (c == 'Ă' || c == 'Ä' || c == 'Ĺ') score -= 3;
+                if (c == '\uFFFD') score -= 20;
+            }
+
+            return score;
+        }
+
+        public static List<string> RenderPdfPagesToPng(string pdfPath, string outputDir, int dpi = 300, int maxPages = 3, string rendererPath = "pdftoppm.exe")
+        {
+            if (!File.Exists(pdfPath))
+            {
+                throw new FileNotFoundException($"Plik PDF nie istnieje: {pdfPath}");
+            }
+
+            Directory.CreateDirectory(outputDir);
+            int safeDpi = Math.Max(72, Math.Min(dpi <= 0 ? 300 : dpi, 600));
+            int safeMaxPages = Math.Max(1, Math.Min(maxPages <= 0 ? 1 : maxPages, 50));
+            string safeRenderer = string.IsNullOrWhiteSpace(rendererPath) ? "pdftoppm.exe" : rendererPath.Trim();
+            string prefix = Path.Combine(outputDir, "pdf_page_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff"));
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = safeRenderer,
+                Arguments = $"-png -r {safeDpi} -f 1 -l {safeMaxPages} \"{pdfPath}\" \"{prefix}\"",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true
+            };
+
+            using (var process = Process.Start(psi))
+            {
+                if (process == null)
+                {
+                    throw new InvalidOperationException("Nie udalo sie uruchomic pdftoppm.");
+                }
+
+                string stdout = process.StandardOutput.ReadToEnd();
+                string stderr = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    throw new InvalidOperationException($"pdftoppm zakonczyl sie kodem {process.ExitCode}. {stderr} {stdout}".Trim());
+                }
+            }
+
+            var files = Directory.GetFiles(outputDir, Path.GetFileName(prefix) + "*.png")
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (files.Count == 0)
+            {
+                throw new InvalidOperationException("pdftoppm nie wygenerowal zadnych plikow PNG.");
+            }
+
+            return files;
+        }
+
+        public static string GetImageBase64(Image originalImage, string ext = ".png", int maxPixels = 1024)
         {
             string mimeType = ext == ".png" ? "image/png" : "image/jpeg";
             byte[] imageBytes;
 
-            int maxWidth = 1024;
-            int maxHeight = 1024;
+            int safeMaxPixels = Math.Max(256, Math.Min(maxPixels <= 0 ? 1024 : maxPixels, 4096));
+            int maxWidth = safeMaxPixels;
+            int maxHeight = safeMaxPixels;
 
             if (originalImage.Width > maxWidth || originalImage.Height > maxHeight)
             {
@@ -136,7 +237,7 @@ namespace Bricscad_AgentAI_V2.Core
             return $"data:{mimeType};base64,{base64String}";
         }
 
-        public static string GetImageBase64(string path)
+        public static string GetImageBase64(string path, int maxPixels = 1024)
         {
             if (!File.Exists(path))
             {
@@ -151,7 +252,7 @@ namespace Bricscad_AgentAI_V2.Core
 
             using (var originalImage = Image.FromFile(path))
             {
-                return GetImageBase64(originalImage, ext);
+                return GetImageBase64(originalImage, ext, maxPixels);
             }
         }
     }

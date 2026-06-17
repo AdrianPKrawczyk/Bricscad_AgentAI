@@ -133,6 +133,14 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.1 GOLD [ROOM DATA BLOCKNAME] - Rozszerzenie JSON zwracanego przez `ExtractRoomDataEntities` o trzy pola identyfikujące blok: `BlockName` (InstanceName), `BlockDefinition` (nazwa definicji) oraz `BlockDynamicName` (nazwa dynamiczna, jeśli istnieje). Pola dodane zarówno do elementów listy `Matched` jak i `UnmatchedTags`. Umożliwia Agentowi odróżnienie rzeczywistych metek od innych bloków (np. mebli) leżących na tej samej warstwie. Zaktualizowano prompt metadata, USER_GUIDE i memory.
 - v2.29.2 GOLD [PERSISTENT CONFIG] - Krytyczny fix utraty konfiguracji przy buildach projektu. Pliki `llm_providers.json` i `ui_settings.json` przeniesione z `bin\Debug\` (obok DLL) do `%APPDATA%\Bricscad_AgentAI\`. Dodano jednorazową auto-migrację ze starej lokalizacji przy pierwszym uruchomieniu. Wdrożono nowe pole `CustomLLMConfigPath` w `UISettings` (sekcja "Ścieżki i Dane" w Ustawieniach) pozwalające użytkownikowi wskazać własny folder konfiguracyjny (np. OneDrive/Dropbox) dla synchronizacji między komputerami. Nowe metody `AppPaths.GetLLMConfigPath()` i `AppPaths.GetUISettingsPath()`.
 - v2.29.3 FEAT [SUPERVISOR PROMPT WARMUP] - Dodano ciche rozgrzewanie promptu `SupervisorProfile` dla lokalnych providerów OpenAI-compatible (LM Studio/llama.cpp). Po otwarciu AI, wczytaniu sesji albo pauzie w pisaniu program wysyła w tle minimalny request bez narzędzi (`temperature=0`, `max_tokens=1`), aby lokalny serwer mógł zbudować prompt/KV cache przed pierwszym właściwym zapytaniem. Warmup nie modyfikuje historii sesji, nie uruchamia auto-namingu, anuluje się przed realnym requestem i pomija providerów chmurowych OpenAI/OpenRouter/Azure.
+- v2.29.4 FEAT [GLOBAL VISION OCR] - Dodano nadrzędny globalny binding Vision/OCR niezależny od profili agentów. Obrazy z załączników, schowka, `CaptureVisionArea` i `CaptureMetricVisionArea` mogą być najpierw analizowane przez osobny model wizyjny bez tool callingu, a główny agent dostaje tekstowy blok `[VISION/OCR]`. Konfiguracja w `Ustawienia -> Vision/OCR` obejmuje providera, model, payload, AutoLoad i politykę kontekstu.
+- v2.29.5 FEAT [VISION OCR QUALITY] - Dodano osobne ustawienia maksymalnego boku obrazu dla OCR ze schowka i załączników. Domyślnie globalny Vision/OCR wysyła te obrazy do modelu w rozdzielczości do 2048 px, z możliwością zmiany w `Ustawienia -> Vision/OCR`; tryb bez globalnego OCR zachowuje dotychczasowy limit 1024 px.
+- v2.29.6 HOTFIX [VISION OCR AUTOLOAD] - Naprawiono pierwszy request Vision/OCR po starcie programu: dla lokalnych providerów brak zapisanej flagi AutoLoad w globalnym bindingu OCR jest teraz traktowany jako włączony AutoLoad, a checkbox AutoLoad w `Ustawienia -> Vision/OCR` zapisuje się niezależnie od trybu `Payload providera`.
+- v2.29.7 HOTFIX [VISION OCR MODEL RESOLVE] - Naprawiono sytuację, w której OCR działał dopiero po ręcznym kliknięciu `Modele`: jeśli model Vision/OCR jest pusty albo ma placeholder (`local-model`, `llama3`), klient automatycznie pobiera `/v1/models`, wybiera preferowany model wizyjny i używa go przed AutoLoad/requestem. UI Vision/OCR odświeża listę modeli po utworzeniu panelu, jeśli zapisany model jest pusty lub placeholderowy.
+- v2.29.8 HOTFIX [VISION OCR FIRST REQUEST RETRY] - Dodatkowo wymuszono odświeżenie `/v1/models` przed każdym lokalnym requestem Vision/OCR, walidację zapisanego modelu względem realnej listy modeli oraz jednorazowy retry po pierwszym błędzie OCR z ponownym odświeżeniem modeli i AutoLoad. Ma to odtworzyć efekt ręcznego kliknięcia `Modele` przed pierwszym OCR.
+- v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
+- v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
+- v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
     * `ExtractRoomDataEntitiesTool` (tylko odczyt): skanuje Model Space w poszukiwaniu polilinii-obrysów pomieszczeń na warstwie `boundaryLayer` oraz bloków-metek z atrybutami na `tagLayer`. Wykonuje test Point-in-Polygon (ray casting) dla każdej pary. Zwraca JSON z listami: Matched (pary handle + atrybuty), UnmatchedBoundaries, UnmatchedTags.
     * `BatchWriteXDataTool` (zapis): zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD z auto-rejestracją RegApp. Pomija obiekty o nieistniejących Handle'ach z raportem. Nadpisuje istniejące XData dla danej appName.
     * Tagi: #xdata, #metadata, #pokoje (automatycznie ustawiane w `ToolConfigManager.SyncWithTools`).
@@ -3812,3 +3820,271 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 ### [KOLEJNY_KROK]
 - Porównać czas pierwszego zapytania z włączonym i wyłączonym warmupem na LM Studio 24 GB oraz na drugim serwerze 2x 5060 Ti 16 GB.
 - Jeśli LM Studio przejmuje slot/cache przez inne aplikacje, dobrać `PromptWarmupAfterTypingIdleMs` eksperymentalnie.
+
+## [v2.29.4] 2026-06-16 - Globalny model Vision/OCR dla obrazów
+### [ZREALIZOWANO]
+- Dodano `VisionOcrBinding` w konfiguracji narzędzi/agentów jako nadrzędne ustawienie niezależne od profili.
+- Dodano resolver `LLMConfigManager.ResolveVisionOcrProvider()` z tą samą semantyką provider/model/payload co bindingi agentów.
+- Dodano zakładkę `Ustawienia -> Vision/OCR` z wyborem providera, modelu, payloadu, AutoLoad, kontekstu i podglądem efektywnego ustawienia.
+- Dodano `LLMClient.AnalyzeImageWithVisionOcrAsync(...)`, wysyłające OpenAI-compatible request bez narzędzi i zwracające tekstowy opis/OCR.
+- Obrazy z załączników, schowka, `CaptureVisionArea` i `CaptureMetricVisionArea` przy włączonym OCR są zamieniane na tekst `[VISION/OCR]` przed dalszą pracą głównego agenta.
+- Przy wyłączonym OCR zachowano dotychczasowy przepływ multimodalny.
+### [STAN_SYSTEMU]
+- `git diff --check`: brak błędów whitespace, tylko standardowe ostrzeżenia CRLF.
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap Restore nadal zgłasza brak dostępu do `NuGet.Config`, ale właściwy `Rebuild` zakończył się wynikiem `0 Warning(s), 0 Error(s)`.
+### [KOLEJNY_KROK]
+- Skonfigurować drugi komputer z małym modelem vision jako provider w zakładce `Vision/OCR`.
+- Przetestować załącznik obrazu, obraz ze schowka oraz narzędzia `CaptureVisionArea` i `CaptureMetricVisionArea`.
+
+## [v2.29.5] 2026-06-16 - Regulowana jakość Vision/OCR dla schowka i załączników
+### [ZREALIZOWANO]
+- Dodano `UISettings.VisionOcrClipboardMaxPixels` i `UISettings.VisionOcrAttachmentMaxPixels`, oba domyślnie 2048.
+- Rozszerzono `FileExtractor.GetImageBase64(...)` o parametr `maxPixels`, z bezpiecznym zakresem 256-4096 i zachowaniem kompatybilnego domyślnego limitu 1024.
+- W `Ustawienia -> Vision/OCR` dodano kontrolki `Schowek px` i `Zalaczniki px`, zapisujące wartości do `ui_settings.json`.
+- Przy włączonym globalnym Vision/OCR obraz ze schowka i obraz-załącznik używają odpowiedniego limitu OCR; przy wyłączonym OCR pozostaje stary przepływ multimodalny 1024 px.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap Restore nadal zgłasza brak dostępu do `NuGet.Config`, ale właściwy `Rebuild` zakończył się wynikiem `0 Warning(s), 0 Error(s)`.
+### [KOLEJNY_KROK]
+- Przetestować OCR rysunków technicznych na 2048 px i 3072 px; dla małych, zasłoniętych opisów kreskowaniem wyższy limit może poprawić odczyt kosztem większego requestu do modelu vision.
+
+## [v2.29.6] 2026-06-16 - Hotfix AutoLoad dla globalnego Vision/OCR
+### [PROBLEM]
+- Po restarcie programu pierwszy obraz ze schowka/załącznika mógł kończyć się błędem Vision/OCR, dopóki użytkownik ręcznie nie załadował modelu OCR w ustawieniach.
+- Przyczyną było to, że `AutoLoadModel` dla `VisionOcrBinding` zapisywał się tylko przy wyłączonym `Payload providera`; przy domyślnym trybie binding nie nadpisywał flagi i pierwszy request mógł nie wywołać load modelu.
+### [ZREALIZOWANO]
+- `LLMConfigManager.ResolveProviderFromBinding(...)` respektuje `AutoLoadModel` z bindingu niezależnie od `OverridePayload`.
+- `LLMClient.AnalyzeImageWithVisionOcrAsync(...)` dla lokalnego providera traktuje brak zapisanej flagi OCR AutoLoad jako `true`, zachowując możliwość jawnego wyłączenia przez UI.
+- `AgentControl` zapisuje checkbox AutoLoad dla Vision/OCR zawsze, niezależnie od trybu payloadu; checkbox i polityka kontekstu pozostają aktywne przy włączonym OCR.
+### [STAN_SYSTEMU]
+- `git diff --check`: brak błędów whitespace, tylko standardowe ostrzeżenia CRLF.
+- `build.ps1`: kompilacja doszła przez `CoreCompile`, ale etap kopiowania DLL nie mógł się zakończyć, ponieważ BricsCAD trzymał `bin\Debug\Bricscad_AgentAI_V2.dll` w procesie `BricsCAD Application (x64)`.
+### [KOLEJNY_KROK]
+- Po zamknięciu BricsCAD uruchomić ponownie `powershell -ExecutionPolicy Bypass -File build.ps1`, aby podmienić DLL w `bin\Debug`.
+
+## [v2.29.7] 2026-06-16 - Hotfix automatycznego wyboru modelu Vision/OCR
+### [PROBLEM]
+- Vision/OCR po starcie programu mógł zwracać błąd do momentu ręcznego kliknięcia `Modele` w `Ustawienia -> Vision/OCR`.
+- Przyczyną był pusty albo placeholderowy `ModelName` w efektywnym bindingu OCR; przycisk `Modele` wykonywał GET `/v1/models` i dopiero wtedy uzupełniał dropdown.
+### [ZREALIZOWANO]
+- `LLMClient.AnalyzeImageWithVisionOcrAsync(...)` przed AutoLoad sprawdza, czy model OCR jest realnie wybrany. Jeśli model jest pusty albo placeholderowy (`local-model`, `model`, `llama3`), pobiera listę modeli z providera przez istniejące `GetAvailableModelsAsync(...)`.
+- Dodano wybór preferowanego modelu OCR/Vision po nazwach zawierających m.in. `vision`, `vl`, `vlm`, `mm`, `ocr`, `gemma`, `qwen2-vl`, `llava`, `pixtral`, `moondream`, `minicpm`; przy braku trafienia wybierany jest pierwszy dostępny model.
+- `AgentControl` po utworzeniu zakładki Vision/OCR automatycznie odświeża listę modeli, jeśli zapisany model jest pusty albo placeholderowy, i zapisuje wybrany model do bindingu.
+### [STAN_SYSTEMU]
+- `git diff --check`: brak błędów whitespace, tylko standardowe ostrzeżenia CRLF.
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: właściwy `Rebuild` zakończył się wynikiem `0 Warning(s), 0 Error(s)`.
+### [KOLEJNY_KROK]
+- Przetestować pierwszy request OCR po pełnym restarcie BricsCAD/AI bez ręcznego klikania `Modele`.
+
+## [v2.29.8] 2026-06-16 - Hotfix pierwszego requestu Vision/OCR po starcie
+### [PROBLEM]
+- Użytkownik potwierdził, że OCR nadal nie działał przy pierwszym załączniku po starcie, ale zaczynał działać po ręcznym kliknięciu `Modele` w zakładce Vision/OCR.
+- To wskazuje, że sam efekt GET `/v1/models`/walidacji listy modeli musi być wykonany w ścieżce requestu OCR, a nie tylko przy pustym placeholderze.
+### [ZREALIZOWANO]
+- `LLMClient.EnsureVisionOcrModelFromProviderAsync(...)` dla lokalnych providerów zawsze pobiera `/v1/models` przed OCR, sprawdza czy zapisany `ModelName` rzeczywiście występuje na liście, a gdy nie występuje wybiera preferowany model vision/OCR.
+- Jeśli wybrany model zmienia się względem zapisu, `VisionOcrBinding.ModelName` jest aktualizowany i zapisywany przez `ToolConfigManager.UpdateVisionOcrBinding(...)`.
+- Request OCR ma teraz maksymalnie dwie próby. Po pierwszym błędzie HTTP lub wyjątku komunikacji wykonuje krótką pauzę, ponownie odświeża `/v1/models`, ponawia AutoLoad i dopiero wtedy wysyła drugi request.
+### [STAN_SYSTEMU]
+- `git diff --check`: brak błędów whitespace, tylko standardowe ostrzeżenia CRLF.
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: właściwy `Rebuild` zakończył się wynikiem `0 Warning(s), 0 Error(s)`.
+### [KOLEJNY_KROK]
+- Przetestować pierwszy OCR po starcie bez klikania `Modele`; w logu powinny pojawić się wpisy `[VISION OCR MODEL]`, `[VISION OCR REQ] Attempt=1`, a przy ewentualnym pierwszym błędzie `[VISION OCR RETRY]` i `Attempt=2`.
+
+## [v2.29.9] 2026-06-16 - Hotfix comboboxa providera Vision/OCR
+### [PROBLEM]
+- Screenshot użytkownika pokazał, że po kliknięciu `Modele` combobox wizualnie nadal pokazywał `LM Studio (Lokalny)`, ale preview Vision/OCR zmieniał się na `aktywny, brak providera`.
+- Oznaczało to, że `ComboBox.SelectedItem` nie był już `LLMProviderConfig`, a zapis ustawień OCR mógł utrwalić binding bez `ProviderId`/`ProviderNameFallback`.
+### [ZREALIZOWANO]
+- `cbVisionOcrProvider` dostał `ValueMember = "Id"`.
+- `GetSelectedVisionOcrProvider()` stał się odporny na stan pośredni WinForms: odzyskuje providera z `SelectedItem`, `SelectedValue`, tekstu comboboxa, zapisanego bindingu i dopiero na końcu z aktywnego providera.
+- `BuildVisionOcrBindingFromUi()` nie zapisuje już pustego providera, jeśli UI chwilowo nie zwraca poprawnego `SelectedItem`.
+- `RefreshVisionOcrModelsAsync()` zachowuje aktualny model tylko wtedy, gdy rzeczywiście istnieje na liście `/v1/models`; inaczej wybiera preferowany model z listy i zapisuje go.
+### [STAN_SYSTEMU]
+- `git diff --check`: brak błędów whitespace, tylko standardowe ostrzeżenia CRLF.
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: właściwy `Rebuild` zakończył się wynikiem `0 Warning(s), 0 Error(s)`.
+### [KOLEJNY_KROK]
+- Po reloadzie wtyczki sprawdzić, czy preview po kliknięciu `Modele` nadal pokazuje konkretny provider zamiast `brak providera`.
+
+## [v2.29.10] 2026-06-16 - Trwały kontekst obrazów Vision/OCR w sesji
+### [PROBLEM]
+- Globalny Vision/OCR działał jako jednorazowy preprocesor: główny Supervisor dostawał tekstowy opis obrazu, ale przy kolejnych pytaniach nie mógł ponownie poprosić modelu OCR o obejrzenie tego samego pliku.
+- W praktycznym teście z rysunkiem `Rys-02.png` pierwsza analiza nie odczytała tabliczki rysunkowej na prawym marginesie arkusza, więc późniejsze pytania o inwestora/projekt bazowały tylko na niepełnym opisie, a nie na ponownej analizie obrazu.
+### [ZREALIZOWANO]
+- Dodano `ChatSession.VisionImages` oraz modele `VisionImageContext` i `VisionOcrObservation` w `Models/Session/ChatSession.cs`.
+- Załączniki graficzne i obrazy ze schowka przy włączonym globalnym OCR są kopiowane do cache sesji: `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`.
+- Każdy obraz dostaje `image_id`, ścieżkę cached pliku, hash SHA-256, rozmiar, oryginalne wymiary, limit px użyty do OCR oraz nazwę providera/modelu OCR.
+- Każdy request OCR dopisuje obserwację do `OcrHistory`: prompt, wynik, status, błąd oraz provider/model. Sesja zapisuje te dane w JSON.
+- Dodano automatyczne re-query ostatniego obrazu, gdy użytkownik pyta o wcześniejszy obraz/rysunek/załącznik albo o elementy typowe dla OCR: tabliczka, inwestor, projekt, adres, legenda, wymiary, napisy, rząpia/rzap.
+- Ponowna analiza wysyła cached obraz do modelu Vision/OCR i przekazuje Supervisorowi blok `[VISION/OCR REQUERY image_id=...]`, bez dokładania base64 do historii głównego modelu.
+- Wzmocniono prompt OCR w `LLMClient.AnalyzeImageWithVisionOcrAsync(...)`, aby model jawnie sprawdzał krawędzie arkusza, tabliczkę rysunkową, legendy, małe napisy i elementy niepewne.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: właściwy etap `Rebuild` zakończył się wynikiem `0 Warning(s), 0 Error(s)`.
+- Faza `Restore` nadal zgłasza brak dostępu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale skrypt kontynuuje i poprawnie buduje DLL przez MSBuild.
+### [KOLEJNY_KROK]
+- W BricsCAD przetestować scenariusz: dodać `Rys-02.png`, zapytać ogólnie o obraz, a potem zapytać “sprawdź jeszcze raz tabliczkę rysunkową / inwestora / adres”. W logu sesji powinien pojawić się kolejny wpis OCR dla tego samego `image_id`.
+
+## [v2.29.11] 2026-06-16 - Adaptacyjny tiling Vision/OCR dla arkuszy panoramicznych i pionowych
+### [PROBLEM]
+- Skalowanie calego duzego arkusza do jednego limitu px pogarszalo OCR drobnych napisow, tabliczek i legend.
+- Rysunki techniczne czesto maja proporcje 1:2, 1:3 albo pionowe odpowiedniki, wiec kwadratowa siatka moglaby tworzyc zbyt wiele pustych lub malo uzytecznych kafelkow.
+### [ZREALIZOWANO]
+- Dodano `VisionOcrTiler`, ktory tnie obraz na adaptacyjne prostokatne kafelki bez rozciagania pikseli.
+- Algorytm dobiera osobno liczbe kolumn i wierszy, pilnuje limitu kafelkow, overlapu oraz maksymalnej proporcji kafelka.
+- Domyslne ustawienia w `UISettings`: `VisionOcrTilingMode=Auto`, `VisionOcrTileMaxDim=2100`, `VisionOcrTileOverlap=200`, `VisionOcrTileMaxCount=16`, `VisionOcrTileMaxAspectRatio=2.0`.
+- Zakladka `Ustawienia -> Vision/OCR` dostala kontrolki tilingu: tryb, kafelek px, overlap px, maks. kafelkow i maks. proporcja.
+- `VisionImageContext` zapisuje metadane tilingu i liste `VisionImageTileContext` z `Row`, `Column`, `CachedPath`, `SourceX/Y/W/H`.
+- `LLMClient` ma teraz `AnalyzeImagesWithVisionOcrAsync(...)`, ktore wysyla jeden request multi-image: prompt przestrzenny + wszystkie kafelki jako `image_url`.
+- Re-query wczesniejszego obrazu uzywa zapisanych kafelkow, jesli istnieja, zamiast ponownie skalowac pelny obraz.
+- Dodano testy `VisionOcrTilerTests` dla przypadkow `4096x4096`, `6000x2000`, `12000x4000` i `3000x9000`.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale skrypt przechodzi dalej i poprawnie buduje DLL.
+### [KOLEJNY_KROK]
+- W BricsCAD przetestowac duzy arkusz panoramiczny i zapytac o tabliczke/legende; w logu powinien pojawic sie `[VISION OCR TILING]` z ukladem siatki i request OCR powinien zawierac kafelki zamiast jednego mocno pomniejszonego obrazu.
+
+## [v2.29.12] 2026-06-16 - Hotfix parsowania odpowiedzi Vision/OCR z llama.cpp
+### [PROBLEM]
+- Po zmianie providera Vision/OCR z LM Studio na llama.cpp serwer poprawnie przetwarzal kafelki obrazu i generowal odpowiedz, ale aplikacja zwracala komunikat `Vision/OCR zwrocil pusta odpowiedz`.
+- Log llama.cpp pokazywal `processing image...`, `image processed` oraz `n_decoded = 2000`, wiec problem nie byl w wysylce obrazu ani w kontekscie, tylko w zbyt waskim odczycie JSON po stronie klienta.
+### [ZREALIZOWANO]
+- `LLMClient.AnalyzeImagesWithVisionOcrAsync(...)` nie czyta juz wylacznie `choices[0].message.content` jako prostego stringa.
+- Dodano `ExtractVisionOcrContent(...)`, ktore obsluguje kilka wariantow odpowiedzi OpenAI-compatible: `message.content` jako string/tablice czesci tekstowych/obiekt, `reasoning_content`, `reasoning`, `choices[0].text`, `response` i `generated_text`.
+- Gdy odpowiedz nadal zostanie uznana za pusta, Engine log dostaje ostrzezenie `[VISION OCR WARN]` z `finish_reason` i ucietym fragmentem surowego JSON, aby latwo zobaczyc format zwracany przez konkretna wersje llama.cpp.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap kompilacji C# przeszedl bez bledow skladniowych, ale koncowe kopiowanie `Bricscad_AgentAI_V2.dll` do `bin\Debug` nie powiodlo sie, bo DLL byla zablokowana przez dzialajacy proces BricsCAD.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`.
+### [KOLEJNY_KROK]
+- Zamknac/odladowac BricsCAD przed kolejnym buildem, aby MSBuild mogl podmienic DLL w `bin\Debug`.
+- Dla llama.cpp ustawic w OCR `Max tokens` na co najmniej `4096`, bo log pokazal, ze model dobil do aktualnego limitu `2000` tokenow.
+
+## [v2.29.13] 2026-06-16 - Tester Vision/OCR i presety jakosci/tilingu
+### [PROBLEM]
+- Globalny OCR dzialal, ale strojenie modelu, promptu, jakosci obrazu i tilingu wymagalo przechodzenia przez normalny czat.
+- Przy pytaniach celowanych, np. o inwestora z tabliczki, OCR potrafil generowac pelny raport az do limitu `max_tokens`, mimo ze potrzebna byla krotka odpowiedz.
+- Ustawienia `Jakosc obrazu` i `Adaptacyjny tiling` byly zapisywane jako pojedynczy stan, ale brakowalo listy presetow do szybkiego porownywania konfiguracji.
+### [ZREALIZOWANO]
+- `LLMClient` udostepnia teraz `BuildVisionOcrSystemPrompt()` i `BuildVisionOcrUserPrompt(...)`, a request OCR korzysta z tych samych metod co podglad w UI.
+- Prompt OCR zostal doprecyzowany: pelny raport sekcyjny jest wymagany tylko przy ogolnej analizie, a przy pytaniu o konkretny element model ma odpowiedziec celowanie i krotko.
+- Zakladka `Ustawienia -> Vision/OCR` dostala przewijany uklad oraz sekcje `Szybki test Vision/OCR`.
+- Tester OCR pozwala wybrac plik PNG/JPG, wpisac prompt testowy, zobaczyc rzeczywisty prompt wysylany do modelu i uruchomic OCR bez dopisywania wyniku do sesji czatu.
+- Dodano `VisionOcrQualityPreset` w `UISettings`: presety zapisuja `ClipboardMaxPixels`, `AttachmentMaxPixels`, tryb tilingu, rozmiar kafelka, overlap, limit kafelkow i maksymalna proporcje.
+- UI pozwala wybrac preset z listy oraz wykonac `Zapisz`, `Nadpisz`, `Usun`.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)` i skopiowal DLL do `bin\Debug`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nie blokuje wlasciwej kompilacji.
+### [KOLEJNY_KROK]
+- Przetestowac w UI dwa presety: np. `Tabliczka szybka` z mniejszym limitem kafelkow i `Pelny arkusz` z wiekszym tilingiem oraz wyzszym `Max tokens`.
+- Kolejna optymalizacja: przed re-query do OCR mozna dodac warstwe sprawdzania zapisanych obserwacji `OcrHistory`, aby Supervisor odpowiadal z cache, jesli dane juz sa w poprzednim wyniku OCR.
+
+## [v2.29.14] 2026-06-17 - Diagnostyka tokenow i pol odpowiedzi Vision/OCR
+### [PROBLEM]
+- W testerze Vision/OCR krotka odpowiedz, np. dane inwestora, mogla wygladac na kilkanascie slow, podczas gdy llama.cpp raportowal kilkaset tokenow generacji.
+- Trzeba bylo zobaczyc, czy dodatkowe tokeny trafiaja do `reasoning_content`/`reasoning`, innego pola OpenAI-compatible, czy sa tylko kosztem chat-template/modelu.
+### [ZREALIZOWANO]
+- `LLMClient` zapisuje `LastVisionOcrDiagnostics` po kazdej odpowiedzi OCR.
+- Diagnostyka zawiera: `model`, `finish_reason`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `reasoning_tokens`, dlugosci `content`, `reasoning_content`, `reasoning`, `choices[0].text`, `response`, `generated_text`, dlugosc wyekstrahowanej odpowiedzi i surowego JSON.
+- Tester w `Ustawienia -> Vision/OCR` pokazuje blok `[DIAGNOSTYKA OCR]` przed `[ODPOWIEDZ OCR]`.
+### [STAN_SYSTEMU]
+- Do wykonania po zmianie: `powershell -ExecutionPolicy Bypass -File build.ps1`.
+
+## [v2.29.15] 2026-06-17 - Hybrydowy OCR PDF przez pdftoppm
+### [PROBLEM]
+- Uzytkownik chce przepuszczac przez Vision/OCR pliki PDF z rzutami: najlepiej laczac odczyt tekstu z PDF oraz render stron do PNG dla modelu wizyjnego.
+- Wybrany renderer open-source/free to Poppler `pdftoppm`, zainstalowany lokalnie i dodany do PATH.
+### [ZREALIZOWANO]
+- `UISettings` dostal ustawienia PDF: `VisionOcrPdfDpi`, `VisionOcrPdfMaxPages`, `VisionOcrPdfRendererPath`.
+- `FileExtractor.RenderPdfPagesToPng(...)` uruchamia `pdftoppm -png`, renderuje zakres stron i zwraca wygenerowane pliki PNG.
+- Zakladka `Ustawienia -> Vision/OCR` dostala sekcje `PDF -> tekst + PNG dla Vision/OCR` z DPI, limitem stron i sciezka/nazwa renderera.
+- Szybki tester OCR akceptuje teraz PNG/JPG/PDF; dla PDF laczy tekst wydobyty przez PdfPig z renderowanymi stronami analizowanymi przez Vision/OCR.
+- Normalny zalacznik PDF w czacie przy wlaczonym globalnym OCR uzywa przeplywu hybrydowego: `[PDF_TEXT]` + `[PDF_VISION/OCR]`, bez wysylania PDF do glownego modelu jako surowego pliku.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)` i skopiowal DLL do `bin\Debug`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nie blokuje wlasciwej kompilacji.
+### [KOLEJNY_KROK]
+- W BricsCAD przetestowac PDF z rzutami: ustawic `Renderer=pdftoppm.exe`, `DPI=300`, `Maks. stron=3`, a potem w testerze OCR zadac pytanie o tabliczke lub konkretny rzut.
+
+## [v2.29.16] 2026-06-17 - Naprawa polskiego mojibake w tekście PDF
+### [PROBLEM]
+- Hybrydowy OCR PDF dzialal, ale tekst wyciagniety przez PdfPig potrafil zawierac mojibake typu `WROCĹAW`, `WaĹ‚brzyska`, `ZawĂłr`, `RzÄ…pia`.
+- Taki tekst trafial do `[PDF_TEXT]`, a model Vision/OCR i Supervisor mogly potem kopiowac uszkodzone polskie znaki.
+### [ZREALIZOWANO]
+- Dodano `FileExtractor.RepairPolishMojibake(...)`, ktory wykrywa typowy przypadek UTF-8 odczytanego jako Windows-1250 i naprawia tekst tylko wtedy, gdy wynik ma lepszy score polskich znakow.
+- `ExtractText(... .pdf ...)` przepuszcza tekst PDF przez naprawe przed zwroceniem go do czatu/testera OCR.
+- Dodano `FileExtractorTests` sprawdzajace naprawe `GMINA WROCĹAW`, `WaĹ‚brzyska`, `ZawĂłr`, `RzÄ…pia` oraz brak zmian dla czystego tekstu.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nie blokuje wlasciwej kompilacji.
+
+## [v2.29.18] 2026-06-17 - Trwale ustawienia Vision/OCR i czytelniejsza lista testow
+### [PROBLEM]
+- Lista zapisanych szybkich testow Vision/OCR pokazywala tylko nazwy plikow raportow, bez informacji o presecie, providerze i modelu.
+- Ustawienia OCR mogly wracac do domyslnych po uruchomieniu BricsCAD, bo `VisionOcrBinding` byl zapisywany w `tools_config.json` obok DLL (`bin\Debug`), a nie w trwalym folderze ustawien.
+- Przy wyborze wlasnego folderu ustawien AI/OCR istnialo ryzyko, ze sam wskaznik folderu zostanie zapisany, ale komplet aktualnych plikow konfiguracyjnych nie trafi do nowego miejsca.
+### [ZREALIZOWANO]
+- `AppPaths.GetToolConfigPath()` przenosi `tools_config.json` do tego samego trwalego folderu co `ui_settings.json` i `llm_providers.json`.
+- `ToolConfigManager` migruje legacy `tools_config.json` z folderu DLL do AppData/custom folderu, jesli nowy plik jeszcze nie istnieje.
+- `UISettingsManager.UpdateCustomLLMConfigPath(...)` kopiuje do wybranego folderu `llm_providers.json`, `tools_config.json` oraz zapisuje aktualny snapshot `ui_settings.json`; dodatkowo zapisuje wskaznik w domyslnym AppData.
+- Zakladka `Sciezki i Dane` opisuje folder jako `Folder ustawien AI/OCR` i informuje, ze obejmuje providerow, UI, agentow, Vision/OCR oraz `tools_config.json`.
+- Lista zapisanych testow Vision/OCR czyta JSON raportu i wyswietla: date/status, plik, preset, provider oraz model.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nie blokuje wlasciwej kompilacji.
+### [KOLEJNY_KROK]
+- Po restarcie BricsCAD sprawdzic, czy `Ustawienia -> Vision/OCR` zachowuje provider, model, payload, jakosc obrazu, tiling i PDF; w folderze ustawien powinien byc widoczny `tools_config.json`.
+
+## [v2.29.19] 2026-06-17 - Podglad zapisanych testow Vision/OCR po najechaniu
+### [PROBLEM]
+- Lista zapisanych testow Vision/OCR pozwalala otwierac/kopiowac raporty, ale pole podgladu nadal pokazywalo ostatni uruchomiony test.
+- Uzytkownik chcial szybko przegladac wyniki testow bez otwierania kazdego pliku osobno.
+### [ZREALIZOWANO]
+- `lstVisionOcrTestRuns` reaguje na `MouseMove`: rekord pod kursorem staje sie aktywnym zaznaczeniem.
+- `SelectedIndexChanged` wczytuje raport Markdown do pola `Odpowiedz`, a gdy Markdown nie istnieje, probuje pokazac JSON.
+- Dwuklik na rekord nadal otwiera raport w domyslnej aplikacji.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nie blokuje wlasciwej kompilacji.
+
+## [v2.29.17] 2026-06-17 - Zapisywanie wynikow szybkich testow Vision/OCR
+### [PROBLEM]
+- Tester Vision/OCR pokazywal wynik tylko w UI, ale nie zapisywal kompletnego sladu eksperymentu do pozniejszego porownania lub analizy przez inne LLM.
+- Brakowalo wygodnego dostepu do poprzednich testow z poziomu zakladki Vision/OCR.
+### [ZREALIZOWANO]
+- Dodano folder raportow `VisionOcrTestRuns` w AppData aplikacji.
+- Kazdy szybki test Vision/OCR zapisuje dwa pliki: `.json` z pelnym snapshotem maszynowym oraz `.md` wygodny do czytania/kopiowania do innego LLM.
+- Raport obejmuje: source file, provider, endpoint, model, informację czy API key jest skonfigurowany bez zapisu samego klucza, binding Vision/OCR, payload modelu, jakosc obrazu, tiling, ustawienia PDF, wybrany preset, prompt uzytkownika, prompt systemowy/podglad payloadu, diagnostyke i odpowiedz.
+- Raporty sa zapisywane takze dla nieudanych testow, aby mozna bylo analizowac bledy konfiguracji.
+- Sekcja `Szybki test Vision/OCR` dostala liste ostatnich raportow oraz przyciski: `Otworz raport`, `Kopiuj raport`, `Otworz folder`, `Odswiez`.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: etap `Rebuild` zakonczyl sie wynikiem `0 Warning(s), 0 Error(s)`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nie blokuje wlasciwej kompilacji.
+
+## [v2.29.20] 2026-06-17 - Stabilne ladowanie providera/modelu OCR po restarcie
+### [PROBLEM]
+- Po restarcie BricsCAD zakladka `Vision/OCR` mogla pokazywac w podgladzie zapisany binding `OCR-biuro`, ale combobox providera wracal do aktywnego providera czatu `LM Studio (Lokalny)`.
+- Klikniecie `Uruchom OCR` zapisywalo wtedy bledny stan UI do `VisionOcrBinding`, przez co test uruchamial model z LM Studio zamiast modelu OCR z wybranego providera.
+- Wybrany preset jakosci/tilingu byl po starcie tylko zaznaczany na liscie, ale jego wartosci liczbowe nie byly jawnie nakladane na pola UI.
+- `EnsureVisionOcrModelFromProviderAsync` moglo nadpisac jawnie wybrany model OCR modelem zwroconym przez `/v1/models`, czyli modelem aktualnie zaladowanym na serwerze, zanim autoload zdazyl zaladowac docelowy model.
+### [ZREALIZOWANO]
+- `RefreshVisionOcrProviderDropdown(...)` przyjmuje preferowany `ProviderId` i podczas startu wybiera provider z bindingu OCR, a nie przypadkowy aktualny stan comboboxa.
+- `SelectVisionOcrProvider(...)` uzywa najpierw `SelectedValue`, potem jawnego skanowania elementow listy, co stabilizuje WinForms ComboBox po rebindingu.
+- `LoadVisionOcrBindingToUi()` po zaznaczeniu presetu wywoluje `ApplyLastVisionOcrQualityPresetToControls()`, wiec wartosci jakosci obrazu i tilingu po restarcie odpowiadaja wybranemu presetowi.
+- Raport szybkiego testu zapisuje efektywny provider/model z `ResolveVisionOcrProvider()` oraz osobno `ui_provider`, zeby latwiej wykryc rozjazd UI kontra realny payload.
+- `EnsureVisionOcrModelFromProviderAsync` nie podmienia juz jawnie ustawionego modelu, jesli nie ma go na chwilowej liscie `/v1/models`; zostawia go do autoloadu.
+### [STAN_SYSTEMU]
+- `powershell -ExecutionPolicy Bypass -File build.ps1`: kompilacja doszla do etapu kopiowania DLL, ale `bin\Debug\Bricscad_AgentAI_V2.dll` byl zablokowany przez uruchomiony `BricsCAD Application (x64)`.
+- Etap `Restore` nadal zglasza brak dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`.
+### [KOLEJNY_KROK]
+- Zamknac BricsCAD i ponownie uruchomic `powershell -ExecutionPolicy Bypass -File build.ps1`, aby podmienic DLL w `bin\Debug`.
+
+## [v2.29.21] 2026-06-17 - Ochrona Vision/OCR przed falszywym providerem UI
+### [PROBLEM]
+- Po restarcie nadal mogl wystapic rozjazd: zielony podglad Vision/OCR pokazywal poprawny binding `OCR-biuro -> gemma-4-26...`, ale combobox providera wyswietlal aktywny provider czatu `LM Studio (Lokalny)`.
+- Klikniecie `Uruchom OCR` albo `Modele` moglo wtedy uzyc/zapisac zly provider, mimo ze binding OCR byl poprawny.
+- Przy PDF bledy modelu OCR, np. `HTTP 400 No models loaded`, byly ukryte w sekcji `[PDF_VISION/OCR]` i raport szybkiego testu mogl miec status `OK`, bo sam render `pdftoppm` sie udal.
+### [ZREALIZOWANO]
+- Lista providerow OCR jest wypelniana recznie przez `Items`, bez `DataSource`, co stabilizuje wybor WinForms po starcie panelu.
+- Dodano `_visionOcrProviderChangedByUser`: dopoki uzytkownik nie zmieni providera recznie, zapis bindingu i przycisk `Modele` uzywaja providera z `VisionOcrBinding`, a nie przypadkowego wyboru w comboboxie.
+- `SelectVisionOcrProvider(...)` wybiera provider takze po `ProviderNameFallback`, jesli `ProviderId` nie wystarczy.
+- `LLMClient` zapisuje diagnostyke dla bledow HTTP/wyjatkow Vision/OCR, wlacznie z modelem, endpointem i statusem.
+- Szybki test PDF oznacza raport jako `ERROR`, jesli render PDF sie udal, ale model Vision/OCR zwrocil `BLAD OCR PDF`.
+### [STAN_SYSTEMU]
+- Do wykonania po zamknieciu BricsCAD: `powershell -ExecutionPolicy Bypass -File build.ps1`.

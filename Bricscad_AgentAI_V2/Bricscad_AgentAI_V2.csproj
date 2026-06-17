@@ -132,6 +132,7 @@
     <Compile Include="src\Core\BielikLogger.cs" />
     <Compile Include="src\Core\UISettingsManager.cs" />
     <Compile Include="src\Core\FileExtractor.cs" />
+    <Compile Include="src\Core\VisionOcrTiler.cs" />
     <Compile Include="src\Core\MetricVisionRenderer.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
@@ -171,6 +172,8 @@
     <Compile Include="src\Tools\ReadXDataTool.cs" />
     <Compile Include="src\Tools\WriteXDataTool.cs" />
     <Compile Include="src\Tools\FindXDataTool.cs" />
+    <Compile Include="src\Tools\ExtractRoomDataEntitiesTool.cs" />
+    <Compile Include="src\Tools\BatchWriteXDataTool.cs" />
     <Compile Include="src\Tools\CaptureVisionAreaTool.cs" />
     <Compile Include="src\Tools\CaptureMetricVisionAreaTool.cs" />
     <Compile Include="src\Tools\ScanMetricVisionDrawingTool.cs" />
@@ -218,10 +221,14 @@
     <Compile Include="tests\Tools\ReadXDataToolTests.cs" />
     <Compile Include="tests\Tools\WriteXDataToolTests.cs" />
     <Compile Include="tests\Tools\FindXDataToolTests.cs" />
+    <Compile Include="tests\Tools\ExtractRoomDataEntitiesToolTests.cs" />
+    <Compile Include="tests\Tools\BatchWriteXDataToolTests.cs" />
     <Compile Include="tests\Tools\MetricVisionToolTests.cs" />
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />
+    <Compile Include="tests\Core\VisionOcrTilerTests.cs" />
+    <Compile Include="tests\Core\FileExtractorTests.cs" />
     <Compile Include="src\UI\AgentAutotestControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

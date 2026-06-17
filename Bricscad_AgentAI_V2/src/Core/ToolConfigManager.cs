@@ -41,10 +41,16 @@ namespace Bricscad_AgentAI_V2.Core
         public string ContextPolicy { get; set; } = "UseLoadedIfAtLeastRequested";
     }
 
+    public class VisionOcrBinding : AgentLlmBinding
+    {
+        public bool Enabled { get; set; } = false;
+    }
+
     public class ToolConfigRoot
     {
         public Dictionary<string, ToolSettings> Tools { get; set; } = new Dictionary<string, ToolSettings>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, AgentProfileConfig> Profiles { get; set; } = new Dictionary<string, AgentProfileConfig>(StringComparer.OrdinalIgnoreCase);
+        public VisionOcrBinding VisionOcrBinding { get; set; } = new VisionOcrBinding();
     }
 
     /// <summary>
@@ -72,14 +78,16 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 if (_configPath == null)
                 {
-                    _configPath = Path.Combine(
-                        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                        "tools_config.json"
-                    );
+                    _configPath = AppPaths.GetToolConfigPath();
                 }
                 return _configPath;
             }
         }
+
+        private static string LegacyConfigPath => Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            "tools_config.json"
+        );
 
         /// <summary>
         /// Inicjalizuje konfiguracjÄ™. JeĹ›li plik nie istnieje, generuje domyĹ›lny 
@@ -96,6 +104,8 @@ namespace Bricscad_AgentAI_V2.Core
             EnsureNotesPromptFile();
             EnsureAuditorPromptFile();
 
+            MigrateLegacyConfigIfNeeded();
+
             if (File.Exists(ConfigPath))
             {
                 try
@@ -106,6 +116,10 @@ namespace Bricscad_AgentAI_V2.Core
                     if (root != null && root.Tools != null)
                     {
                         _config = root;
+                        if (_config.VisionOcrBinding == null)
+                        {
+                            _config.VisionOcrBinding = new VisionOcrBinding();
+                        }
                     }
                     else
                     {
@@ -128,6 +142,24 @@ namespace Bricscad_AgentAI_V2.Core
             else
             {
                 GenerateDefaultConfig(registeredTools);
+            }
+        }
+
+        private static void MigrateLegacyConfigIfNeeded()
+        {
+            try
+            {
+                AppPaths.EnsureDirectoriesExist();
+                if (File.Exists(ConfigPath) || !File.Exists(LegacyConfigPath))
+                {
+                    return;
+                }
+
+                File.Copy(LegacyConfigPath, ConfigPath, false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Nie udalo sie zmigrowac tools_config.json do AppData: {ex.Message}");
             }
         }
 
@@ -320,6 +352,22 @@ namespace Bricscad_AgentAI_V2.Core
                         changed = true;
                     }
                 }
+
+                if (name.Equals("ExtractRoomDataEntities", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("BatchWriteXData", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#xdata", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? "#xdata, #metadata, #pokoje" : settings.Tags + ", #xdata, #metadata, #pokoje";
+                        changed = true;
+                    }
+                    if (settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = false;
+                        changed = true;
+                    }
+                }
             }
 
             if (_config.Profiles == null)
@@ -340,7 +388,7 @@ namespace Bricscad_AgentAI_V2.Core
                 supervisorProf.SystemPromptFile = SupervisorPromptFile;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps", "ExtractRoomDataEntities" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -420,7 +468,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf = new AgentProfileConfig 
                 { 
                     SystemPromptFile = MetadataPromptFile, 
-                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" },
+                    AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" },
                     AllowedTags = new List<string> { "#xdata" }
                 };
                 _config.Profiles["CadMetadataProfile"] = metadataProf;
@@ -431,7 +479,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf.SystemPromptFile = MetadataPromptFile;
                 changed = true;
             }
-            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" })) changed = true;
+            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" })) changed = true;
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
@@ -552,7 +600,7 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["CadMetadataProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = MetadataPromptFile,
-                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem" },
+                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem" },
                 AllowedTags = new List<string> { "#xdata" }
             };
 
@@ -583,13 +631,29 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static void SaveConfig()
         {
+            AppPaths.EnsureDirectoriesExist();
             string json = JsonConvert.SerializeObject(_config, Formatting.Indented);
-            File.WriteAllText(ConfigPath, json);
+            File.WriteAllText(ConfigPath, json, System.Text.Encoding.UTF8);
         }
 
         public static Dictionary<string, ToolSettings> GetAllSettings() => _config.Tools;
 
         public static Dictionary<string, AgentProfileConfig> GetProfiles() => _config.Profiles;
+
+        public static VisionOcrBinding GetVisionOcrBinding()
+        {
+            if (_config.VisionOcrBinding == null)
+            {
+                _config.VisionOcrBinding = new VisionOcrBinding();
+            }
+            return _config.VisionOcrBinding;
+        }
+
+        public static void UpdateVisionOcrBinding(VisionOcrBinding binding)
+        {
+            _config.VisionOcrBinding = binding ?? new VisionOcrBinding();
+            SaveConfig();
+        }
 
         public static AgentLlmBinding GetAgentLlmBinding(string profileName)
         {

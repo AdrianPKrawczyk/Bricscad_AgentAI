@@ -92,6 +92,37 @@ Agent posiada teraz narzędzie do "głębokiej inspekcji" metadanych ukrytych w 
 - **Filtrowanie**: Możesz poprosić o dane konkretnej aplikacji: *"Odczytaj XData dla aplikacji 'MY_BIM_APP'"*.
 - **Pamięć**: Możesz zapisać te metadane do zmiennej i użyć ich w formule RPN.
 
+### 4.4. Pipeline danych pomieszczeń (Extract → Agent → Batch Write)
+Dwa współpracujące narzędzia automatyzują przypisywanie ukrytych metadanych (XData) do obrysów pomieszczeń na podstawie metek (bloków z atrybutami).
+
+**Architektura 3-krokowa:**
+1. **Ekstrakcja** (`ExtractRoomDataEntities`) — skanuje Model Space, paruje polilinie-obrysy z blokami-metkami testem Point-in-Polygon, zwraca JSON z trzema listami: Matched, UnmatchedBoundaries, UnmatchedTags.
+2. **Analiza (Agent)** — model LLM decyduje co zrobić z niedopasowanymi obrysami (może użyć Vision/OCR lub zapytać użytkownika przez `UserChoice`).
+3. **Zapis** (`BatchWriteXData`) — zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD.
+
+**Przykład użycia — użytkownik mówi:**
+> *„Przypisz metki do wszystkich pomieszczeń na rzucie parteru i zapisz do XData numer, nazwę i powierzchnię."*
+
+**Co robi Agent:**
+1. Wywołuje `ExtractRoomDataEntities(boundaryLayer="A-WALL-INT", tagLayer="A-ROOM-TAG", saveAs="RoomData")`
+2. Analizuje JSON — dla każdej pary matched przygotowuje wpis `{Handle, Attributes}`, dla unmatched pyta użytkownika.
+3. Wywołuje `BatchWriteXData(appName="BIM_ROOM_DATA", entitiesData=[...])` — wszystko w jednej transakcji.
+
+**Parametry ExtractRoomDataEntities:**
+- `boundaryLayer` (wymagany) — nazwa warstwy z poliliniami-obrysami (np. `A-WALL-INT`).
+- `tagLayer` (wymagany) — nazwa warstwy z blokami-metkami posiadającymi atrybuty (np. `A-ROOM-TAG`).
+- `saveAs` (opcjonalny) — nazwa zmiennej w pamięci Agenta (np. `RoomData`) do późniejszego użycia w RPN.
+
+**Parametry BatchWriteXData:**
+- `appName` (wymagany) — nazwa rejestrowanej aplikacji XData (np. `BIM_ROOM_DATA`).
+- `entitiesData` (wymagany) — tablica `{Handle, Attributes}`. Handle to uchwyt obiektu (hex), Attributes to słownik par klucz-wartość.
+
+**Ważne zachowania:**
+- `ExtractRoomDataEntities` zwraca **wszystkie** pary matched (nawet jeśli w jednym obrysie jest wiele metek) — decyzja o wyborze należy do modelu LLM.
+- Każda para `Matched` oraz każdy `UnmatchedTag` zawiera dodatkowe pola: `BlockName` (nazwa instancji bloku), `BlockDefinition` (nazwa definicji bloku), `BlockDynamicName` (nazwa bloku dynamicznego, jeśli istnieje) oraz `Attributes` (słownik atrybutów). Dzięki temu Agent może odróżnić rzeczywiste metki od innych bloków (np. mebli) leżących na tej samej warstwie.
+- `BatchWriteXData` **nadpisuje** istniejące XData dla danej appName (nie scala). Pomija obiekty z nieistniejącymi Handle'ami i raportuje je w komunikacie zwrotnym.
+- Oba narzędzia działają w Model Space. Polilinie muszą być zamknięte (`Polyline.Closed == true`). Łuki traktowane są jako proste (wierzchołki).
+
 ---
 
 ## 🤝 5. Interakcja i Konsultacje (Tryb Hybrydowy)
@@ -232,6 +263,58 @@ Możesz wywoływać funkcje wizyjne bezpośrednio z paska poleceń BricsCAD:
 - **OCR Tabel**: Szybkie przepisywanie danych z tabel tekstowych, które są "rozbitymi" liniami/tekstem.
 - **Wyjaśnianie Błędów**: Pokaż Agentowi fragment rysunku i zapytaj: "Dlaczego te kreskowania nachodzą na siebie?".
 - **Inwentaryzacja**: Analiza podkładów rastrowych (skanów) w celu zliczenia symboli.
+
+### 11.4. Globalny model Vision/OCR dla obrazow
+W zakladce **Ustawienia -> Vision/OCR** mozesz wlaczyc osobny, nadrzedny model do czytania obrazow. To przydatne, gdy glowny agent CAD ma pracowac na duzym modelu z narzedziami, a obrazy ma odczytywac mniejszy model wizyjny uruchomiony lokalnie lub na drugim komputerze.
+
+- **Wlacz nadrzedny model Vision/OCR**: gdy opcja jest aktywna, obrazy ze schowka, zalaczniki PNG/JPG/PDF oraz zrzuty z narzedzi wizyjnych sa najpierw analizowane przez model OCR.
+- **Provider i model**: wybierz np. drugi serwer LM Studio albo llama.cpp oraz model wizyjny, np. Gemma/Qwen/LLaVA. Glowny agent dostaje tekstowy opis OCR zamiast surowego obrazu.
+- **AutoLoad**: dla lokalnych serwerow program probuje zaladowac wskazany model przed pierwszym OCR. Jezeli serwer zwroci blad typu `No models loaded`, szybki test oznaczy wynik jako blad i pokaze diagnostyke.
+- **Uzyj payloadu providera**: zaznacz, jezeli OCR ma korzystac z parametrow zapisanych przy providerze. Odznacz, jezeli chcesz osobne parametry OCR: temperature, max tokens, Top-P, Top-K, Min-P, repeat penalty i reasoning effort.
+
+Przyklad uzycia:
+> "Odczytaj tabliczke rysunkowa z zalaczonego PDF i podaj inwestora, projekt, adres, numer rysunku, date i skale."
+
+### 11.5. Jakosc obrazu, adaptacyjny tiling i PDF
+Sekcja **Jakosc obrazu wysylanego do modelu Vision/OCR** steruje tym, ile pikseli otrzymuje model. Wieksza wartosc pomaga przy malych napisach, ale zwieksza czas OCR.
+
+- **Schowek (px)**: maksymalny bok obrazu wklejanego ze schowka.
+- **Zalaczniki (px)**: maksymalny bok plikow PNG/JPG i renderow PDF.
+- **Tiling Auto / Wylaczony / Zawsze**: duze arkusze moga byc ciete na kafelki, aby model czytal detale bez zbyt mocnego pomniejszania calego rysunku.
+- **Kafelek px**: docelowy rozmiar kafelka. Dla modeli Gemma 4 dobrym punktem startowym jest 1500-2100 px.
+- **Overlap px**: zakladka miedzy kafelkami. Chroni linie i napisy przed przecieciem na krawedzi.
+- **Maks. kafelkow**: ogranicza koszt i czas OCR. Dla duzych arkuszy zwykle warto zaczac od 8 albo 16.
+- **Maks. proporcja**: pozwala robic prostokatne kafelki dla rysunkow panoramicznych, np. 1:2 albo 1:3, bez sztucznego tworzenia pustych wierszy.
+- **PDF -> tekst + PNG**: dla PDF program probuje najpierw odczytac tekst osadzony w PDF, a potem renderuje strony przez `pdftoppm.exe` i wysyla render do Vision/OCR.
+
+Typowe ustawienie dla rysunkow technicznych:
+- schowek: `2048`
+- zalaczniki: `2048`
+- tiling: `Auto`
+- kafelek: `1500` albo `2100`
+- overlap: `150-200`
+- maks. kafelkow: `8-16`
+- PDF: `300 dpi`, `1-3` strony na test
+
+### 11.6. Presety OCR i szybkie testy
+W sekcji **Presety jakosci obrazu i tilingu** mozesz zapisac kilka konfiguracji, np. `Szybki test`, `Medium-510`, `Dokladny PDF`. Presety mozna zapisac, nadpisac i usunac. Po ponownym uruchomieniu BricsCAD wybrany preset odtwarza takze wartosci liczbowe, a nie tylko nazwe.
+
+Sekcja **Szybki test Vision/OCR** sluzy do sprawdzania modelu bez rozmowy z agentem:
+1. Wybierz plik PNG/JPG/PDF.
+2. Wpisz wlasny prompt testowy, np. "Odczytaj dane inwestora z tabliczki".
+3. Kliknij **Uruchom OCR**.
+4. W polu wyniku zobaczysz diagnostyke, odpowiedz modelu i ewentualne bledy HTTP.
+
+Kazdy test jest zapisywany jako raport `.json` i `.md` w folderze raportow Vision/OCR. Lista testow pokazuje preset, providera i model. Klikniecie testu wczytuje jego wynik do podgladu, a przyciski pozwalaja otworzyc raport, skopiowac go albo otworzyc folder z plikami.
+
+### 11.7. Pytania o wczesniej zalaczone obrazy
+Po analizie obrazu agent zapisuje tekstowy kontekst OCR w sesji. Dzieki temu mozesz zadawac kolejne pytania o ten sam zalacznik, np.:
+
+- "A jaka jest klasa wlazu?"
+- "Podaj dane inwestora z tabliczki."
+- "Wypisz wszystkie elementy legendy."
+
+Jesli pytanie wymaga dokladniejszego odczytu niz pierwszy opis, program moze ponownie przepuscic ostatni obraz przez Vision/OCR. Przy duzych arkuszach uzyje zapisanych kafelkow, aby model mogl wrocic do tego samego obrazu bez ponownego recznego zalaczania pliku.
 
 ---
 

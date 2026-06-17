@@ -11,8 +11,10 @@ namespace Bricscad_AgentAI_V2.Core
     public static class LLMConfigManager
     {
         private static LLMConfig _config;
-        private static string ConfigPath => Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), 
+        private static string ConfigPath => AppPaths.GetLLMConfigPath();
+
+        private static string LegacyConfigPath => Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
             "llm_providers.json"
         );
 
@@ -27,6 +29,20 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static void Load()
         {
+            // Migracja ze starej lokalizacji (obok DLL) do AppData - jednorazowa
+            if (!File.Exists(ConfigPath) && File.Exists(LegacyConfigPath))
+            {
+                try
+                {
+                    AppPaths.EnsureDirectoriesExist();
+                    File.Copy(LegacyConfigPath, ConfigPath, true);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Nie udało się zmigrować llm_providers.json: {ex.Message}");
+                }
+            }
+
             if (File.Exists(ConfigPath))
             {
                 try
@@ -56,6 +72,7 @@ namespace Bricscad_AgentAI_V2.Core
         {
             try
             {
+                AppPaths.EnsureDirectoriesExist();
                 string json = JsonConvert.SerializeObject(_config, Formatting.Indented);
                 File.WriteAllText(ConfigPath, json);
                 OnConfigChanged?.Invoke();
@@ -108,14 +125,26 @@ namespace Bricscad_AgentAI_V2.Core
         public static LLMProviderConfig ResolveProviderForProfile(string profileName)
         {
             var binding = ToolConfigManager.GetAgentLlmBinding(profileName);
+            return ResolveProviderFromBinding(binding, binding == null || binding.UseDefaultProvider);
+        }
+
+        public static LLMProviderConfig ResolveVisionOcrProvider()
+        {
+            var binding = ToolConfigManager.GetVisionOcrBinding();
+            if (binding == null || !binding.Enabled) return null;
+            return ResolveProviderFromBinding(binding, binding.UseDefaultProvider);
+        }
+
+        private static LLMProviderConfig ResolveProviderFromBinding(AgentLlmBinding binding, bool useDefaultProvider)
+        {
             LLMProviderConfig baseProvider = null;
 
-            if (binding != null && !binding.UseDefaultProvider && binding.ProviderId != null)
+            if (binding != null && !useDefaultProvider && binding.ProviderId != null)
             {
                 baseProvider = GetProviderById(binding.ProviderId.Value);
             }
 
-            if (binding != null && !binding.UseDefaultProvider && baseProvider == null && !string.IsNullOrWhiteSpace(binding.ProviderNameFallback))
+            if (binding != null && !useDefaultProvider && baseProvider == null && !string.IsNullOrWhiteSpace(binding.ProviderNameFallback))
             {
                 baseProvider = _config?.Providers?.FirstOrDefault(p =>
                     string.Equals(p.Name, binding.ProviderNameFallback, StringComparison.OrdinalIgnoreCase));
@@ -129,7 +158,7 @@ namespace Bricscad_AgentAI_V2.Core
             var effective = CloneProvider(baseProvider);
             if (effective == null || binding == null) return effective;
 
-            if (!binding.UseDefaultProvider && !string.IsNullOrWhiteSpace(binding.ModelName))
+            if (!useDefaultProvider && !string.IsNullOrWhiteSpace(binding.ModelName))
             {
                 effective.ModelName = binding.ModelName;
             }
@@ -143,9 +172,10 @@ namespace Bricscad_AgentAI_V2.Core
                 if (binding.MinP.HasValue) effective.MinP = binding.MinP.Value;
                 if (binding.RepetitionPenalty.HasValue) effective.RepetitionPenalty = binding.RepetitionPenalty.Value;
                 if (!string.IsNullOrWhiteSpace(binding.ReasoningEffort)) effective.ReasoningEffort = binding.ReasoningEffort;
-                if (binding.AutoLoadModel.HasValue) effective.AutoLoadModel = binding.AutoLoadModel.Value;
                 if (binding.LoadContextLength.HasValue) effective.LoadContextLength = binding.LoadContextLength.Value;
             }
+
+            if (binding.AutoLoadModel.HasValue) effective.AutoLoadModel = binding.AutoLoadModel.Value;
 
             return effective;
         }

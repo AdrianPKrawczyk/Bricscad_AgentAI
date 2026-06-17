@@ -1,22 +1,84 @@
 using System;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace Bricscad_AgentAI_V2.Core
 {
     public static class AppPaths
     {
+        private static string _appDataRootCache;
+        private static readonly object _cacheLock = new object();
+
+        /// <summary>
+        /// Bezpieczne pobranie ścieżki AppData z fallbackiem w razie problemów z UISettingsManager (cykliczna zależność).
+        /// </summary>
+        private static string GetDefaultAppDataRoot()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Bricscad_AgentAI");
+        }
+
+        /// <summary>
+        /// Bezpośredni odczyt pliku ui_settings.json z domyślnej lokalizacji (legacy obok DLL lub AppData).
+        /// Unika cyklicznej zależności z UISettingsManager podczas inicjalizacji.
+        /// </summary>
+        private static string ReadCustomLLMConfigPathDirect()
+        {
+            try
+            {
+                string[] candidates = new[]
+                {
+                    Path.Combine(GetDefaultAppDataRoot(), "ui_settings.json"),
+                    Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "", "ui_settings.json")
+                };
+                foreach (string path in candidates)
+                {
+                    string normalized = Path.GetFullPath(path);
+                    if (File.Exists(normalized))
+                    {
+                        try
+                        {
+                            string json = File.ReadAllText(normalized);
+                            var settings = JsonConvert.DeserializeObject<UISettings>(json);
+                            if (settings != null && !string.IsNullOrWhiteSpace(settings.CustomLLMConfigPath))
+                            {
+                                return settings.CustomLLMConfigPath;
+                            }
+                        }
+                        catch
+                        {
+                            // Cichy fallback - niepoprawny JSON
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Wszelkie błędy - zwróć null (użyjemy domyślnej ścieżki)
+            }
+            return null;
+        }
+
         public static string GetCustomKnowledgePath()
         {
-            string customPath = UISettingsManager.Settings.CustomKnowledgePath;
-            if (!string.IsNullOrWhiteSpace(customPath) && Directory.Exists(customPath))
+            try
             {
-                return customPath;
+                string customPath = UISettingsManager.Settings.CustomKnowledgePath;
+                if (!string.IsNullOrWhiteSpace(customPath) && Directory.Exists(customPath))
+                {
+                    return customPath;
+                }
+            }
+            catch
+            {
+                // UISettingsManager może być jeszcze nie zainicjalizowany
             }
 
             // Domyślna ścieżka (Fallback)
             return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
-                "Bricscad_AgentAI", 
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Bricscad_AgentAI",
                 "CustomKnowledge");
         }
 
@@ -61,6 +123,78 @@ namespace Bricscad_AgentAI_V2.Core
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "Bricscad_AgentAI",
                 "VisionScans");
+        }
+
+        public static string GetSessionImagesPath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Bricscad_AgentAI",
+                "SessionImages");
+        }
+
+        public static string GetVisionOcrTestRunsPath()
+        {
+            return Path.Combine(GetAppDataRoot(), "VisionOcrTestRuns");
+        }
+
+        /// <summary>
+        /// Folder bazowy w AppData dla plików konfiguracyjnych wtyczki.
+        /// Zmienny przez użytkownika (CustomLLMConfigPath) - pozwala na synchronizację między komputerami (OneDrive/Dropbox).
+        /// Bezpieczne w kontekście cyklicznej zależności z UISettingsManager: przy pierwszym wywołaniu
+        /// pomija UISettingsManager (co mogłoby wywołać rekurencyjne ładowanie) i czyta ui_settings.json
+        /// bezpośrednio z dysku. Po pełnej inicjalizacji UISettingsManager kolejne wywołania korzystają z niego.
+        /// </summary>
+        public static string GetAppDataRoot()
+        {
+            if (_appDataRootCache != null) return _appDataRootCache;
+
+            lock (_cacheLock)
+            {
+                if (_appDataRootCache != null) return _appDataRootCache;
+
+                string defaultPath = GetDefaultAppDataRoot();
+
+                // Strategia 1: Bezpośredni odczyt JSON (omija UISettingsManager → nie powoduje cyklu)
+                string directPath = ReadCustomLLMConfigPathDirect();
+                if (!string.IsNullOrWhiteSpace(directPath) && Directory.Exists(directPath))
+                {
+                    _appDataRootCache = directPath;
+                    return _appDataRootCache;
+                }
+
+                _appDataRootCache = defaultPath;
+                return _appDataRootCache;
+            }
+        }
+
+        /// <summary>
+        /// Reset cache ścieżki AppData - wywoływane po zmianie CustomLLMConfigPath w UI.
+        /// </summary>
+        public static void InvalidateAppDataRootCache()
+        {
+            _appDataRootCache = null;
+        }
+
+        /// <summary>
+        /// Ścieżka do llm_providers.json. Przetrwa kompilacje (AppData).
+        /// </summary>
+        public static string GetLLMConfigPath()
+        {
+            return Path.Combine(GetAppDataRoot(), "llm_providers.json");
+        }
+
+        /// <summary>
+        /// Ścieżka do ui_settings.json. Przetrwa kompilacje (AppData).
+        /// </summary>
+        public static string GetUISettingsPath()
+        {
+            return Path.Combine(GetAppDataRoot(), "ui_settings.json");
+        }
+
+        public static string GetToolConfigPath()
+        {
+            return Path.Combine(GetAppDataRoot(), "tools_config.json");
         }
 
         public static string GetPromptOverrideFilePath(string profileName)
@@ -125,6 +259,21 @@ namespace Bricscad_AgentAI_V2.Core
             if (!Directory.Exists(visionScans))
             {
                 Directory.CreateDirectory(visionScans);
+            }
+            string sessionImages = GetSessionImagesPath();
+            if (!Directory.Exists(sessionImages))
+            {
+                Directory.CreateDirectory(sessionImages);
+            }
+            string visionOcrTestRuns = GetVisionOcrTestRunsPath();
+            if (!Directory.Exists(visionOcrTestRuns))
+            {
+                Directory.CreateDirectory(visionOcrTestRuns);
+            }
+            string appRoot = GetAppDataRoot();
+            if (!Directory.Exists(appRoot))
+            {
+                Directory.CreateDirectory(appRoot);
             }
         }
     }

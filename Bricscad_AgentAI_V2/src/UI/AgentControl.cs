@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -16,6 +20,7 @@ using System.Linq;
 using Application = Bricscad.ApplicationServices.Application;
 using Bricscad_AgentAI_V2.UI.Forms;
 using Bricscad_AgentAI_V2.UI.KnowledgeBase;
+using Bricscad_AgentAI_V2.Models.Session;
 
 namespace Bricscad_AgentAI_V2.UI
 {
@@ -110,6 +115,42 @@ namespace Bricscad_AgentAI_V2.UI
         private Button btnRefreshAgentModels;
         private CheckBox chkAgentUseDefaultProvider;
         private bool _suppressAgentLlmUiEvents;
+        private CheckBox chkVisionOcrEnabled;
+        private ComboBox cbVisionOcrProvider;
+        private ComboBox cbVisionOcrModel;
+        private CheckBox chkVisionOcrUseProviderPayload;
+        private NumericUpDown numVisionOcrTemp;
+        private NumericUpDown numVisionOcrContext;
+        private NumericUpDown numVisionOcrMaxTokens;
+        private NumericUpDown numVisionOcrTopP;
+        private NumericUpDown numVisionOcrTopK;
+        private NumericUpDown numVisionOcrMinP;
+        private NumericUpDown numVisionOcrRepPenalty;
+        private NumericUpDown numVisionOcrClipboardPixels;
+        private NumericUpDown numVisionOcrAttachmentPixels;
+        private ComboBox cbVisionOcrTilingMode;
+        private NumericUpDown numVisionOcrTileMaxDim;
+        private NumericUpDown numVisionOcrTileOverlap;
+        private NumericUpDown numVisionOcrTileMaxCount;
+        private NumericUpDown numVisionOcrTileMaxAspect;
+        private NumericUpDown numVisionOcrPdfDpi;
+        private NumericUpDown numVisionOcrPdfMaxPages;
+        private TextBox txtVisionOcrPdfRendererPath;
+        private ComboBox cbVisionOcrQualityPreset;
+        private TextBox txtVisionOcrPresetName;
+        private TextBox txtVisionOcrTestFile;
+        private TextBox txtVisionOcrTestPrompt;
+        private TextBox txtVisionOcrSystemPrompt;
+        private TextBox txtVisionOcrTestResult;
+        private Button btnVisionOcrTestRun;
+        private ListBox lstVisionOcrTestRuns;
+        private ComboBox cbVisionOcrReasoning;
+        private CheckBox chkVisionOcrAutoLoad;
+        private ComboBox cbVisionOcrContextPolicy;
+        private Label lblVisionOcrPreview;
+        private Button btnRefreshVisionOcrModels;
+        private bool _suppressVisionOcrUiEvents;
+        private bool _visionOcrProviderChangedByUser;
         private CancellationTokenSource _promptWarmupCts;
         private System.Windows.Forms.Timer _promptWarmupTypingTimer;
         private string _lastPromptWarmupKey;
@@ -211,6 +252,7 @@ namespace Bricscad_AgentAI_V2.UI
                 UpdateStatusHUD("Gotowy.");
             }
             RefreshAgentProviderDropdown();
+            RefreshVisionOcrProviderDropdown();
             CancelPromptWarmup();
             SchedulePromptWarmup("config-changed", 500);
         }
@@ -1168,198 +1210,50 @@ namespace Bricscad_AgentAI_V2.UI
             };
 
             // ==========================================
-            // PODZAKĹADKA: ĹšcieĹĽki i Dane
+            // PODZAKLADKA: Sciezki i Dane
             // ==========================================
-            TabPage tabPathsSub = new TabPage("ĹšcieĹĽki i Dane");
-            tabPathsSub.BackColor = Color.FromArgb(45, 45, 45);
-            tabPathsSub.ForeColor = Color.White;
-            
-            Label lblPathsTitle = new Label { Text = "Konfiguracja Bazy Wiedzy (CustomKnowledge)", Dock = DockStyle.Top, Height = 30, Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(10,10,0,0) };
-            
-            Panel panPathSetup = new Panel { Dock = DockStyle.Top, Height = 60, Padding = new Padding(10) };
-            Label lblPathCurrent = new Label { Text = "Aktualny folder Bazy Wiedzy:", Left = 10, Top = 10, Width = 180 };
-            TextBox txtCurrentPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
-            txtCurrentPath.Text = AppPaths.GetCustomKnowledgePath();
-            
-            Button btnChangePath = new Button { Text = "Wybierz inny folder...", Left = 610, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
-            
-            panPathSetup.Controls.Add(lblPathCurrent);
-            panPathSetup.Controls.Add(txtCurrentPath);
-            panPathSetup.Controls.Add(btnChangePath);
+            TabPage tabPathsSub = new TabPage("Sciezki i Dane");
+            tabPathsSub.Padding = new Padding(12);
 
-            Label lblPathInfo = new Label { Text = "DomyĹ›lnie agent zapisuje wyuczone formuĹ‚y i makra w folderze systemowym AppData. MoĹĽesz zmieniÄ‡ ten folder na np. swĂłj dysk w chmurze (OneDrive/Dropbox), aby synchronizowaÄ‡ bazÄ™ wiedzy miÄ™dzy komputerami.", Dock = DockStyle.Top, Height = 80, Padding = new Padding(10), ForeColor = Color.DarkGray };
-
-            tabPathsSub.Controls.Add(panPathSetup);
-            tabPathsSub.Controls.Add(lblPathInfo);
-            tabPathsSub.Controls.Add(lblPathsTitle);
-            
-            btnChangePath.Click += (s, e) => {
-                using (var fbd = new FolderBrowserDialog())
-                {
-                    fbd.Description = "Wybierz folder docelowy dla Bazy Wiedzy (CustomKnowledge):";
-                    if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                    {
-                        string oldPath = AppPaths.GetCustomKnowledgePath();
-                        string newPath = fbd.SelectedPath;
-                        
-                        if (oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase)) return;
-
-                        bool shouldCopy = false;
-                        if (MessageBox.Show("Zmieniono folder Bazy Wiedzy.\n\nCzy chcesz przenieÄÄ…Ă˘â‚¬ĹźÄ‚â€žĂ˘â‚¬Ë‡ (skopiowaÄ‚â€žĂ˘â‚¬Ë‡) istniejÄ‚â€žĂ˘â‚¬Â¦ce formuÄÄ…Ă˘â‚¬Ĺˇy i makra ze starego folderu do nowego?", "Kopiowanie danych", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                        {
-                            shouldCopy = true;
-                        }
-
-                        UISettingsManager.Settings.CustomKnowledgePath = newPath;
-                        UISettingsManager.Save();
-                        txtCurrentPath.Text = newPath;
-
-                        if (shouldCopy)
-                        {
-                            try
-                            {
-                                if (System.IO.Directory.Exists(oldPath))
-                                {
-                                    // Kopiowanie podkatalogÄâ€šĹâ€šw (Formulas, Macros)
-                                    foreach (string dirPath in System.IO.Directory.GetDirectories(oldPath, "*", System.IO.SearchOption.AllDirectories))
-                                    {
-                                        System.IO.Directory.CreateDirectory(dirPath.Replace(oldPath, newPath));
-                                    }
-                                    foreach (string newFilePath in System.IO.Directory.GetFiles(oldPath, "*.*", System.IO.SearchOption.AllDirectories))
-                                    {
-                                        System.IO.File.Copy(newFilePath, newFilePath.Replace(oldPath, newPath), true);
-                                    }
-                                    MessageBox.Show("Dane zostaĹ‚y poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                }
-                            }
-                            catch(Exception ex)
-                            {
-                                MessageBox.Show($"WystÄ…piĹ‚ bĹ‚Ä…d podczas kopiowania plikĂłw: {ex.Message}", "BĹ‚Ä…d", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
-                        }
-                        
-                        // OdÄÄ…Ă˘â‚¬ĹźwieÄÄ…ÄËťenie systemu
-                        Bricscad_AgentAI_V2.Core.DynamicSystems.DynamicFormulaManager.LoadAndCompileAll();
-                        Bricscad_AgentAI_V2.Core.DynamicSystems.MacroManager.LoadAllMacros();
-                        if (tabKnowledgeBase != null && tabControl.TabPages.Contains(tabKnowledgeBase))
-                        {
-                            knowledgeBaseControl.LoadData();
-                        }
-                        MessageBox.Show("ĹšcieĹĽka do bazy wiedzy zostaĹ‚a zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                }
-            };
-
-            Panel panLLMConfigSetup = new Panel { Dock = DockStyle.Top, Height = 60, Padding = new Padding(10) };
-            Label lblLLMConfigCurrent = new Label { Text = "Folder konfig. LLM:", Left = 10, Top = 10, Width = 180 };
-            TextBox txtCurrentLLMConfigPath = new TextBox { Left = 200, Top = 8, Width = 400, ReadOnly = true, BackColor = Color.FromArgb(30, 30, 30), ForeColor = Color.LightGray };
-            txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
-
-            Button btnChangeLLMConfigPath = new Button { Text = "Wybierz inny folder...", Left = 610, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(0, 122, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
-            Button btnResetLLMConfigPath = new Button { Text = "Domyślny (AppData)", Left = 760, Top = 7, AutoSize = true, Padding = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(80, 80, 80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
-
-            panLLMConfigSetup.Controls.Add(lblLLMConfigCurrent);
-            panLLMConfigSetup.Controls.Add(txtCurrentLLMConfigPath);
-            panLLMConfigSetup.Controls.Add(btnChangeLLMConfigPath);
-            panLLMConfigSetup.Controls.Add(btnResetLLMConfigPath);
-
-            Label lblLLMConfigTitle = new Label { Text = "Folder plików konfiguracyjnych LLM (llm_providers.json, ui_settings.json)", Dock = DockStyle.Top, Height = 26, Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(10, 10, 0, 0) };
-            Label lblLLMConfigInfo = new Label { Text = "Domyślnie pliki konfiguracyjne LLM (Providerzy, UI) zapisywane są w %APPDATA%\\Bricscad_AgentAI — dzięki temu przetrwają kompilacje projektu. Możesz wskazać inny folder (np. OneDrive), aby synchronizować ustawienia między komputerami. Zmiany wchodzą w życie po restarcie BricsCAD.", Dock = DockStyle.Top, Height = 80, Padding = new Padding(10), ForeColor = Color.DarkGray };
-
-            tabPathsSub.Controls.Add(panLLMConfigSetup);
-            tabPathsSub.Controls.Add(lblLLMConfigInfo);
-            tabPathsSub.Controls.Add(lblLLMConfigTitle);
-
-            btnChangeLLMConfigPath.Click += (s, e) =>
+            var pathsMain = new TableLayoutPanel
             {
-                using (var fbd = new FolderBrowserDialog())
-                {
-                    fbd.Description = "Wybierz folder docelowy dla plików konfiguracyjnych LLM:";
-                    if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                    {
-                        string newPath = fbd.SelectedPath;
-                        UISettingsManager.UpdateCustomLLMConfigPath(newPath);
-                        txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
-                        MessageBox.Show("Ścieżka została zaktualizowana. Uruchom ponownie BricsCAD, aby zmiany weszły w życie.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                }
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
             };
+            pathsMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            pathsMain.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            pathsMain.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            btnResetLLMConfigPath.Click += (s, e) =>
-            {
-                UISettingsManager.UpdateCustomLLMConfigPath(string.Empty);
-                txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
-                MessageBox.Show("Przywrócono domyślną lokalizację (AppData). Uruchom ponownie BricsCAD.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            };
+            pathsMain.Controls.Add(BuildPathsLlmConfigGroup(), 0, 0);
+            pathsMain.Controls.Add(BuildPathsKnowledgeGroup(), 0, 1);
 
+            tabPathsSub.Controls.Add(pathsMain);
             tabSettingsSub.TabPages.Add(tabPathsSub);
 
             TabPage tabWorkflowSub = new TabPage("Workflow");
-            tabWorkflowSub.Padding = new Padding(20);
+            tabWorkflowSub.Padding = new Padding(12);
 
-            Label lblAIStartup = new Label { Text = "Zachowanie przy starcie systemu AI:", Location = new Point(20, 20), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
-            ComboBox cmbAIStartup = new ComboBox { Location = new Point(20, 45), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbAIStartup.Items.AddRange(new string[] { "Ĺaduj poprzedniÄ… sesjÄ™", "TwĂłrz nowÄ… sesjÄ™", "WybĂłr manualny" });
-            cmbAIStartup.SelectedIndex = UISettingsManager.Settings.AIStartupBehavior;
-            cmbAIStartup.SelectedIndexChanged += (s, e) =>
+            var main = new TableLayoutPanel
             {
-                UISettingsManager.Settings.AIStartupBehavior = cmbAIStartup.SelectedIndex;
-                UISettingsManager.Save();
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
             };
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            Label lblBricsCADStartup = new Label { Text = "Zachowanie przy starcie BricsCAD:", Location = new Point(20, 85), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
-            ComboBox cmbBricsCADStartup = new ComboBox { Location = new Point(20, 110), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbBricsCADStartup.Items.AddRange(new string[] { "Automatycznie uruchom agenta AI", "Uruchomienie manualne (komenda \"AI\")" });
-            cmbBricsCADStartup.SelectedIndex = UISettingsManager.Settings.BricsCADStartupBehavior;
-            cmbBricsCADStartup.SelectedIndexChanged += (s, e) =>
-            {
-                UISettingsManager.Settings.BricsCADStartupBehavior = cmbBricsCADStartup.SelectedIndex;
-                UISettingsManager.Save();
-            };
+            main.Controls.Add(BuildWorkflowStartupGroup(), 0, 0);
+            main.Controls.Add(BuildWorkflowWarmupGroup(), 0, 1);
 
-            CheckBox chkEnablePromptWarmup = new CheckBox { Text = "WĹ‚Ä…cz ciche rozgrzewanie promptu Supervisora", Location = new Point(20, 155), AutoSize = true, Checked = UISettingsManager.Settings.EnablePromptWarmup };
-            chkEnablePromptWarmup.CheckedChanged += (s, e) =>
-            {
-                UISettingsManager.Settings.EnablePromptWarmup = chkEnablePromptWarmup.Checked;
-                UISettingsManager.Save();
-            };
-
-            CheckBox chkPromptWarmupOnAiOpen = new CheckBox { Text = "Rozgrzewaj prompt po otwarciu AI", Location = new Point(40, 180), AutoSize = true, Checked = UISettingsManager.Settings.PromptWarmupOnAiOpen };
-            chkPromptWarmupOnAiOpen.CheckedChanged += (s, e) =>
-            {
-                UISettingsManager.Settings.PromptWarmupOnAiOpen = chkPromptWarmupOnAiOpen.Checked;
-                UISettingsManager.Save();
-            };
-
-            CheckBox chkPromptWarmupAfterTyping = new CheckBox { Text = "OdĹ›wieĹĽ rozgrzanie po pauzie w pisaniu", Location = new Point(40, 205), AutoSize = true, Checked = UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs > 0 };
-            chkPromptWarmupAfterTyping.CheckedChanged += (s, e) =>
-            {
-                UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs = chkPromptWarmupAfterTyping.Checked ? Math.Max(500, UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs) : 0;
-                UISettingsManager.Save();
-            };
-
-            Label lblWarmupIdle = new Label { Text = "Pauza pisania (ms):", Location = new Point(60, 232), AutoSize = true };
-            NumericUpDown numWarmupIdle = new NumericUpDown { Location = new Point(190, 228), Width = 90, Minimum = 500, Maximum = 30000, Increment = 500, Value = Math.Max(500, UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs > 0 ? UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs : 2500) };
-            numWarmupIdle.ValueChanged += (s, e) =>
-            {
-                if (chkPromptWarmupAfterTyping.Checked)
-                {
-                    UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs = (int)numWarmupIdle.Value;
-                    UISettingsManager.Save();
-                }
-            };
-
-            tabWorkflowSub.Controls.Add(lblAIStartup);
-            tabWorkflowSub.Controls.Add(cmbAIStartup);
-            tabWorkflowSub.Controls.Add(lblBricsCADStartup);
-            tabWorkflowSub.Controls.Add(cmbBricsCADStartup);
-            tabWorkflowSub.Controls.Add(chkEnablePromptWarmup);
-            tabWorkflowSub.Controls.Add(chkPromptWarmupOnAiOpen);
-            tabWorkflowSub.Controls.Add(chkPromptWarmupAfterTyping);
-            tabWorkflowSub.Controls.Add(lblWarmupIdle);
-            tabWorkflowSub.Controls.Add(numWarmupIdle);
-
+            tabWorkflowSub.Controls.Add(main);
             tabSettingsSub.TabPages.Add(tabWorkflowSub);
+            tabSettingsSub.TabPages.Add(CreateVisionOcrSettingsTab());
 
             tabSettings.Controls.Add(tabSettingsSub);
             tabControl.TabPages.Add(tabSettings);
@@ -1638,6 +1532,402 @@ namespace Bricscad_AgentAI_V2.UI
             lblStatus.Text = $"[Model: {_activeModel}] {status}";
         }
 
+        private async Task<string> BuildVisionOcrTextPayloadAsync(string imageDataUrl, string userPrompt, string sourceLabel, VisionImageContext imageContext = null, bool isRequery = false)
+        {
+            string prompt = string.IsNullOrWhiteSpace(userPrompt)
+                ? "Przeanalizuj dolaczony obraz."
+                : userPrompt;
+
+            string technicalContext = "Zrodlo obrazu: " + sourceLabel;
+            if (imageContext != null)
+            {
+                technicalContext += "\nImageId: " + imageContext.ImageId;
+                technicalContext += "\nPlik cache: " + imageContext.CachedPath;
+                technicalContext += "\nRozmiar oryginalny: " + imageContext.OriginalWidth + "x" + imageContext.OriginalHeight;
+                if (imageContext.TileCount > 0 && imageContext.Tiles != null && imageContext.Tiles.Count > 0)
+                {
+                    technicalContext += "\n\n[TILING OCR]\n";
+                    technicalContext += BuildTileSpatialPrompt(imageContext);
+                }
+                var previous = imageContext.OcrHistory?
+                    .Where(o => o.Success && !string.IsNullOrWhiteSpace(o.Result))
+                    .Reverse()
+                    .Take(3)
+                    .Reverse()
+                    .Select(o => "- " + o.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") + ": " + TruncateForPrompt(o.Result, 2500))
+                    .ToList();
+                if (previous != null && previous.Count > 0)
+                {
+                    technicalContext += "\n\nPoprzednie wyniki OCR dla tego samego obrazu:\n" + string.Join("\n", previous);
+                }
+            }
+
+            if (isRequery)
+            {
+                prompt = "Ponownie przeanalizuj ten sam obraz, odpowiadajac na nowe pytanie uzytkownika. " +
+                    "Nie opieraj sie wylacznie na poprzednim opisie; sprawdz obraz jeszcze raz. " +
+                    "Jesli pytanie dotyczy tabliczki, legendy, rząpi, wymiarow lub konkretnego napisu, skup sie na tym obszarze.\n\n" +
+                    "Pytanie uzytkownika:\n" + prompt;
+            }
+
+            UpdateStatusHUD("Vision/OCR analizuje obraz...");
+            var imageDataUrls = BuildVisionOcrImageDataUrls(imageDataUrl, imageContext);
+            var ocr = await _llmClient.AnalyzeImagesWithVisionOcrAsync(
+                imageDataUrls,
+                prompt,
+                technicalContext);
+
+            RecordVisionOcrObservation(imageContext, prompt, ocr.ok, ocr.ok ? ocr.text : null, ocr.ok ? null : ocr.text);
+
+            if (ocr.ok)
+            {
+                UpdateStatusHUD("Vision/OCR zakonczyl analize obrazu.");
+                string header = isRequery ? "VISION/OCR REQUERY" : "VISION/OCR";
+                string imageInfo = imageContext != null ? $" image_id={imageContext.ImageId}" : "";
+                return userPrompt + $"\n\n[{header} - {sourceLabel}{imageInfo}]\n" + ocr.text;
+            }
+
+            UpdateStatusHUD("Blad Vision/OCR.");
+            return userPrompt + $"\n\n[VISION/OCR ERROR - {sourceLabel}]\n" + ocr.text;
+        }
+
+        private async Task<string> BuildPdfVisionOcrPayloadAsync(string pdfPath, string userPrompt, string pdfText)
+        {
+            string prompt = string.IsNullOrWhiteSpace(userPrompt)
+                ? "Przeanalizuj dolaczony PDF z rzutami."
+                : userPrompt;
+
+            string pdfName = Path.GetFileName(pdfPath);
+            var settings = UISettingsManager.Settings;
+            var imageDataUrls = new List<string>();
+            var pageContexts = new List<VisionImageContext>();
+            var technical = new StringBuilder();
+            technical.AppendLine("Zrodlo: PDF");
+            technical.AppendLine("Plik: " + pdfName);
+            technical.AppendLine("Renderer: " + (string.IsNullOrWhiteSpace(settings.VisionOcrPdfRendererPath) ? "pdftoppm.exe" : settings.VisionOcrPdfRendererPath));
+            technical.AppendLine("DPI: " + settings.VisionOcrPdfDpi);
+            technical.AppendLine("Maks. stron OCR: " + settings.VisionOcrPdfMaxPages);
+
+            if (!string.IsNullOrWhiteSpace(pdfText))
+            {
+                technical.AppendLine();
+                technical.AppendLine("[PDF_TEXT - tekst wektorowy / osadzony]");
+                technical.AppendLine(TruncateForPrompt(pdfText, 12000));
+            }
+
+            try
+            {
+                string renderFolder = Path.Combine(
+                    AppPaths.GetSessionImagesPath(),
+                    SessionManager.CurrentSession.Id,
+                    "pdf_render_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff"));
+
+                var renderedPages = FileExtractor.RenderPdfPagesToPng(
+                    pdfPath,
+                    renderFolder,
+                    settings.VisionOcrPdfDpi,
+                    settings.VisionOcrPdfMaxPages,
+                    settings.VisionOcrPdfRendererPath);
+
+                int pageIndex = 1;
+                foreach (string pagePath in renderedPages)
+                {
+                    var context = RegisterVisionImageFromFile(pagePath, $"PDF {pdfName}, strona {pageIndex}", settings.VisionOcrAttachmentMaxPixels);
+                    if (context != null)
+                    {
+                        pageContexts.Add(context);
+                        string base64 = FileExtractor.GetImageBase64(context.CachedPath, settings.VisionOcrAttachmentMaxPixels);
+                        imageDataUrls.AddRange(BuildVisionOcrImageDataUrls(base64, context));
+                        technical.AppendLine();
+                        technical.AppendLine($"[PDF_PAGE_RENDER {pageIndex}]");
+                        technical.AppendLine("ImageId: " + context.ImageId);
+                        technical.AppendLine("Rozmiar renderu: " + context.OriginalWidth + "x" + context.OriginalHeight);
+                        if (context.TileCount > 0)
+                        {
+                            technical.AppendLine(BuildTileSpatialPrompt(context));
+                        }
+                    }
+                    pageIndex++;
+                }
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogError("[PDF OCR] Blad renderowania PDF do PNG", ex);
+                return prompt + $"\n\n[PDF_TEXT - {pdfName}]\n" + TruncateForPrompt(pdfText, 20000) +
+                    "\n\n[PDF_VISION/OCR ERROR]\nNie udalo sie wyrenderowac PDF do PNG przez pdftoppm: " + ex.Message;
+            }
+
+            if (imageDataUrls.Count == 0)
+            {
+                return prompt + $"\n\n[PDF_TEXT - {pdfName}]\n" + TruncateForPrompt(pdfText, 20000) +
+                    "\n\n[PDF_VISION/OCR ERROR]\nNie wygenerowano obrazow stron PDF.";
+            }
+
+            UpdateStatusHUD("Vision/OCR analizuje strony PDF...");
+            string ocrPrompt = "Przeanalizuj renderowane strony PDF z rysunkiem technicznym. " +
+                "Polacz informacje z obrazu stron z tekstem PDF przekazanym w kontekscie. " +
+                "Skup sie na rzutach, tabliczkach, legendach, opisach, wymiarach, symbolach i ukladzie instalacji.\n\n" +
+                "Polecenie uzytkownika:\n" + prompt;
+
+            var ocr = await _llmClient.AnalyzeImagesWithVisionOcrAsync(imageDataUrls, ocrPrompt, technical.ToString());
+
+            foreach (var context in pageContexts)
+            {
+                RecordVisionOcrObservation(context, ocrPrompt, ocr.ok, ocr.ok ? ocr.text : null, ocr.ok ? null : ocr.text);
+            }
+
+            UpdateStatusHUD(ocr.ok ? "Vision/OCR zakonczyl analize PDF." : "Blad Vision/OCR dla PDF.");
+
+            return prompt +
+                $"\n\n[PDF_TEXT - {pdfName}]\n" + TruncateForPrompt(pdfText, 20000) +
+                $"\n\n[PDF_VISION/OCR - {pdfName}, strony 1-{Math.Min(settings.VisionOcrPdfMaxPages, pageContexts.Count)}]\n" +
+                (ocr.ok ? ocr.text : "BLAD OCR PDF: " + ocr.text);
+        }
+
+        private List<string> BuildVisionOcrImageDataUrls(string imageDataUrl, VisionImageContext imageContext)
+        {
+            if (imageContext?.Tiles != null && imageContext.Tiles.Count > 0)
+            {
+                var urls = new List<string>();
+                foreach (var tile in imageContext.Tiles.OrderBy(t => t.Row).ThenBy(t => t.Column))
+                {
+                    if (!string.IsNullOrWhiteSpace(tile.CachedPath) && File.Exists(tile.CachedPath))
+                    {
+                        int maxPixels = Math.Max(tile.SourceWidth, tile.SourceHeight);
+                        urls.Add(FileExtractor.GetImageBase64(tile.CachedPath, maxPixels));
+                    }
+                }
+
+                if (urls.Count > 0) return urls;
+            }
+
+            return new List<string> { imageDataUrl };
+        }
+
+        private string BuildTileSpatialPrompt(VisionImageContext imageContext)
+        {
+            var tileSet = new VisionTileSet
+            {
+                IsTiled = imageContext.TileCount > 0,
+                Mode = imageContext.OcrTilingMode,
+                OriginalWidth = imageContext.OriginalWidth,
+                OriginalHeight = imageContext.OriginalHeight,
+                Rows = imageContext.TileRows,
+                Columns = imageContext.TileColumns,
+                EffectiveTileMaxDim = imageContext.TileMaxDim,
+                Overlap = imageContext.TileOverlap,
+                MaxTileAspectRatio = UISettingsManager.Settings.VisionOcrTileMaxAspectRatio,
+                Tiles = imageContext.Tiles ?? new List<VisionImageTileContext>()
+            };
+            return tileSet.BuildSpatialPrompt();
+        }
+
+        private VisionImageContext RegisterVisionImageFromFile(string path, string sourceLabel, int maxPixels)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+            EnsureSessionVisionImages();
+
+            string imageId = "img_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+            string sessionFolder = Path.Combine(AppPaths.GetSessionImagesPath(), SessionManager.CurrentSession.Id);
+            Directory.CreateDirectory(sessionFolder);
+
+            string ext = Path.GetExtension(path);
+            if (string.IsNullOrWhiteSpace(ext)) ext = ".png";
+            string cachedPath = Path.Combine(sessionFolder, imageId + ext.ToLowerInvariant());
+            File.Copy(path, cachedPath, true);
+
+            int width = 0;
+            int height = 0;
+            using (var image = System.Drawing.Image.FromFile(cachedPath))
+            {
+                width = image.Width;
+                height = image.Height;
+            }
+
+            var config = LLMConfigManager.ResolveVisionOcrProvider();
+            var context = new VisionImageContext
+            {
+                ImageId = imageId,
+                SourceLabel = sourceLabel,
+                OriginalPath = path,
+                CachedPath = cachedPath,
+                MimeType = GetMimeTypeFromExtension(ext),
+                Sha256 = ComputeSha256(cachedPath),
+                FileSizeBytes = new FileInfo(cachedPath).Length,
+                OriginalWidth = width,
+                OriginalHeight = height,
+                MaxPixelsUsed = maxPixels,
+                ProviderName = config?.Name,
+                ModelName = config?.ModelName
+            };
+
+            ApplyVisionOcrTilingIfNeeded(context);
+            SessionManager.CurrentSession.VisionImages.Add(context);
+            SessionManager.SaveSession();
+            return context;
+        }
+
+        private VisionImageContext RegisterVisionImageFromClipboardImage(System.Drawing.Image image, string sourceLabel, int maxPixels)
+        {
+            if (image == null) return null;
+            EnsureSessionVisionImages();
+
+            string imageId = "img_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+            string sessionFolder = Path.Combine(AppPaths.GetSessionImagesPath(), SessionManager.CurrentSession.Id);
+            Directory.CreateDirectory(sessionFolder);
+            string cachedPath = Path.Combine(sessionFolder, imageId + ".png");
+            image.Save(cachedPath, System.Drawing.Imaging.ImageFormat.Png);
+
+            var config = LLMConfigManager.ResolveVisionOcrProvider();
+            var context = new VisionImageContext
+            {
+                ImageId = imageId,
+                SourceLabel = sourceLabel,
+                OriginalPath = null,
+                CachedPath = cachedPath,
+                MimeType = "image/png",
+                Sha256 = ComputeSha256(cachedPath),
+                FileSizeBytes = new FileInfo(cachedPath).Length,
+                OriginalWidth = image.Width,
+                OriginalHeight = image.Height,
+                MaxPixelsUsed = maxPixels,
+                ProviderName = config?.Name,
+                ModelName = config?.ModelName
+            };
+
+            ApplyVisionOcrTilingIfNeeded(context);
+            SessionManager.CurrentSession.VisionImages.Add(context);
+            SessionManager.SaveSession();
+            return context;
+        }
+
+        private void ApplyVisionOcrTilingIfNeeded(VisionImageContext context)
+        {
+            if (context == null || string.IsNullOrWhiteSpace(context.CachedPath) || !File.Exists(context.CachedPath)) return;
+
+            var settings = UISettingsManager.Settings;
+            string mode = string.IsNullOrWhiteSpace(settings.VisionOcrTilingMode) ? "Auto" : settings.VisionOcrTilingMode;
+            string tileFolder = Path.Combine(
+                Path.GetDirectoryName(context.CachedPath) ?? AppPaths.GetSessionImagesPath(),
+                context.ImageId + "_tiles");
+
+            var tileSet = VisionOcrTiler.CreateTiles(
+                context.CachedPath,
+                tileFolder,
+                mode,
+                settings.VisionOcrTileMaxDim,
+                settings.VisionOcrTileOverlap,
+                settings.VisionOcrTileMaxCount,
+                settings.VisionOcrTileMaxAspectRatio);
+
+            context.OcrTilingMode = tileSet.Mode;
+            context.TileMaxDim = tileSet.EffectiveTileMaxDim;
+            context.TileOverlap = tileSet.Overlap;
+            context.TileRows = tileSet.Rows;
+            context.TileColumns = tileSet.Columns;
+            context.TileCount = tileSet.TileCount;
+            context.Tiles = tileSet.Tiles ?? new List<VisionImageTileContext>();
+
+            if (tileSet.IsTiled && tileSet.TileCount > 0)
+            {
+                BielikLogger.LogInfo($"[VISION OCR TILING] {context.ImageId}: {context.OriginalWidth}x{context.OriginalHeight} -> {tileSet.Rows}x{tileSet.Columns}, tiles={tileSet.TileCount}, effectiveMax={tileSet.EffectiveTileMaxDim}, overlap={tileSet.Overlap}");
+            }
+        }
+
+        private void RecordVisionOcrObservation(VisionImageContext imageContext, string prompt, bool success, string result, string error)
+        {
+            if (imageContext == null) return;
+            if (imageContext.OcrHistory == null) imageContext.OcrHistory = new List<VisionOcrObservation>();
+            var config = LLMConfigManager.ResolveVisionOcrProvider();
+            imageContext.OcrHistory.Add(new VisionOcrObservation
+            {
+                Prompt = prompt,
+                Success = success,
+                Result = result,
+                Error = error,
+                ProviderName = config?.Name,
+                ModelName = config?.ModelName
+            });
+            imageContext.ProviderName = config?.Name ?? imageContext.ProviderName;
+            imageContext.ModelName = config?.ModelName ?? imageContext.ModelName;
+            imageContext.UpdatedAt = DateTime.Now;
+            SessionManager.SaveSession();
+        }
+
+        private async Task<string> TryBuildPreviousImageRequeryPayloadAsync(string userPrompt)
+        {
+            if (ToolConfigManager.GetVisionOcrBinding()?.Enabled != true) return null;
+            if (!ShouldRequeryPreviousImage(userPrompt)) return null;
+            var imageContext = GetLastVisionImageContext();
+            if (imageContext == null || string.IsNullOrWhiteSpace(imageContext.CachedPath) || !File.Exists(imageContext.CachedPath)) return null;
+
+            int maxPixels = imageContext.MaxPixelsUsed > 0 ? imageContext.MaxPixelsUsed : UISettingsManager.Settings.VisionOcrAttachmentMaxPixels;
+            string base64 = FileExtractor.GetImageBase64(imageContext.CachedPath, maxPixels);
+            return await BuildVisionOcrTextPayloadAsync(
+                base64,
+                userPrompt,
+                "poprzedni obraz: " + (imageContext.SourceLabel ?? imageContext.ImageId),
+                imageContext,
+                true);
+        }
+
+        private VisionImageContext GetLastVisionImageContext()
+        {
+            EnsureSessionVisionImages();
+            return SessionManager.CurrentSession.VisionImages
+                .Where(i => !string.IsNullOrWhiteSpace(i.CachedPath))
+                .OrderByDescending(i => i.UpdatedAt)
+                .FirstOrDefault();
+        }
+
+        private bool ShouldRequeryPreviousImage(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string t = text.ToLowerInvariant();
+            string[] imageRefs =
+            {
+                "obraz", "obrazek", "rysunek", "załącz", "zalacz", "wcześniej", "wczesniej",
+                "poprzedni", "ten plik", "tym pliku", "jeszcze raz", "ponownie"
+            };
+            string[] focusedTerms =
+            {
+                "tablicz", "inwestor", "projekt", "adres", "legenda", "rząp", "rzap",
+                "wymiar", "napis", "tekst", "odczyt", "znajd", "sprawd"
+            };
+
+            return imageRefs.Any(t.Contains) || focusedTerms.Any(t.Contains);
+        }
+
+        private void EnsureSessionVisionImages()
+        {
+            if (SessionManager.CurrentSession == null) return;
+            if (SessionManager.CurrentSession.VisionImages == null)
+            {
+                SessionManager.CurrentSession.VisionImages = new List<VisionImageContext>();
+            }
+        }
+
+        private static string ComputeSha256(string path)
+        {
+            using (var sha = SHA256.Create())
+            using (var stream = File.OpenRead(path))
+            {
+                return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        private static string GetMimeTypeFromExtension(string ext)
+        {
+            string e = (ext ?? "").ToLowerInvariant();
+            return e == ".jpg" || e == ".jpeg" ? "image/jpeg" : "image/png";
+        }
+
+        private static string TruncateForPrompt(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxLength) return text;
+            return text.Substring(0, maxLength) + "\n...[przycieto]";
+        }
+
         public void UpdateStatsHUD(LLMStats stats)
         {
             if (!this.IsHandleCreated) return;
@@ -1749,17 +2039,44 @@ namespace Bricscad_AgentAI_V2.UI
                     string ext = System.IO.Path.GetExtension(attachedFilePath).ToLowerInvariant();
                     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg")
                     {
-                        string base64 = FileExtractor.GetImageBase64(attachedFilePath);
-                        var visionContent = new List<VisionContentPart>
+                        bool visionOcrEnabled = ToolConfigManager.GetVisionOcrBinding()?.Enabled == true;
+                        int maxPixels = visionOcrEnabled ? UISettingsManager.Settings.VisionOcrAttachmentMaxPixels : 1024;
+                        VisionImageContext imageContext = visionOcrEnabled
+                            ? RegisterVisionImageFromFile(attachedFilePath, $"zalacznik: {System.IO.Path.GetFileName(attachedFilePath)}", maxPixels)
+                            : null;
+                        string imagePathForPayload = imageContext?.CachedPath ?? attachedFilePath;
+                        string base64 = FileExtractor.GetImageBase64(imagePathForPayload, maxPixels);
+                        if (visionOcrEnabled)
                         {
-                            new VisionContentPart { Type = "text", Text = cleanMsg },
-                            new VisionContentPart
+                            payload = await BuildVisionOcrTextPayloadAsync(base64, cleanMsg, $"zalacznik: {System.IO.Path.GetFileName(attachedFilePath)}", imageContext);
+                        }
+                        else
+                        {
+                            var visionContent = new List<VisionContentPart>
                             {
-                                Type = "image_url",
-                                ImageUrl = new VisionImageUrl { Url = base64 }
-                            }
-                        };
-                        payload = visionContent;
+                                new VisionContentPart { Type = "text", Text = cleanMsg },
+                                new VisionContentPart
+                                {
+                                    Type = "image_url",
+                                    ImageUrl = new VisionImageUrl { Url = base64 }
+                                }
+                            };
+                            payload = visionContent;
+                        }
+                    }
+                    else if (ext == ".pdf")
+                    {
+                        string text = FileExtractor.ExtractText(attachedFilePath);
+                        bool visionOcrEnabled = ToolConfigManager.GetVisionOcrBinding()?.Enabled == true;
+                        if (visionOcrEnabled)
+                        {
+                            payload = await BuildPdfVisionOcrPayloadAsync(attachedFilePath, cleanMsg, text);
+                        }
+                        else
+                        {
+                            cleanMsg += $"\n\n[PDF_TEXT: {System.IO.Path.GetFileName(attachedFilePath)}]\n{text}";
+                            payload = cleanMsg;
+                        }
                     }
                     else
                     {
@@ -1795,17 +2112,31 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 try
                 {
-                    string base64 = FileExtractor.GetImageBase64(attachedClipboardImage);
-                    var visionContent = new List<VisionContentPart>
+                    bool visionOcrEnabled = ToolConfigManager.GetVisionOcrBinding()?.Enabled == true;
+                    int maxPixels = visionOcrEnabled ? UISettingsManager.Settings.VisionOcrClipboardMaxPixels : 1024;
+                    VisionImageContext imageContext = visionOcrEnabled
+                        ? RegisterVisionImageFromClipboardImage(attachedClipboardImage, "obraz ze schowka", maxPixels)
+                        : null;
+                    string base64 = imageContext != null
+                        ? FileExtractor.GetImageBase64(imageContext.CachedPath, maxPixels)
+                        : FileExtractor.GetImageBase64(attachedClipboardImage, ".png", maxPixels);
+                    if (visionOcrEnabled)
                     {
-                        new VisionContentPart { Type = "text", Text = cleanMsg },
-                        new VisionContentPart
+                        payload = await BuildVisionOcrTextPayloadAsync(base64, cleanMsg, "obraz ze schowka", imageContext);
+                    }
+                    else
+                    {
+                        var visionContent = new List<VisionContentPart>
                         {
-                            Type = "image_url",
-                            ImageUrl = new VisionImageUrl { Url = base64 }
-                        }
-                    };
-                    payload = visionContent;
+                            new VisionContentPart { Type = "text", Text = cleanMsg },
+                            new VisionContentPart
+                            {
+                                Type = "image_url",
+                                ImageUrl = new VisionImageUrl { Url = base64 }
+                            }
+                        };
+                        payload = visionContent;
+                    }
                     
                     AppendToHistory("SYSTEM", "DoĹâ€šÄâ€¦czono obraz ze schowka", Color.Orange);
                 }
@@ -1817,6 +2148,15 @@ namespace Bricscad_AgentAI_V2.UI
                 finally
                 {
                     attachedClipboardImage.Dispose();
+                }
+            }
+            else
+            {
+                string requeryPayload = await TryBuildPreviousImageRequeryPayloadAsync(cleanMsg);
+                if (!string.IsNullOrWhiteSpace(requeryPayload))
+                {
+                    payload = requeryPayload;
+                    AppendToHistory("SYSTEM", "Ponownie przeanalizowano ostatni obraz przez Vision/OCR.", Color.Orange);
                 }
             }
 
@@ -2158,6 +2498,2261 @@ Ostatnia rozmowa:
             }
         }
 
+        private GroupBox BuildPathsLlmConfigGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Folder plikow konfiguracyjnych LLM (llm_providers.json, ui_settings.json)",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Folder ustawien AI/OCR:"), 0, 0);
+
+            var pathBox = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0, 3, 0, 3)
+            };
+            pathBox.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            pathBox.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            pathBox.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            TextBox txtCurrentLLMConfigPath = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.LightGray,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 0, 6, 0)
+            };
+            txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
+            pathBox.Controls.Add(txtCurrentLLMConfigPath, 0, 0);
+
+            var buttonsBox = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = Padding.Empty
+            };
+
+            Button btnChangeLLMConfigPath = new Button
+            {
+                Text = "Wybierz inny folder...",
+                AutoSize = true,
+                Height = 26,
+                BackColor = Color.FromArgb(0, 122, 204),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 0, 6, 0)
+            };
+            Button btnResetLLMConfigPath = new Button
+            {
+                Text = "Domyslny (AppData)",
+                AutoSize = true,
+                Height = 26,
+                BackColor = Color.FromArgb(80, 80, 80),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = Padding.Empty
+            };
+            buttonsBox.Controls.Add(btnChangeLLMConfigPath);
+            buttonsBox.Controls.Add(btnResetLLMConfigPath);
+            pathBox.Controls.Add(buttonsBox, 1, 0);
+            grid.Controls.Add(pathBox, 1, 0);
+
+            var llmInfoLabel = MakeInfoLabel(
+                "Domyslnie pliki konfiguracyjne AI/OCR (Providerzy, UI, ustawienia agentow, Vision/OCR i tools_config.json) zapisywane sa w %APPDATA%\\Bricscad_AgentAI - dzieki temu przetrwaja kompilacje projektu. Mozesz wskazac inny folder (np. OneDrive), aby synchronizowac ustawienia miedzy komputerami. Zmiany wchodza w zycie po restarcie BricsCAD.",
+                48);
+            grid.Controls.Add(llmInfoLabel, 0, 1);
+            grid.SetColumnSpan(llmInfoLabel, 2);
+
+            btnChangeLLMConfigPath.Click += (s, e) =>
+            {
+                using (var fbd = new FolderBrowserDialog())
+                {
+                    fbd.Description = "Wybierz folder docelowy dla plikow konfiguracyjnych AI/OCR:";
+                    if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        UISettingsManager.UpdateCustomLLMConfigPath(fbd.SelectedPath);
+                        txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
+                        MessageBox.Show("Sciezka ustawien AI/OCR zostala zaktualizowana. Uruchom ponownie BricsCAD, aby zmiany weszly w zycie.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            };
+
+            btnResetLLMConfigPath.Click += (s, e) =>
+            {
+                UISettingsManager.UpdateCustomLLMConfigPath(string.Empty);
+                txtCurrentLLMConfigPath.Text = AppPaths.GetAppDataRoot();
+                MessageBox.Show("Przywrocono domyslna lokalizacje (AppData). Uruchom ponownie BricsCAD.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildPathsKnowledgeGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Konfiguracja Bazy Wiedzy (CustomKnowledge)",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Aktualny folder Baz:"), 0, 0);
+
+            var pathBox = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0, 3, 0, 3)
+            };
+            pathBox.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            pathBox.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            pathBox.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            TextBox txtCurrentPath = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.LightGray,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 0, 6, 0)
+            };
+            txtCurrentPath.Text = AppPaths.GetCustomKnowledgePath();
+            pathBox.Controls.Add(txtCurrentPath, 0, 0);
+
+            Button btnChangePath = new Button
+            {
+                Text = "Wybierz inny folder...",
+                AutoSize = true,
+                Height = 26,
+                BackColor = Color.FromArgb(0, 122, 204),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = Padding.Empty
+            };
+            pathBox.Controls.Add(btnChangePath, 1, 0);
+            grid.Controls.Add(pathBox, 1, 0);
+
+            var knowledgeInfoLabel = MakeInfoLabel(
+                "Domyslnie agent zapisuje wyuczone formuly i makra w folderze systemowym AppData. Mozesz zmienic ten folder na np. swoj dysk w chmurze (OneDrive/Dropbox), aby synchronizowac baze wiedzy miedzy komputerami.",
+                48);
+            grid.Controls.Add(knowledgeInfoLabel, 0, 1);
+            grid.SetColumnSpan(knowledgeInfoLabel, 2);
+
+            btnChangePath.Click += (s, e) =>
+            {
+                using (var fbd = new FolderBrowserDialog())
+                {
+                    fbd.Description = "Wybierz folder docelowy dla Bazy Wiedzy (CustomKnowledge):";
+                    if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        string oldPath = AppPaths.GetCustomKnowledgePath();
+                        string newPath = fbd.SelectedPath;
+
+                        if (oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase)) return;
+
+                        bool shouldCopy = false;
+                        if (MessageBox.Show("Zmieniono folder Bazy Wiedzy.\n\nCzy chcesz przeniesc (skopiowac) istniejace formuly i makra ze starego folderu do nowego?",
+                            "Kopiowanie danych", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        {
+                            shouldCopy = true;
+                        }
+
+                        UISettingsManager.Settings.CustomKnowledgePath = newPath;
+                        UISettingsManager.Save();
+                        txtCurrentPath.Text = newPath;
+
+                        if (shouldCopy)
+                        {
+                            try
+                            {
+                                if (System.IO.Directory.Exists(oldPath))
+                                {
+                                    foreach (string dirPath in System.IO.Directory.GetDirectories(oldPath, "*", System.IO.SearchOption.AllDirectories))
+                                    {
+                                        System.IO.Directory.CreateDirectory(dirPath.Replace(oldPath, newPath));
+                                    }
+                                    foreach (string newFilePath in System.IO.Directory.GetFiles(oldPath, "*.*", System.IO.SearchOption.AllDirectories))
+                                    {
+                                        System.IO.File.Copy(newFilePath, newFilePath.Replace(oldPath, newPath), true);
+                                    }
+                                    MessageBox.Show("Dane zostaly poprawnie skopiowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Wystapil blad podczas kopiowania plikow: {ex.Message}", "Blad", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+
+                        Bricscad_AgentAI_V2.Core.DynamicSystems.DynamicFormulaManager.LoadAndCompileAll();
+                        Bricscad_AgentAI_V2.Core.DynamicSystems.MacroManager.LoadAllMacros();
+                        if (knowledgeBaseControl != null)
+                        {
+                            knowledgeBaseControl.LoadData();
+                        }
+                        MessageBox.Show("Sciezka do bazy wiedzy zostala zaktualizowana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            };
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private static Label MakeInfoLabel(string text, int height)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Top,
+                Height = height,
+                Padding = new Padding(0, 6, 0, 0),
+                ForeColor = Color.DarkGray
+            };
+        }
+
+        private GroupBox BuildWorkflowStartupGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Zachowanie przy starcie",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("System AI:"), 0, 0);
+            ComboBox cmbAIStartup = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 3, 0, 3)
+            };
+            cmbAIStartup.Items.AddRange(new string[] { "Laduj poprzednia sesje", "Tworz nowa sesje", "Wybor manualny" });
+            cmbAIStartup.SelectedIndex = ClampSelectedIndex(cmbAIStartup, UISettingsManager.Settings.AIStartupBehavior);
+            cmbAIStartup.SelectedIndexChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.AIStartupBehavior = cmbAIStartup.SelectedIndex;
+                UISettingsManager.Save();
+            };
+            grid.Controls.Add(cmbAIStartup, 1, 0);
+
+            grid.Controls.Add(MakeFieldLabel("BricsCAD:"), 0, 1);
+            ComboBox cmbBricsCADStartup = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 3, 0, 3)
+            };
+            cmbBricsCADStartup.Items.AddRange(new string[] { "Automatycznie uruchom agenta AI", "Uruchomienie manualne (komenda \"AI\")" });
+            cmbBricsCADStartup.SelectedIndex = ClampSelectedIndex(cmbBricsCADStartup, UISettingsManager.Settings.BricsCADStartupBehavior);
+            cmbBricsCADStartup.SelectedIndexChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.BricsCADStartupBehavior = cmbBricsCADStartup.SelectedIndex;
+                UISettingsManager.Save();
+            };
+            grid.Controls.Add(cmbBricsCADStartup, 1, 1);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildWorkflowWarmupGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Ciche rozgrzewanie promptu Supervisora (lokalne modele LM Studio / llama.cpp)",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var outer = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            CheckBox chkEnablePromptWarmup = new CheckBox
+            {
+                Text = "Wlacz ciche rozgrzewanie promptu Supervisora",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Margin = new Padding(0, 2, 0, 4)
+            };
+            chkEnablePromptWarmup.Checked = UISettingsManager.Settings.EnablePromptWarmup;
+            chkEnablePromptWarmup.CheckedChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.EnablePromptWarmup = chkEnablePromptWarmup.Checked;
+                UISettingsManager.Save();
+            };
+            outer.Controls.Add(chkEnablePromptWarmup, 0, 0);
+
+            CheckBox chkPromptWarmupOnAiOpen = new CheckBox
+            {
+                Text = "Rozgrzewaj prompt po otwarciu AI",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(20, 0, 0, 4)
+            };
+            chkPromptWarmupOnAiOpen.Checked = UISettingsManager.Settings.PromptWarmupOnAiOpen;
+            chkPromptWarmupOnAiOpen.CheckedChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.PromptWarmupOnAiOpen = chkPromptWarmupOnAiOpen.Checked;
+                UISettingsManager.Save();
+            };
+            outer.Controls.Add(chkPromptWarmupOnAiOpen, 0, 1);
+
+            var idleRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0, 0, 0, 0)
+            };
+            idleRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            idleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            idleRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            idleRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            CheckBox chkPromptWarmupAfterTyping = new CheckBox
+            {
+                Text = "Odswiez rozgrzanie po pauzie w pisaniu",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(20, 2, 0, 0)
+            };
+            chkPromptWarmupAfterTyping.Checked = UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs > 0;
+            chkPromptWarmupAfterTyping.CheckedChanged += (s, e) =>
+            {
+                UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs = chkPromptWarmupAfterTyping.Checked ? Math.Max(500, UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs) : 0;
+                UISettingsManager.Save();
+            };
+            idleRow.Controls.Add(chkPromptWarmupAfterTyping, 0, 0);
+            idleRow.SetColumnSpan(chkPromptWarmupAfterTyping, 2);
+
+            idleRow.Controls.Add(MakeFieldLabel("Pauza pisania (ms):"), 0, 1);
+            idleRow.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 200f);
+            NumericUpDown numWarmupIdle = new NumericUpDown
+            {
+                Dock = DockStyle.Left,
+                Minimum = 500,
+                Maximum = 30000,
+                Increment = 500,
+                Width = 110,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(20, 0, 0, 0)
+            };
+            numWarmupIdle.Value = Math.Max(500, UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs > 0 ? UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs : 2500);
+            numWarmupIdle.ValueChanged += (s, e) =>
+            {
+                if (chkPromptWarmupAfterTyping.Checked)
+                {
+                    UISettingsManager.Settings.PromptWarmupAfterTypingIdleMs = (int)numWarmupIdle.Value;
+                    UISettingsManager.Save();
+                }
+            };
+            idleRow.Controls.Add(numWarmupIdle, 1, 1);
+
+            outer.Controls.Add(idleRow, 0, 2);
+
+            group.Controls.Add(outer);
+            return group;
+        }
+
+        private TabPage CreateVisionOcrSettingsTab()
+        {
+            var tab = new TabPage("Vision/OCR") { Padding = new Padding(12) };
+
+            var info = new Label
+            {
+                Text = "Globalny model Vision/OCR analizuje obrazy przed przekazaniem ich do glownego agenta. Glowny agent dostaje tekstowy wynik OCR/opisu i nadal uzywa swojego modelu oraz narzedzi.",
+                Dock = DockStyle.Top,
+                Height = 48,
+                ForeColor = Color.DarkGray,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            lblVisionOcrPreview = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 24,
+                ForeColor = Color.LightGreen,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(4, 4, 4, 4)
+            };
+
+            var scroll = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true
+            };
+
+            var main = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                ColumnCount = 1,
+                RowCount = 8,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            main.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            main.Controls.Add(BuildVisionOcrConnectionGroup(), 0, 0);
+            main.Controls.Add(BuildVisionOcrPayloadGroup(), 0, 1);
+            main.Controls.Add(BuildVisionOcrLoadingGroup(), 0, 2);
+            main.Controls.Add(BuildVisionOcrImageQualityGroup(), 0, 3);
+            main.Controls.Add(BuildVisionOcrTilingGroup(), 0, 4);
+            main.Controls.Add(BuildVisionOcrPdfGroup(), 0, 5);
+            main.Controls.Add(BuildVisionOcrQualityPresetGroup(), 0, 6);
+            main.Controls.Add(BuildVisionOcrTestGroup(), 0, 7);
+
+            scroll.Controls.Add(main);
+            tab.Controls.Add(scroll);
+            tab.Controls.Add(lblVisionOcrPreview);
+            tab.Controls.Add(info);
+
+            LoadVisionOcrBindingToUi();
+            ScheduleVisionOcrModelRefreshIfNeeded();
+            return tab;
+        }
+
+        private GroupBox BuildVisionOcrConnectionGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Polaczenie",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 4,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            chkVisionOcrEnabled = new CheckBox
+            {
+                Text = "Wlacz nadrzedny model Vision/OCR",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Margin = new Padding(0, 2, 0, 6)
+            };
+            chkVisionOcrEnabled.CheckedChanged += VisionOcrControlChanged;
+            grid.SetColumnSpan(chkVisionOcrEnabled, 3);
+            grid.Controls.Add(chkVisionOcrEnabled, 0, 0);
+
+            grid.Controls.Add(MakeFieldLabel("Provider:"), 0, 1);
+            cbVisionOcrProvider = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 3, 6, 3)
+            };
+            cbVisionOcrProvider.SelectedIndexChanged += CbVisionOcrProvider_SelectedIndexChanged;
+            grid.Controls.Add(cbVisionOcrProvider, 1, 1);
+
+            btnRefreshVisionOcrModels = new Button
+            {
+                Text = "Modele",
+                Width = 90,
+                Height = 26,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 2, 0, 2)
+            };
+            btnRefreshVisionOcrModels.Click += async (s, e) => await RefreshVisionOcrModelsAsync();
+            grid.Controls.Add(btnRefreshVisionOcrModels, 2, 1);
+
+            grid.Controls.Add(MakeFieldLabel("Model:"), 0, 2);
+            cbVisionOcrModel = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDown,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 3, 0, 3)
+            };
+            cbVisionOcrModel.TextChanged += VisionOcrControlChanged;
+            grid.Controls.Add(cbVisionOcrModel, 1, 2);
+            grid.SetColumnSpan(cbVisionOcrModel, 2);
+
+            chkVisionOcrUseProviderPayload = new CheckBox
+            {
+                Text = "Uzyj payloadu providera (odznacz, aby nadpisac parametry OCR)",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Margin = new Padding(0, 6, 0, 0)
+            };
+            chkVisionOcrUseProviderPayload.CheckedChanged += VisionOcrControlChanged;
+            grid.SetColumnSpan(chkVisionOcrUseProviderPayload, 3);
+            grid.Controls.Add(chkVisionOcrUseProviderPayload, 0, 3);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrPayloadGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Parametry zapytania OCR (aktywne, gdy payload providera jest wylaczony)",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 8,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            for (int i = 0; i < 8; i++) grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12.5f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Temperature"), 0, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTemp, 0.0m, 2.0m, 2, 0.1m), 0, 1);
+            grid.Controls.Add(MakeFieldLabel("Context (Ctx)"), 1, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrContext, 0m, 128000m, 0, 1000m), 1, 1);
+            grid.Controls.Add(MakeFieldLabel("Max tokens"), 2, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrMaxTokens, 1m, 128000m, 0, 1000m), 2, 1);
+            grid.Controls.Add(MakeFieldLabel("Top-P"), 3, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTopP, 0.0m, 1.0m, 2, 0.05m), 3, 1);
+            grid.Controls.Add(MakeFieldLabel("Top-K"), 4, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTopK, 0m, 200m, 0, 1m), 4, 1);
+            grid.Controls.Add(MakeFieldLabel("Min-P"), 5, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrMinP, 0.0m, 1.0m, 2, 0.05m), 5, 1);
+            grid.Controls.Add(MakeFieldLabel("Repeat penalty"), 6, 0); grid.Controls.Add(MakeVisionNumeric(out numVisionOcrRepPenalty, 1.0m, 2.0m, 2, 0.05m), 6, 1);
+
+            grid.Controls.Add(MakeFieldLabel("Reasoning effort"), 7, 0);
+            cbVisionOcrReasoning = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(2, 2, 2, 2)
+            };
+            cbVisionOcrReasoning.Items.AddRange(new object[] { "none", "low", "medium", "high" });
+            cbVisionOcrReasoning.SelectedIndexChanged += VisionOcrControlChanged;
+            grid.Controls.Add(cbVisionOcrReasoning, 7, 1);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrLoadingGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Ladowanie modelu i polityka kontekstu",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            chkVisionOcrAutoLoad = new CheckBox
+            {
+                Text = "AutoLoad (zaladuj model do VRAM przed pierwszym OCR)",
+                AutoSize = true,
+                ForeColor = Color.White,
+                Margin = new Padding(0, 4, 12, 4)
+            };
+            chkVisionOcrAutoLoad.CheckedChanged += VisionOcrControlChanged;
+            grid.Controls.Add(chkVisionOcrAutoLoad, 0, 0);
+
+            var policyRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = Padding.Empty
+            };
+            policyRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            policyRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            policyRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            policyRow.Controls.Add(MakeFieldLabel("Kontekst:"), 0, 0);
+            cbVisionOcrContextPolicy = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 2, 0, 2)
+            };
+            cbVisionOcrContextPolicy.Items.AddRange(new object[] { "UseLoadedIfAtLeastRequested", "NeverReloadAutomatically", "ReloadOnlyIfTooSmall" });
+            cbVisionOcrContextPolicy.SelectedIndexChanged += VisionOcrControlChanged;
+            policyRow.Controls.Add(cbVisionOcrContextPolicy, 1, 0);
+
+            grid.Controls.Add(policyRow, 1, 0);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrImageQualityGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Jakosc obrazu wysylanego do modelu Vision/OCR",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Schowek (px):"), 0, 0);
+            numVisionOcrClipboardPixels = new NumericUpDown
+            {
+                Dock = DockStyle.Fill,
+                Minimum = 512,
+                Maximum = 4096,
+                DecimalPlaces = 0,
+                Increment = 256,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 12, 2)
+            };
+            numVisionOcrClipboardPixels.ValueChanged += VisionOcrImageQualityChanged;
+            grid.Controls.Add(numVisionOcrClipboardPixels, 1, 0);
+
+            grid.Controls.Add(MakeFieldLabel("Zalaczniki (px):"), 2, 0);
+            numVisionOcrAttachmentPixels = new NumericUpDown
+            {
+                Dock = DockStyle.Fill,
+                Minimum = 512,
+                Maximum = 4096,
+                DecimalPlaces = 0,
+                Increment = 256,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 0, 2)
+            };
+            numVisionOcrAttachmentPixels.ValueChanged += VisionOcrImageQualityChanged;
+            grid.Controls.Add(numVisionOcrAttachmentPixels, 3, 0);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrTilingGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Adaptacyjny tiling duzych arkuszy",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 5,
+                RowCount = 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            for (int i = 0; i < 5; i++) grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Tiling"), 0, 0);
+            cbVisionOcrTilingMode = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(2, 2, 2, 2)
+            };
+            cbVisionOcrTilingMode.Items.AddRange(new object[] { "Auto", "Wylaczony", "Zawsze" });
+            cbVisionOcrTilingMode.SelectedIndexChanged += VisionOcrTilingChanged;
+            grid.Controls.Add(cbVisionOcrTilingMode, 0, 1);
+
+            grid.Controls.Add(MakeFieldLabel("Kafelek px"), 1, 0);
+            grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTileMaxDim, 512m, 8192m, 0, 128m), 1, 1);
+            numVisionOcrTileMaxDim.ValueChanged += VisionOcrTilingChanged;
+
+            grid.Controls.Add(MakeFieldLabel("Overlap px"), 2, 0);
+            grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTileOverlap, 0m, 2048m, 0, 50m), 2, 1);
+            numVisionOcrTileOverlap.ValueChanged += VisionOcrTilingChanged;
+
+            grid.Controls.Add(MakeFieldLabel("Maks. kafelkow"), 3, 0);
+            grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTileMaxCount, 1m, 64m, 0, 1m), 3, 1);
+            numVisionOcrTileMaxCount.ValueChanged += VisionOcrTilingChanged;
+
+            grid.Controls.Add(MakeFieldLabel("Maks. proporcja"), 4, 0);
+            grid.Controls.Add(MakeVisionNumeric(out numVisionOcrTileMaxAspect, 1.0m, 6.0m, 1, 0.1m), 4, 1);
+            numVisionOcrTileMaxAspect.ValueChanged += VisionOcrTilingChanged;
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrPdfGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "PDF -> tekst + PNG dla Vision/OCR",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 6,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("DPI:"), 0, 0);
+            grid.Controls.Add(MakeVisionNumeric(out numVisionOcrPdfDpi, 72m, 600m, 0, 25m), 1, 0);
+            numVisionOcrPdfDpi.ValueChanged += VisionOcrPdfChanged;
+
+            grid.Controls.Add(MakeFieldLabel("Maks. stron:"), 2, 0);
+            grid.Controls.Add(MakeVisionNumeric(out numVisionOcrPdfMaxPages, 1m, 50m, 0, 1m), 3, 0);
+            numVisionOcrPdfMaxPages.ValueChanged += VisionOcrPdfChanged;
+
+            grid.Controls.Add(MakeFieldLabel("Renderer:"), 4, 0);
+            txtVisionOcrPdfRendererPath = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 0, 2)
+            };
+            txtVisionOcrPdfRendererPath.TextChanged += VisionOcrPdfChanged;
+            grid.Controls.Add(txtVisionOcrPdfRendererPath, 5, 0);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrQualityPresetGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Presety jakosci obrazu i tilingu",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 6,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Preset:"), 0, 0);
+            cbVisionOcrQualityPreset = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 2, 8, 2)
+            };
+            cbVisionOcrQualityPreset.SelectedIndexChanged += (s, e) =>
+            {
+                if (_suppressVisionOcrUiEvents) return;
+                ApplySelectedVisionOcrQualityPreset();
+            };
+            grid.Controls.Add(cbVisionOcrQualityPreset, 1, 0);
+
+            grid.Controls.Add(MakeFieldLabel("Nazwa:"), 2, 0);
+            txtVisionOcrPresetName = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 8, 2)
+            };
+            grid.Controls.Add(txtVisionOcrPresetName, 3, 0);
+
+            var buttons = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = Padding.Empty
+            };
+            buttons.Controls.Add(MakeSmallVisionButton("Zapisz", (s, e) => SaveVisionOcrQualityPreset(false)));
+            buttons.Controls.Add(MakeSmallVisionButton("Nadpisz", (s, e) => SaveVisionOcrQualityPreset(true)));
+            buttons.Controls.Add(MakeSmallVisionButton("Usun", (s, e) => DeleteSelectedVisionOcrQualityPreset()));
+            grid.Controls.Add(buttons, 4, 0);
+            grid.SetColumnSpan(buttons, 2);
+
+            group.Controls.Add(grid);
+            return group;
+        }
+
+        private GroupBox BuildVisionOcrTestGroup()
+        {
+            var group = new GroupBox
+            {
+                Text = "Szybki test Vision/OCR",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(10, 6, 10, 10),
+                ForeColor = Color.LightGray
+            };
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 8,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            for (int i = 0; i < 8; i++) grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(MakeFieldLabel("Plik PNG/JPG/PDF:"), 0, 0);
+            txtVisionOcrTestFile = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 8, 2)
+            };
+            grid.Controls.Add(txtVisionOcrTestFile, 1, 0);
+            grid.Controls.Add(MakeSmallVisionButton("Wybierz", (s, e) => BrowseVisionOcrTestFile()), 2, 0);
+
+            grid.Controls.Add(MakeFieldLabel("Prompt testowy:"), 0, 1);
+            txtVisionOcrTestPrompt = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Height = 54,
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Text = "Odczytaj tabliczke rysunkowa i podaj dane inwestora, projektu, adresu, numer rysunku, date i skale.",
+                Margin = new Padding(0, 2, 8, 2)
+            };
+            txtVisionOcrTestPrompt.TextChanged += (s, e) =>
+            {
+                if (txtVisionOcrSystemPrompt != null)
+                {
+                    txtVisionOcrSystemPrompt.Text = BuildVisionOcrPromptPreview(txtVisionOcrTestPrompt.Text);
+                }
+            };
+            grid.Controls.Add(txtVisionOcrTestPrompt, 1, 1);
+            grid.SetColumnSpan(txtVisionOcrTestPrompt, 2);
+
+            grid.Controls.Add(MakeFieldLabel("Prompt OCR:"), 0, 2);
+            txtVisionOcrSystemPrompt = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Height = 92,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.LightGray,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 8, 2)
+            };
+            grid.Controls.Add(txtVisionOcrSystemPrompt, 1, 2);
+            grid.SetColumnSpan(txtVisionOcrSystemPrompt, 2);
+            txtVisionOcrSystemPrompt.Text = BuildVisionOcrPromptPreview(txtVisionOcrTestPrompt.Text);
+
+            btnVisionOcrTestRun = MakeSmallVisionButton("Uruchom OCR", async (s, e) => await RunVisionOcrTestAsync());
+            btnVisionOcrTestRun.Width = 120;
+            grid.Controls.Add(btnVisionOcrTestRun, 2, 3);
+
+            grid.Controls.Add(MakeFieldLabel("Odpowiedz:"), 0, 4);
+            txtVisionOcrTestResult = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Height = 220,
+                Multiline = true,
+                ScrollBars = ScrollBars.Both,
+                BackColor = Color.FromArgb(20, 20, 20),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                WordWrap = false,
+                Margin = new Padding(0, 2, 0, 2)
+            };
+            grid.Controls.Add(txtVisionOcrTestResult, 1, 4);
+            grid.SetColumnSpan(txtVisionOcrTestResult, 2);
+
+            grid.Controls.Add(MakeFieldLabel("Zapisane testy:"), 0, 5);
+            lstVisionOcrTestRuns = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                Height = 96,
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                IntegralHeight = false,
+                Margin = new Padding(0, 2, 8, 2)
+            };
+            lstVisionOcrTestRuns.SelectedIndexChanged += (s, e) => PreviewSelectedVisionOcrTestRun();
+            lstVisionOcrTestRuns.DoubleClick += (s, e) => OpenSelectedVisionOcrTestReport();
+            grid.Controls.Add(lstVisionOcrTestRuns, 1, 5);
+            grid.SetColumnSpan(lstVisionOcrTestRuns, 2);
+
+            var reportButtons = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0, 0, 0, 2)
+            };
+            reportButtons.Controls.Add(MakeSmallVisionButton("Otworz raport", (s, e) => OpenSelectedVisionOcrTestReport()));
+            reportButtons.Controls.Add(MakeSmallVisionButton("Kopiuj raport", (s, e) => CopySelectedVisionOcrTestReport()));
+            reportButtons.Controls.Add(MakeSmallVisionButton("Otworz folder", (s, e) => OpenVisionOcrTestReportsFolder()));
+            reportButtons.Controls.Add(MakeSmallVisionButton("Odswiez", (s, e) => RefreshVisionOcrTestRunList()));
+            grid.Controls.Add(reportButtons, 1, 6);
+            grid.SetColumnSpan(reportButtons, 2);
+
+            var info = MakeInfoLabel("Test uzywa aktualnie zapisanych ustawien Vision/OCR, jakosci obrazu i tilingu. Nie dopisuje wyniku do sesji czatu.", 34);
+            grid.Controls.Add(info, 0, 7);
+            grid.SetColumnSpan(info, 3);
+
+            group.Controls.Add(grid);
+            RefreshVisionOcrTestRunList();
+            return group;
+        }
+
+        private class VisionOcrTestRunListItem
+        {
+            public string DisplayName { get; set; }
+            public string MarkdownPath { get; set; }
+            public string JsonPath { get; set; }
+
+            public override string ToString()
+            {
+                return DisplayName ?? Path.GetFileName(MarkdownPath);
+            }
+        }
+
+        private void RefreshVisionOcrTestRunList()
+        {
+            if (lstVisionOcrTestRuns == null) return;
+
+            lstVisionOcrTestRuns.Items.Clear();
+            string folder = AppPaths.GetVisionOcrTestRunsPath();
+            Directory.CreateDirectory(folder);
+
+            foreach (string mdPath in Directory.GetFiles(folder, "*.md")
+                .OrderByDescending(File.GetLastWriteTime)
+                .Take(100))
+            {
+                string jsonPath = Path.ChangeExtension(mdPath, ".json");
+                lstVisionOcrTestRuns.Items.Add(new VisionOcrTestRunListItem
+                {
+                    DisplayName = BuildVisionOcrTestRunDisplayName(mdPath, jsonPath),
+                    MarkdownPath = mdPath,
+                    JsonPath = jsonPath
+                });
+            }
+        }
+
+        private static string BuildVisionOcrTestRunDisplayName(string markdownPath, string jsonPath)
+        {
+            try
+            {
+                if (!File.Exists(jsonPath))
+                {
+                    return Path.GetFileName(markdownPath);
+                }
+
+                var json = JObject.Parse(File.ReadAllText(jsonPath, Encoding.UTF8));
+                string created = ParseVisionOcrReportDate(json["created_at"]?.ToString());
+                string status = json["success"]?.Value<bool>() == true ? "OK" : "ERR";
+                string source = json["source_file"]?["name"]?.ToString() ?? Path.GetFileName(markdownPath);
+                string preset = json["preset"]?["SelectedName"]?.ToString();
+                string provider = json["provider"]?["Name"]?.ToString();
+                string model = json["model_payload"]?["UiModel"]?.ToString();
+                if (string.IsNullOrWhiteSpace(model))
+                {
+                    model = json["provider"]?["ModelName"]?.ToString();
+                }
+
+                if (string.IsNullOrWhiteSpace(preset)) preset = "bez presetu";
+                if (string.IsNullOrWhiteSpace(provider)) provider = "brak providera";
+                if (string.IsNullOrWhiteSpace(model)) model = "brak modelu";
+
+                return $"{created} [{status}] {source} | preset: {preset} | {provider} | {model}";
+            }
+            catch
+            {
+                return Path.GetFileName(markdownPath);
+            }
+        }
+
+        private static string ParseVisionOcrReportDate(string value)
+        {
+            if (DateTime.TryParse(value, out var date))
+            {
+                return date.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+
+            return File.Exists(value) ? File.GetLastWriteTime(value).ToString("yyyy-MM-dd HH:mm:ss") : "";
+        }
+
+        private VisionOcrTestRunListItem GetSelectedVisionOcrTestRun()
+        {
+            return lstVisionOcrTestRuns?.SelectedItem as VisionOcrTestRunListItem;
+        }
+
+        private void PreviewSelectedVisionOcrTestRun()
+        {
+            var item = GetSelectedVisionOcrTestRun();
+            if (item == null || txtVisionOcrTestResult == null) return;
+            PreviewVisionOcrTestRun(item);
+        }
+
+        private void PreviewVisionOcrTestRun(VisionOcrTestRunListItem item)
+        {
+            if (item == null || txtVisionOcrTestResult == null) return;
+
+            try
+            {
+                if (File.Exists(item.MarkdownPath))
+                {
+                    txtVisionOcrTestResult.Text = File.ReadAllText(item.MarkdownPath, Encoding.UTF8);
+                    return;
+                }
+
+                if (File.Exists(item.JsonPath))
+                {
+                    txtVisionOcrTestResult.Text = File.ReadAllText(item.JsonPath, Encoding.UTF8);
+                    return;
+                }
+
+                txtVisionOcrTestResult.Text = "Raport Vision/OCR nie istnieje juz na dysku: " + item.MarkdownPath;
+            }
+            catch (Exception ex)
+            {
+                txtVisionOcrTestResult.Text = "Nie udalo sie wczytac raportu Vision/OCR: " + ex.Message;
+            }
+        }
+
+        private void OpenSelectedVisionOcrTestReport()
+        {
+            var item = GetSelectedVisionOcrTestRun();
+            if (item == null || !File.Exists(item.MarkdownPath))
+            {
+                MessageBox.Show("Wybierz zapisany raport Vision/OCR.", "Vision/OCR", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo { FileName = item.MarkdownPath, UseShellExecute = true });
+        }
+
+        private void CopySelectedVisionOcrTestReport()
+        {
+            var item = GetSelectedVisionOcrTestRun();
+            if (item == null || !File.Exists(item.MarkdownPath))
+            {
+                MessageBox.Show("Wybierz zapisany raport Vision/OCR.", "Vision/OCR", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Clipboard.SetText(File.ReadAllText(item.MarkdownPath, Encoding.UTF8));
+            UpdateStatusHUD("Skopiowano raport Vision/OCR do schowka.");
+        }
+
+        private void OpenVisionOcrTestReportsFolder()
+        {
+            string folder = AppPaths.GetVisionOcrTestRunsPath();
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
+        }
+
+        private void SaveVisionOcrTestReport(string sourcePath, string userPrompt, string systemPrompt, string resultText, string diagnostics, bool success, string error)
+        {
+            string folder = AppPaths.GetVisionOcrTestRunsPath();
+            Directory.CreateDirectory(folder);
+
+            string testId = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+            string sourceName = Path.GetFileName(sourcePath);
+            string presetName = cbVisionOcrQualityPreset?.Text ?? UISettingsManager.Settings.LastVisionOcrQualityPresetName ?? string.Empty;
+            string status = success ? "OK" : "ERROR";
+            string baseName = $"{testId}_{status}_{MakeSafeReportFileName(Path.GetFileNameWithoutExtension(sourceName))}";
+            string jsonPath = Path.Combine(folder, baseName + ".json");
+            string markdownPath = Path.Combine(folder, baseName + ".md");
+
+            var effectiveProvider = LLMConfigManager.ResolveVisionOcrProvider();
+            var uiProvider = GetSelectedVisionOcrProvider();
+            var provider = effectiveProvider ?? uiProvider ?? LLMConfigManager.GetActiveProvider();
+            var binding = ToolConfigManager.GetVisionOcrBinding();
+            var settings = UISettingsManager.Settings;
+            var sourceInfo = new FileInfo(sourcePath);
+
+            var report = new
+            {
+                report_version = "1.0",
+                test_id = testId,
+                created_at = DateTime.Now,
+                success,
+                error,
+                source_file = new
+                {
+                    path = sourcePath,
+                    name = sourceName,
+                    extension = Path.GetExtension(sourcePath),
+                    size_bytes = sourceInfo.Exists ? sourceInfo.Length : 0
+                },
+                provider = provider == null ? null : new
+                {
+                    provider.Id,
+                    provider.Name,
+                    provider.EndpointUrl,
+                    provider.ModelName,
+                    ApiKeyConfigured = !string.IsNullOrWhiteSpace(provider.ApiKey) && provider.ApiKey != "not-needed"
+                },
+                ui_provider = uiProvider == null ? null : new
+                {
+                    uiProvider.Id,
+                    uiProvider.Name,
+                    uiProvider.EndpointUrl,
+                    uiProvider.ModelName
+                },
+                model_payload = new
+                {
+                    UiModel = cbVisionOcrModel?.Text,
+                    EffectiveModel = provider?.ModelName,
+                    UseProviderPayload = chkVisionOcrUseProviderPayload?.Checked == true,
+                    Temperature = numVisionOcrTemp?.Value,
+                    Context = numVisionOcrContext?.Value,
+                    MaxTokens = numVisionOcrMaxTokens?.Value,
+                    TopP = numVisionOcrTopP?.Value,
+                    TopK = numVisionOcrTopK?.Value,
+                    MinP = numVisionOcrMinP?.Value,
+                    RepetitionPenalty = numVisionOcrRepPenalty?.Value,
+                    ReasoningEffort = cbVisionOcrReasoning?.Text,
+                    AutoLoad = chkVisionOcrAutoLoad?.Checked == true,
+                    ContextPolicy = cbVisionOcrContextPolicy?.Text,
+                    Binding = binding
+                },
+                image_quality = new
+                {
+                    ClipboardMaxPixels = settings.VisionOcrClipboardMaxPixels,
+                    AttachmentMaxPixels = settings.VisionOcrAttachmentMaxPixels
+                },
+                tiling = new
+                {
+                    Mode = settings.VisionOcrTilingMode,
+                    TileMaxDim = settings.VisionOcrTileMaxDim,
+                    Overlap = settings.VisionOcrTileOverlap,
+                    MaxTileCount = settings.VisionOcrTileMaxCount,
+                    MaxAspectRatio = settings.VisionOcrTileMaxAspectRatio
+                },
+                pdf = new
+                {
+                    Dpi = settings.VisionOcrPdfDpi,
+                    MaxPages = settings.VisionOcrPdfMaxPages,
+                    RendererPath = settings.VisionOcrPdfRendererPath
+                },
+                preset = new
+                {
+                    SelectedName = presetName,
+                    LastSavedName = settings.LastVisionOcrQualityPresetName
+                },
+                prompts = new
+                {
+                    UserPrompt = userPrompt,
+                    SystemPromptPreview = systemPrompt
+                },
+                diagnostics,
+                response = resultText
+            };
+
+            string json = JsonConvert.SerializeObject(report, Formatting.Indented);
+            File.WriteAllText(jsonPath, json, Encoding.UTF8);
+            File.WriteAllText(markdownPath, BuildVisionOcrTestMarkdown(report, json, jsonPath), Encoding.UTF8);
+
+            RefreshVisionOcrTestRunList();
+            SelectVisionOcrReportInList(markdownPath);
+            UpdateStatusHUD("Zapisano raport Vision/OCR: " + Path.GetFileName(markdownPath));
+        }
+
+        private static string BuildVisionOcrTestMarkdown(object report, string reportJson, string jsonPath)
+        {
+            var token = JObject.FromObject(report);
+            var sb = new StringBuilder();
+            sb.AppendLine("# Vision/OCR Test Run");
+            sb.AppendLine();
+            sb.AppendLine("- Test ID: `" + token["test_id"] + "`");
+            sb.AppendLine("- Data: `" + token["created_at"] + "`");
+            sb.AppendLine("- Status: `" + ((bool)token["success"] ? "OK" : "ERROR") + "`");
+            sb.AppendLine("- Plik: `" + token["source_file"]?["path"] + "`");
+            sb.AppendLine("- Provider: `" + token["provider"]?["Name"] + "`");
+            sb.AppendLine("- Model: `" + (token["model_payload"]?["EffectiveModel"] ?? token["model_payload"]?["UiModel"] ?? token["provider"]?["ModelName"]) + "`");
+            sb.AppendLine("- JSON: `" + jsonPath + "`");
+            sb.AppendLine();
+            sb.AppendLine("## Prompt Uzytkownika");
+            sb.AppendLine();
+            sb.AppendLine("```text");
+            sb.AppendLine((string)token["prompts"]?["UserPrompt"] ?? string.Empty);
+            sb.AppendLine("```");
+            sb.AppendLine();
+            sb.AppendLine("## Prompt Systemowy / Payload Tekstowy");
+            sb.AppendLine();
+            sb.AppendLine("```text");
+            sb.AppendLine((string)token["prompts"]?["SystemPromptPreview"] ?? string.Empty);
+            sb.AppendLine("```");
+            sb.AppendLine();
+            sb.AppendLine("## Diagnostyka");
+            sb.AppendLine();
+            sb.AppendLine("```text");
+            sb.AppendLine((string)token["diagnostics"] ?? string.Empty);
+            sb.AppendLine("```");
+            sb.AppendLine();
+            sb.AppendLine("## Odpowiedz");
+            sb.AppendLine();
+            sb.AppendLine("```text");
+            sb.AppendLine((string)token["response"] ?? string.Empty);
+            sb.AppendLine("```");
+            sb.AppendLine();
+            sb.AppendLine("## Pelny Snapshot JSON");
+            sb.AppendLine();
+            sb.AppendLine("```json");
+            sb.AppendLine(reportJson);
+            sb.AppendLine("```");
+            return sb.ToString();
+        }
+
+        private void SelectVisionOcrReportInList(string markdownPath)
+        {
+            if (lstVisionOcrTestRuns == null) return;
+            for (int i = 0; i < lstVisionOcrTestRuns.Items.Count; i++)
+            {
+                var item = lstVisionOcrTestRuns.Items[i] as VisionOcrTestRunListItem;
+                if (item != null && string.Equals(item.MarkdownPath, markdownPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    lstVisionOcrTestRuns.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private static string MakeSafeReportFileName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "vision_ocr_test";
+            string safe = value;
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                safe = safe.Replace(c, '_');
+            }
+
+            safe = safe.Trim();
+            if (safe.Length > 80) safe = safe.Substring(0, 80);
+            return string.IsNullOrWhiteSpace(safe) ? "vision_ocr_test" : safe;
+        }
+
+        private Button MakeSmallVisionButton(string text, EventHandler onClick)
+        {
+            var button = new Button
+            {
+                Text = text,
+                AutoSize = true,
+                Height = 26,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 2, 6, 2)
+            };
+            button.Click += onClick;
+            return button;
+        }
+
+        private void RefreshVisionOcrQualityPresetDropdown()
+        {
+            if (cbVisionOcrQualityPreset == null) return;
+            var presets = UISettingsManager.Settings.VisionOcrQualityPresets ?? new List<VisionOcrQualityPreset>();
+
+            try
+            {
+                _suppressVisionOcrUiEvents = true;
+                string current = UISettingsManager.Settings.LastVisionOcrQualityPresetName;
+                cbVisionOcrQualityPreset.Items.Clear();
+                foreach (var preset in presets.OrderBy(p => p.Name))
+                {
+                    if (!string.IsNullOrWhiteSpace(preset.Name))
+                    {
+                        cbVisionOcrQualityPreset.Items.Add(preset.Name);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(current) && cbVisionOcrQualityPreset.Items.Contains(current))
+                {
+                    cbVisionOcrQualityPreset.SelectedItem = current;
+                    if (txtVisionOcrPresetName != null) txtVisionOcrPresetName.Text = current;
+                }
+                else if (cbVisionOcrQualityPreset.Items.Count > 0)
+                {
+                    cbVisionOcrQualityPreset.SelectedIndex = 0;
+                    if (txtVisionOcrPresetName != null) txtVisionOcrPresetName.Text = cbVisionOcrQualityPreset.Text;
+                }
+            }
+            finally
+            {
+                _suppressVisionOcrUiEvents = false;
+            }
+        }
+
+        private void ApplySelectedVisionOcrQualityPreset()
+        {
+            string name = cbVisionOcrQualityPreset?.SelectedItem?.ToString();
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            var preset = (UISettingsManager.Settings.VisionOcrQualityPresets ?? new List<VisionOcrQualityPreset>())
+                .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (preset == null) return;
+
+            try
+            {
+                _suppressVisionOcrUiEvents = true;
+                ApplyVisionOcrQualityPresetToControls(preset);
+                if (txtVisionOcrPresetName != null) txtVisionOcrPresetName.Text = preset.Name;
+                UISettingsManager.Settings.LastVisionOcrQualityPresetName = preset.Name;
+                SaveVisionOcrQualityAndTilingSettings();
+            }
+            finally
+            {
+                _suppressVisionOcrUiEvents = false;
+            }
+
+            UISettingsManager.Save();
+            UpdateVisionOcrPreview();
+        }
+
+        private void ApplyLastVisionOcrQualityPresetToControls()
+        {
+            string name = UISettingsManager.Settings.LastVisionOcrQualityPresetName;
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            var preset = (UISettingsManager.Settings.VisionOcrQualityPresets ?? new List<VisionOcrQualityPreset>())
+                .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (preset == null) return;
+
+            ApplyVisionOcrQualityPresetToControls(preset);
+            if (cbVisionOcrQualityPreset != null && cbVisionOcrQualityPreset.Items.Contains(preset.Name))
+            {
+                cbVisionOcrQualityPreset.SelectedItem = preset.Name;
+            }
+
+            if (txtVisionOcrPresetName != null) txtVisionOcrPresetName.Text = preset.Name;
+            SaveVisionOcrQualityAndTilingSettings();
+        }
+
+        private void SaveVisionOcrQualityPreset(bool overwrite)
+        {
+            string name = (overwrite ? cbVisionOcrQualityPreset?.SelectedItem?.ToString() : txtVisionOcrPresetName?.Text)?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                MessageBox.Show("Podaj nazwe presetu.", "Vision/OCR", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (UISettingsManager.Settings.VisionOcrQualityPresets == null)
+            {
+                UISettingsManager.Settings.VisionOcrQualityPresets = new List<VisionOcrQualityPreset>();
+            }
+
+            var presets = UISettingsManager.Settings.VisionOcrQualityPresets;
+            var existing = presets.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (existing != null && !overwrite)
+            {
+                MessageBox.Show("Preset o tej nazwie juz istnieje. Uzyj Nadpisz albo wybierz inna nazwe.", "Vision/OCR", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var preset = BuildVisionOcrQualityPresetFromControls(name);
+            if (existing == null)
+            {
+                presets.Add(preset);
+            }
+            else
+            {
+                existing.ClipboardMaxPixels = preset.ClipboardMaxPixels;
+                existing.AttachmentMaxPixels = preset.AttachmentMaxPixels;
+                existing.TilingMode = preset.TilingMode;
+                existing.TileMaxDim = preset.TileMaxDim;
+                existing.TileOverlap = preset.TileOverlap;
+                existing.TileMaxCount = preset.TileMaxCount;
+                existing.TileMaxAspectRatio = preset.TileMaxAspectRatio;
+            }
+
+            UISettingsManager.Settings.LastVisionOcrQualityPresetName = name;
+            UISettingsManager.Save();
+            RefreshVisionOcrQualityPresetDropdown();
+            if (cbVisionOcrQualityPreset != null) cbVisionOcrQualityPreset.SelectedItem = name;
+        }
+
+        private void DeleteSelectedVisionOcrQualityPreset()
+        {
+            string name = cbVisionOcrQualityPreset?.SelectedItem?.ToString();
+            if (string.IsNullOrWhiteSpace(name)) return;
+            if (MessageBox.Show($"Usunac preset '{name}'?", "Vision/OCR", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            var presets = UISettingsManager.Settings.VisionOcrQualityPresets;
+            if (presets != null)
+            {
+                presets.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (string.Equals(UISettingsManager.Settings.LastVisionOcrQualityPresetName, name, StringComparison.OrdinalIgnoreCase))
+            {
+                UISettingsManager.Settings.LastVisionOcrQualityPresetName = string.Empty;
+            }
+
+            UISettingsManager.Save();
+            RefreshVisionOcrQualityPresetDropdown();
+        }
+
+        private VisionOcrQualityPreset BuildVisionOcrQualityPresetFromControls(string name)
+        {
+            return new VisionOcrQualityPreset
+            {
+                Name = name,
+                ClipboardMaxPixels = numVisionOcrClipboardPixels != null ? (int)numVisionOcrClipboardPixels.Value : UISettingsManager.Settings.VisionOcrClipboardMaxPixels,
+                AttachmentMaxPixels = numVisionOcrAttachmentPixels != null ? (int)numVisionOcrAttachmentPixels.Value : UISettingsManager.Settings.VisionOcrAttachmentMaxPixels,
+                TilingMode = cbVisionOcrTilingMode?.SelectedItem?.ToString() ?? UISettingsManager.Settings.VisionOcrTilingMode ?? "Auto",
+                TileMaxDim = numVisionOcrTileMaxDim != null ? (int)numVisionOcrTileMaxDim.Value : UISettingsManager.Settings.VisionOcrTileMaxDim,
+                TileOverlap = numVisionOcrTileOverlap != null ? (int)numVisionOcrTileOverlap.Value : UISettingsManager.Settings.VisionOcrTileOverlap,
+                TileMaxCount = numVisionOcrTileMaxCount != null ? (int)numVisionOcrTileMaxCount.Value : UISettingsManager.Settings.VisionOcrTileMaxCount,
+                TileMaxAspectRatio = numVisionOcrTileMaxAspect != null ? (double)numVisionOcrTileMaxAspect.Value : UISettingsManager.Settings.VisionOcrTileMaxAspectRatio
+            };
+        }
+
+        private void ApplyVisionOcrQualityPresetToControls(VisionOcrQualityPreset preset)
+        {
+            if (preset == null) return;
+            if (numVisionOcrClipboardPixels != null) numVisionOcrClipboardPixels.Value = ClampAgentDecimal(preset.ClipboardMaxPixels, numVisionOcrClipboardPixels.Minimum, numVisionOcrClipboardPixels.Maximum);
+            if (numVisionOcrAttachmentPixels != null) numVisionOcrAttachmentPixels.Value = ClampAgentDecimal(preset.AttachmentMaxPixels, numVisionOcrAttachmentPixels.Minimum, numVisionOcrAttachmentPixels.Maximum);
+            if (cbVisionOcrTilingMode != null) cbVisionOcrTilingMode.SelectedItem = cbVisionOcrTilingMode.Items.Contains(preset.TilingMode) ? preset.TilingMode : "Auto";
+            if (numVisionOcrTileMaxDim != null) numVisionOcrTileMaxDim.Value = ClampAgentDecimal(preset.TileMaxDim, numVisionOcrTileMaxDim.Minimum, numVisionOcrTileMaxDim.Maximum);
+            if (numVisionOcrTileOverlap != null) numVisionOcrTileOverlap.Value = ClampAgentDecimal(preset.TileOverlap, numVisionOcrTileOverlap.Minimum, numVisionOcrTileOverlap.Maximum);
+            if (numVisionOcrTileMaxCount != null) numVisionOcrTileMaxCount.Value = ClampAgentDecimal(preset.TileMaxCount, numVisionOcrTileMaxCount.Minimum, numVisionOcrTileMaxCount.Maximum);
+            if (numVisionOcrTileMaxAspect != null) numVisionOcrTileMaxAspect.Value = ClampAgentDecimal((decimal)preset.TileMaxAspectRatio, numVisionOcrTileMaxAspect.Minimum, numVisionOcrTileMaxAspect.Maximum);
+        }
+
+        private void SaveVisionOcrQualityAndTilingSettings()
+        {
+            if (numVisionOcrClipboardPixels != null) UISettingsManager.Settings.VisionOcrClipboardMaxPixels = (int)numVisionOcrClipboardPixels.Value;
+            if (numVisionOcrAttachmentPixels != null) UISettingsManager.Settings.VisionOcrAttachmentMaxPixels = (int)numVisionOcrAttachmentPixels.Value;
+            if (cbVisionOcrTilingMode != null) UISettingsManager.Settings.VisionOcrTilingMode = cbVisionOcrTilingMode.SelectedItem?.ToString() ?? "Auto";
+            if (numVisionOcrTileMaxDim != null) UISettingsManager.Settings.VisionOcrTileMaxDim = (int)numVisionOcrTileMaxDim.Value;
+            if (numVisionOcrTileOverlap != null) UISettingsManager.Settings.VisionOcrTileOverlap = (int)numVisionOcrTileOverlap.Value;
+            if (numVisionOcrTileMaxCount != null) UISettingsManager.Settings.VisionOcrTileMaxCount = (int)numVisionOcrTileMaxCount.Value;
+            if (numVisionOcrTileMaxAspect != null) UISettingsManager.Settings.VisionOcrTileMaxAspectRatio = (double)numVisionOcrTileMaxAspect.Value;
+        }
+
+        private string BuildVisionOcrPromptPreview(string userPrompt)
+        {
+            return "[SYSTEM]\r\n" + LLMClient.BuildVisionOcrSystemPrompt() +
+                "\r\n\r\n[USER TEXT]\r\n" + LLMClient.BuildVisionOcrUserPrompt(userPrompt, "Tu zostanie dopisany prompt przestrzenny tilingu, jesli obraz zostanie pociety na kafelki.");
+        }
+
+        private void BrowseVisionOcrTestFile()
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Filter = "Obrazy i PDF|*.png;*.jpg;*.jpeg;*.pdf|Wszystkie pliki|*.*";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    txtVisionOcrTestFile.Text = ofd.FileName;
+                }
+            }
+        }
+
+        private async Task RunVisionOcrTestAsync()
+        {
+            string path = txtVisionOcrTestFile?.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                MessageBox.Show("Wybierz istniejacy plik PNG/JPG/PDF.", "Vision/OCR", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            SaveVisionOcrBindingFromUi();
+            SaveVisionOcrQualityAndTilingSettings();
+            UISettingsManager.Save();
+
+            btnVisionOcrTestRun.Enabled = false;
+            txtVisionOcrTestResult.Text = "Przetwarzanie OCR...";
+            string prompt = string.IsNullOrWhiteSpace(txtVisionOcrTestPrompt?.Text)
+                ? "Przeanalizuj obraz."
+                : txtVisionOcrTestPrompt.Text.Trim();
+            string systemPrompt = BuildVisionOcrPromptPreview(prompt);
+            try
+            {
+                string ext = Path.GetExtension(path).ToLowerInvariant();
+                if (ext == ".pdf")
+                {
+                    string pdfText = FileExtractor.ExtractText(path);
+                    string pdfPayload = await BuildPdfVisionOcrPayloadAsync(path, prompt, pdfText);
+                    string pdfDiagnostics = string.IsNullOrWhiteSpace(_llmClient.LastVisionOcrDiagnostics)
+                        ? "Brak diagnostyki odpowiedzi OCR."
+                        : _llmClient.LastVisionOcrDiagnostics;
+                    string output = "[DIAGNOSTYKA OCR]\r\n" + pdfDiagnostics + "\r\n\r\n[PDF HYBRYDOWY]\r\n" + pdfPayload;
+                    txtVisionOcrTestResult.Text = output;
+                    bool pdfOcrOk = !pdfPayload.Contains("[PDF_VISION/OCR ERROR]") && !pdfPayload.Contains("BLAD OCR PDF:");
+                    if (!pdfOcrOk)
+                    {
+                        UpdateStatusHUD("Blad Vision/OCR PDF - render PDF mogl sie udac, ale model OCR zwrocil blad.");
+                    }
+                    SaveVisionOcrTestReport(path, prompt, systemPrompt, output, pdfDiagnostics, pdfOcrOk, pdfOcrOk ? null : "Blad modelu Vision/OCR podczas analizy PDF.");
+                    return;
+                }
+
+                string base64 = FileExtractor.GetImageBase64(path, UISettingsManager.Settings.VisionOcrAttachmentMaxPixels);
+                var imageContext = new VisionImageContext
+                {
+                    ImageId = "ocr_test_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff"),
+                    SourceLabel = "test Vision/OCR",
+                    CachedPath = path,
+                    OriginalPath = path,
+                    MaxPixelsUsed = UISettingsManager.Settings.VisionOcrAttachmentMaxPixels,
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
+                };
+                using (var img = System.Drawing.Image.FromFile(path))
+                {
+                    imageContext.OriginalWidth = img.Width;
+                    imageContext.OriginalHeight = img.Height;
+                }
+                ApplyVisionOcrTilingIfNeeded(imageContext);
+
+                var imageUrls = BuildVisionOcrImageDataUrls(base64, imageContext);
+                string technicalContext = BuildTileSpatialPrompt(imageContext);
+                var result = await _llmClient.AnalyzeImagesWithVisionOcrAsync(imageUrls, prompt, technicalContext);
+                string diagnostics = string.IsNullOrWhiteSpace(_llmClient.LastVisionOcrDiagnostics)
+                    ? "Brak diagnostyki odpowiedzi OCR."
+                    : _llmClient.LastVisionOcrDiagnostics;
+                string normalOutput = "[DIAGNOSTYKA OCR]\r\n" + diagnostics + "\r\n\r\n[ODPOWIEDZ OCR]\r\n" + (result.ok ? result.text : "BLAD OCR: " + result.text);
+                txtVisionOcrTestResult.Text = normalOutput;
+                SaveVisionOcrTestReport(path, prompt, systemPrompt, normalOutput, diagnostics, result.ok, result.ok ? null : result.text);
+            }
+            catch (Exception ex)
+            {
+                string errorOutput = "BLAD OCR: " + ex.Message;
+                txtVisionOcrTestResult.Text = errorOutput;
+                SaveVisionOcrTestReport(path, prompt, systemPrompt, errorOutput, _llmClient.LastVisionOcrDiagnostics, false, ex.Message);
+            }
+            finally
+            {
+                btnVisionOcrTestRun.Enabled = chkVisionOcrEnabled?.Checked == true;
+            }
+        }
+
+        private static Label MakeFieldLabel(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false,
+                Margin = new Padding(0, 4, 4, 0)
+            };
+        }
+
+        private static NumericUpDown MakeVisionNumeric(out NumericUpDown numeric, decimal min, decimal max, int decimalPlaces, decimal increment)
+        {
+            numeric = new NumericUpDown
+            {
+                Dock = DockStyle.Fill,
+                Minimum = min,
+                Maximum = max,
+                DecimalPlaces = decimalPlaces,
+                Increment = increment,
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(2, 2, 2, 2)
+            };
+            return numeric;
+        }
+
+        private int ClampSelectedIndex(ComboBox combo, int requestedIndex, int fallbackIndex = 0)
+        {
+            if (combo == null || combo.Items.Count == 0) return -1;
+            int safeFallback = Math.Max(0, Math.Min(fallbackIndex, combo.Items.Count - 1));
+            if (requestedIndex < 0 || requestedIndex >= combo.Items.Count) return safeFallback;
+            return requestedIndex;
+        }
+
+        private void RefreshVisionOcrProviderDropdown(Guid? preferredProviderId = null)
+        {
+            if (cbVisionOcrProvider == null) return;
+            try
+            {
+                _suppressVisionOcrUiEvents = true;
+                var binding = ToolConfigManager.GetVisionOcrBinding();
+                var bindingProvider = ResolveVisionOcrProviderForUi(binding);
+                var currentId = preferredProviderId
+                    ?? bindingProvider?.Id
+                    ?? GetSelectedVisionOcrProvider()?.Id
+                    ?? LLMConfigManager.GetActiveProvider()?.Id;
+                var providers = LLMConfigManager.Current?.Providers ?? new List<LLMProviderConfig>();
+                cbVisionOcrProvider.DataSource = null;
+                cbVisionOcrProvider.Items.Clear();
+                cbVisionOcrProvider.DisplayMember = "Name";
+                cbVisionOcrProvider.ValueMember = "Id";
+                foreach (var provider in providers)
+                {
+                    cbVisionOcrProvider.Items.Add(provider);
+                }
+                SelectVisionOcrProvider(currentId, binding?.ProviderNameFallback);
+            }
+            finally
+            {
+                _suppressVisionOcrUiEvents = false;
+            }
+        }
+
+        private LLMProviderConfig GetSelectedVisionOcrProvider()
+        {
+            if (cbVisionOcrProvider == null) return null;
+            if (cbVisionOcrProvider.SelectedItem is LLMProviderConfig selectedProvider) return selectedProvider;
+
+            var providers = LLMConfigManager.Current?.Providers ?? new List<LLMProviderConfig>();
+
+            if (cbVisionOcrProvider.SelectedValue is Guid selectedId)
+            {
+                var byValue = providers.FirstOrDefault(p => p.Id == selectedId);
+                if (byValue != null) return byValue;
+            }
+
+            string text = cbVisionOcrProvider.Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                var byText = providers.FirstOrDefault(p => string.Equals(p.Name, text, StringComparison.OrdinalIgnoreCase));
+                if (byText != null) return byText;
+            }
+
+            var bindingProvider = ResolveVisionOcrProviderForUi(ToolConfigManager.GetVisionOcrBinding());
+            if (bindingProvider != null) return bindingProvider;
+
+            return LLMConfigManager.GetActiveProvider();
+        }
+
+        private LLMProviderConfig GetVisionOcrProviderById(Guid? providerId)
+        {
+            if (!providerId.HasValue) return null;
+            return LLMConfigManager.Current?.Providers?.FirstOrDefault(p => p.Id == providerId.Value);
+        }
+
+        private void SelectVisionOcrProvider(Guid? providerId, string providerNameFallback = null)
+        {
+            var providers = LLMConfigManager.Current?.Providers;
+            if (providers == null || cbVisionOcrProvider == null) return;
+            if (providers.Count == 0)
+            {
+                cbVisionOcrProvider.SelectedIndex = -1;
+                return;
+            }
+
+            Guid targetId = providerId ?? LLMConfigManager.GetActiveProvider()?.Id ?? Guid.Empty;
+            if (cbVisionOcrProvider.Items.Count == 0) return;
+
+            if (targetId != Guid.Empty)
+            {
+                try
+                {
+                    cbVisionOcrProvider.SelectedValue = targetId;
+                    if (cbVisionOcrProvider.SelectedValue is Guid selectedValue && selectedValue == targetId)
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Some WinForms combo states reject SelectedValue during rebinding; fall back to item scan.
+                }
+
+                for (int i = 0; i < cbVisionOcrProvider.Items.Count; i++)
+                {
+                    if (cbVisionOcrProvider.Items[i] is LLMProviderConfig item && item.Id == targetId)
+                    {
+                        cbVisionOcrProvider.SelectedIndex = i;
+                        return;
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(providerNameFallback))
+            {
+                for (int i = 0; i < cbVisionOcrProvider.Items.Count; i++)
+                {
+                    if (cbVisionOcrProvider.Items[i] is LLMProviderConfig item &&
+                        string.Equals(item.Name, providerNameFallback, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cbVisionOcrProvider.SelectedIndex = i;
+                        return;
+                    }
+                }
+            }
+
+            cbVisionOcrProvider.SelectedIndex = ClampSelectedIndex(cbVisionOcrProvider, 0);
+        }
+
+        private void LoadVisionOcrBindingToUi()
+        {
+            if (cbVisionOcrProvider == null) return;
+            try
+            {
+                _suppressVisionOcrUiEvents = true;
+
+                var binding = ToolConfigManager.GetVisionOcrBinding();
+                chkVisionOcrEnabled.Checked = binding?.Enabled == true;
+
+                var provider = ResolveVisionOcrProviderForUi(binding) ?? LLMConfigManager.GetActiveProvider();
+                RefreshVisionOcrProviderDropdown(provider?.Id);
+                SelectVisionOcrProvider(provider?.Id, binding?.ProviderNameFallback);
+                provider = GetVisionOcrProviderById(provider?.Id) ?? GetSelectedVisionOcrProvider() ?? provider;
+
+                cbVisionOcrModel.Items.Clear();
+                if (!string.IsNullOrWhiteSpace(provider?.ModelName))
+                {
+                    cbVisionOcrModel.Items.Add(provider.ModelName);
+                }
+                cbVisionOcrModel.Text = !string.IsNullOrWhiteSpace(binding?.ModelName) ? binding.ModelName : provider?.ModelName ?? string.Empty;
+
+                bool overridePayload = binding?.OverridePayload == true;
+                chkVisionOcrUseProviderPayload.Checked = !overridePayload;
+                ApplyVisionOcrPayloadToControls(provider, binding);
+                numVisionOcrClipboardPixels.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrClipboardMaxPixels, numVisionOcrClipboardPixels.Minimum, numVisionOcrClipboardPixels.Maximum);
+                numVisionOcrAttachmentPixels.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrAttachmentMaxPixels, numVisionOcrAttachmentPixels.Minimum, numVisionOcrAttachmentPixels.Maximum);
+                string tilingMode = string.IsNullOrWhiteSpace(UISettingsManager.Settings.VisionOcrTilingMode) ? "Auto" : UISettingsManager.Settings.VisionOcrTilingMode;
+                cbVisionOcrTilingMode.SelectedItem = cbVisionOcrTilingMode.Items.Contains(tilingMode) ? tilingMode : "Auto";
+                numVisionOcrTileMaxDim.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrTileMaxDim, numVisionOcrTileMaxDim.Minimum, numVisionOcrTileMaxDim.Maximum);
+                numVisionOcrTileOverlap.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrTileOverlap, numVisionOcrTileOverlap.Minimum, numVisionOcrTileOverlap.Maximum);
+                numVisionOcrTileMaxCount.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrTileMaxCount, numVisionOcrTileMaxCount.Minimum, numVisionOcrTileMaxCount.Maximum);
+                numVisionOcrTileMaxAspect.Value = ClampAgentDecimal((decimal)UISettingsManager.Settings.VisionOcrTileMaxAspectRatio, numVisionOcrTileMaxAspect.Minimum, numVisionOcrTileMaxAspect.Maximum);
+                numVisionOcrPdfDpi.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrPdfDpi, numVisionOcrPdfDpi.Minimum, numVisionOcrPdfDpi.Maximum);
+                numVisionOcrPdfMaxPages.Value = ClampAgentDecimal(UISettingsManager.Settings.VisionOcrPdfMaxPages, numVisionOcrPdfMaxPages.Minimum, numVisionOcrPdfMaxPages.Maximum);
+                txtVisionOcrPdfRendererPath.Text = string.IsNullOrWhiteSpace(UISettingsManager.Settings.VisionOcrPdfRendererPath) ? "pdftoppm.exe" : UISettingsManager.Settings.VisionOcrPdfRendererPath;
+                RefreshVisionOcrQualityPresetDropdown();
+                ApplyLastVisionOcrQualityPresetToControls();
+                if (txtVisionOcrSystemPrompt != null)
+                {
+                    txtVisionOcrSystemPrompt.Text = BuildVisionOcrPromptPreview(txtVisionOcrTestPrompt?.Text);
+                }
+
+                string policy = string.IsNullOrWhiteSpace(binding?.ContextPolicy) ? "UseLoadedIfAtLeastRequested" : binding.ContextPolicy;
+                cbVisionOcrContextPolicy.SelectedItem = cbVisionOcrContextPolicy.Items.Contains(policy) ? policy : "UseLoadedIfAtLeastRequested";
+                _visionOcrProviderChangedByUser = false;
+            }
+            finally
+            {
+                _suppressVisionOcrUiEvents = false;
+            }
+
+            UpdateVisionOcrPayloadControlsEnabled();
+            UpdateVisionOcrPreview();
+        }
+
+        private LLMProviderConfig ResolveVisionOcrProviderForUi(VisionOcrBinding binding)
+        {
+            if (binding == null) return null;
+            if (binding.ProviderId.HasValue)
+            {
+                var byId = LLMConfigManager.GetProviderById(binding.ProviderId.Value);
+                if (byId != null) return byId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(binding.ProviderNameFallback))
+            {
+                return LLMConfigManager.Current?.Providers?.FirstOrDefault(p =>
+                    string.Equals(p.Name, binding.ProviderNameFallback, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return null;
+        }
+
+        private void ApplyVisionOcrPayloadToControls(LLMProviderConfig provider, VisionOcrBinding binding = null)
+        {
+            if (provider == null || numVisionOcrTemp == null) return;
+
+            numVisionOcrTemp.Value = ClampAgentDecimal((decimal)(binding?.Temperature ?? provider.Temperature), numVisionOcrTemp.Minimum, numVisionOcrTemp.Maximum);
+            numVisionOcrContext.Value = ClampAgentDecimal(binding?.LoadContextLength ?? provider.LoadContextLength, numVisionOcrContext.Minimum, numVisionOcrContext.Maximum);
+            numVisionOcrMaxTokens.Value = ClampAgentDecimal(binding?.MaxTokens ?? provider.MaxTokens, numVisionOcrMaxTokens.Minimum, numVisionOcrMaxTokens.Maximum);
+            numVisionOcrTopP.Value = ClampAgentDecimal((decimal)(binding?.TopP ?? provider.TopP), numVisionOcrTopP.Minimum, numVisionOcrTopP.Maximum);
+            numVisionOcrTopK.Value = ClampAgentDecimal(binding?.TopK ?? provider.TopK, numVisionOcrTopK.Minimum, numVisionOcrTopK.Maximum);
+            numVisionOcrMinP.Value = ClampAgentDecimal((decimal)(binding?.MinP ?? provider.MinP), numVisionOcrMinP.Minimum, numVisionOcrMinP.Maximum);
+            numVisionOcrRepPenalty.Value = ClampAgentDecimal((decimal)(binding?.RepetitionPenalty ?? provider.RepetitionPenalty), numVisionOcrRepPenalty.Minimum, numVisionOcrRepPenalty.Maximum);
+            bool defaultAutoLoad = provider != null && LLMClient.SupportsLocalModelManagement(provider)
+                ? true
+                : provider?.AutoLoadModel == true;
+            chkVisionOcrAutoLoad.Checked = binding?.AutoLoadModel ?? defaultAutoLoad;
+
+            string reasoning = binding?.ReasoningEffort ?? provider.ReasoningEffort;
+            if (string.IsNullOrWhiteSpace(reasoning)) reasoning = "none";
+            cbVisionOcrReasoning.SelectedItem = cbVisionOcrReasoning.Items.Contains(reasoning) ? reasoning : "none";
+        }
+
+        private void VisionOcrControlChanged(object sender, EventArgs e)
+        {
+            if (_suppressVisionOcrUiEvents) return;
+
+            if (sender == chkVisionOcrUseProviderPayload && chkVisionOcrUseProviderPayload.Checked)
+            {
+                var provider = GetSelectedVisionOcrProvider();
+                if (provider != null)
+                {
+                    try
+                    {
+                        _suppressVisionOcrUiEvents = true;
+                        ApplyVisionOcrPayloadToControls(provider);
+                    }
+                    finally
+                    {
+                        _suppressVisionOcrUiEvents = false;
+                    }
+                }
+            }
+
+            UpdateVisionOcrPayloadControlsEnabled();
+            UpdateVisionOcrPreview();
+            SaveVisionOcrBindingFromUi();
+        }
+
+        private void VisionOcrImageQualityChanged(object sender, EventArgs e)
+        {
+            if (_suppressVisionOcrUiEvents) return;
+            if (numVisionOcrClipboardPixels == null || numVisionOcrAttachmentPixels == null) return;
+
+            UISettingsManager.Settings.VisionOcrClipboardMaxPixels = (int)numVisionOcrClipboardPixels.Value;
+            UISettingsManager.Settings.VisionOcrAttachmentMaxPixels = (int)numVisionOcrAttachmentPixels.Value;
+            UISettingsManager.Save();
+            UpdateVisionOcrPreview();
+        }
+
+        private void VisionOcrTilingChanged(object sender, EventArgs e)
+        {
+            if (_suppressVisionOcrUiEvents) return;
+            if (cbVisionOcrTilingMode == null || numVisionOcrTileMaxDim == null) return;
+
+            UISettingsManager.Settings.VisionOcrTilingMode = cbVisionOcrTilingMode.SelectedItem?.ToString() ?? "Auto";
+            UISettingsManager.Settings.VisionOcrTileMaxDim = (int)numVisionOcrTileMaxDim.Value;
+            UISettingsManager.Settings.VisionOcrTileOverlap = (int)numVisionOcrTileOverlap.Value;
+            UISettingsManager.Settings.VisionOcrTileMaxCount = (int)numVisionOcrTileMaxCount.Value;
+            UISettingsManager.Settings.VisionOcrTileMaxAspectRatio = (double)numVisionOcrTileMaxAspect.Value;
+            UISettingsManager.Save();
+            UpdateVisionOcrPreview();
+        }
+
+        private void VisionOcrPdfChanged(object sender, EventArgs e)
+        {
+            if (_suppressVisionOcrUiEvents) return;
+            if (numVisionOcrPdfDpi == null || numVisionOcrPdfMaxPages == null || txtVisionOcrPdfRendererPath == null) return;
+
+            UISettingsManager.Settings.VisionOcrPdfDpi = (int)numVisionOcrPdfDpi.Value;
+            UISettingsManager.Settings.VisionOcrPdfMaxPages = (int)numVisionOcrPdfMaxPages.Value;
+            UISettingsManager.Settings.VisionOcrPdfRendererPath = string.IsNullOrWhiteSpace(txtVisionOcrPdfRendererPath.Text) ? "pdftoppm.exe" : txtVisionOcrPdfRendererPath.Text.Trim();
+            UISettingsManager.Save();
+            UpdateVisionOcrPreview();
+        }
+
+        private void CbVisionOcrProvider_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_suppressVisionOcrUiEvents) return;
+            _visionOcrProviderChangedByUser = true;
+
+            var provider = GetSelectedVisionOcrProvider();
+            if (provider == null)
+            {
+                UpdateVisionOcrPreview();
+                return;
+            }
+
+            cbVisionOcrModel.Items.Clear();
+            if (!string.IsNullOrWhiteSpace(provider.ModelName))
+            {
+                cbVisionOcrModel.Items.Add(provider.ModelName);
+                cbVisionOcrModel.Text = provider.ModelName;
+            }
+
+            if (chkVisionOcrUseProviderPayload.Checked)
+            {
+                ApplyVisionOcrPayloadToControls(provider);
+            }
+
+            UpdateVisionOcrPreview();
+            SaveVisionOcrBindingFromUi();
+        }
+
+        private void UpdateVisionOcrPayloadControlsEnabled()
+        {
+            if (numVisionOcrTemp == null) return;
+            bool enabled = chkVisionOcrEnabled?.Checked == true;
+            bool overridePayload = enabled && chkVisionOcrUseProviderPayload != null && !chkVisionOcrUseProviderPayload.Checked;
+
+            cbVisionOcrProvider.Enabled = enabled;
+            cbVisionOcrModel.Enabled = enabled;
+            btnRefreshVisionOcrModels.Enabled = enabled;
+            chkVisionOcrUseProviderPayload.Enabled = enabled;
+            numVisionOcrTemp.Enabled = overridePayload;
+            numVisionOcrContext.Enabled = overridePayload;
+            numVisionOcrMaxTokens.Enabled = overridePayload;
+            numVisionOcrTopP.Enabled = overridePayload;
+            numVisionOcrTopK.Enabled = overridePayload;
+            numVisionOcrMinP.Enabled = overridePayload;
+            numVisionOcrRepPenalty.Enabled = overridePayload;
+            cbVisionOcrReasoning.Enabled = overridePayload;
+            chkVisionOcrAutoLoad.Enabled = enabled;
+            cbVisionOcrContextPolicy.Enabled = enabled;
+            if (numVisionOcrClipboardPixels != null) numVisionOcrClipboardPixels.Enabled = enabled;
+            if (numVisionOcrAttachmentPixels != null) numVisionOcrAttachmentPixels.Enabled = enabled;
+            if (cbVisionOcrTilingMode != null) cbVisionOcrTilingMode.Enabled = enabled;
+            if (numVisionOcrTileMaxDim != null) numVisionOcrTileMaxDim.Enabled = enabled;
+            if (numVisionOcrTileOverlap != null) numVisionOcrTileOverlap.Enabled = enabled;
+            if (numVisionOcrTileMaxCount != null) numVisionOcrTileMaxCount.Enabled = enabled;
+            if (numVisionOcrTileMaxAspect != null) numVisionOcrTileMaxAspect.Enabled = enabled;
+            if (numVisionOcrPdfDpi != null) numVisionOcrPdfDpi.Enabled = enabled;
+            if (numVisionOcrPdfMaxPages != null) numVisionOcrPdfMaxPages.Enabled = enabled;
+            if (txtVisionOcrPdfRendererPath != null) txtVisionOcrPdfRendererPath.Enabled = enabled;
+            if (cbVisionOcrQualityPreset != null) cbVisionOcrQualityPreset.Enabled = enabled;
+            if (txtVisionOcrPresetName != null) txtVisionOcrPresetName.Enabled = enabled;
+            if (txtVisionOcrTestFile != null) txtVisionOcrTestFile.Enabled = enabled;
+            if (txtVisionOcrTestPrompt != null) txtVisionOcrTestPrompt.Enabled = enabled;
+            if (btnVisionOcrTestRun != null) btnVisionOcrTestRun.Enabled = enabled;
+        }
+
+        private void UpdateVisionOcrPreview()
+        {
+            if (lblVisionOcrPreview == null) return;
+            var provider = GetSelectedVisionOcrProvider();
+            string model = cbVisionOcrModel?.Text;
+            string mode = chkVisionOcrEnabled?.Checked == true ? "aktywny" : "wylaczony";
+            string payloadMode = chkVisionOcrUseProviderPayload?.Checked == true ? "payload providera" : "payload OCR";
+            lblVisionOcrPreview.Text = provider == null
+                ? $"Vision/OCR: {mode}, brak providera"
+                : $"Vision/OCR: {mode}, {provider.Name} -> {model} ({payloadMode}), schowek {UISettingsManager.Settings.VisionOcrClipboardMaxPixels}px, zalaczniki {UISettingsManager.Settings.VisionOcrAttachmentMaxPixels}px, tiling {UISettingsManager.Settings.VisionOcrTilingMode} {UISettingsManager.Settings.VisionOcrTileMaxDim}px/{UISettingsManager.Settings.VisionOcrTileOverlap}px max {UISettingsManager.Settings.VisionOcrTileMaxCount}, PDF {UISettingsManager.Settings.VisionOcrPdfDpi}dpi/{UISettingsManager.Settings.VisionOcrPdfMaxPages}str.";
+        }
+
+        private VisionOcrBinding BuildVisionOcrBindingFromUi()
+        {
+            var existingBinding = ToolConfigManager.GetVisionOcrBinding();
+            var bindingProvider = ResolveVisionOcrProviderForUi(existingBinding);
+            var selectedProvider = GetSelectedVisionOcrProvider();
+            var provider = _visionOcrProviderChangedByUser || bindingProvider == null
+                ? selectedProvider ?? bindingProvider ?? LLMConfigManager.ResolveVisionOcrProvider() ?? LLMConfigManager.GetActiveProvider()
+                : bindingProvider;
+            bool overridePayload = chkVisionOcrUseProviderPayload == null || !chkVisionOcrUseProviderPayload.Checked;
+            var binding = new VisionOcrBinding
+            {
+                Enabled = chkVisionOcrEnabled?.Checked == true,
+                UseDefaultProvider = false,
+                ProviderId = provider?.Id,
+                ProviderNameFallback = provider?.Name,
+                ModelName = string.IsNullOrWhiteSpace(cbVisionOcrModel?.Text) ? provider?.ModelName : cbVisionOcrModel.Text.Trim(),
+                OverridePayload = overridePayload,
+                AutoLoadModel = chkVisionOcrAutoLoad?.Checked == true,
+                ContextPolicy = cbVisionOcrContextPolicy?.SelectedItem?.ToString() ?? "UseLoadedIfAtLeastRequested"
+            };
+
+            if (overridePayload)
+            {
+                binding.Temperature = (double)numVisionOcrTemp.Value;
+                binding.LoadContextLength = (int)numVisionOcrContext.Value;
+                binding.MaxTokens = (int)numVisionOcrMaxTokens.Value;
+                binding.TopP = (double)numVisionOcrTopP.Value;
+                binding.TopK = (int)numVisionOcrTopK.Value;
+                binding.MinP = (double)numVisionOcrMinP.Value;
+                binding.RepetitionPenalty = (double)numVisionOcrRepPenalty.Value;
+                binding.ReasoningEffort = cbVisionOcrReasoning.Text;
+            }
+
+            return binding;
+        }
+
+        private void SaveVisionOcrBindingFromUi()
+        {
+            if (_suppressVisionOcrUiEvents || chkVisionOcrEnabled == null) return;
+            ToolConfigManager.UpdateVisionOcrBinding(BuildVisionOcrBindingFromUi());
+        }
+
+        private async Task RefreshVisionOcrModelsAsync()
+        {
+            var existingBinding = ToolConfigManager.GetVisionOcrBinding();
+            var provider = _visionOcrProviderChangedByUser
+                ? GetSelectedVisionOcrProvider()
+                : ResolveVisionOcrProviderForUi(existingBinding) ?? GetSelectedVisionOcrProvider();
+            if (provider == null || cbVisionOcrModel == null) return;
+
+            btnRefreshVisionOcrModels.Enabled = false;
+            try
+            {
+                var models = await _llmClient.GetAvailableModelsAsync(provider);
+                string current = cbVisionOcrModel.Text;
+                cbVisionOcrModel.Items.Clear();
+                var modelList = models.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                foreach (var model in modelList)
+                {
+                    cbVisionOcrModel.Items.Add(model);
+                }
+
+                if (!string.IsNullOrWhiteSpace(current) &&
+                    !IsDefaultModelPlaceholderForUi(current) &&
+                    modelList.Any(m => string.Equals(m, current, StringComparison.OrdinalIgnoreCase)))
+                {
+                    cbVisionOcrModel.Text = modelList.First(m => string.Equals(m, current, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    cbVisionOcrModel.Text = SelectPreferredVisionOcrModelForUi(modelList) ?? provider.ModelName ?? current;
+                }
+
+                SaveVisionOcrBindingFromUi();
+            }
+            finally
+            {
+                btnRefreshVisionOcrModels.Enabled = chkVisionOcrEnabled?.Checked == true;
+            }
+        }
+
+        private async Task RefreshVisionOcrModelsIfNeededAsync()
+        {
+            if (chkVisionOcrEnabled?.Checked != true || cbVisionOcrModel == null) return;
+            if (!string.IsNullOrWhiteSpace(cbVisionOcrModel.Text) && !IsDefaultModelPlaceholderForUi(cbVisionOcrModel.Text)) return;
+            await RefreshVisionOcrModelsAsync();
+        }
+
+        private void ScheduleVisionOcrModelRefreshIfNeeded()
+        {
+            Action refresh = async () => await RefreshVisionOcrModelsIfNeededAsync();
+            if (IsHandleCreated)
+            {
+                BeginInvoke(refresh);
+                return;
+            }
+
+            EventHandler handler = null;
+            handler = (s, e) =>
+            {
+                HandleCreated -= handler;
+                BeginInvoke(refresh);
+            };
+            HandleCreated += handler;
+        }
+
+        private static string SelectPreferredVisionOcrModelForUi(IEnumerable<string> models)
+        {
+            var list = models?
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Select(m => m.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
+
+            if (list.Count == 0) return null;
+            if (list.Count == 1) return list[0];
+
+            string[] preferredMarkers = { "vision", "vl", "vlm", "mm", "ocr", "gemma", "qwen2-vl", "qwen2.5-vl", "llava", "pixtral", "moondream", "minicpm" };
+            foreach (string marker in preferredMarkers)
+            {
+                var match = list.FirstOrDefault(m => m.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (!string.IsNullOrWhiteSpace(match)) return match;
+            }
+
+            return list[0];
+        }
+
+        private static bool IsDefaultModelPlaceholderForUi(string modelName)
+        {
+            if (string.IsNullOrWhiteSpace(modelName)) return true;
+            string m = modelName.Trim();
+            return string.Equals(m, "local-model", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(m, "model", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(m, "llama3", StringComparison.OrdinalIgnoreCase);
+        }
+
         private Control CreateAgentNumericField(string label, out NumericUpDown numeric, decimal min, decimal max, int decimalPlaces, decimal increment, int width)
         {
             var panel = new Panel { Width = width + 42, Height = 26, Margin = new Padding(0, 0, 4, 0) };
@@ -2188,8 +4783,8 @@ Ostatnia rozmowa:
                 _suppressAgentLlmUiEvents = true;
                 var providers = LLMConfigManager.Current?.Providers ?? new List<LLMProviderConfig>();
                 cbAgentLlmProvider.DataSource = null;
-                cbAgentLlmProvider.DataSource = providers.ToList();
                 cbAgentLlmProvider.DisplayMember = "Name";
+                cbAgentLlmProvider.DataSource = providers.ToList();
             }
             finally
             {
@@ -2206,10 +4801,17 @@ Ostatnia rozmowa:
         {
             var providers = LLMConfigManager.Current?.Providers;
             if (providers == null || cbAgentLlmProvider == null) return;
+            if (providers.Count == 0)
+            {
+                cbAgentLlmProvider.SelectedIndex = -1;
+                return;
+            }
 
             Guid targetId = providerId ?? LLMConfigManager.GetActiveProvider()?.Id ?? Guid.Empty;
             int idx = providers.FindIndex(p => p.Id == targetId);
             if (idx < 0) idx = 0;
+            if (cbAgentLlmProvider.Items.Count == 0) return;
+            if (idx >= cbAgentLlmProvider.Items.Count) idx = 0;
             cbAgentLlmProvider.SelectedIndex = idx;
         }
 

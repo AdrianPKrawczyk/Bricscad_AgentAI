@@ -28,6 +28,7 @@ namespace Bricscad_AgentAI_V2.Core
         public event Action<string> OnToolCallLogged;
         public event Action<LLMStats> OnStatsUpdate; // Obiekt ze statystykami
         public LLMStats LastStats { get; private set; }
+        public string LastVisionOcrDiagnostics { get; private set; } = string.Empty;
 
         public LLMClient(ToolOrchestrator orchestrator)
         {
@@ -273,6 +274,28 @@ namespace Bricscad_AgentAI_V2.Core
 
                             byte[] imageBytes = System.IO.File.ReadAllBytes(imagePath);
                             string base64String = Convert.ToBase64String(imageBytes);
+                            string imageDataUrl = $"data:image/png;base64,{base64String}";
+
+                            if (ToolConfigManager.GetVisionOcrBinding()?.Enabled == true)
+                            {
+                                var ocr = await AnalyzeImageWithVisionOcrAsync(
+                                    imageDataUrl,
+                                    "Oto metryczny render CAD. Odczytaj tekst, symbole i relacje widoczne na obrazie.",
+                                    metricPayload.ToString(Newtonsoft.Json.Formatting.Indented));
+
+                                conversationHistory.Add(new ChatMessage
+                                {
+                                    Role = "tool",
+                                    ToolCallId = toolCall.Id,
+                                    Content = ocr.ok
+                                        ? "Metryczny obraz CAD zostal przeanalizowany przez globalny Vision/OCR.\n\n[VISION/OCR]\n" + ocr.text
+                                        : "Blad globalnego Vision/OCR dla metrycznego obrazu CAD: " + ocr.text
+                                });
+
+                                OnStatusUpdate?.Invoke(ocr.ok ? "Metryczny obraz CAD przeanalizowany przez Vision/OCR." : "Blad Vision/OCR dla metrycznego obrazu CAD.");
+                                canEarlyExitThisTurn = false;
+                                continue;
+                            }
 
                             conversationHistory.Add(new ChatMessage
                             {
@@ -287,7 +310,7 @@ namespace Bricscad_AgentAI_V2.Core
                                 new VisionContentPart
                                 {
                                     Type = "image_url",
-                                    ImageUrl = new VisionImageUrl { Url = $"data:image/png;base64,{base64String}" }
+                                    ImageUrl = new VisionImageUrl { Url = imageDataUrl }
                                 }
                             };
 
@@ -335,6 +358,27 @@ namespace Bricscad_AgentAI_V2.Core
                             // Konwersja na Base64 i wstrzyknięcie roli 'user' (wymóg większości VLM)
                             byte[] imageBytes = System.IO.File.ReadAllBytes(imagePath);
                             string base64String = Convert.ToBase64String(imageBytes);
+                            string imageDataUrl = $"data:image/jpeg;base64,{base64String}";
+
+                            if (ToolConfigManager.GetVisionOcrBinding()?.Enabled == true)
+                            {
+                                var ocr = await AnalyzeImageWithVisionOcrAsync(
+                                    imageDataUrl,
+                                    "Oto zrzut ekranu obszaru rysunku. Odczytaj widoczny tekst, symbole, obiekty CAD i relacje przestrzenne.");
+
+                                conversationHistory.Add(new ChatMessage
+                                {
+                                    Role = "tool",
+                                    ToolCallId = toolCall.Id,
+                                    Content = ocr.ok
+                                        ? "Obraz zostal przechwycony i przeanalizowany przez globalny Vision/OCR.\n\n[VISION/OCR]\n" + ocr.text
+                                        : "Blad globalnego Vision/OCR dla przechwyconego obrazu: " + ocr.text
+                                });
+
+                                OnStatusUpdate?.Invoke(ocr.ok ? "Obraz przeanalizowany przez Vision/OCR." : "Blad Vision/OCR dla obrazu.");
+                                canEarlyExitThisTurn = false;
+                                continue;
+                            }
 
                             var visionContent = new List<VisionContentPart>
                             {
@@ -342,7 +386,7 @@ namespace Bricscad_AgentAI_V2.Core
                                 new VisionContentPart
                                 {
                                     Type = "image_url",
-                                    ImageUrl = new VisionImageUrl { Url = $"data:image/jpeg;base64,{base64String}" }
+                                    ImageUrl = new VisionImageUrl { Url = imageDataUrl }
                                 }
                             };
 
@@ -478,6 +522,310 @@ namespace Bricscad_AgentAI_V2.Core
                     return false;
                 }
             }
+        }
+
+        /// <summary>
+        /// Analizuje obraz przez globalny model Vision/OCR bez tool callingu i zwraca tekstowy opis/OCR.
+        /// </summary>
+        public async Task<(bool ok, string text)> AnalyzeImageWithVisionOcrAsync(string imageDataUrl, string userInstruction, string technicalContext = null, CancellationToken ct = default)
+        {
+            return await AnalyzeImagesWithVisionOcrAsync(new List<string> { imageDataUrl }, userInstruction, technicalContext, ct);
+        }
+
+        /// <summary>
+        /// Analizuje jeden lub wiele obrazow przez globalny model Vision/OCR bez tool callingu.
+        /// </summary>
+        public async Task<(bool ok, string text)> AnalyzeImagesWithVisionOcrAsync(IList<string> imageDataUrls, string userInstruction, string technicalContext = null, CancellationToken ct = default)
+        {
+            var binding = ToolConfigManager.GetVisionOcrBinding();
+            if (binding == null || !binding.Enabled)
+            {
+                return (false, "Globalny Vision/OCR jest wylaczony.");
+            }
+
+            var config = LLMConfigManager.ResolveVisionOcrProvider();
+            if (config == null || string.IsNullOrWhiteSpace(config.EndpointUrl))
+            {
+                return (false, "Globalny Vision/OCR nie ma skonfigurowanego providera.");
+            }
+
+            var validImageUrls = imageDataUrls?
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .ToList() ?? new List<string>();
+
+            if (validImageUrls.Count == 0)
+            {
+                return (false, "Brak danych obrazu dla Vision/OCR.");
+            }
+
+            LastVisionOcrDiagnostics = string.Empty;
+
+            if (await EnsureVisionOcrModelFromProviderAsync(config, binding, ct))
+            {
+                OnStatusUpdate?.Invoke($"Vision/OCR uzyje modelu: {config.ModelName}");
+            }
+
+            if (string.IsNullOrWhiteSpace(config.ModelName) || IsDefaultModelPlaceholder(config.ModelName))
+            {
+                return (false, "Globalny Vision/OCR nie ma wybranego modelu. Otworz Ustawienia -> Vision/OCR i wybierz model albo uzyj przycisku Modele.");
+            }
+
+            bool shouldAutoLoad = binding.AutoLoadModel ?? config.AutoLoadModel;
+            if (!binding.AutoLoadModel.HasValue && SupportsLocalModelManagement(config))
+            {
+                shouldAutoLoad = true;
+            }
+
+            if (shouldAutoLoad && SupportsLocalModelManagement(config))
+            {
+                OnStatusUpdate?.Invoke("Ladowanie modelu Vision/OCR...");
+                await TryLoadModelAsync(config, binding.ContextPolicy);
+            }
+
+            string textPrompt = BuildVisionOcrUserPrompt(userInstruction, technicalContext);
+
+            var visionParts = new List<VisionContentPart>
+            {
+                new VisionContentPart { Type = "text", Text = textPrompt }
+            };
+            foreach (string imageDataUrl in validImageUrls)
+            {
+                visionParts.Add(new VisionContentPart { Type = "image_url", ImageUrl = new VisionImageUrl { Url = imageDataUrl } });
+            }
+
+            var messages = new List<ChatMessage>
+            {
+                new ChatMessage
+                {
+                    Role = "system",
+                    Content = BuildVisionOcrSystemPrompt()
+                },
+                new ChatMessage
+                {
+                    Role = "user",
+                    Content = visionParts
+                }
+            };
+
+            var requestPayload = new Dictionary<string, object>
+            {
+                { "model", config.ModelName },
+                { "messages", messages },
+                { "temperature", config.Temperature },
+                { "max_tokens", config.MaxTokens }
+            };
+
+            if (config.TopP > 0.0 && config.TopP != 1.0) requestPayload["top_p"] = config.TopP;
+            bool isStrictOpenAI = config.EndpointUrl.Contains("api.openai.com") || config.EndpointUrl.Contains("openai.azure.com");
+            if (!isStrictOpenAI)
+            {
+                if (config.TopK > 0) requestPayload["top_k"] = config.TopK;
+                if (config.MinP > 0.0) requestPayload["min_p"] = config.MinP;
+                if (config.RepetitionPenalty > 0.0 && config.RepetitionPenalty != 1.0) requestPayload["repetition_penalty"] = config.RepetitionPenalty;
+            }
+
+            if (!string.IsNullOrEmpty(config.ReasoningEffort) && config.ReasoningEffort != "none")
+            {
+                requestPayload["reasoning_effort"] = config.ReasoningEffort;
+            }
+
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                requestPayload["model"] = config.ModelName;
+                string jsonContent = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore
+                });
+
+                using (var request = new HttpRequestMessage(HttpMethod.Post, config.EndpointUrl))
+                {
+                    if (!string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "not-needed")
+                    {
+                        request.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
+                    }
+
+                    if (config.EndpointUrl.Contains("openrouter"))
+                    {
+                        if (!string.IsNullOrEmpty(config.SiteUrl)) request.Headers.Add("HTTP-Referer", config.SiteUrl);
+                        if (!string.IsNullOrEmpty(config.SiteName)) request.Headers.Add("X-Title", config.SiteName);
+                    }
+
+                    request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                    try
+                    {
+                        BielikLogger.LogInfo($"[VISION OCR REQ] Model={config.ModelName}, Endpoint={config.EndpointUrl}, Attempt={attempt + 1}");
+                        using (var response = await _httpClient.SendAsync(request, ct))
+                        {
+                            string responseBody = await response.Content.ReadAsStringAsync();
+                            if (!response.IsSuccessStatusCode)
+                            {
+                                string msg = $"Vision/OCR HTTP {(int)response.StatusCode}: {responseBody}";
+                                LastVisionOcrDiagnostics = $"http_status={(int)response.StatusCode}, model={config.ModelName}, endpoint={config.EndpointUrl}, raw_chars={(responseBody ?? string.Empty).Length}";
+                                BielikLogger.LogWarn("[VISION OCR ERR] " + msg);
+                                if (attempt == 0 && SupportsLocalModelManagement(config))
+                                {
+                                    await PrepareVisionOcrRetryAsync(config, binding, ct);
+                                    continue;
+                                }
+                                return (false, msg);
+                            }
+
+                            var jsonResponse = JObject.Parse(responseBody);
+                            string content = ExtractVisionOcrContent(jsonResponse);
+                            LastVisionOcrDiagnostics = BuildVisionOcrDiagnostics(jsonResponse, responseBody, content);
+                            if (string.IsNullOrWhiteSpace(content))
+                            {
+                                string finishReason = jsonResponse["choices"]?[0]?["finish_reason"]?.ToString() ?? "<brak>";
+                                BielikLogger.LogWarn($"[VISION OCR WARN] Empty response content. finish_reason={finishReason}, {LastVisionOcrDiagnostics}, raw={TruncateForLog(responseBody, 2000)}");
+                                return (false, "Vision/OCR zwrocil pusta odpowiedz. Szczegoly zapisano w logu Engine.");
+                            }
+
+                            BielikLogger.LogInfo($"[VISION OCR RESP] OK, Length={content.Length}, {LastVisionOcrDiagnostics}");
+                            return (true, content.Trim());
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        BielikLogger.LogInfo("[VISION OCR] Anulowano.");
+                        LastVisionOcrDiagnostics = $"cancelled=true, model={config.ModelName}, endpoint={config.EndpointUrl}";
+                        return (false, "Vision/OCR anulowany.");
+                    }
+                    catch (Exception ex)
+                    {
+                        BielikLogger.LogError($"[VISION OCR ERR] {ex.Message}", ex);
+                        LastVisionOcrDiagnostics = $"exception={ex.GetType().Name}, message={ex.Message}, model={config.ModelName}, endpoint={config.EndpointUrl}";
+                        if (attempt == 0 && SupportsLocalModelManagement(config))
+                        {
+                            await PrepareVisionOcrRetryAsync(config, binding, ct);
+                            continue;
+                        }
+                        return (false, ex.Message);
+                    }
+                }
+            }
+
+            return (false, "Vision/OCR nie powiodl sie po ponowieniu requestu.");
+        }
+
+        public static string BuildVisionOcrSystemPrompt()
+        {
+            return "Jestes wyspecjalizowanym modelem Vision/OCR dla systemu CAD. Twoim zadaniem jest zamiana obrazu lub zestawu kafelkow jednego obrazu na uzyteczny opis tekstowy dla glownego agenta. Nie planujesz narzedzi i nie wykonujesz operacji CAD.";
+        }
+
+        public static string BuildVisionOcrUserPrompt(string userInstruction, string technicalContext = null)
+        {
+            string textPrompt = "Przeanalizuj obraz albo zestaw kafelkow jednego obrazu pod katem OCR i kontekstu CAD. " +
+                "Odczytaj widoczny tekst, symbole, etykiety, wymiary, relacje przestrzenne i istotne problemy. " +
+                "Nie ograniczaj sie do srodka rysunku: sprawdz krawedzie arkusza, tabliczke rysunkowa, legendy, opisy detali i male napisy. " +
+                "Jesli widzisz tabliczke rysunkowa, odczytaj inwestora, projekt, adres, stadium, branze, tytul rysunku, numer, date, skale i autorow. " +
+                "Jesli widzisz elementy typu rząpia/rzap, legenda, wodomierz, zawory, rury lub materialy, wypisz je doslownie. " +
+                "Jesli polecenie uzytkownika pyta o konkretny element, odpowiedz tylko na ten element i podaj krotkie NIEPEWNE_DO_SPRAWDZENIA. " +
+                "Pelny raport w sekcjach OPIS_OGOLNY, TEKSTY_OCR, TABLICZKA_RYSUNKOWA, LEGENDA, WYMIARY_DETALE, NIEPEWNE_DO_SPRAWDZENIA tworz tylko przy ogolnej analizie obrazu. " +
+                "Jesli czegos nie ma albo jest nieczytelne, napisz to jako niepewne zamiast zgadywac. Nie wywoluj narzedzi.";
+
+            if (!string.IsNullOrWhiteSpace(userInstruction))
+            {
+                textPrompt += "\n\nPolecenie uzytkownika:\n" + userInstruction;
+            }
+
+            if (!string.IsNullOrWhiteSpace(technicalContext))
+            {
+                textPrompt += "\n\nKontekst techniczny / kalibracja:\n" + technicalContext;
+            }
+
+            return textPrompt;
+        }
+
+        private static string ExtractVisionOcrContent(JObject jsonResponse)
+        {
+            var choice = jsonResponse["choices"]?[0];
+            var message = choice?["message"];
+
+            string content = ExtractTextFromContentToken(message?["content"]);
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+
+            content = ExtractTextFromContentToken(message?["reasoning_content"]);
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+
+            content = ExtractTextFromContentToken(message?["reasoning"]);
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+
+            content = ExtractTextFromContentToken(choice?["text"]);
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+
+            content = ExtractTextFromContentToken(jsonResponse["content"]);
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+
+            content = ExtractTextFromContentToken(jsonResponse["response"]);
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+
+            content = ExtractTextFromContentToken(jsonResponse["generated_text"]);
+            return string.IsNullOrWhiteSpace(content) ? string.Empty : content.Trim();
+        }
+
+        private static string BuildVisionOcrDiagnostics(JObject jsonResponse, string responseBody, string extractedContent)
+        {
+            var choice = jsonResponse["choices"]?[0];
+            var message = choice?["message"];
+            string content = ExtractTextFromContentToken(message?["content"]);
+            string reasoningContent = ExtractTextFromContentToken(message?["reasoning_content"]);
+            string reasoning = ExtractTextFromContentToken(message?["reasoning"]);
+            string choiceText = ExtractTextFromContentToken(choice?["text"]);
+            string rootResponse = ExtractTextFromContentToken(jsonResponse["response"]);
+            string rootGenerated = ExtractTextFromContentToken(jsonResponse["generated_text"]);
+            string finishReason = choice?["finish_reason"]?.ToString() ?? "<brak>";
+            string model = jsonResponse["model"]?.ToString() ?? "<brak>";
+
+            var usage = jsonResponse["usage"];
+            string promptTokens = usage?["prompt_tokens"]?.ToString() ?? "<brak>";
+            string completionTokens = usage?["completion_tokens"]?.ToString() ?? "<brak>";
+            string totalTokens = usage?["total_tokens"]?.ToString() ?? "<brak>";
+            string reasoningTokens = usage?["completion_tokens_details"]?["reasoning_tokens"]?.ToString() ?? "<brak>";
+
+            return $"model={model}, finish_reason={finishReason}, prompt_tokens={promptTokens}, completion_tokens={completionTokens}, total_tokens={totalTokens}, reasoning_tokens={reasoningTokens}, extracted_chars={(extractedContent ?? string.Empty).Length}, content_chars={content.Length}, reasoning_content_chars={reasoningContent.Length}, reasoning_chars={reasoning.Length}, choice_text_chars={choiceText.Length}, response_chars={rootResponse.Length}, generated_text_chars={rootGenerated.Length}, raw_chars={(responseBody ?? string.Empty).Length}";
+        }
+
+        private static string ExtractTextFromContentToken(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null) return string.Empty;
+
+            if (token.Type == JTokenType.String)
+            {
+                return token.ToString();
+            }
+
+            if (token.Type == JTokenType.Array)
+            {
+                var parts = new List<string>();
+                foreach (var part in token.Children())
+                {
+                    string text = ExtractTextFromContentToken(part);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        parts.Add(text.Trim());
+                    }
+                }
+                return string.Join("\n", parts);
+            }
+
+            if (token.Type == JTokenType.Object)
+            {
+                var obj = (JObject)token;
+                foreach (string key in new[] { "text", "content", "value", "reasoning_content", "reasoning" })
+                {
+                    string text = ExtractTextFromContentToken(obj[key]);
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static string TruncateForLog(string value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maxLength) return value ?? string.Empty;
+            return value.Substring(0, maxLength) + "...";
         }
 
         /// <summary>
@@ -835,6 +1183,108 @@ namespace Bricscad_AgentAI_V2.Core
                 OnStatusUpdate?.Invoke($"[Auto-Load] Model {config.ModelName} załadowany pomyślnie. {message}");
             else if (!string.IsNullOrEmpty(message))
                 OnStatusUpdate?.Invoke($"[Auto-Load] {message}");
+        }
+
+        private async Task<bool> EnsureVisionOcrModelFromProviderAsync(LLMProviderConfig config, VisionOcrBinding binding, CancellationToken ct)
+        {
+            if (config == null || string.IsNullOrWhiteSpace(config.EndpointUrl)) return false;
+            if (!SupportsLocalModelManagement(config) && !IsDefaultModelPlaceholder(config.ModelName)) return false;
+
+            try
+            {
+                var models = await GetAvailableModelsAsync(config, ct);
+                var modelList = models?
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .Select(m => m.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList() ?? new List<string>();
+
+                if (modelList.Count == 0)
+                {
+                    BielikLogger.LogWarn("[VISION OCR MODEL] /v1/models zwrocil pusta liste modeli.");
+                    return false;
+                }
+
+                string current = config.ModelName?.Trim();
+                string selected = null;
+                bool hasExplicitModel = !string.IsNullOrWhiteSpace(current) && !IsDefaultModelPlaceholder(current);
+                if (hasExplicitModel &&
+                    modelList.Any(m => string.Equals(m, current, StringComparison.OrdinalIgnoreCase)))
+                {
+                    selected = modelList.First(m => string.Equals(m, current, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (hasExplicitModel && string.IsNullOrWhiteSpace(selected))
+                {
+                    BielikLogger.LogInfo($"[VISION OCR MODEL] Zachowuje jawnie wybrany model spoza /v1/models: {current}");
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(selected))
+                {
+                    selected = SelectPreferredVisionOcrModel(modelList);
+                }
+
+                if (string.IsNullOrWhiteSpace(selected)) return false;
+                bool changed = !string.Equals(config.ModelName, selected, StringComparison.OrdinalIgnoreCase);
+
+                config.ModelName = selected;
+                if (changed && binding != null)
+                {
+                    binding.ModelName = selected;
+                    ToolConfigManager.UpdateVisionOcrBinding(binding);
+                }
+
+                BielikLogger.LogInfo($"[VISION OCR MODEL] Ensured model from /v1/models: {selected}");
+                return changed;
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogWarn("[VISION OCR MODEL] Nie udalo sie pobrac listy modeli: " + ex.Message);
+                return false;
+            }
+        }
+
+        private async Task PrepareVisionOcrRetryAsync(LLMProviderConfig config, VisionOcrBinding binding, CancellationToken ct)
+        {
+            BielikLogger.LogInfo("[VISION OCR RETRY] Przygotowuje ponowienie po pierwszym bledzie.");
+            OnStatusUpdate?.Invoke("Vision/OCR ponawia po przygotowaniu modelu...");
+            await Task.Delay(1000, ct);
+            await EnsureVisionOcrModelFromProviderAsync(config, binding, ct);
+            if (SupportsLocalModelManagement(config))
+            {
+                await TryLoadModelAsync(config, binding?.ContextPolicy);
+            }
+        }
+
+        private static string SelectPreferredVisionOcrModel(IEnumerable<string> models)
+        {
+            var list = models?
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Select(m => m.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
+
+            if (list.Count == 0) return null;
+            if (list.Count == 1) return list[0];
+
+            string[] preferredMarkers = { "vision", "vl", "vlm", "mm", "ocr", "gemma", "qwen2-vl", "qwen2.5-vl", "llava", "pixtral", "moondream", "minicpm" };
+            foreach (string marker in preferredMarkers)
+            {
+                var match = list.FirstOrDefault(m => m.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (!string.IsNullOrWhiteSpace(match)) return match;
+            }
+
+            return list[0];
+        }
+
+        private static bool IsDefaultModelPlaceholder(string modelName)
+        {
+            if (string.IsNullOrWhiteSpace(modelName)) return true;
+            string m = modelName.Trim();
+            return string.Equals(m, "local-model", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(m, "model", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(m, "llama3", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsSameLoadedModel(LlmModelDescriptor loaded, string requestedModel)

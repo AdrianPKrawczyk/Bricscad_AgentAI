@@ -163,7 +163,8 @@ namespace Bricscad_AgentAI_V2.Core
             }
             catch (System.Exception ex)
             {
-                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\nBłąd uruchamiania panelu V2: {ex.Message}");
+                try { BielikLogger.LogError("Blad uruchamiania panelu V2", ex); } catch { }
+                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\nBłąd uruchamiania panelu V2: {ex}");
             }
         }
 
