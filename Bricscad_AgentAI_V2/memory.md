@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.3 GOLD [GPD PARSER] - Parser plikow .gpd (Generic Printer Description Windows) z DriverStore FileRepository. Pelna lista formatow dla ploterow HP DesignJet/PageWide XL/Z-series - obejmuje standard (A4, A3, A2, A1, A0, B-series, ANSI, Architecture) + custom roll. Heurystyczne mapowanie PC3 device name na hpi<Model>.gpd (T120/T650/T520/T1500/Z2100/Z3200/Z5400/XL3600 itd.). Integracja z `ListPlotDevicesTool` przez `AppendGpdMediaList` - zwraca kompletna liste mediów z PageSetupTool MediaName.
 - v2.30.2 GOLD [PC3 PARSER] - Parser binarnych plikow PC3 (zlib-deflate + struktura blokowa) z diagnostyka driver'ow i aktualnie wybranych formatow dla ploterow HP. Nowy `Pc3Parser` utility class + integracja z `ListPlotDevicesTool`.
 - v2.30.1 GOLD [LAYOUT MEDIA] - Rozszerzenie `ListPlotDevicesTool` o parametr `IncludeMediaPerDevice` (HP/UserXXX). Walidacja `MediaName` w `PageSetupTool` wzgledem plotera z argumentu `PlotDevice`.
 - v2.30.0 GOLD [LAYOUT PRINT PLOT] - Wdrożenie dedykowanego profilu `CadLayoutProfile` oraz 8 nowych narzędzi do zarządzania arkuszami wydruku (Layouts), Page Setup, importu/eksportu szablonów DWT/DWG, drukowania PDF/DWF/PNG oraz zarządzania stylami wydruku CTB/STB: `ListLayoutsTool`, `ManageLayoutTool`, `PageSetupTool`, `ImportLayoutTemplateTool`, `ExportLayoutTemplateTool`, `PlotLayoutTool`, `PublishToPdfTool`, `PlotStyleTool`. Tagi: #layout, #wydruk, #plotstyle, #template, #pdf, #publish. Rozszerzenie promptu Supervisora o regułę delegowania layout/plot. Naprawa buga Early Exit (zwraca treść z tool result zamiast generycznego komunikatu). Aktualizacja USER_GUIDE.md i TOOLS_REFERENCE.md.
@@ -4155,8 +4156,40 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Drugi bug: `ExtractValue` z `StartsWith("\"") && EndsWith("\"")` nie stripowal cudzyslowiow z `name="value"` gdy parser nie czytal az do konca linii (miedzy blokami). Fix: dodano fallback strip pojedynczego otwierajacego cudzyslowia.
 - Brak mozliwosci uzyskania PELNEJ listy mediów z PC3/HDI z poziomu .NET - ograniczenie Win32 print spooler, pozostaje ostrzezenie w `ListPlotDevicesTool` i rekomendacja GUI BricsCAD.
 ### [KOLEJNY_KROK]
-- Manualne testy w BricsCAD-zie z nowym ListPlotDevicesTool (filtr `HP` powinien teraz zwracac blok `--- DIAGNOSTYKA PLIKU PC3 ---` z `297x600 (209.97x297.01mm)` dla T120/T650).
-- Po stabilizacji layout tools: rozważyc dodanie `Pc3Parser` do `PageSetupTool` jako walidacji preflight (sprawdzanie czy `MediaName` zgadza sie z aktualnym formatem PC3).
+- Manualne testy w BricsCAD-zie z nowym ListPlotDevicesTool (filtr `HP` powinien teraz zwracac pelna liste mediów z GPD dla T120/T650).
+- Po stabilizacji layout tools: rozwazyc dodanie `Pc3Parser` + `GpdParser` do `PageSetupTool` jako walidacji preflight (sprawdzanie czy `MediaName` jest na liscie obslugiwanych przez dany ploter).
+
+## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
+### [ODKRYCIE]
+- Sterowniki HP Plotter (DesignJet, PageWide XL, Z-series, Smart Tank, DesignJet XL) sa zapisane w folderach Windows `C:\Windows\System32\DriverStore\FileRepository\hpi2144.inf_amd64_*` jako pliki .gpd (Generic Printer Description) - **plain text format**.
+- Format GPD jest hierarchiczny z blokami `*Feature: PaperSize { *Option: NAME { *PageDimensions: PAIR(W, H); ... } }`. Kazdy ploter ma osobny plik (np. `hpiT120.gpd`, `hpiT65036-in.gpd`, `hpiZ320044inPhoto.gpd`).
+- MasterUnits = PAIR(1200, 1200) → 1 unit = 1/1200 inch; wymiary w `*PageDimensions` to wymiary papieru w tych jednostkach.
+- Plik INF `hpi2144.inf` mapuje kazdy model plotera na odpowiadajacy mu plik GPD (np. `HP DesignJet T120 V4=T120` → `hpiT120.gpd`).
+- Dla sterownikow `gdiplot7.hdi` (HP generic) **lista mediów jest WSPOLNA** dla T120/T650/T520 itd. - custom user-defined formaty z jednego plotera sa widoczne w innych (bo ten sam driver). To potwierdza ze `T120-2026.06.17.pc3` z `Media=A4` jest poprawny dla T120 mimo ze domyslny `HP Designjet T120 - Adrian.pc3` ma `Media=297x600`.
+### [ZREALIZOWANO]
+- Nowy `src/Core/GpdParser.cs` (~330 LOC):
+    * `GpdParser.Parse(path) → GpdInfo` - parsuje PaperSize feature, zwraca `MediaFormats` (z `WidthMm`/`HeightMm` konwertowanymi z units przez UnitsPerInch*25.4), `CustomSize` (z MinSize/MaxSize), `ModelName`, `UnitsPerInch`.
+    * `GpdParser.FindHpGpdForDevice(deviceName, friendlyName, winDriverName)` - heurystycznie mapuje nazwe PC3 (np. `HP Designjet T120 - Adrian.pc3`) na plik GPD. Szuka w `DriverStore\FileRepository\hpi*\*.gpd`, `spool\drivers\x64\PCC\*.gpd`, `spool\drivers\x64\3\*.gpd`.
+    * Heurystyka: T120/T125/T130/T520/T525/T530/T630/T650/T730/T790/T795/T830/T850/T920/T930/T940/T950/T1500/T1530/T1600/T1700/T2300/T2500/T2530/T2600/T3500/T7100/T7200/Z2xxx/Z3xxx/Z5xxx/Z6xxx/Z9xxx/XL3600/XL3800 z roznymi rozmiarami (24-in/36-in/44-in/42-in/60-in). Punkty za sufiks `24`/`36`/`44`.
+    * Formaty mierzone z `*PageDimensions: PAIR(W, H)` → konwersja przez `UnitsPerInch * 25.4`.
+- `tests/Core/GpdParserTests.cs` (10 testow): T120 ma 22 formaty, T650 36-in ma 35, T120 wspiera A4/A3/A2/A1 (ale NIE A0), T650 wspiera A0/B1/ESheet/F/11X14, CustomSize z Min/Max width.
+- `ListPlotDevicesTool` - nowa metoda `AppendGpdMediaList`:
+    * Hierarchiczny output: priorytetowe A4/A3/A2/A1/A0, B-series (ISO+JIS), ANSI/Letter, Architecture, custom size.
+    * Format z instrukcja: `* ISOA2 (420.0x594.0mm) | PageSetupTool: MediaName="ISOA2"` - LLM widzi jakie nazwy uzywac.
+    * Custom size section z `Min/Max dimensions` + instrukcja formatu `297x600` + wspomnienie o suffixie `_p`.
+- `Bricscad_AgentAI_V2.csproj`: nowy `<Compile Include>` dla `GpdParser.cs` + `GpdParserTests.cs`. `TestRunner.cs` dodany `GpdParserTests.RunTests()`.
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 2 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1133568 bytes).
+- Weryfikacja reczna: wszystkie 6 przetestowanych GPD sparsowane (T120/T650/T520/T1500/Z3200/XL3600). Mapowanie PC3→GPD poprawne dla T120/T650/T520/T1500.
+- Test 5 ze scenariuszy: T120 NIE wspiera ISOA0 (maks. szerokosc 24"), T650 36-in wspiera ISOA0. Custom size min/max bounds zweryfikowane (T120: 79x140mm min, 609.6x91000mm max).
+### [BLOKADY / PROBLEMY]
+- `string.Contains(string, StringComparison)` nie istnieje w .NET Framework 4.8 - zamienilem na `IndexOf(..., StringComparison) >= 0`.
+- `$(MSBuildToolsPath)` nie jest ustawione w moim standalone test csproj - musze podac sciezke absolutna do `Microsoft.CSharp.targets`.
+### [KOLEJNY_KROK]
+- Manualne testy w BricsCAD-zie z nowym ListPlotDevicesTool (filtr `HP` powinien zwracac `--- LISTA MEDIOW Z GPD ---` z ~22-35 formatami per device).
+- Rozwazyc: dodac `PageSetupTool` preflight walidacje korzystajaca z GpdParser (odrzucac MediaName ktory nie jest na liscie obslugiwanych formatow dla danego plotera, zamiast czekac na `eNoDatabase` z BricsCAD API).
+- Rozwazyc: wyciagnac `InputBin` (Roll/Manual/Tray/AutoSelect) z GPD - tez przydatne dla PageSetupTool.
 ## [v2.29.22] 2026-06-17 - Wydzielenie lekkiego panelu czatu (LightChatControl)
 ### [ZREALIZOWANO]
 - Zaprojektowano i zaimplementowano nową kontrolkę LightChatControl.cs pełniącą rolę lekkiego interfejsu (Dumb View) dla czatu z LLM.

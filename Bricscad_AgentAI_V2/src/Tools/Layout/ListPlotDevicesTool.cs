@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -312,10 +313,100 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 sb.AppendLine($"    Rozdzielczosc: {pc3Info.Resolution}");
             }
 
-            sb.AppendLine("    UWAGA: Plik PC3 przechowuje tylko AKTUALNIE WYBRANY format.");
+            string gpdPath = GpdParser.FindHpGpdForDevice(
+                pc3DeviceName, pc3Info.FriendlyNetName, pc3Info.WinDriverName);
+            if (!string.IsNullOrEmpty(gpdPath))
+            {
+                var gpdInfo = GpdParser.Parse(gpdPath);
+                if (gpdInfo != null && gpdInfo.ParseSucceeded)
+                {
+                    AppendGpdMediaList(sb, gpdInfo, pc3Info);
+                    return;
+                }
+            }
+
+            sb.AppendLine("    UWAGA: Nie znaleziono pliku GPD (Generic Printer Description) dla tego plotera.");
+            sb.AppendLine("          Plik PC3 przechowuje tylko AKTUALNIE WYBRANY format.");
             sb.AppendLine("          Pelna lista formatow jest zdefiniowana binarnie w driverze Windows (.hdi).");
             sb.AppendLine("          Aby ustawic format, uzyj PageSetupTool z nazwa driver'a widoczna w BricsCAD GUI");
             sb.AppendLine("          (menu Format -> Plotter Setup -> lista 'Papier'), np.: 'A4', 'B2', '297x600', 'Tabloid'.");
+        }
+
+        private static void AppendGpdMediaList(StringBuilder sb, GpdInfo gpdInfo, Pc3Info pc3Info)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"    --- LISTA MEDIOW Z GPD: {gpdInfo.ModelName ?? Path.GetFileName(gpdInfo.FilePath)} ---");
+
+            var priority = new[] { "A4", "ISOA3", "ISOA2", "ISOA1", "ISOA0" };
+            var priorityFormats = gpdInfo.MediaFormats
+                .Where(m => Array.IndexOf(priority, m.OptionName) >= 0)
+                .OrderBy(m => Array.IndexOf(priority, m.OptionName))
+                .ToList();
+
+            if (priorityFormats.Count > 0)
+            {
+                sb.AppendLine("    Formaty standardowe (priorytetowe A4/A3/A2/A1/A0):");
+                foreach (var media in priorityFormats)
+                {
+                    sb.AppendLine($"      * {media}  | PageSetupTool: MediaName=\"{media.OptionName}\"");
+                }
+            }
+
+            var bSeries = gpdInfo.MediaFormats
+                .Where(m => m.OptionName.StartsWith("ISOB") || m.OptionName.StartsWith("JISB"))
+                .ToList();
+            if (bSeries.Count > 0)
+            {
+                sb.AppendLine("    Formaty B-series (ISO B + JIS B):");
+                foreach (var media in bSeries)
+                {
+                    sb.AppendLine($"      * {media}  | PageSetupTool: MediaName=\"{media.OptionName}\"");
+                }
+            }
+
+            var ansi = gpdInfo.MediaFormats
+                .Where(m => m.OptionName == "LETTER" ||
+                            m.OptionName == "NorthAmericaTabloid" ||
+                            m.OptionName.StartsWith("NorthAmericaCSheet") ||
+                            m.OptionName.StartsWith("NorthAmericaDSheet") ||
+                            m.OptionName == "NorthAmericaLegal" ||
+                            m.OptionName == "11X14" || m.OptionName == "F")
+                .ToList();
+            if (ansi.Count > 0)
+            {
+                sb.AppendLine("    Formaty ANSI/Letter:");
+                foreach (var media in ansi)
+                {
+                    sb.AppendLine($"      * {media}  | PageSetupTool: MediaName=\"{media.OptionName}\"");
+                }
+            }
+
+            var arch = gpdInfo.MediaFormats
+                .Where(m => m.OptionName.StartsWith("NorthAmericaArchitecture") ||
+                            m.OptionName.StartsWith("Arch"))
+                .ToList();
+            if (arch.Count > 0)
+            {
+                sb.AppendLine("    Formaty Architecture:");
+                foreach (var media in arch)
+                {
+                    sb.AppendLine($"      * {media}  | PageSetupTool: MediaName=\"{media.OptionName}\"");
+                }
+            }
+
+            if (gpdInfo.CustomSize != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("    CUSTOM SIZE (formaty zdefiniowane przez uzytkownika):");
+                sb.AppendLine($"      {gpdInfo.CustomSize}");
+                sb.AppendLine("      Format nazwy w PageSetupTool MediaName: \"{szerokosc}x{dlugosc}\" (mm), np.: \"297x600\".");
+                sb.AppendLine("      Szerokosc musi miescic sie w zakresie, dlugosc moze byc dowolna.");
+                sb.AppendLine("      Opcjonalny suffix \"_p\" dla pelnych wielokrotnosci (np. \"297x1320_p\" = 2x600+120).");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"    RAZEM: {gpdInfo.MediaFormats.Count} formatow (w tym custom).");
+            sb.AppendLine("    Uzywaj nazw w PageSetupTool dokladnie tak jak powyzej (np. \"A4\", \"ISOA3\", \"NorthAmericaTabloid\").");
         }
 
         private static string ResolvePc3Path(string deviceName)

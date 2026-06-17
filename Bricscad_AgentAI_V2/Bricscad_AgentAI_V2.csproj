@@ -233,6 +233,7 @@
     <Compile Include="tests\Core\VisionOcrTilerTests.cs" />
     <Compile Include="tests\Core\FileExtractorTests.cs" />
     <Compile Include="tests\Core\Pc3ParserTests.cs" />
+    <Compile Include="tests\Core\GpdParserTests.cs" />
     <Compile Include="src\UI\AgentAutotestControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -246,6 +247,7 @@
     <Compile Include="src\Models\LayoutEnums.cs" />
     <Compile Include="src\Core\LayoutHelpers.cs" />
     <Compile Include="src\Core\Pc3Parser.cs" />
+    <Compile Include="src\Core\GpdParser.cs" />
     <Compile Include="src\Tools\Layout\ListLayoutsTool.cs" />
     <Compile Include="src\Tools\Layout\ManageLayoutTool.cs" />
     <Compile Include="src\Tools\Layout\PageSetupTool.cs" />
