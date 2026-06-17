@@ -187,21 +187,48 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
 
                         if (args.TryGetValue("MediaName", out var tokMedia))
                         {
+                            string mediaNameArg = tokMedia.ToString();
+
                             try
                             {
-                                validator.SetCanonicalMediaName(layout, tokMedia.ToString());
+                                validator.SetCanonicalMediaName(layout, mediaNameArg);
                                 applied++;
                             }
                             catch (Exception ex)
                             {
-                                string currentDevice = args.TryGetValue("PlotDevice", out var tokDevNow)
-                                    ? tokDevNow.ToString()
-                                    : layout.PlotConfigurationName;
-                                string userMapping = TryResolveCustomFormatViaWin32(tokMedia.ToString(), currentDevice);
-                                string extra = string.IsNullOrEmpty(userMapping)
-                                    ? "Lista dostepnych: uzyj ListPlotDevicesTool z Filter='" + currentDevice + "' i IncludeMediaPerDevice=true."
-                                    : "Format '" + tokMedia + "' wyglada na custom. UserXXX w driver to '" + userMapping + "'. Sprobuj MediaName=\"" + userMapping + "\" albo zostaw nazwe i zweryfikuj wynik w GUI BricsCAD.";
-                                warnings.Add($"MediaName '{tokMedia}': {ex.Message}. {extra}");
+                                if (!mediaNameArg.EndsWith("_p", StringComparison.Ordinal) &&
+                                    !mediaNameArg.EndsWith("_a", StringComparison.Ordinal) &&
+                                    UserMediaResolver.TryParseCustomMediaName(mediaNameArg, out double fw, out double fh, out _))
+                                {
+                                    try
+                                    {
+                                        validator.SetCanonicalMediaName(layout, mediaNameArg + "_p");
+                                        applied++;
+                                        warnings.Add($"MediaName '{mediaNameArg}' nie zostal zaakceptowany przez driver. Sprobowano automatycznie '{mediaNameArg}_p' (sufiks _p = format skladany do A4) - SUKCES. Driver wymaga sufiksu _p dla tego formatu.");
+                                    }
+                                    catch (Exception ex2)
+                                    {
+                                        string currentDevice = args.TryGetValue("PlotDevice", out var tokDevNow)
+                                            ? tokDevNow.ToString()
+                                            : layout.PlotConfigurationName;
+                                        string userMapping = TryResolveCustomFormatViaWin32(mediaNameArg, currentDevice);
+                                        string extra = string.IsNullOrEmpty(userMapping)
+                                            ? "Lista dostepnych: uzyj ListPlotDevicesTool z Filter='" + currentDevice + "' i IncludeMediaPerDevice=true."
+                                            : "Format '" + mediaNameArg + "' wyglada na custom. UserXXX w driver to '" + userMapping + "'. Sprobuj MediaName=\"" + userMapping + "\" albo zostaw nazwe i zweryfikuj wynik w GUI BricsCAD.";
+                                        warnings.Add($"MediaName '{mediaNameArg}': {ex.Message}. Automatyczna proba z '{mediaNameArg}_p' tez nie powiodla sie ({ex2.Message}). {extra}");
+                                    }
+                                }
+                                else
+                                {
+                                    string currentDevice = args.TryGetValue("PlotDevice", out var tokDevNow)
+                                        ? tokDevNow.ToString()
+                                        : layout.PlotConfigurationName;
+                                    string userMapping = TryResolveCustomFormatViaWin32(mediaNameArg, currentDevice);
+                                    string extra = string.IsNullOrEmpty(userMapping)
+                                        ? "Lista dostepnych: uzyj ListPlotDevicesTool z Filter='" + currentDevice + "' i IncludeMediaPerDevice=true."
+                                        : "Format '" + mediaNameArg + "' wyglada na custom. UserXXX w driver to '" + userMapping + "'. Sprobuj MediaName=\"" + userMapping + "\" albo zostaw nazwe i zweryfikuj wynik w GUI BricsCAD.";
+                                    warnings.Add($"MediaName '{mediaNameArg}': {ex.Message}. {extra}");
+                                }
                             }
                         }
 

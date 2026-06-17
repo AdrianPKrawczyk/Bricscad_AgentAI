@@ -43,6 +43,8 @@ Przyklady prawidlowego uzycia PageSetupTool z MediaName:
 - `PageSetupTool LayoutName="IS.W.01" MediaName="User266"` - ustaw format niestandardowy UserXXX
 - `PageSetupTool LayoutName="IS.W.01" MediaName="594x841"` - inny custom roll (594x841mm)
 
+WAZNE: Jesli driver odrzuci MediaName (np. `594x1320` zwraca eInvalidInput ale `594x1320_p` dziala), PageSetupTool AUTOMATYCZNIE probuje wariant z sufiksem `_p` (A4 fold pattern). User nie musi znac konwencji - wystarczy podac wymiary.
+
 PageSetupTool ZAWSZE wywoluj z LayoutName (nie modyfikuj 'Model'). PlotDevice i MediaName moga byc podane razem lub osobno.
 
 ### ListPlotDevicesTool
