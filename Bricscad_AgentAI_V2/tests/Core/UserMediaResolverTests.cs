@@ -15,6 +15,9 @@ namespace Bricscad_AgentAI_V2.Tests.Core
             TestIsWithinGpdBoundsInside();
             TestIsWithinGpdBoundsOutside();
             TestFindUserFormatsBySizeNoCapabilities();
+            TestAPanelsFoldableFormula();
+            TestBuildAPanelsFoldableSize();
+            TestDescribeFoldPattern();
         }
 
         private static void TestParseCustomMediaNameValid()
@@ -98,6 +101,43 @@ namespace Bricscad_AgentAI_V2.Tests.Core
         {
             var matches = UserMediaResolver.FindUserFormatsBySize(null, 297, 600);
             Debug.Assert(matches.Count == 0, "Null capabilities should return empty list.");
+        }
+
+        private static void TestAPanelsFoldableFormula()
+        {
+            Debug.Assert(UserMediaResolver.CountAPanelsForFoldableSize(580) == 3,
+                "580mm = 3*185+25 = 3 panele A4");
+            Debug.Assert(UserMediaResolver.CountAPanelsForFoldableSize(950) == 5,
+                "950mm = 5*185+25 = 5 paneli A4");
+            Debug.Assert(UserMediaResolver.CountAPanelsForFoldableSize(1320) == 7,
+                "1320mm = 7*185+25 = 7 paneli A4 (594x1320_p)");
+            Debug.Assert(UserMediaResolver.CountAPanelsForFoldableSize(1690) == 9,
+                "1690mm = 9*185+25 = 9 paneli A4");
+            Debug.Assert(UserMediaResolver.CountAPanelsForFoldableSize(2060) == 11,
+                "2060mm = 11*185+25 = 11 paneli A4");
+        }
+
+        private static void TestBuildAPanelsFoldableSize()
+        {
+            double h;
+            bool ok = UserMediaResolver.TryBuildAPanelsFoldableSize(297, 7, 25, out h);
+            Debug.Assert(ok, "Build should succeed for 7 panels");
+            Debug.Assert(Math.Abs(h - 1320.0) < 0.001, "7*185+25=1320. Got: " + h);
+
+            ok = UserMediaResolver.TryBuildAPanelsFoldableSize(594, 9, 25, out h);
+            Debug.Assert(ok, "Build should succeed for 9 panels at 594mm width");
+            Debug.Assert(Math.Abs(h - 1690.0) < 0.001, "9*185+25=1690. Got: " + h);
+        }
+
+        private static void TestDescribeFoldPattern()
+        {
+            string desc = UserMediaResolver.DescribeFoldPattern(594, 1320, true);
+            Debug.Assert(!string.IsNullOrEmpty(desc), "Description should be generated");
+            Debug.Assert(desc.Contains("1320"), "Should mention 1320mm");
+            Debug.Assert(desc.Contains("7 paneli") || desc.Contains("7 panel"), "Should mention 7 panels");
+
+            string noDesc = UserMediaResolver.DescribeFoldPattern(594, 1320, false);
+            Debug.Assert(noDesc == null, "Should return null for non-foldable");
         }
     }
 }

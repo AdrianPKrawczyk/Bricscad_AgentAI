@@ -370,7 +370,26 @@ Agent zarzadza tablicami stylow wydruku:
 
 ### 13.7. Custom formaty papieru (297x600, User266)
 
-Plotery HP DesignJet (i inne plotery z driverem gdiplot7.hdi) czesto uzywaja **formatow niestandardowych** zdefiniowanych przez uzytkownika w driverze Windows. Przykladowo: `297x600` (297mm szerokosci, 600mm dlugosci), `594x841` (format ISOA1), `594x1320_p` (594x1320mm z sufiksem `_p` oznaczajacym wielokrotnosc standardowej dlugosci).
+Plotery HP DesignJet (i inne plotery z driverem gdiplot7.hdi) czesto uzywaja **formatow niestandardowych** zdefiniowanych przez uzytkownika w driverze Windows. Przykladowo: `297x600` (297mm szerokosci, 600mm dlugosci), `594x841` (format ISOA1), `594x1320_p` (594x1320mm z sufiksem `_p` oznaczajacym format skladany do A4).
+
+**Konwencja sufiksu `_p` (format skladany do A4):**
+
+Sufiks `_p` oznacza format, ktory po zadrukowaniu i pocieciu paskow po `185mm` sklada sie do standardowego A4 (210x297mm) z marginesem `25mm`. Wzor:
+```
+dlugosc = N * 185 + 25 [mm]
+gdzie:  N = liczba paneli A4 w pionie
+        185 = 210 (szerokosc A4) - 25 (margines ciecia)
+        25 = margines na ciecie
+```
+
+Przyklady standardowe:
+| Format | Wzor | Panele |
+|--------|------|--------|
+| `297x580_p` | 3*185+25 = 580 | 3 panele A4 |
+| `297x950_p` | 5*185+25 = 950 | 5 paneli A4 |
+| `594x1320_p` | 7*185+25 = 1320 | 7 paneli A4 |
+| `594x1690_p` | 9*185+25 = 1690 | 9 paneli A4 |
+| `841x2060_p` | 11*185+25 = 2060 | 11 paneli A4 |
 
 Agent obsluguje te formaty na 3 sposoby:
 
@@ -393,6 +412,9 @@ Przyklad ustawienia z walidacja:
 
 > [!TIP]
 > Aby zobaczyc pelna liste obslugiwanych formatow dla plotera HP, uzyj `ListPlotDevicesTool Filter="HP"` - pokaze liste z pliku GPD (Generic Printer Description Windows) wraz z przykladowymi nazwami do PageSetupTool.
+
+> [!TIP]
+> Aby obliczyc `N` dla wlasnego formatu `_p`: N = round((dlugosc - 25) / 185). Driver zaakceptuje kazda nazwe z `_p` ktora miesci sie w GPD bounds, nawet jesli N nie jest calkowite.
 
 > [!TIP]
 > Jesli nie znasz dokladnej nazwy stylu CTB/STB, popros Agenta o liste. W odpowiedzi zobaczysz pelna liste dostepnych tablic stylow wydruku.

@@ -401,7 +401,15 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 sb.AppendLine($"      {gpdInfo.CustomSize}");
                 sb.AppendLine("      Format nazwy w PageSetupTool MediaName: \"{szerokosc}x{dlugosc}\" (mm), np.: \"297x600\".");
                 sb.AppendLine("      Szerokosc musi miescic sie w zakresie, dlugosc moze byc dowolna.");
-                sb.AppendLine("      Opcjonalny suffix \"_p\" dla pelnych wielokrotnosci (np. \"297x1320_p\" = 2x600+120).");
+                sb.AppendLine("      Opcjonalny suffix \"_p\" dla formatow skladanych do A4:");
+                sb.AppendLine("        Wzor: dlugosc = N * 185 + 25 (gdzie 185 = 210 - 25, 25 = margines).");
+                sb.AppendLine("        N = liczba paneli A4 (210x297) skladajacych sie do tej dlugosci.");
+                sb.AppendLine("        Przyklady:");
+                sb.AppendLine("          297x580_p   = 3*185+25 (3 panele A4)");
+                sb.AppendLine("          297x950_p   = 5*185+25 (5 paneli A4)");
+                sb.AppendLine("          594x1320_p  = 7*185+25 (7 paneli A4)");
+                sb.AppendLine("          594x1690_p  = 9*185+25 (9 paneli A4)");
+                sb.AppendLine("          841x2060_p  = 11*185+25 (11 paneli A4)");
             }
 
             sb.AppendLine();

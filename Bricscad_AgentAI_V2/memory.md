@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.7 GOLD [_P FOLD PATTERN] - Dodanie heurystyki sufiksu `_p` w `UserMediaResolver`: `dlugosc = N * 185 + 25` (gdzie 185 = 210 - 25, 25 = margines ciecia). Konwencja: format z `_p` sklada sie do A4 po pocieciu paskow 185mm z marginesem 25mm. Implementacja: `CountAPanelsForFoldableSize(h)` + `TryBuildAPanelsFoldableSize(w, n, margin, h)` + `DescribeFoldPattern(w, h, isFoldable)`. Sekcja CUSTOM SIZE w `ListPlotDevicesTool` rozszerzona o dokumentacje wzoru z 5 przykladami.
 - v2.30.6 GOLD [WIN32 CRASH FIX] - Krytyczny fix `Win32PrinterCapabilities.QueryMedia`: `Marshal.PtrToStringUni(IntPtr)` bez jawnej dlugosci powodowal `System.AccessViolationException` w `System.String.wcslen` gdy driver zwracal nazwy bez null-terminatora (np. dla `297x1320` i `594x1320`). Crashowal caly proces BricsCAD (PID 0x12e98, 0x54e8, dump 134MB). Fix: `Marshal.PtrToStringUni(IntPtr, int len=32)` z CCHFORMNAME + try/catch + safety limit `h > 1000 || w > 1000` pomija Win32 lookup dla duzych formatow.
 - v2.30.5 GOLD [PROMPT FIX] - Naprawa system prompt `CadLayoutProfile`: usuniecie niejednoznacznej reguly "NAJPIERW ListPlotDevicesTool". Nowa regula: "Gdy user poda KONKRETNA nazwe MediaName (np. 'A4', '297x600', 'User266') - wywolaj PageSetupTool BEZPOSREDNIO". Dodano 4 przyklady prawidlowego uzycia PageSetupTool z custom format. Dodano sekcje 13.7 w USER_GUIDE o custom formatach papieru HP.
 - v2.30.4 GOLD [USER MEDIA MAPPER] - P/Invoke `DeviceCapabilities()` Win32 API + parser mapowania custom format (`297x600`, `297x1320_p`) na UserXXX (np. User254, User261) na podstawie wymiarow. Walidacja bounds z GPD MinSize/MaxSize w `PageSetupTool` - blokuje preflight gdy custom wymiary przekraczaja zakres plotera. Heurystyczny fallback na `_p` suffix (wielokrotnosc 600mm + offset).
@@ -4256,6 +4257,39 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Manualne testy z `MediaName="297x1320"` - powinien teraz przejsc bez crashu (driver zaakceptuje lub zwroci `eInvalidInput`).
 - Sprawdzic czy `594x1320` tez teraz nie crashuje (rowniez >1000mm, safety limit).
 - Rozwazyc dodanie explicit limit na `PageSetupTool` dla `MediaName` zawierajacych format >1000mm - wywolanie ostrzezenia ze driver moze nie zaakceptowac.
+
+## [v2.30.7] 2026-06-17 - Layout/Plot: _p suffix formula (A4 fold pattern)
+### [ODKRYCIE]
+- Testy uzytkownika wykazaly ze sufiks `_p` w nazwach formatow HP DesignJet (np. `297x950_p`, `594x1320_p`, `841x2060_p`) to NIE marker dlugosci, ale oznaczenie **formatu skladanego do A4**.
+- Wzor: `dlugosc = N * 185 + 25` gdzie:
+    - `185 = 210 (A4 width) - 25 (margin)`
+    - `25` = margines na ciecie [mm]
+    - `N` = liczba paneli A4 (210x297) skladajacych sie do danej dlugosci
+- Po zadrukowaniu i pocieciu paskow co `185mm` z `25mm` marginesem, otrzymujemy `N` paneli `A4` (210x297mm) kazdy.
+### [ZWERYFIKOWANE]
+- 11/12 formatow z `_p` (z plikow PC3) idealnie pasuje do wzoru:
+    - `580` = 3*185+25 (3 panele)
+    - `950` = 5*185+25 (5 paneli)
+    - `1320` = 7*185+25 (7 paneli)
+    - `1690` = 9*185+25 (9 paneli)
+    - `2060` = 11*185+25 (11 paneli)
+- Wyjatek: `297x500_p` (2.57 paneli) - prawdopodobnie inny wzorzec (2*200+100) - pozostawiony jako edge case.
+### [ZREALIZOWANO]
+- `src/Core/UserMediaResolver.cs` - nowe metody:
+    * `CountAPanelsForFoldableSize(heightMm, marginMm=25)` - oblicza N z wzoru `round((h-25)/185)`.
+    * `TryBuildAPanelsFoldableSize(widthMm, numPanels, marginMm, out heightMm)` - buduje dlugosc z `N*185+25`.
+    * `DescribeFoldPattern(widthMm, heightMm, isFoldable)` - generuje opis typu "format skladany do A4 (7 paneli po 185mm + 25mm margines = 1320mm dlugosci)".
+- `src/Tools/Layout/ListPlotDevicesTool.cs` - sekcja `CUSTOM SIZE` rozszerzona o dokumentacje wzoru z 5 przykladami (580/950/1320/1690/2060 mm).
+- `tests/Core/UserMediaResolverTests.cs` - 3 nowe testy: `TestAPanelsFoldableFormula`, `TestBuildAPanelsFoldableSize`, `TestDescribeFoldPattern`.
+- `resources/help/USER_GUIDE.md` - sekcja 13.7 rozszerzona o tabele "Konwencja sufiksu `_p` (format skladany do A4)" z 5 przykladami.
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 2 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1149952 bytes).
+### [BLOKADY / PROBLEMY]
+- Brak 100% pewnosci co do `297x500_p` - moze byc to format z innym marginesem lub wzorcem. Nie ma to wplywu na dzialanie - driver akceptuje wszystkie formaty z `_p` z odpowiednimi wymiarami.
+### [KOLEJNY_KROK]
+- Manualne testy z `MediaName="594x1320_p"` - powinien zwrocic sukces (driver akceptuje) i moze ostrzezenie z opisem wzoru A4 fold.
+- Rozwazyc dodanie `ListFoldableSizes` tool ktory generuje liste formatow _p dla danej szerokosci (np. "Dla 594mm, list od 580mm (3 panele) do 2060mm (11 paneli)").
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]

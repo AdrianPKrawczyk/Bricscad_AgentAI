@@ -27,6 +27,9 @@ namespace Bricscad_AgentAI_V2.Core
     {
         private const double DefaultToleranceMm = 0.5;
 
+        private const double APanelWidthMm = 185.0;
+        private const double APanelMarginMm = 25.0;
+
         private static readonly Regex CustomMediaRegex = new Regex(
             @"^\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*(_p)?\s*$",
             RegexOptions.Compiled);
@@ -48,6 +51,32 @@ namespace Bricscad_AgentAI_V2.Core
 
             isMultipleBaseUnit = match.Groups[3].Success;
             return widthMm > 0 && heightMm > 0;
+        }
+
+        public static int CountAPanelsForFoldableSize(double heightMm, double marginMm = APanelMarginMm)
+        {
+            double body = heightMm - marginMm;
+            if (body <= 0) return 0;
+            int n = (int)Math.Round(body / APanelWidthMm, MidpointRounding.AwayFromZero);
+            if (n < 1) n = 1;
+            return n;
+        }
+
+        public static bool TryBuildAPanelsFoldableSize(double widthMm, int numPanels, double marginMm, out double heightMm)
+        {
+            if (numPanels < 1) { heightMm = 0; return false; }
+            heightMm = numPanels * APanelWidthMm + marginMm;
+            return heightMm > 0;
+        }
+
+        public static string DescribeFoldPattern(double widthMm, double heightMm, bool isFoldable)
+        {
+            if (!isFoldable) return null;
+            int n = CountAPanelsForFoldableSize(heightMm);
+            if (n < 1) return null;
+            return string.Format(CultureInfo.InvariantCulture,
+                "format skladany do A4 ({0} paneli po 185mm + {1}mm margines = {2}mm dlugosci)",
+                n, APanelMarginMm, heightMm);
         }
 
         public static List<UserMediaMatch> FindUserFormatsBySize(
