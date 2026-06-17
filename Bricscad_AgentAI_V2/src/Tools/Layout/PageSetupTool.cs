@@ -487,6 +487,11 @@ private static List<string> GetCanonicalMediaNamesForDevice(PlotSettingsValidato
                 if (!UserMediaResolver.TryParseCustomMediaName(mediaName, out double w, out double h, out _))
                     return null;
 
+                if (h > 1000.0 || w > 1000.0)
+                {
+                    return null;
+                }
+
                 var caps = Win32PrinterCapabilities.QueryMedia(mediaDevice);
                 if (caps == null || !caps.QuerySucceeded) return null;
 

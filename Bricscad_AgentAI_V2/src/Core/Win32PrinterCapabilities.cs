@@ -77,13 +77,27 @@ namespace Bricscad_AgentAI_V2.Core
 
             try
             {
+                return QueryMediaUnsafe(deviceName, resolvedDeviceName, port);
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = "Wyjatek Win32PrinterCapabilities (zlapany): " + ex.Message;
+                return result;
+            }
+        }
+
+        private static Win32PrinterCapabilitiesResult QueryMediaUnsafe(string originalDeviceName, string resolvedDeviceName, string port)
+        {
+            var result = new Win32PrinterCapabilitiesResult { DeviceName = originalDeviceName };
+            try
+            {
                 int numPapers = DeviceCapabilities(resolvedDeviceName, port, DC_PAPERS, IntPtr.Zero, IntPtr.Zero);
                 if (numPapers < 0)
                 {
                     int err = Marshal.GetLastWin32Error();
                     result.ErrorMessage = string.Format(
                         "DeviceCapabilities(DC_PAPERS) zwrocil blad Win32 {0} dla '{1}' (zrodlo: '{2}')",
-                        err, deviceName, resolvedDeviceName);
+                        err, originalDeviceName, resolvedDeviceName);
                     return result;
                 }
                 if (numPapers == 0)
@@ -123,14 +137,31 @@ namespace Bricscad_AgentAI_V2.Core
                     for (int i = 0; i < numPapers; i++)
                     {
                         IntPtr namePtr = new IntPtr(namesPtr.ToInt64() + i * 64);
-                        string name = Marshal.PtrToStringAuto(namePtr);
 
-                        short widthHundredths = Marshal.ReadInt16(sizesPtr, i * 8);
-                        short heightHundredths = Marshal.ReadInt16(sizesPtr, i * 8 + 2);
+                        string name = null;
+                        try
+                        {
+                            name = Marshal.PtrToStringUni(namePtr, 32);
+                        }
+                        catch (Exception ex)
+                        {
+                            name = null;
+                        }
 
                         if (string.IsNullOrEmpty(name))
                         {
                             name = string.Format("User{0}", i + 1);
+                        }
+
+                        short widthHundredths = 0;
+                        short heightHundredths = 0;
+                        try
+                        {
+                            widthHundredths = Marshal.ReadInt16(sizesPtr, i * 8);
+                            heightHundredths = Marshal.ReadInt16(sizesPtr, i * 8 + 2);
+                        }
+                        catch
+                        {
                         }
 
                         result.MediaList.Add(new Win32MediaInfo
