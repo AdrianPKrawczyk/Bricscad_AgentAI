@@ -122,6 +122,36 @@ Prezentuje listę słów kluczowych do wyboru przez użytkownika.
 
 ---
 
+## 📐 Arkusze wydruku i Page Setup (Layout & Plot)
+
+Narzędzia dedykowane do zarządzania arkuszami wydruku (Layouts), konfiguracją Page Setup (format papieru, drukarka, styl, skala), drukowaniem (PDF/DWF/PNG) oraz zarządzaniem stylami wydruku (CTB/STB). Dostępne przez dedykowany profil `CadLayoutProfile` (Supervisor deleguje pytania o layout/plot bezpośrednio do tego profilu).
+
+### 24. `ListLayoutsTool` **[TAG: #layout, #wydruk] [Early Exit: Tak]**
+Zwraca listę wszystkich arkuszy (Layout) w bieżącym rysunku wraz z metadanymi: nazwa, typ (Model/Arkusz), format papieru, urządzenie drukujące, styl wydruku, skala, obrót.
+
+### 25. `ManageLayoutTool` **[TAG: #layout, #wydruk] [Early Exit: Tak]**
+CRUD na arkuszach wydruku: `Create`, `Delete`, `Rename`, `Clone`, `SetCurrent`, `CopyFromTemplate` (import z DWT/DWG). Bezpieczna blokada usuwania layoutu `Model`.
+
+### 26. `PageSetupTool` **[TAG: #layout, #wydruk, #pagesetup] [Early Exit: Tak]**
+Konfiguracja Page Setup wybranego layoutu: format papieru (np. ISO A4), urządzenie drukujące, styl wydruku (CTB/STB), skala (standardowa lub własna), obrót, typ obszaru drukowania, plot origin, jednostki, shade plot, opcje lineweight/transparency/viewport borders. Waliduje dozwolone wartości enumeratorów i zwraca listę wartości przy błędzie.
+
+### 27. `ImportLayoutTemplateTool` **[TAG: #layout, #template, #wydruk]**
+Importuje layout (z Page Setup i/lub zawartością geometryczną) z zewnętrznego pliku DWG/DWT. Obsługuje opcje: tylko Page Setup, tylko entities, nadpisywanie istniejącego layoutu.
+
+### 28. `ExportLayoutTemplateTool` **[TAG: #layout, #template, #wydruk]**
+Eksportuje wybrany layout do osobnego pliku DWT (szablon arkusza). Opcjonalnie kopiuje powiązane definicje bloków.
+
+### 29. `PlotLayoutTool` **[TAG: #wydruk, #plot]**
+Drukuje pojedynczy layout do PDF/DWF/PNG. Konfiguruje urządzenie wyjściowe (np. DWG To PDF.pc3), parametry skalowania, centrowania, shade plot. Generuje plik w tle przez komendę `-PLOT`.
+
+### 30. `PublishToPdfTool` **[TAG: #wydruk, #publish, #pdf]**
+Batch publish wielu layoutów. Tryb `MultiSheet` = jeden PDF z wszystkimi arkuszami. Tryb `SingleFiles` = osobny PDF per layout. Limit 50 layoutów w trybie MultiSheet.
+
+### 31. `PlotStyleTool` **[TAG: #wydruk, #plotstyle, #ctb] [Early Exit: Tak]**
+Zarządzanie stylami wydruku (CTB/STB): listowanie dostępnych stylów, ładowanie z pliku (przez `_.PSETUPIN`), informacje o stylu, przypisywanie do layoutu (bieżącego, wszystkich lub wg nazwy). Bezpieczne blokady dla layoutu `Model`.
+
+---
+
 ## 🛠️ Narzędzia Deweloperskie (Development Tools)
 
 ### Tool Sandbox (ToolSandboxControl)
@@ -142,10 +172,10 @@ Od wersji **v2.16.0** każde narzędzie może być częścią zapisanego "Przepi
 
 ## SearchFileContentTool
 **Typ:** Systemowe (Core)
-**Uprawnienia:** AuditorProfile (do kodu), SupervisorProfile (do notatek i rysunk�w).
-**Opis:** Narz�dzie dzia�aj�ce jak linuksowy grep. Szybko skanuje foldery w poszukiwaniu wyst�pie� tekstu w plikach bez �adowania ca�ych plik�w do kontekstu LLM. Posiada zabezpieczenia limituj�ce maksymaln� ilo�� wynik�w (zapobiega przepe�nieniu token�w) oraz ograniczenia na wychodzenie poza folder roboczy (Directory Traversal).
+**Uprawnienia:** AuditorProfile (do kodu), SupervisorProfile (do notatek i rysunk�w).
+**Opis:** Narz�dzie dzia�aj�ce jak linuksowy grep. Szybko skanuje foldery w poszukiwaniu wyst�pie� tekstu w plikach bez �adowania ca�ych plik�w do kontekstu LLM. Posiada zabezpieczenia limituj�ce maksymaln� ilo�� wynik�w (zapobiega przepe�nieniu token�w) oraz ograniczenia na wychodzenie poza folder roboczy (Directory Traversal).
 **Parametry:**
-* DirectoryType *(wymagane)*: Okre�la punkt startowy wyszukiwania. Dozwolone: SourceCode (kod C# wtyczki) lub DrawingFolder (folder bie��cego dokumentu DWG).
-* SearchQuery *(wymagane)*: Poszukiwana fraza tekstowa (wielko�� liter jest ignorowana).
-* RelativePath *(opcjonalne)*: �cie�ka podfolderu, w kt�rym zaw�one zostanie wyszukiwanie.
+* DirectoryType *(wymagane)*: Okre�la punkt startowy wyszukiwania. Dozwolone: SourceCode (kod C# wtyczki) lub DrawingFolder (folder bie��cego dokumentu DWG).
+* SearchQuery *(wymagane)*: Poszukiwana fraza tekstowa (wielko�� liter jest ignorowana).
+* RelativePath *(opcjonalne)*: �cie�ka podfolderu, w kt�rym zaw�one zostanie wyszukiwanie.
 * FileExtension *(opcjonalne)*: Filtr rozszerzenia, np. *.cs, *.md, *.txt.

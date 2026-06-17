@@ -69,6 +69,7 @@ namespace Bricscad_AgentAI_V2.Core
         private const string MathPromptFile = @"prompts\system_prompt_math.txt";
         private const string NotesPromptFile = @"prompts\system_prompt_notes.txt";
         private const string AuditorPromptFile = @"prompts\system_prompt_auditor.txt";
+        private const string LayoutPromptFile = @"prompts\system_prompt_layout.txt";
 
         public static HashSet<string> SessionDynamicTags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -100,9 +101,10 @@ namespace Bricscad_AgentAI_V2.Core
             EnsureBlocksPromptFile();
             EnsureMetadataPromptFile();
             EnsureSupervisorPromptFile();
-            EnsureMathPromptFile();
+EnsureMathPromptFile();
             EnsureNotesPromptFile();
             EnsureAuditorPromptFile();
+            EnsureLayoutPromptFile();
 
             MigrateLegacyConfigIfNeeded();
 
@@ -175,6 +177,7 @@ namespace Bricscad_AgentAI_V2.Core
                 case "CadMathProfile": return MathPromptFile;
                 case "NotesProfile": return NotesPromptFile;
                 case "AuditorProfile": return AuditorPromptFile;
+                case "CadLayoutProfile": return LayoutPromptFile;
                 default: return CadPromptFile;
             }
         }
@@ -302,6 +305,8 @@ namespace Bricscad_AgentAI_V2.Core
 
         private static void EnsureAuditorPromptFile() => EnsurePromptFile(AuditorPromptFile, "Jestes profilem AuditorProfile. Analizujesz, testujesz i raportujesz problemy w systemie Bielik V2, dbajac o bezpieczne testy i diagnostyke.");
 
+        private static void EnsureLayoutPromptFile() => EnsurePromptFile(LayoutPromptFile, "Jestes profilem CadLayoutProfile systemu Bielik V2. Specjalizujesz sie w zarzadzaniu arkuszami wydruku, konfiguracji strony i publikacji.");
+
         private static bool EnsureAllowedTools(AgentProfileConfig profile, IEnumerable<string> defaults)
         {
             bool changed = false;
@@ -368,6 +373,98 @@ namespace Bricscad_AgentAI_V2.Core
                         changed = true;
                     }
                 }
+
+                // Tagi dla narzędzi Layout/Plot (automatyczne tagowanie)
+                if (name.Equals("ListLayoutsTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#layout", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#layout, #wydruk";
+                        changed = true;
+                    }
+                    if (!settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = true;
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("ManageLayoutTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#layout", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#layout, #wydruk";
+                        changed = true;
+                    }
+                    if (!settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = true;
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("PageSetupTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#pagesetup", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#layout, #wydruk, #pagesetup";
+                        changed = true;
+                    }
+                    if (!settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = true;
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("ImportLayoutTemplateTool", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ExportLayoutTemplateTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#template", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#layout, #template, #wydruk";
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("PlotLayoutTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#plot", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#wydruk, #plot";
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("PublishToPdfTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#publish", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#wydruk, #publish, #pdf";
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("PlotStyleTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#ctb", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#wydruk, #plotstyle, #ctb";
+                        changed = true;
+                    }
+                    if (!settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = true;
+                        changed = true;
+                    }
+                }
             }
 
             if (_config.Profiles == null)
@@ -408,14 +505,17 @@ namespace Bricscad_AgentAI_V2.Core
                 cadProf.SystemPromptFile = CadPromptFile;
                 changed = true;
             }
-            var cadDefaults = new List<string> 
-            { 
-                "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", 
+            var cadDefaults = new List<string>
+            {
+                "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach",
                 "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice",
                 "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                 "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                 "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps"
+                "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps",
+                "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
+                "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool"
             };
             if (cadProf.AllowedTools == null)
             {
@@ -479,7 +579,7 @@ namespace Bricscad_AgentAI_V2.Core
                 metadataProf.SystemPromptFile = MetadataPromptFile;
                 changed = true;
             }
-            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps" })) changed = true;
+            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps", "PlotStyleTool" })) changed = true;
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
@@ -538,6 +638,38 @@ namespace Bricscad_AgentAI_V2.Core
             }
             if (EnsureAllowedTools(auditorProf, auditorDefaults)) changed = true;
 
+            // 9. Zabezpieczenie/Synchronizacja CadLayoutProfile
+            if (!_config.Profiles.TryGetValue("CadLayoutProfile", out var layoutProf))
+            {
+                layoutProf = new AgentProfileConfig
+                {
+                    SystemPromptFile = LayoutPromptFile,
+                    AllowedTools = new List<string>(),
+                    AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle" }
+                };
+                _config.Profiles["CadLayoutProfile"] = layoutProf;
+                changed = true;
+            }
+            if (layoutProf.SystemPromptFile != LayoutPromptFile)
+            {
+                layoutProf.SystemPromptFile = LayoutPromptFile;
+                changed = true;
+            }
+            var layoutDefaults = new List<string>
+            {
+                "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
+                "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
+                "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
+                "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+            };
+            if (layoutProf.AllowedTools == null)
+            {
+                layoutProf.AllowedTools = new List<string>();
+                changed = true;
+            }
+            if (EnsureAllowedTools(layoutProf, layoutDefaults)) changed = true;
+
             if (changed) SaveConfig();
         }
 
@@ -571,16 +703,19 @@ namespace Bricscad_AgentAI_V2.Core
             _config.Profiles["CadProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = CadPromptFile,
-                AllowedTools = new List<string> 
-                { 
-                    "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach", 
+                AllowedTools = new List<string>
+                {
+                    "CreateObject", "SelectEntities", "ModifyProperties", "ManageLayers", "Foreach",
                     "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice",
                     "DimensionEditTool", "ExecuteMacro", "ReadPropertyTool", "InspectEntity", "GetPropertiesTool",
                     "AnalyzeSelectionTool", "ReadTextSampleTool", "TextEditTool", "ManageAnnoScales", "EditBlock",
                     "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
-                    "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes"
+                    "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes",
+                    "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
+                    "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                    "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool"
                 },
-                AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata" }
+                AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata", "#layout", "#wydruk" }
             };
 
             _config.Profiles["CadGeometryProfile"] = new AgentProfileConfig
@@ -623,6 +758,20 @@ namespace Bricscad_AgentAI_V2.Core
                 SystemPromptFile = AuditorPromptFile,
                 AllowedTools = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent" },
                 AllowedTags = new List<string>()
+            };
+
+            _config.Profiles["CadLayoutProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = LayoutPromptFile,
+                AllowedTools = new List<string>
+                {
+                    "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
+                    "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                    "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
+                    "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
+                    "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+                },
+                AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle" }
             };
 
             // BEZWZGLÄDNY ZAPIS PO WYGENEROWANIU

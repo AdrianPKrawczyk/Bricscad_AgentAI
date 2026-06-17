@@ -318,7 +318,65 @@ Jesli pytanie wymaga dokladniejszego odczytu niz pierwszy opis, program moze pon
 
 ---
 
-*Wersja Systemu: v2.20.8 GOLD | BricsCAD Agent AI Project*
+## 📐 13. Arkusze wydruku i Page Setup - NOWOŚĆ v2.29.x
+
+Agent potrafi zarzadzac arkuszami wydruku (Layouts), konfigurowac Page Setup, drukowac do PDF/DWF oraz importowac/eksportowac szablony arkuszy z plikow DWT. Za te operacje odpowiada dedykowany profil **`CadLayoutProfile`**, ktory Supervisor automatycznie wybiera, gdy pytanie dotyczy arkuszy, drukowania lub stylu wydruku.
+
+### 13.1. Wyswietlanie arkuszy
+Wpisz w glownej zakladce czatu:
+- *"Wylistuj wszystkie layouty w biezacym rysunku."*
+- *"Pokaz mi ustawienia Page Setup dla layoutu A4-PION."*
+
+Agent zwroci liste wszystkich arkuszy wraz z ich parametrami: format papieru, urzadzenie drukujace, styl wydruku, skala i obrot.
+
+### 13.2. Zmiana Page Setup
+Mozesz podac w jednym promptcie wszystkie parametry lub tylko wybrane. Agent potrafi:
+- Zmieniac format papieru (np. A4, A3, formaty uzytkownika).
+- Wybierac drukarke/ploter (np. `DWG To PDF.pc3`, `HP DesignJet T650 36-in.pc3`).
+- Ustawiac styl wydruku CTB/STB (np. `acad.ctb`, `monochrome.ctb`).
+- Zmieniac skale (`ScaleToFit`, `1_50`, `1_100`, wlasna skala).
+- Zmieniac obrot (`Zero`, `Ninety`, `OneEighty`, `TwoSeventy`).
+- Wlaczyc `PlotCentered`, `PlotHidden`, `PlotViewportBorders`, `ScaleLineweights`.
+
+Przykladowy prompt:
+*"Ustaw layout A4-PION na papier ISO A4, drukarke DWG To PDF, styl acad.ctb, plot type Layout, obrot Zero, skala 1:50."*
+
+### 13.3. Zarzadzanie arkuszami
+Agent tworzy, kopiuje, zmienia nazwe, usuwa i ustawia aktywny arkusz:
+- *"Stworz nowy layout o nazwie TEST-A4."*
+- *"Skopiuj A4-PION jako A4-PION-2."*
+- *"Usun layout TEST-A4."*
+- *"Ustaw aktywny layout na A4-PION."*
+
+Layout `Model` jest chroniony - nie mozna go usunac ani przenazwac.
+
+### 13.4. Import i eksport szablonow arkuszy
+Agent potrafi:
+- **Importowac** layout z pliku DWT/DWG: *"Zaimportuj layout A4-PION z C:/templates/standard.dwt."*
+- **Eksportowac** layout do pliku DWT: *"Wyeksportuj layout A4-PION do C:/Users/Adrian/Desktop/a4-template.dwt."*
+
+Przy imporcie mozna wybrac, czy przenosimy tylko Page Setup (bez geometrii), czy caly arkusz z zawartoscia.
+
+### 13.5. Drukowanie do PDF
+- Pojedynczy arkusz: *"Wydrukuj layout A4-PION do PDF w C:/export/projekt.pdf."*
+- Wszystkie arkusze do jednego PDF: *"Opublikuj wszystkie layouty do jednego PDF w C:/export/komplet.pdf."*
+- Osobne pliki per arkusz: *"Opublikuj layouty A4-PION i A4-KRAJOBRAZ do osobnych plikow PDF w C:/export/."*
+
+### 13.6. Style wydruku (CTB/STB)
+Agent zarzadza tablicami stylow wydruku:
+- Listowanie: *"Pokaz wszystkie dostepne style wydruku."*
+- Ladowanie z pliku: *"Zaladuj styl z C:/Users/Adrian/AppData/Roaming/Bricsys/BricsCAD/V22/pl/PlotStyles/acad.ctb."*
+- Przypisanie: *"Przypisz styl acad.ctb do wszystkich layoutow oprocz Model."*
+
+> [!TIP]
+> Jesli nie znasz dokladnej nazwy stylu CTB/STB, popros Agenta o liste. W odpowiedzi zobaczysz pelna liste dostepnych tablic stylow wydruku.
+
+> [!WARNING]
+> Narzedzia layout/plot operuja bezposrednio na aktywnym dokumencie. Przed wykonaniem masowych operacji (np. publish wielu arkuszy) upewnij sie, ze rysunek jest zapisany. Agent nie modyfikuje oryginalu bez wyraznego polecenia.
+
+---
+
+*Wersja Systemu: v2.29.x GOLD | BricsCAD Agent AI Project*
 
 ---
 

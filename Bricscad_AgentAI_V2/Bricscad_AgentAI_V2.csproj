@@ -242,6 +242,16 @@
     <Compile Include="src\Core\DynamicSystems\LispManager.cs" />
     <Compile Include="src\Models\LispMetadata.cs" />
     <Compile Include="src\Tools\ManageLispsTool.cs" />
+    <Compile Include="src\Models\LayoutEnums.cs" />
+    <Compile Include="src\Core\LayoutHelpers.cs" />
+    <Compile Include="src\Tools\Layout\ListLayoutsTool.cs" />
+    <Compile Include="src\Tools\Layout\ManageLayoutTool.cs" />
+    <Compile Include="src\Tools\Layout\PageSetupTool.cs" />
+    <Compile Include="src\Tools\Layout\PlotStyleTool.cs" />
+    <Compile Include="src\Tools\Layout\ImportLayoutTemplateTool.cs" />
+    <Compile Include="src\Tools\Layout\ExportLayoutTemplateTool.cs" />
+    <Compile Include="src\Tools\Layout\PlotLayoutTool.cs" />
+    <Compile Include="src\Tools\Layout\PublishToPdfTool.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -276,6 +286,10 @@
     <Content Include="resources\prompts\system_prompt_auditor.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <TargetPath>prompts\system_prompt_auditor.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_layout.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_layout.txt</TargetPath>
     </Content>
     <Content Include="resources\help\USER_GUIDE.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

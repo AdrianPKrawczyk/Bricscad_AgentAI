@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.0 GOLD [LAYOUT PRINT PLOT] - Wdrożenie dedykowanego profilu `CadLayoutProfile` oraz 8 nowych narzędzi do zarządzania arkuszami wydruku (Layouts), Page Setup, importu/eksportu szablonów DWT/DWG, drukowania PDF/DWF/PNG oraz zarządzania stylami wydruku CTB/STB: `ListLayoutsTool`, `ManageLayoutTool`, `PageSetupTool`, `ImportLayoutTemplateTool`, `ExportLayoutTemplateTool`, `PlotLayoutTool`, `PublishToPdfTool`, `PlotStyleTool`. Tagi: #layout, #wydruk, #plotstyle, #template, #pdf, #publish. Rozszerzenie promptu Supervisora o regułę delegowania layout/plot. Naprawa buga Early Exit (zwraca treść z tool result zamiast generycznego komunikatu). Aktualizacja USER_GUIDE.md i TOOLS_REFERENCE.md.
     * `ExtractRoomDataEntitiesTool` (tylko odczyt): skanuje Model Space w poszukiwaniu polilinii-obrysów pomieszczeń na warstwie `boundaryLayer` oraz bloków-metek z atrybutami na `tagLayer`. Wykonuje test Point-in-Polygon (ray casting) dla każdej pary. Zwraca JSON z listami: Matched (pary handle + atrybuty), UnmatchedBoundaries, UnmatchedTags.
     * `BatchWriteXDataTool` (zapis): zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD z auto-rejestracją RegApp. Pomija obiekty o nieistniejących Handle'ach z raportem. Nadpisuje istniejące XData dla danej appName.
     * Tagi: #xdata, #metadata, #pokoje (automatycznie ustawiane w `ToolConfigManager.SyncWithTools`).
@@ -4112,4 +4113,50 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Wystąpił problem z brakiem ładowania komendy przez BricsCAD, gdy posiadała ona własny [assembly: CommandClass(...)] w nowym pliku. Rozwiązano przez bezpośrednie dodanie metody z atrybutem [CommandMethod("AI_CHAT")] do klasycznego punktu wejściowego AgentStartup.cs.
 ### [KOLEJNY_KROK]
 - Ewentualne dodanie obsługi Markdown do natywnego BricsCAD-owego wyświetlacza lub udoskonalanie opcji odświeżania okna.
+
+## [v2.30.0] 2026-06-17 - Layout/Plot/Page Setup: nowy profil i 8 narzedzi
+### [ZREALIZOWANO]
+- Wdrożono 8 nowych narzędzi V2 do zarządzania arkuszami wydruku (Layouts), Page Setup, drukowaniem (PDF/DWF/PNG) i stylami wydruku (CTB/STB):
+    * `ListLayoutsTool` (TAG: #layout, #wydruk, Early Exit): listowanie layoutów z metadanymi (papier, urządzenie, styl, skala, obrót).
+    * `ManageLayoutTool` (TAG: #layout, #wydruk, Early Exit): CRUD layoutów (Create, Delete, Rename, Clone, SetCurrent) + CopyFromTemplate z DWT/DWG. Blokada usuwania Model.
+    * `PageSetupTool` (TAG: #layout, #wydruk, #pagesetup, Early Exit): 20+ właściwości Page Setup (Media, PlotDevice, StyleSheet, PlotType, PlotRotation, PlotCentered, PlotOrigin, UseStandardScale, CustomScale, PlotPaperUnits, ShadePlot, ShadePlotResLevel, ShadePlotCustomDpi, PlotHidden, PlotViewportBorders, PlotPlotStyles, PrintLineweights, ScaleLineweights, PlotTransparency, DrawViewportsFirst, ShowPlotStyles).
+    * `ImportLayoutTemplateTool` (TAG: #layout, #template, #wydruk): import layoutu z DWT/DWG (opcje: tylko Page Setup / z entities / OverwriteIfExists).
+    * `ExportLayoutTemplateTool` (TAG: #layout, #template, #wydruk): eksport layoutu do DWT (z opcją IncludeBlocks).
+    * `PlotLayoutTool` (TAG: #wydruk, #plot): drukowanie pojedynczego layoutu (PDF/DWF/PNG) przez `-PLOT`.
+    * `PublishToPdfTool` (TAG: #wydruk, #publish, #pdf): batch publish (MultiSheet do 50 layoutów / SingleFiles). Limity bezpieczeństwa.
+    * `PlotStyleTool` (TAG: #wydruk, #plotstyle, #ctb, Early Exit): zarządzanie CTB/STB (List/Load przez _.PSETUPIN/GetInfo/Assign do CurrentLayout/AllLayouts/ByName).
+- Nowy profil `CadLayoutProfile` z dedykowanym `system_prompt_layout.txt`.
+- Rozszerzenie `ToolConfigManager.cs`:
+    * Nowa stała `LayoutPromptFile`, metoda `EnsureLayoutPromptFile()`.
+    * Nowy profil `CadLayoutProfile` w `SyncWithTools` (8 layout tools + minimum geometry/utility).
+    * Automatyczne tagowanie nowych narzędzi (#layout, #wydruk, #pagesetup, #template, #plot, #pdf, #publish, #plotstyle, #ctb).
+    * Dodanie 8 narzędzi do `AllowedTools` CadProfile + `PlotStyleTool` do `CadMetadataProfile`.
+- Nowy plik `src/Models/LayoutEnums.cs` (statyczne mapy string→int dla enumeratorów PlotType/PlotRotation/StdScaleType/ShadePlot/ShadePlotResLevel/PlotPaperUnits/PlotStyleType + generyczny parser `TryParseEnum`).
+- Nowy plik `src/Core/LayoutHelpers.cs` (helpery GetLayoutByName, GetCurrentLayout, IsModelLayout, LayoutExists, ListLayoutNames, ValidateAndResolvePath). Alias `CadLayout = Teigha.DatabaseServices.Layout` z powodu konfliktu z namespace `Tools.Layout`.
+- Modyfikacja `Bricscad_AgentAI_V2.csproj`: 11 nowych `<Compile Include>` (LayoutEnums, LayoutHelpers, 8 narzędzi) + `<Content Include>` dla nowego promptu.
+- **Naprawa buga Early Exit w `LLMClient.cs:425`**: Early Exit zwracał generyczny string "Operacja wykonana pomyślnie (Tryb Szybki)." zamiast treści z tool result. Dodano metodę `ExtractLastToolResult` (skanuje historię od końca w poszukiwaniu wiadomości `role: "tool"`). Supervisor otrzymuje teraz faktyczną odpowiedź z narzędzia.
+- Rozszerzenie promptu Supervisora (`system_prompt_supervisor.txt`): dodana reguła delegowania layout/plot do `CadLayoutProfile` jako PIERWSZA reguła (przed geometrią, blokami, metadanymi). Dodana lista kluczowych słów (layout/arkusze/wydruk/Page Setup/plot/drukowac/PDF/DWF/publish/styl wydruku/CTB/STB/szablon arkusza itd.).
+- Aktualizacja dokumentacji:
+    * `TOOLS_REFERENCE.md`: nowe narzędzia 24-31 (sekcja "Arkusze wydruku i Page Setup").
+    * `USER_GUIDE.md`: nowa sekcja 13 "Arkusze wydruku i Page Setup" z przykładami promptów dla typowych scenariuszy.
+- Plik testowy `tests/LayoutToolsManualTests.md` z 11 kategoriami promptów do manualnego testowania.
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 3 warnings (nieistotne, w istniejącym kodzie).
+- DLL zaktualizowany w `bin\Debug/Bricscad_AgentAI_V2.dll`.
+- Nowe narzędzia przetestowane manualnie: `ListLayoutsTool` zwraca poprawnie 10 layoutów z rysunku `207_WODA.dwg` (Model + IS.W.01-09).
+### [BLOKADY / PROBLEMY]
+- Podczas implementacji napotkano szereg drobnych problemów z Teigha API V22:
+    * Konflikt nazw `Layout` (typ z `Teigha.DatabaseServices`) vs `Layout` (namespace `Bricscad_AgentAI_V2.Tools.Layout`). Rozwiązanie: alias `using CadLayout = Teigha.DatabaseServices.Layout`.
+    * Brak `SecurityFlags` enum w V22 - uproszczono `Database.SaveAs(path, true, DwgVersion.Current)` do 3 argumentów.
+    * `Database.SaveAs(string, ...)` zamiast `SaveAs(string, bool, DwgVersion, SecurityFlags)` - uprościliśmy sygnaturę.
+    * Enums `PlotRotation` (ZeroDegrees/NinetyDegrees) i `StdScaleType` (Scale1To4, Scale1To10 itd.) nie istnieją w V22 - używamy wartości int z mapowaniem.
+    * `PlotPaperUnits` i `ShadePlot` to w rzeczywistości `int` z wartościami 0/1/2/3 (nie enum jak sugerowała dokumentacja).
+    * `PlotSettingsValidator.RefreshLists()` wymaga argumentu `PlotSettings(false)` (konstruktor 2-arg).
+    * `PlotStyleServices.LoadPlotStyleTable` nie istnieje w V22 - użyto komendy `_.PSETUPIN` przez `SendStringToExecute`.
+    * `PlotWireframe` i `PlotAsRaster` są tylko do odczytu w V22 - narzędzie zgłasza ostrzeżenie zamiast próbować zapisu.
+    * `CustomScale` nie ma właściwości `.X/.Y` - używamy `.Numerator/.Denominator`.
+    * `C# 7.3` (ToolsVersion 15.0) nie wspiera target-typed `new()` - zmieniono na `new Dictionary<...>(StringComparer.OrdinalIgnoreCase)`.
+### [KOLEJNY_KROK]
+- Dalsze testy manualne z `tests/LayoutToolsManualTests.md` (Page Setup, Import/Export, Publish, Plot Style).
+- Po ustabilizowaniu: aktualizacja `BricsCAD_API_V22.txt` o brakujące/zmienione sygnatury metod Layout/Plot.
 

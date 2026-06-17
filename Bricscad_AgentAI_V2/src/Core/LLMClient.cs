@@ -416,13 +416,20 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     sw.Stop();
                     OnStatusUpdate?.Invoke("⚡ [Early Exit] Operacja wykonana pomyślnie. Zamykam pętlę ReAct.");
-                    RaiseStatsUpdate(new LLMStats 
-                    { 
-                        TotalTimeMs = sw.ElapsedMilliseconds, 
-                        PromptTokens = totalSentChars / 4, 
-                        CompletionTokens = totalRecvChars / 4 
+                    RaiseStatsUpdate(new LLMStats
+                    {
+                        TotalTimeMs = sw.ElapsedMilliseconds,
+                        PromptTokens = totalSentChars / 4,
+                        CompletionTokens = totalRecvChars / 4
                     });
-                    return AgentExecutionResult.Success("Operacja wykonana pomyślnie (Tryb Szybki).");
+
+                    string earlyExitMessage = ExtractLastToolResult(conversationHistory);
+                    if (string.IsNullOrEmpty(earlyExitMessage))
+                    {
+                        earlyExitMessage = "Operacja wykonana pomyślnie (Tryb Szybki).";
+                    }
+
+                    return AgentExecutionResult.Success(earlyExitMessage);
                 }
 
                 // Po obsłużeniu WSZYSTKICH narzedzi w tej paczce, pętla 'while' wróci na samą górę 
@@ -1628,6 +1635,24 @@ namespace Bricscad_AgentAI_V2.Core
         {
             LastStats = stats;
             OnStatsUpdate?.Invoke(stats);
+        }
+
+        private static string ExtractLastToolResult(List<ChatMessage> history)
+        {
+            if (history == null || history.Count == 0) return null;
+
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                var msg = history[i];
+                if (msg != null && string.Equals(msg.Role, "tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (msg.Content is string s && !string.IsNullOrEmpty(s))
+                    {
+                        return s;
+                    }
+                }
+            }
+            return null;
         }
     }
 }
