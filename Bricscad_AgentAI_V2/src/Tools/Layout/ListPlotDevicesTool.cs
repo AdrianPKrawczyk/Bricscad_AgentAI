@@ -138,6 +138,12 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                         sb.AppendLine($"    UWAGA: {mediaWarning}");
                                     }
 
+                                    if (mediaNames.Count == 0 &&
+                                        dev.EndsWith(".pc3", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        AppendPc3Diagnostic(sb, dev);
+                                    }
+
                                     int mediaShown = 0;
                                     foreach (string media in mediaNames)
                                     {
@@ -265,6 +271,102 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             }
 
             return result;
+        }
+
+        private static void AppendPc3Diagnostic(StringBuilder sb, string pc3DeviceName)
+        {
+            string pc3Path = ResolvePc3Path(pc3DeviceName);
+            if (string.IsNullOrEmpty(pc3Path))
+            {
+                sb.AppendLine("    Nie znaleziono pliku PC3 dla: " + pc3DeviceName);
+                return;
+            }
+
+            var pc3Info = Pc3Parser.Parse(pc3Path);
+            if (pc3Info == null || !pc3Info.ParseSucceeded)
+            {
+                sb.AppendLine($"    Nie udalo sie odczytac pliku PC3: {pc3Info?.ParseError ?? "nieznany blad"}");
+                return;
+            }
+
+            sb.AppendLine("    --- DIAGNOSTYKA PLIKU PC3 (Pc3Parser) ---");
+            if (!string.IsNullOrEmpty(pc3Info.FriendlyNetName))
+                sb.AppendLine($"    Ploter: {pc3Info.FriendlyNetName}");
+            else if (!string.IsNullOrEmpty(pc3Info.WinDriverName))
+                sb.AppendLine($"    Ploter: {pc3Info.WinDriverName}");
+
+            if (!string.IsNullOrEmpty(pc3Info.DriverPath))
+                sb.AppendLine($"    Sterownik Windows: {pc3Info.DriverPath} (v{pc3Info.DriverVersion ?? "?"})");
+
+            if (pc3Info.SelectedMedia != null && !string.IsNullOrEmpty(pc3Info.SelectedMedia.Name))
+            {
+                sb.AppendLine($"    Aktualnie wybrany format: {pc3Info.SelectedMedia}");
+            }
+            else
+            {
+                sb.AppendLine("    Brak informacji o aktualnie wybranym formacie w PC3.");
+            }
+
+            if (pc3Info.Resolution != null)
+            {
+                sb.AppendLine($"    Rozdzielczosc: {pc3Info.Resolution}");
+            }
+
+            sb.AppendLine("    UWAGA: Plik PC3 przechowuje tylko AKTUALNIE WYBRANY format.");
+            sb.AppendLine("          Pelna lista formatow jest zdefiniowana binarnie w driverze Windows (.hdi).");
+            sb.AppendLine("          Aby ustawic format, uzyj PageSetupTool z nazwa driver'a widoczna w BricsCAD GUI");
+            sb.AppendLine("          (menu Format -> Plotter Setup -> lista 'Papier'), np.: 'A4', 'B2', '297x600', 'Tabloid'.");
+        }
+
+        private static string ResolvePc3Path(string deviceName)
+        {
+            if (string.IsNullOrWhiteSpace(deviceName)) return null;
+
+            if (System.IO.Path.IsPathRooted(deviceName) && System.IO.File.Exists(deviceName))
+            {
+                return deviceName;
+            }
+
+            string resolved = LayoutHelpers.ValidateAndResolvePath(deviceName);
+            if (!string.IsNullOrEmpty(resolved) && System.IO.File.Exists(resolved))
+            {
+                return resolved;
+            }
+
+            string justName = System.IO.Path.GetFileName(deviceName);
+            if (string.IsNullOrEmpty(justName)) return null;
+
+            string[] plotConfigDirs;
+            try
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                plotConfigDirs = new[]
+                {
+                    System.IO.Path.Combine(appData, "Bricsys", "BricsCAD", "V22x64", "pl_PL", "PlotConfig"),
+                    System.IO.Path.Combine(appData, "Bricsys", "BricsCAD", "V23x64", "pl_PL", "PlotConfig"),
+                    System.IO.Path.Combine(localAppData, "Bricsys", "BricsCAD", "V22x64", "pl_PL", "PlotConfig"),
+                    System.IO.Path.Combine(localAppData, "Bricsys", "BricsCAD", "V23x64", "pl_PL", "PlotConfig"),
+                    System.IO.Path.Combine(programData, "Bricsys", "BricsCAD", "V22 pl_PL", "UserDataCache", "PlotConfig"),
+                    System.IO.Path.Combine(programData, "Bricsys", "BricsCAD", "V23 pl_PL", "UserDataCache", "PlotConfig")
+                };
+            }
+            catch
+            {
+                return null;
+            }
+
+            foreach (string dir in plotConfigDirs)
+            {
+                try
+                {
+                    string candidate = System.IO.Path.Combine(dir, justName);
+                    if (System.IO.File.Exists(candidate)) return candidate;
+                }
+                catch { }
+            }
+            return null;
         }
 
         private static string TryGetLocaleMediaName(PlotSettingsValidator validator, string deviceName, string canonicalMediaName)

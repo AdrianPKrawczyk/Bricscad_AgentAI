@@ -21,6 +21,7 @@ namespace Bricscad_AgentAI_V2.Tests
                 Bricscad_AgentAI_V2.Tests.Core.DynamicFormulaManagerTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.VisionOcrTilerTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.FileExtractorTests.RunTests();
+                Bricscad_AgentAI_V2.Tests.Core.Pc3ParserTests.RunTests();
                 Console.WriteLine("WSZYSTKIE TESTY ZAKOŃCZONE SUKCESEM.");
             }
             catch (Exception ex)

@@ -141,6 +141,8 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.2 GOLD [PC3 PARSER] - Parser binarnych plikow PC3 (zlib-deflate + struktura blokowa) z diagnostyka driver'ow i aktualnie wybranych formatow dla ploterow HP. Nowy `Pc3Parser` utility class + integracja z `ListPlotDevicesTool`.
+- v2.30.1 GOLD [LAYOUT MEDIA] - Rozszerzenie `ListPlotDevicesTool` o parametr `IncludeMediaPerDevice` (HP/UserXXX). Walidacja `MediaName` w `PageSetupTool` wzgledem plotera z argumentu `PlotDevice`.
 - v2.30.0 GOLD [LAYOUT PRINT PLOT] - Wdrożenie dedykowanego profilu `CadLayoutProfile` oraz 8 nowych narzędzi do zarządzania arkuszami wydruku (Layouts), Page Setup, importu/eksportu szablonów DWT/DWG, drukowania PDF/DWF/PNG oraz zarządzania stylami wydruku CTB/STB: `ListLayoutsTool`, `ManageLayoutTool`, `PageSetupTool`, `ImportLayoutTemplateTool`, `ExportLayoutTemplateTool`, `PlotLayoutTool`, `PublishToPdfTool`, `PlotStyleTool`. Tagi: #layout, #wydruk, #plotstyle, #template, #pdf, #publish. Rozszerzenie promptu Supervisora o regułę delegowania layout/plot. Naprawa buga Early Exit (zwraca treść z tool result zamiast generycznego komunikatu). Aktualizacja USER_GUIDE.md i TOOLS_REFERENCE.md.
     * `ExtractRoomDataEntitiesTool` (tylko odczyt): skanuje Model Space w poszukiwaniu polilinii-obrysów pomieszczeń na warstwie `boundaryLayer` oraz bloków-metek z atrybutami na `tagLayer`. Wykonuje test Point-in-Polygon (ray casting) dla każdej pary. Zwraca JSON z listami: Matched (pary handle + atrybuty), UnmatchedBoundaries, UnmatchedTags.
     * `BatchWriteXDataTool` (zapis): zbiorczy zapis XData dla wielu obiektów w JEDNEJ transakcji CAD z auto-rejestracją RegApp. Pomija obiekty o nieistniejących Handle'ach z raportem. Nadpisuje istniejące XData dla danej appName.
@@ -4101,6 +4103,60 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Supervisor nadal moze odpowiadac na pytania o poprzedni obraz z zapisanego OCR; jesli brakuje danych, ma poprosic uzytkownika o jawny ponowny OCR.
 ### [STAN_SYSTEMU]
 - Do wykonania po zmianie: `powershell -ExecutionPolicy Bypass -File build.ps1`.
+
+## [v2.30.1] 2026-06-17 - Layout/Plot: media papieru per-device dla HP/UserXXX
+### [PROBLEM]
+- `ListPlotDevicesTool` pobieral `CanonicalMediaName` z pustego `PlotSettings(false)`, wiec pokazywal globalna liste formatow zamiast formatow konkretnego plotera.
+- Dla HP DesignJet/T120 formaty niestandardowe moga wystepowac jako `UserXXX` i pojawiac sie dopiero po ustawieniu konkretnego urzadzenia w `PlotSettingsValidator`.
+### [ZREALIZOWANO]
+- `ListPlotDevicesTool` dostal parametr `IncludeMediaPerDevice`; przy filtrze domyslnie pobiera media po `SetPlotConfigurationName(device) + RefreshLists(settings)`.
+- Wynik listowania pokazuje formaty osobno dla kazdego pasujacego plotera, co ma odslonic `UserXXX`, jesli driver udostepnia je BricsCAD-owi.
+- `PageSetupTool` waliduje `MediaName` wzgledem plotera z argumentu `PlotDevice` albo obecnego plotera layoutu, a nie wzgledem globalnej listy.
+- Prompt `CadLayoutProfile` zostal doprecyzowany: dla HP/UserXXX uzywac waskiego filtra i `IncludeMediaPerDevice=true`.
+### [STAN_SYSTEMU]
+- Do wykonania po zmianie: `powershell -ExecutionPolicy Bypass -File build.ps1`.
+
+## [v2.30.2] 2026-06-17 - Layout/Plot: Pc3Parser utility + diagnostyka plikow PC3
+### [PROBLEM]
+- Pliki .pc3 (Plot Configuration) BricsCAD-a sa binarne (nie ASCII) - dokumentacja i biblioteka PiaNO sugerowaly inaczej. Driver plik z PC3 jest kompresowany zlib-em (format zlib: 2-bajtowy naglowek + raw deflate + 4-bajtowy checksum).
+- `GetCanonicalMediaNameList` dla ploterow .pc3 zwracal `(0)` elementow - brak listy mediów, blad `eNoDatabase`.
+- HP plotters (DesignJet T120, T650) uzywaja formatow niestandardowych (np. `297x600` roll paper) ktorych BricsCAD API nie zwraca - pelna lista mediów jest zdefiniowana binarnie w driverach Windows HDI (.hdi) i niedostepna z poziomu .NET.
+- LLM (gemma-4) po otrzymaniu bledu `eNoDatabase` halucynowal "MediaName updated successfully" - konieczne oddzielenie odczytu formatu od faktycznej zmiany ustawien.
+### [ODKRYCIE]
+- Format PC3 (zweryfikowane na 4 plikach systemowych):
+    * Header: 60 bajtow (47 ASCII `"PIAFILEVERSION_2.0,PC3VER1,compress\r\npmzlibcode"` + 13 bajtow zlib wrapper).
+    * Payload: zlib stream (`78 9C` = default compression) - 2 bajty CMF/FLG + raw deflate + 4 bajty Adler32.
+    * Po dekompresji struktura ASCII: bloki `meta{...}`, `media{...}`, `io{...}`, `res_color_mem{...}`, `custom{...}`.
+    * `media.size.name` przechowuje TYLKO AKTUALNIE WYBRANY format (np. `"297x600"`, `"A4"`, `"A0"`), NIE pelna liste.
+    * Wymiary: `media.size.media_description.media_bounds.urx` / `.ury` (w mm), `printable_bounds_*` (offset marginesu), `printable_area`.
+- Przeszukano system Windows (AppData/Roaming, AppData/Local, ProgramData, spool/drivers, Autodesk, PlotSupport): dokladnie 4 unikalne PC3 (HP T120, HP T650, Print As PDF, Default Windows Printer) - wszystkie z 1 formatem. Brak plikow PMP. Drivery HDI zarejestrowane w Win32 print spooler, nieparsowalne bez reverse-engineeringu.
+### [ZREALIZOWANO]
+- Nowy `src/Core/Pc3Parser.cs` (utility class, ~270 LOC, zero zaleznosci Teigha/BricsCAD):
+    * `Pc3Parser.Parse(string filePath) -> Pc3Info` - zwraca strukture z meta (driver/family/model), `SelectedMedia` (name + bounds w mm), `Resolution` (DPI).
+    * Algorytm: odczyt bajtow, przeskoczenie 60-bajtowego headera + 2-bajtowego zlib wrapper, `DeflateStream` (System.IO.Compression), parsowanie blokow `{...}` z rekurencyjnym zliczaniem `{}`.
+    * Wartosci `"..."` stripowane z `name="value"` do `value`.
+    * Obsluga bledow: `ParseSucceeded=false` + `ParseError` z komunikatem.
+- `ListPlotDevicesTool`: jesli urzadzenie `.pc3` ma `(0)` Canonical Media Names, automatycznie wywoluje `Pc3Parser` i raportuje:
+    * `Ploter:` (friendly_net_name lub win_driver_name)
+    * `Sterownik Windows:` (driver_pathname z HDI)
+    * `Aktualnie wybrany format:` (np. `297x600 (209.97x297.01mm)`)
+    * `Rozdzielczosc:` (np. `300x300_None (300 dpi)`)
+    * Komunikat: "Plik PC3 przechowuje tylko AKTUALNIE WYBRANY format. Pelna lista formatow jest zdefiniowana binarnie w driverze Windows (.hdi)."
+- `ResolvePc3Path` - helper szukajacy pliku PC3 w fallbacku w 6 typowych lokalizacjach PlotConfig (V22x64/V23x64 Roaming+Local, V22/V23 ProgramData).
+- `tests/Core/Pc3ParserTests.cs` - 9 testow jednostkowych (Debug.Assert) na prawdziwych plikach PC3 z systemu: HP T120, HP T650, Print As PDF, Default Windows Printer. Testowane: decompress, parse meta/media/resolution, missing file, empty path.
+- `tests/TestRunner.cs` - dodany `Pc3ParserTests.RunTests()` do sekwencji.
+- `Bricscad_AgentAI_V2.csproj` - nowe `<Compile Include>` dla `Pc3Parser.cs` i `Pc3ParserTests.cs`.
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 3 pre-existing warnings.
+- DLL zaktualizowany: `bin\Debug\Bricscad_AgentAI_V2.dll` (1111040 bytes).
+- Weryfikacja reczna: parser sparsowal wszystkie 4 unikalne PC3 z systemu, zwrocil poprawne nazwy driver'ow, formaty (297x600/A0/A4), wymiary (A0=841x1189mm, A4=209.97x296.93mm), rozdzielczosci (HP=300dpi, PDF=2400dpi).
+### [BLOKADY / PROBLEMY]
+- Pierwsza wersja parsera miala bug: `DeflateStream` bezposrednio na payload traktowal zlib-header jako deflate-stream i konczyl sie `"Invalid data"`. Fix: przeskoczenie dodatkowych 2 bajtow zlib CMF/FLG przed `DeflateStream`.
+- Drugi bug: `ExtractValue` z `StartsWith("\"") && EndsWith("\"")` nie stripowal cudzyslowiow z `name="value"` gdy parser nie czytal az do konca linii (miedzy blokami). Fix: dodano fallback strip pojedynczego otwierajacego cudzyslowia.
+- Brak mozliwosci uzyskania PELNEJ listy mediów z PC3/HDI z poziomu .NET - ograniczenie Win32 print spooler, pozostaje ostrzezenie w `ListPlotDevicesTool` i rekomendacja GUI BricsCAD.
+### [KOLEJNY_KROK]
+- Manualne testy w BricsCAD-zie z nowym ListPlotDevicesTool (filtr `HP` powinien teraz zwracac blok `--- DIAGNOSTYKA PLIKU PC3 ---` z `297x600 (209.97x297.01mm)` dla T120/T650).
+- Po stabilizacji layout tools: rozważyc dodanie `Pc3Parser` do `PageSetupTool` jako walidacji preflight (sprawdzanie czy `MediaName` zgadza sie z aktualnym formatem PC3).
 ## [v2.29.22] 2026-06-17 - Wydzielenie lekkiego panelu czatu (LightChatControl)
 ### [ZREALIZOWANO]
 - Zaprojektowano i zaimplementowano nową kontrolkę LightChatControl.cs pełniącą rolę lekkiego interfejsu (Dumb View) dla czatu z LLM.
