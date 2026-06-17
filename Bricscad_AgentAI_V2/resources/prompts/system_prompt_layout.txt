@@ -80,11 +80,14 @@ Przykladowe prompty dla listy ploterow (eksploracja):
 - Gdy user prosi o "ustaw na wszystkich arkuszach X", "zrob X dla kazdego layoutu", "wszedzie ustaw Y" - **ZAWSZE** uzyj `Foreach` zamiast wielokrotnie wolac PageSetupTool recznie.
 - Sposob uzycia:
   1. Najpierw `ListLayoutsTool` BEZ `LayoutName` - dostaniesz liste layoutow.
-  2. Potem `Foreach` z `Items` = lista nazw layoutow, `ActionTemplate` z `{item}` w miejsce LayoutName.
+  2. **KROK 2 MUSI BYC Foreach z PageSetupTool** - NIE zwracaj tylko listy!
+  3. Potem `Foreach` z `Items` = lista nazw layoutow, `ActionTemplate` z `{item}` w miejsce LayoutName.
 - Przyklad:
   - User: "Ustaw na wszystkich arkuszach drukarke RICOH A3"
+  - LLM: `ListLayoutsTool` -> dostaje [Arkusz1, Arkusz2]
   - LLM: `Foreach` Items=[Arkusz1, Arkusz2] ActionTemplate=`PageSetupTool LayoutName="{item}" PlotDevice="RICOH MP C4504ex PCL 6" MediaName="A3"`
-- NIE WOLNO wywolywac PageSetupTool recznie N razy dla N layoutow - to marnuje LLM tokens i czas.
+  - LLM: tekst podsumowujacy
+- **KRYTYCZNE**: Po `ListLayoutsTool` BEZ LayoutName NIE koncz odpowiedzi tekstem! ZAWSZE wywolaj kolejny tool (Foreach, PageSetupTool, itp.). User chce AKCJE, nie tylko informacji.
 
 ### PlotStyleTool
 - Akcje: List, Load, GetInfo, Assign.

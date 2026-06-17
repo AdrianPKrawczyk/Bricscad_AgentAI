@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.11 GOLD [AGENT CONTROL] - Wymuszenie iteracji po `ListLayoutsTool` w `LLMClient`. Problem: LLM (gemma-4-31B) po `ListLayoutsTool` konczyl odpowiedz tekstem zamiast wykonac akcje na layoutach (np. Foreach). Fix: nowe metody `ShouldForceContinueAfterLastTool()` + `BuildForceContinueHint()` w `LLMClient.cs`. Po `ListLayoutsTool` (bez LayoutName) z wynikiem zawierajacym layouty, jesli LLM probuje zakonczyc (brak tool_calls w nastepnej iteracji), AgentControl dodaje `[SYSTEM REMINDER]` do `conversationHistory` z instrukcja "Musisz wykonac akcje na kazdym z {N} layoutow - uzyj Foreach z ActionTemplate". Pozwala to LLM z slabym "agentness" (gemma-4-31B) iterowac do wlasciwego rozwiazania.
 - v2.30.10 GOLD [FOREACH PROFILE] - Dodanie `ForeachTool` do `CadLayoutProfile.AllowedTools` (linia 723 + 786 w `ToolConfigManager.cs`). LLM poprzednio wywolywal PageSetupTool N razy dla N layoutow zamiast uzyc `Foreach` z `ActionTemplate`. Teraz ma dostep. Prompt `system_prompt_layout.txt` z nowa sekcja `### ForeachTool (PETLA - KRYTYCZNE dla CadLayoutProfile)` z przykladem `Foreach` Items=[Arkusz1, Arkusz2] ActionTemplate=`PageSetupTool LayoutName="{item}" PlotDevice="RICOH" MediaName="A3"`. Zasady korzystania: "Dla operacji na WIELU layoutach ZAWSZE uzyj Foreach z ActionTemplate - NIE wywoluj PageSetupTool recznie N razy".
 - v2.30.9 GOLD [INFO vs WARNING] - PageSetupTool: separacja `infoMessages` (commit OK + info) od `warnings` (commit abort). Wczesniej fallback `_p` sukces -> ostrzezenie -> `tr.Abort()` wycofywal transakcje. Teraz: fallback sukces -> `infoMessages` -> `tr.Commit()` + INFO w outpucie. Fallback fail -> `warnings` -> `tr.Abort()` jak wczesniej. Ostateczny output: "SUKCES: Zastosowano 1 ustawien Page Setup | INFO: MediaName '594x1320' nie zostal zaakceptowany, uzyto '594x1320_p'".
 - v2.30.8 GOLD [_P AUTO-FALLBACK] - PageSetupTool: automatyczny fallback `594x1320` -> `594x1320_p` gdy driver odrzuca wersje bez sufiksu. Driver HP wymaga `_p` dla niektorych formatow (np. 594x1320_p dziala, 594x1320 zwraca eInvalidInput). PageSetupTool teraz: (1) probuje oryginalna nazwe, (2) jesli eInvalidInput + brak sufiksu `_p`/`_a` + wyglada na custom - probuje automatycznie z `_p`, (3) zwraca ostrzezenie z info o mapowaniu. Prompt CadLayoutProfile zaktualizowany: "Wystarczy podac wymiary, PageSetupTool sam doda _p jesli trzeba".
@@ -4363,6 +4364,26 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Manualne testy z "ustaw na wszystkich arkuszach RICOH A3" - LLM powinien wywolac Foreach zamiast 2x PageSetupTool.
 - Sprawdzic czy `Foreach` nie jest w konflikcie z `CadGeometryProfile` (ten profil juz mial Foreach, wiec OK).
 - Rozwazyc dodanie przykladu do `USER_GUIDE 13.5` o uzyciu ForeachTool z layoutami.
+
+## [v2.30.11] 2026-06-18 - Agent: Wymuszenie iteracji po ListLayoutsTool (KROK-30.14)
+### [PROBLEM]
+- Test: "Ustaw na wszystkich arkuszach drukarke RICOH z formatem A3" - LLM (gemma-4-31B):
+    - Prompt 1: LLM wywolal `ListLayoutsTool IncludeModel=false` -> "Znaleziono 2 layout(ow)...". KONIEC iteracji. User musi powtorzyc prompt.
+    - Prompt 2 (ten sam): LLM wywolal `Foreach` Items=[Arkusz1, Arkusz2] z PageSetupTool -> 2/2 sukces.
+- Powod: gemma-4-31B ma slabsza "agentness" - po poznaniu stanu (lista layoutow) myśli ze to koniec zadania zamiast iterowac do akcji.
+- Petla ReAct w `LLMClient.SendMessageReActAsync` ma `maxIterations = 5` (default) - LLM mial 4 wolne iteracje ale ich nie wykorzystal.
+### [NAPRAWIONE]
+- `src/Core/LLMClient.cs`:
+    * Nowa metoda `ShouldForceContinueAfterLastTool(List<ChatMessage> history)` - sprawdza czy ostatni tool call to `ListLayoutsTool` (bez LayoutName) i czy wynik zawiera "layout(" - jesli tak, zwraca true.
+    * Nowa metoda `BuildForceContinueHint(history)` - parsuje liczbe layoutow z outputu (np. "Znaleziono 2 layout(ow)" -> 2) i generuje `[SYSTEM REMINDER] User prosil o AKCJE na layoutach, nie tylko o ich liste. Wlasnie wylistowales N layout(ow) - teraz MUSISZ wykonac akcje na kazdym z nich. Uzyj ForeachTool z ActionTemplate zawierajacym {item} jako placeholder nazwy layoutu...`.
+    * Zmodyfikowana petla ReAct: po warunku zakończenia `if (ToolCalls == null || !ToolCalls.Any())` - jesli `ShouldForceContinueAfterLastTool` zwraca true, dodaje `[SYSTEM REMINDER]` jako `user` message do `conversationHistory` i `continue` (idzie do nastepnej iteracji).
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 4 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1153024 bytes).
+### [KOLEJNY_KROK]
+- Manualne testy z "ustaw na wszystkich arkuszach RICOH A3" - LLM powinien za pierwszym promptem wymusic iteracje i wywolac Foreach.
+- Sprawdzic czy dziala dla innych "exploratory" tool calls (np. `ListBlocksTool` powinien rowniez wymusic akcje).
+- Rozwazyc dodanie opcji "Auto-continue" w UI (default ON) z mozliwoscia wylaczenia dla zaawansowanych userow.
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]

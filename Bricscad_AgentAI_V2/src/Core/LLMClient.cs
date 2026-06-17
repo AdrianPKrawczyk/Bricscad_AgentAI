@@ -199,18 +199,33 @@ namespace Bricscad_AgentAI_V2.Core
                 // 3. Sprawdź warunek zakończenia: jeśli brak wywołań funkcji -> koniec.
                 if (assistantMessage.ToolCalls == null || !assistantMessage.ToolCalls.Any())
                 {
+                    bool shouldForceContinue = ShouldForceContinueAfterLastTool(conversationHistory);
+
+                    if (shouldForceContinue && iterations < maxIterations)
+                    {
+                        string forceHint = BuildForceContinueHint(conversationHistory);
+                        conversationHistory.Add(new ChatMessage
+                        {
+                            Role = "user",
+                            Content = forceHint
+                        });
+                        OnStatusUpdate?.Invoke($"[AgentControl] Wymuszam iteracje po {forceHint.Substring(0, Math.Min(60, forceHint.Length))}...");
+                        BielikLogger.LogInfo($"[AGENT CONTROL] Forcing continue: {forceHint}");
+                        continue;
+                    }
+
                     sw.Stop();
                     OnStatusUpdate?.Invoke("Formułowanie ostatecznej odpowiedzi...");
                     TrimHistory(conversationHistory);
-                    
+
                     // Zgłoś statystyki (aproksymacja 4 znaki = 1 token)
-                    RaiseStatsUpdate(new LLMStats 
-                    { 
-                        TotalTimeMs = sw.ElapsedMilliseconds, 
-                        PromptTokens = totalSentChars / 4, 
-                        CompletionTokens = totalRecvChars / 4 
+                    RaiseStatsUpdate(new LLMStats
+                    {
+                        TotalTimeMs = sw.ElapsedMilliseconds,
+                        PromptTokens = currentPromptTokens,
+                        CompletionTokens = currentCompletionTokens
                     });
-                    
+
                     return AgentExecutionResult.Success(assistantMessage.Content?.ToString() ?? "(Model nie zwrócił tekstu)");
                 }
 
@@ -1653,6 +1668,87 @@ namespace Bricscad_AgentAI_V2.Core
                 }
             }
             return null;
+        }
+
+        private static bool ShouldForceContinueAfterLastTool(List<ChatMessage> history)
+        {
+            if (history == null || history.Count < 2) return false;
+
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                var msg = history[i];
+                if (msg == null) continue;
+                if (string.Equals(msg.Role, "tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    string content = msg.Content?.ToString() ?? "";
+                    bool isListLayouts = false;
+                    bool listHasLayouts = false;
+                    if (msg.ToolCallId != null && content.Length > 0)
+                    {
+                        int prevIdx = i - 1;
+                        if (prevIdx >= 0 && history[prevIdx]?.ToolCalls != null)
+                        {
+                            foreach (var tc in history[prevIdx].ToolCalls)
+                            {
+                                if (tc.Id == msg.ToolCallId &&
+                                    string.Equals(tc.Function?.Name, "ListLayoutsTool", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    isListLayouts = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (isListLayouts)
+                        {
+                            if (content.Contains("ARKUSZ") || content.Contains("layout(ow)"))
+                            {
+                                listHasLayouts = true;
+                            }
+                        }
+                    }
+                    if (isListLayouts && listHasLayouts) return true;
+                    return false;
+                }
+                if (string.Equals(msg.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private static string BuildForceContinueHint(List<ChatMessage> history)
+        {
+            int layoutCount = 0;
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                var msg = history[i];
+                if (msg != null && string.Equals(msg.Role, "tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    string content = msg.Content?.ToString() ?? "";
+                    int idx = content.IndexOf("layout(", StringComparison.OrdinalIgnoreCase);
+                    if (idx >= 0)
+                    {
+                        int startIdx = idx + "layout(".Length;
+                        int parenIdx = content.IndexOf(')', startIdx);
+                        if (parenIdx > startIdx)
+                        {
+                            int.TryParse(content.Substring(startIdx, parenIdx - startIdx), out layoutCount);
+                        }
+                    }
+                    break;
+                }
+            }
+
+            if (layoutCount <= 0) layoutCount = 2;
+
+            string hint = "[SYSTEM REMINDER] User prosił o AKCJĘ na layoutach, nie tylko o ich listę. " +
+                          $"Właśnie wylistowałeś {layoutCount} layout(ów) - teraz MUSISZ wykonać akcję na każdym z nich. " +
+                          "Użyj ForeachTool z ActionTemplate zawierającym '{item}' jako placeholder nazwy layoutu, np.: " +
+                          "Foreach(Items=[listę nazw layoutów z poprzedniego ListLayoutsTool], " +
+                          "ActionTemplate='PageSetupTool LayoutName=\"{item}\" ...'). " +
+                          "PO wykonaniu akcji na wszystkich layoutach (lub gdy już nie ma nic do zrobienia) - wtedy możesz zakończyć odpowiedź.";
+            return hint;
         }
     }
 }
