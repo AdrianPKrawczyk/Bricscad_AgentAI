@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
@@ -42,6 +43,13 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                 }
                             },
                             {
+                                "IncludeMediaPerDevice", new ToolParameter
+                                {
+                                    Type = "boolean",
+                                    Description = "Czy dla pasujacych urzadzen pobrac formaty papieru po ustawieniu konkretnego plotera (wazne dla HP/UserXXX). Domyslnie true, gdy podano filtr."
+                                }
+                            },
+                            {
                                 "SaveAs", new ToolParameter
                                 {
                                     Type = "string",
@@ -62,6 +70,11 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             {
                 try { includeMedia = args["IncludeCanonicalMediaNames"].Value<bool>(); } catch { }
             }
+            bool includeMediaPerDevice = !string.IsNullOrWhiteSpace(filter);
+            if (args["IncludeMediaPerDevice"] != null)
+            {
+                try { includeMediaPerDevice = args["IncludeMediaPerDevice"].Value<bool>(); } catch { }
+            }
             string saveAs = args["SaveAs"]?.ToString();
 
             Database db = doc.Database;
@@ -79,10 +92,6 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         StringCollection deviceList = null;
                         try { deviceList = validator.GetPlotDeviceList(); } catch { }
                         if (deviceList == null) deviceList = new StringCollection();
-
-                        StringCollection mediaList = null;
-                        try { mediaList = validator.GetCanonicalMediaNameList(new PlotSettings(false)); } catch { }
-                        if (mediaList == null) mediaList = new StringCollection();
 
                         var sb = new StringBuilder();
                         sb.AppendLine($"LISTA URZADZEN DRUKUJACYCH ({deviceList.Count}):");
@@ -109,19 +118,70 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         if (includeMedia)
                         {
                             sb.AppendLine();
-                            sb.AppendLine($"LISTA FORMATOW PAPIERU (CanonicalMediaName, {mediaList.Count}):");
-
-                            string filterLc = (filter ?? "").ToLowerInvariant();
-                            int mediaShown = 0;
-                            foreach (string media in mediaList)
+                            if (includeMediaPerDevice && matchedDevices.Count > 0)
                             {
-                                if (string.IsNullOrEmpty(media)) continue;
-                                sb.AppendLine($"  - {media}");
-                                mediaShown++;
-                                if (mediaShown > 200)
+                                sb.AppendLine("LISTA FORMATOW PAPIERU DLA PASUJACYCH URZADZEN:");
+                                int devicesShown = 0;
+                                foreach (string dev in matchedDevices)
                                 {
-                                    sb.AppendLine($"  ... i {mediaList.Count - mediaShown} wiecej (uzyj IncludeCanonicalMediaNames=false aby ukryc).");
-                                    break;
+                                    if (devicesShown >= 8)
+                                    {
+                                        sb.AppendLine($"  ... pominieto {matchedDevices.Count - devicesShown} kolejnych urzadzen (zawez filtr).");
+                                        break;
+                                    }
+
+                                    string mediaWarning;
+                                    List<string> mediaNames = GetCanonicalMediaNamesForDevice(validator, dev, out mediaWarning);
+                                    sb.AppendLine($"  [{dev}] CanonicalMediaName ({mediaNames.Count}):");
+                                    if (!string.IsNullOrWhiteSpace(mediaWarning))
+                                    {
+                                        sb.AppendLine($"    UWAGA: {mediaWarning}");
+                                    }
+
+                                    int mediaShown = 0;
+                                    foreach (string media in mediaNames)
+                                    {
+                                        if (string.IsNullOrEmpty(media)) continue;
+                                        string locale = TryGetLocaleMediaName(validator, dev, media);
+                                        if (!string.IsNullOrWhiteSpace(locale) && !string.Equals(locale, media, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            sb.AppendLine($"    - {media} | DriverName: {locale}");
+                                        }
+                                        else
+                                        {
+                                            sb.AppendLine($"    - {media}");
+                                        }
+
+                                        mediaShown++;
+                                        if (mediaShown > 250)
+                                        {
+                                            sb.AppendLine($"    ... i {mediaNames.Count - mediaShown} wiecej.");
+                                            break;
+                                        }
+                                    }
+                                    devicesShown++;
+                                }
+                            }
+                            else
+                            {
+                                List<string> mediaList = GetCanonicalMediaNamesForDevice(validator, null, out string mediaWarning);
+                                sb.AppendLine($"LISTA FORMATOW PAPIERU GLOBALNA (CanonicalMediaName, {mediaList.Count}):");
+                                if (!string.IsNullOrWhiteSpace(mediaWarning))
+                                {
+                                    sb.AppendLine($"  UWAGA: {mediaWarning}");
+                                }
+
+                                int mediaShown = 0;
+                                foreach (string media in mediaList)
+                                {
+                                    if (string.IsNullOrEmpty(media)) continue;
+                                    sb.AppendLine($"  - {media}");
+                                    mediaShown++;
+                                    if (mediaShown > 200)
+                                    {
+                                        sb.AppendLine($"  ... i {mediaList.Count - mediaShown} wiecej (uzyj IncludeCanonicalMediaNames=false aby ukryc).");
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -155,9 +215,82 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
         {
             "{}",
             "{ \"Filter\": \"HP\" }",
+            "{ \"Filter\": \"HP DesignJet T120\", \"IncludeMediaPerDevice\": true }",
             "{ \"Filter\": \"PDF\" }",
             "{ \"IncludeCanonicalMediaNames\": false }",
             "{ \"SaveAs\": \"AvailablePlotters\" }"
         };
+
+        private static List<string> GetCanonicalMediaNamesForDevice(PlotSettingsValidator validator, string deviceName, out string warning)
+        {
+            warning = null;
+            var result = new List<string>();
+
+            // UWAGA: Plotery .pc3 czesto maja zarejestrowane media w systemie Windows,
+            // ale BricsCAD API GetCanonicalMediaNameList zwraca pusta liste dla PC3
+            // (CanonicalMediaName sa glownie dla wbudowanych sterownikow systemowych).
+            // Dla PC3 musimy zaufac nazwa z GUI BricsCAD (DriverName).
+            bool isPc3 = !string.IsNullOrWhiteSpace(deviceName) && deviceName.EndsWith(".pc3", StringComparison.OrdinalIgnoreCase);
+
+            try
+            {
+                using (var settings = new PlotSettings(false))
+                {
+                    if (!string.IsNullOrWhiteSpace(deviceName))
+                    {
+                        validator.SetPlotConfigurationName(settings, deviceName, null);
+                    }
+                    validator.RefreshLists(settings);
+                    StringCollection media = validator.GetCanonicalMediaNameList(settings);
+                    if (media != null)
+                    {
+                        foreach (string item in media)
+                        {
+                            if (!string.IsNullOrWhiteSpace(item) && !result.Contains(item))
+                            {
+                                result.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                warning = ex.Message;
+            }
+
+            if (isPc3 && result.Count == 0)
+            {
+                warning = "Ten ploter uzywa pliku .pc3 (sterownik zewnetrzny). BricsCAD API nie zwraca listy mediów dla PC3. Uzyj GUI BricsCAD: Format -> Plotter Setup -> lista 'Papier' (zawiera nazwy driver'a jak 'A4', 'B2', 'Tabloid', '594x840'). Albo uzyj ListLayoutsTool z LayoutName aby zobaczyc aktualny MediaName tego layoutu.";
+            }
+
+            return result;
+        }
+
+        private static string TryGetLocaleMediaName(PlotSettingsValidator validator, string deviceName, string canonicalMediaName)
+        {
+            try
+            {
+                MethodInfo method = validator.GetType().GetMethod(
+                    "GetLocaleMediaName",
+                    new[] { typeof(PlotSettings), typeof(string) });
+                if (method == null) return null;
+
+                using (var settings = new PlotSettings(false))
+                {
+                    if (!string.IsNullOrWhiteSpace(deviceName))
+                    {
+                        validator.SetPlotConfigurationName(settings, deviceName, null);
+                    }
+                    validator.RefreshLists(settings);
+                    object value = method.Invoke(validator, new object[] { settings, canonicalMediaName });
+                    return value?.ToString();
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

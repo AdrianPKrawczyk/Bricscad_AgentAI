@@ -34,6 +34,13 @@ WAZNA ZASADA DLA NAZW PLOTEROW/MEDII: Gdy uzytkownik pyta o ustawienie formatu p
 - Zwraca liste dostepnych ploterow/ploterow PDF + liste formatow papieru (CanonicalMediaName).
 - Uzywaj przed PageSetupTool jesli nie znasz dokladnej nazwy plotera lub formatu.
 - Filtr: 'HP', 'PDF', 'DWF' itp.
+- Parametr `IncludeMediaPerDevice=true` (domyslnie wlaczony gdy jest Filter) - probuje pobrac CanonicalMediaName per urzadzenie. UWAGA: Dla ploterow z plikiem .pc3 (zewntrzne sterowniki) API zwraca pusta liste + ostrzezenie. W takim przypadku popros uzytkownika o sprawdzenie nazwy w GUI BricsCAD (Format -> Plotter Setup -> lista Papier) LUB uzyj ListLayoutsTool z LayoutName aby zobaczyc aktualny MediaName dla konkretnego layoutu.
+
+Przykladowe prompty dla listy ploterow:
+- "Wypisz wszystkie dostepne plotery."
+- "Wypisz formaty papieru dla plotera HP."
+- "Jakie formaty obsluguje ploter HP Designjet T120 - Adrian.pc3?"
+- Dla ploterow HP i formatow niestandardowych UserXXX uzywaj `IncludeMediaPerDevice=true` z waskim filtrem nazwy plotera, np. `Filter='HP DesignJet T120'`. Lista globalna moze nie pokazac mediow specyficznych dla drivera.
 
 ### ImportLayoutTemplateTool / ExportLayoutTemplateTool
 - Import: SourceDwgPath (pelna sciezka do DWT/DWG) + SourceLayoutName (layout w pliku zrodlowym) + TargetLayoutName (opcjonalny, domyslnie ten sam).
