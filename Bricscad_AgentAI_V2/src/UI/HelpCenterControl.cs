@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Newtonsoft.Json;
@@ -30,7 +31,6 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 250,
                 BackColor = Color.FromArgb(28, 28, 28)
             };
 
@@ -42,8 +42,10 @@ namespace Bricscad_AgentAI_V2.UI
                 Font = new Font("Segoe UI", 10f),
                 BorderStyle = BorderStyle.None,
                 HideSelection = false,
-                ShowLines = false,
-                ItemHeight = 30
+                ShowLines = true,
+                ShowPlusMinus = false,
+                ItemHeight = 32,
+                Indent = 14
             };
             treeMenu.AfterSelect += TreeMenu_AfterSelect;
 
@@ -57,6 +59,54 @@ namespace Bricscad_AgentAI_V2.UI
             split.Panel2.Controls.Add(webView);
 
             this.Controls.Add(split);
+
+            this.Resize += (s, e) => UpdateSplitLayout();
+        }
+
+        private bool _splitLayoutApplied;
+
+        private void UpdateSplitLayout()
+        {
+            if (split == null || this.Width <= 0) return;
+
+            int target = Math.Max(200, Math.Min(400, (int)(this.Width * 0.22)));
+            int panel2Min = 300;
+
+            if (this.Width - target < panel2Min)
+            {
+                target = this.Width - panel2Min;
+                if (target < 100) target = 100;
+            }
+
+            if (split.Panel1MinSize != 100) split.Panel1MinSize = 100;
+            if (split.Panel2MinSize != panel2Min) split.Panel2MinSize = panel2Min;
+
+            int desired = Math.Max(split.Panel1MinSize, Math.Min(target, this.Width - panel2Min));
+            if (desired != split.SplitterDistance) split.SplitterDistance = desired;
+
+            _splitLayoutApplied = true;
+        }
+
+        private static Encoding DetectFileEncoding(string filePath)
+        {
+            try
+            {
+                using (var reader = new StreamReader(filePath, Encoding.Default, true))
+                {
+                    reader.ReadToEnd();
+                    return reader.CurrentEncoding;
+                }
+            }
+            catch
+            {
+                return Encoding.UTF8;
+            }
+        }
+
+        private static string ReadHelpFile(string filePath)
+        {
+            Encoding detected = DetectFileEncoding(filePath);
+            return File.ReadAllText(filePath, detected);
         }
 
         private void LoadHelpIndex()
@@ -79,7 +129,7 @@ namespace Bricscad_AgentAI_V2.UI
                     return;
                 }
 
-                string json = File.ReadAllText(indexFile);
+                string json = ReadHelpFile(indexFile);
                 var items = JsonConvert.DeserializeObject<List<HelpIndexItem>>(json);
 
                 if (items != null)
@@ -88,6 +138,7 @@ namespace Bricscad_AgentAI_V2.UI
                     foreach (var item in items)
                     {
                         var node = new TreeNode(item.Title);
+                        node.NodeFont = new Font("Segoe UI", 10f);
                         node.Tag = item.File;
                         treeMenu.Nodes.Add(node);
                     }
@@ -100,7 +151,7 @@ namespace Bricscad_AgentAI_V2.UI
             }
             catch (Exception ex)
             {
-                ShowErrorHtml($"Błąd ładowania indeksu pomocy: {ex.Message}");
+                ShowErrorHtml($"Blad ladowania indeksu pomocy: {ex.Message}");
             }
         }
 
@@ -119,7 +170,7 @@ namespace Bricscad_AgentAI_V2.UI
                 string filePath = Path.Combine(helpDirectory, fileName);
                 if (File.Exists(filePath))
                 {
-                    string mdContent = File.ReadAllText(filePath);
+                    string mdContent = ReadHelpFile(filePath);
                     string html = ConvertMarkdownToHtml(mdContent);
                     webView.DocumentText = html;
                 }
@@ -130,17 +181,17 @@ namespace Bricscad_AgentAI_V2.UI
             }
             catch (Exception ex)
             {
-                ShowErrorHtml($"Błąd wczytywania pliku: {ex.Message}");
+                ShowErrorHtml($"Blad wczytywania pliku: {ex.Message}");
             }
         }
 
         private void ShowErrorHtml(string message)
         {
             string html = $@"
-            <html><head><style>
+            <html><head><meta charset=""UTF-8""><style>
                 body {{ background-color: #1e1e1e; color: #ff5555; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; }}
             </style></head>
-            <body><h3>Błąd</h3><p>{message}</p></body></html>";
+            <body><h3>Blad</h3><p>{message}</p></body></html>";
             webView.DocumentText = html;
         }
 
@@ -172,15 +223,14 @@ namespace Bricscad_AgentAI_V2.UI
 
             // --- Listy ---
             html = Regex.Replace(html, @"^\- (.*?)$", "<li>$1</li>", RegexOptions.Multiline);
-            html = Regex.Replace(html, @"(?<=</li>)\r?\n(?=<li>)", ""); // Usuwanie przerw między elementami listy
+            html = Regex.Replace(html, @"(?<=</li>)\r?\n(?=<li>)", "");
             html = Regex.Replace(html, @"(<li>.*?</li>)", "<ul>$1</ul>", RegexOptions.Singleline);
-            // Proste czyszczenie zagnieżdżonych ul tagów
             html = html.Replace("</ul><ul>", "");
 
-            // --- Tabele (bardzo uproszczone, ignorujące alignment) ---
+            // --- Tabele ---
             html = Regex.Replace(html, @"^\|(.*)\| *$", m => {
                 var row = m.Groups[1].Value;
-                if (row.Contains("---")) return ""; // Ignorowanie wiersza separatora
+                if (row.Contains("---")) return "";
                 var cells = row.Split('|');
                 string res = "<tr>";
                 foreach (var c in cells) res += $"<td>{c.Trim()}</td>";
@@ -193,36 +243,43 @@ namespace Bricscad_AgentAI_V2.UI
             // --- Linie pionowe ---
             html = Regex.Replace(html, @"^--- *$", "<hr/>", RegexOptions.Multiline);
 
-            // --- Akapity (Podwójny newline na <br/><br/>) ---
+            // --- Akapity ---
             html = Regex.Replace(html, @"\r?\n\r?\n", "<br/><br/>");
 
             string wrapper = $@"
             <html>
             <head>
+                <meta charset=""UTF-8"">
                 <style>
                     body {{
                         background-color: #1e1e1e;
-                        color: #d4d4d4;
+                        color: #e8e8e8;
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        font-size: 14px;
-                        line-height: 1.6;
-                        padding: 20px;
+                        font-size: 15px;
+                        line-height: 1.7;
+                        padding: 28px 36px;
                         margin: 0;
+                        word-wrap: break-word;
                     }}
-                    h1, h2, h3 {{ color: #ffffff; font-weight: normal; margin-top: 1.5em; }}
-                    h1 {{ border-bottom: 1px solid #333; padding-bottom: 5px; color: #007acc; }}
-                    h2 {{ color: #4daafc; }}
-                    code {{ background-color: #2d2d30; color: #dcdcaa; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; }}
-                    pre {{ background-color: #2d2d30; padding: 10px; border-radius: 5px; overflow-x: auto; }}
-                    pre code {{ background-color: transparent; padding: 0; }}
-                    hr {{ border: 0; border-top: 1px solid #333; margin: 20px 0; }}
-                    ul {{ padding-left: 20px; }}
-                    li {{ margin-bottom: 5px; }}
-                    blockquote {{ border-left: 4px solid #007acc; margin: 0; padding-left: 15px; color: #9cdcfe; }}
-                    table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+                    h1, h2, h3 {{ color: #ffffff; font-weight: 600; margin-top: 1.6em; margin-bottom: 0.6em; }}
+                    h1 {{ border-bottom: 2px solid #007acc; padding-bottom: 8px; color: #4daafc; font-size: 1.8em; }}
+                    h2 {{ color: #4daafc; font-size: 1.35em; border-left: 4px solid #007acc; padding-left: 10px; }}
+                    h3 {{ color: #b8d8ff; font-size: 1.1em; }}
+                    p {{ margin: 0.8em 0; }}
+                    strong {{ color: #ffffff; font-weight: 600; }}
+                    em {{ color: #dcdcaa; }}
+                    code {{ background-color: #2d2d30; color: #dcdcaa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, 'Courier New', monospace; font-size: 0.9em; }}
+                    pre {{ background-color: #1a1a1a; padding: 14px 18px; border-radius: 5px; overflow-x: auto; border: 1px solid #333; }}
+                    pre code {{ background-color: transparent; padding: 0; color: #d4d4d4; }}
+                    hr {{ border: 0; border-top: 1px solid #444; margin: 24px 0; }}
+                    ul, ol {{ padding-left: 26px; margin: 0.8em 0; }}
+                    li {{ margin-bottom: 6px; line-height: 1.6; }}
+                    blockquote {{ border-left: 4px solid #007acc; margin: 12px 0; padding: 6px 0 6px 16px; color: #9cdcfe; background-color: #1a1a1a; }}
+                    table {{ border-collapse: collapse; width: 100%; margin: 18px 0; }}
                     table, th, td {{ border: 1px solid #444; }}
-                    th, td {{ padding: 8px; text-align: left; }}
-                    .alert {{ padding: 10px; margin: 15px 0; border-left: 4px solid; border-radius: 3px; background-color: #252526; }}
+                    th {{ background-color: #2d2d30; color: #ffffff; }}
+                    th, td {{ padding: 10px 12px; text-align: left; }}
+                    .alert {{ padding: 12px 16px; margin: 16px 0; border-left: 5px solid; border-radius: 4px; background-color: #252526; }}
                     .tip {{ border-color: #4CAF50; }}
                     .important {{ border-color: #2196F3; }}
                     .warning {{ border-color: #FF9800; }}
