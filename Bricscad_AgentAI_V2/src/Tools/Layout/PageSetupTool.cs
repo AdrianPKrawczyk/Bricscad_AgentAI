@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
@@ -89,6 +91,56 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         layout.UpgradeOpen();
 
                         var validator = PlotSettingsValidator.Current;
+
+                        var preflightErrors = new List<string>();
+                        if (args.TryGetValue("PlotDevice", out var tokDevPre))
+                        {
+                            string devName = tokDevPre.ToString();
+                            StringCollection devList = validator.GetPlotDeviceList();
+                            if (devList != null && devList.Count > 0 && !devList.Contains(devName))
+                            {
+                                string preview = string.Join(", ", devList.Cast<string>().Take(15));
+                                if (devList.Count > 15) preview += ", ...";
+                                preflightErrors.Add($"PlotDevice '{devName}' nie istnieje w systemie. Podobne: {preview}");
+                            }
+                        }
+                        if (args.TryGetValue("MediaName", out var tokMediaPre))
+                        {
+                            string mediaName = tokMediaPre.ToString();
+                            StringCollection mediaList = validator.GetCanonicalMediaNameList(new PlotSettings(false));
+                            if (mediaList != null && mediaList.Count > 0 && !mediaList.Contains(mediaName))
+                            {
+                                string isoMatches = string.Join(", ", mediaList.Cast<string>()
+                                    .Where(m => m.IndexOf("ISO", StringComparison.OrdinalIgnoreCase) >= 0
+                                             || m.IndexOf("A4", StringComparison.OrdinalIgnoreCase) >= 0
+                                             || m.IndexOf("A3", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    .Take(20));
+                                if (string.IsNullOrEmpty(isoMatches))
+                                {
+                                    isoMatches = string.Join(", ", mediaList.Cast<string>().Take(15));
+                                    if (mediaList.Count > 15) isoMatches += ", ...";
+                                }
+                                preflightErrors.Add($"MediaName '{mediaName}' nie istnieje w systemie. Dostepne formaty (filtrowane ISO/A3/A4): {isoMatches}. Mozliwe ze format ma inna nazwe - sprawdz PlotConfigurationName.");
+                            }
+                        }
+                        if (args.TryGetValue("StyleSheet", out var tokStylePre))
+                        {
+                            string styleName = tokStylePre.ToString();
+                            StringCollection styleList = validator.GetPlotStyleSheetList();
+                            if (styleList != null && styleList.Count > 0 && !styleList.Contains(styleName))
+                            {
+                                string preview = string.Join(", ", styleList.Cast<string>().Take(15));
+                                if (styleList.Count > 15) preview += ", ...";
+                                preflightErrors.Add($"StyleSheet '{styleName}' nie jest zaladowany. Dostepne: {preview}. Uzyj PlotStyleTool z Action='Load' aby wczytac plik.");
+                            }
+                        }
+
+                        if (preflightErrors.Count > 0)
+                        {
+                            tr.Abort();
+                            return "BLAD KRYTYCZNY PAGE SETUP (preflight): " + string.Join(" | ", preflightErrors);
+                        }
+
                         var warnings = new List<string>();
                         int applied = 0;
 
@@ -331,14 +383,15 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             warnings.Add("PlotAsRaster jest tylko do odczytu w BricsCAD V22 (pominiento).");
                         }
 
-                        tr.Commit();
-
-                        string msg = $"SUKCES: Zastosowano {applied} ustawien Page Setup dla layoutu '{layout.LayoutName}'.";
                         if (warnings.Count > 0)
                         {
-                            msg += $" Ostrzezenia: {string.Join(" | ", warnings)}";
+                            tr.Abort();
+                            return "BLAD CZESCIOWY PAGE SETUP: " + string.Join(" | ", warnings) + " | Nic nie zostalo zapisane (transakcja wycofana). Uzyj ListLayoutsTool z LayoutName aby sprawdzic aktualny stan lub PlotStyleTool z Action='List' aby zobaczyc dostepne style.";
                         }
-                        return msg;
+
+                        tr.Commit();
+
+                        return $"SUKCES: Zastosowano {applied} ustawien Page Setup dla layoutu '{layout.LayoutName}'.";
                     }
                 }
             }
