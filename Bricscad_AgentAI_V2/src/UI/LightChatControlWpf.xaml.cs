@@ -75,15 +75,28 @@ namespace Bricscad_AgentAI_V2.UI
             }));
         }
 
-        private void AppendLog(string role, string text, Color color)
+                private void AppendLog(string role, string text, Color color)
         {
             var p = new Paragraph();
-            p.Margin = new Thickness(0, 0, 0, 5);
+            p.Margin = new Thickness(0, 0, 0, 10);
+            p.Padding = new Thickness(10);
+            p.LineHeight = 1.4;
+            
+            // Create a nice border background based on the role
+            Color bgColor = Color.FromArgb(40, color.R, color.G, color.B);
+            if (role.ToLower() == "user") bgColor = Color.FromArgb(40, 0, 255, 100);
+            else if (role.ToLower() == "assistant" || role.ToLower() == "model") bgColor = Color.FromArgb(40, 0, 200, 255);
+            else if (role.ToLower() == "system") bgColor = Color.FromArgb(40, 255, 150, 0);
 
-            var runRole = new Run($"[{role}] ")
+            p.Background = new SolidColorBrush(bgColor);
+            p.BorderBrush = new SolidColorBrush(Color.FromArgb(100, color.R, color.G, color.B));
+            p.BorderThickness = new Thickness(4, 0, 0, 0);
+
+            var runRole = new Run($"[{role}]\n")
             {
                 Foreground = new SolidColorBrush(color),
-                FontWeight = FontWeights.Bold
+                FontWeight = FontWeights.Bold,
+                FontSize = 11
             };
             
             var runText = new Run(text)
@@ -167,6 +180,7 @@ namespace Bricscad_AgentAI_V2.UI
         }
     }
 }
+
 
 
 
