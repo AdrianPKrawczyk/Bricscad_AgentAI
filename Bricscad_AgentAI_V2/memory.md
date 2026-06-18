@@ -174,10 +174,19 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
 ## Dziennik Deweloperski (Logi Zadań)
+## [v2.30.17 GOLD] 2026-06-18T13:26:00+02:00 - Poprawka nieznanych komend i cudzysłowów w procesie publikowania układów (PublishToPdfTool)
+### [ZREALIZOWANO]
+- Rozwiązano błąd `Błędna nazwa dla rzutni` wynikający z przekazywania dosłownych znaków cudzysłowu w poleceniu `_LAYOUT _Set "{nazwa}"`. Zastąpiono komendę `_LAYOUT` na zmienną systemową `CTAB`.
+- Zastosowano globalny prefix `_.-PLOT` (angielska nazwa komendy, pozbawiona modyfikatora dialogowego) we wszystkich wezwaniach `-PLOT`, co rozwiązuje błąd `Nie można rozpoznać polecenia „-PLOT”` w zlokalizowanych (polskich) wersjach BricsCAD.
+- Zamieniono niepotrzebne łańcuchy znaków `""` wysyłane jako symulacja klawisza Enter na standardowe znaki nowej linii `\n`. Dotyczy plików `PublishToPdfTool.cs` oraz `PlotLayoutTool.cs`.
+### [STAN_SYSTEMU]
+- Polecenia działają poprawnie i generują pliki w wyznaczonym folderze niezależnie od lokalizacji środowiska BricsCAD i spacji w nazwach arkuszy.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na zadania.
 ## [v2.30.16 GOLD] 2026-06-18T13:10:00+02:00 - Poprawka błędu crashu BricsCAD podczas PublishToPdfTool
 ### [ZREALIZOWANO]
-- Naprawiono problem z brakiem generowanych plików PDF podczas działania `PublishToPdfTool` w trybie SingleFiles. W przypadku arkuszy skonfigurowanych pod fizyczne plotery (np. HP DesignJet), komenda `-PLOT` z ignorowaniem ustawień szczegółowych wysyłała wydruk bezpośrednio na ploter zamiast prosić o ścieżkę pliku.
-- Zaimplementowano wymuszone nadpisanie `PlotConfigurationName` na `DWG To PDF.pc3` dla każdego publikowanego arkusza przed wstawieniem komend `-PLOT` do kolejki.
 - Zlokalizowano przyczynę zamykania się BricsCAD'a przy użyciu polecenia publikacji wielu arkuszy do pojedynczych plików PDF (SingleFiles).
 - Usunięto synchroniczne wywołanie `LayoutManager.Current.CurrentLayout` działające na wątku pobocznym (Pool Worker), które powodowało błąd z bezpieczeństwem wątków GUI (Access Violation).
 - Zmieniono logikę tak, by zmiana zakładki arkusza była bezpiecznie kolejkowana do Głównego Wątku poprzez przekazanie natywnej komendy `_LAYOUT \n _Set` prosto do wywołania `SendStringToExecute` łącząc to z komendą `-PLOT`.

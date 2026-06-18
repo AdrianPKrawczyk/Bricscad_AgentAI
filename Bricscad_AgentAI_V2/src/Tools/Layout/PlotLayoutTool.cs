@@ -235,7 +235,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 }
 
                 string safePath = resolvedPath.Replace("\\", "/").Replace("\"", "\\\"");
-                string command = $"-PLOT\n\"\"\n\"\"\n\"{safePath}\"\n";
+                string command = $"_.-PLOT\n\n\n\"{safePath}\"\n";
                 doc.SendStringToExecute(command, true, false, false);
 
                 return $"SUKCES: Zlecono plotowanie do '{resolvedPath}'. Format: {outputFormat}, Layout: '{(string.IsNullOrEmpty(layoutName) ? "<biezacy>" : layoutName)}'. Plik powinien zostac wygenerowany przez BricsCAD w tle.";
