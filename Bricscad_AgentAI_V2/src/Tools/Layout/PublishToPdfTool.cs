@@ -170,7 +170,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
             try
             {
-                string dsdPath = GenerateDsdFile(doc, layouts, outputPdfPath);
+                string dsdPath = GenerateDsdFile(doc, layouts, outputPdfPath, true);
                 string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
                 string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
                 doc.SendStringToExecute(command, true, false, false);
@@ -216,7 +216,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
-                        string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath);
+                        string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath, false);
                         string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
                         string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
                         doc.SendStringToExecute(command, true, false, false);
@@ -242,7 +242,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             }
         }
 
-        private string GenerateDsdFile(Document doc, List<string> layouts, string outputPdfPath)
+        private string GenerateDsdFile(Document doc, List<string> layouts, string outputPdfPath, bool isMultiSheet)
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "BricscadAgentAI_DSD");
             if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
@@ -275,6 +275,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 sw.WriteLine("Type=6");
                 sw.WriteLine($"DWF={outputPdfPath}");
                 sw.WriteLine($"OUT={outDir}");
+                sw.WriteLine($"MultiSheet={(isMultiSheet ? "TRUE" : "FALSE")}");
                 sw.WriteLine("PromptForDwfName=FALSE");
                 sw.WriteLine("PwdProtectPublishedDWF=FALSE");
                 sw.WriteLine("PromptForPwd=FALSE");
