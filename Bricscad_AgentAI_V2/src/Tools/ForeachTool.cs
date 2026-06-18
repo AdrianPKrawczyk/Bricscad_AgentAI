@@ -205,7 +205,15 @@ namespace Bricscad_AgentAI_V2.Tools
                 doc.Editor.UpdateScreen();
 
                 StringBuilder summary = new StringBuilder();
-                summary.Append($"SUKCES: Wykonano {successCount}/{finalItems.Count} operacji.");
+                if (errors.Count > 0)
+                {
+                    string prefix = successCount == 0 ? "BLAD FOREACH" : "BLAD CZESCIOWY FOREACH";
+                    summary.Append($"{prefix}: Wykonano {successCount}/{finalItems.Count} operacji.");
+                }
+                else
+                {
+                    summary.Append($"SUKCES: Wykonano {successCount}/{finalItems.Count} operacji.");
+                }
                 if (handles.Count > 0) summary.Append($" Uchwyty: {string.Join(", ", handles.Take(10))}{(handles.Count > 10 ? "..." : "")}");
                 if (errors.Count > 0) summary.Append($" Błędy: {errors.Count} (ostatni: {errors.Last()})");
                 // [NOWE] Pojedyncze odświeżenie interfejsu po zakończeniu wszystkich iteracji w pętli

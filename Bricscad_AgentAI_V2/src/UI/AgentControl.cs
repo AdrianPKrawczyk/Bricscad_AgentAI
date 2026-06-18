@@ -63,6 +63,8 @@ namespace Bricscad_AgentAI_V2.UI
         // --- UI Logi NarzÄ‚â€žĂ˘â€žËdzi ---
         private RichTextBox txtToolLogs;
         private Button btnCopyLogs;
+        private RichTextBox txtLoopLogs;
+        private Button btnCopyLoopLogs;
 
         // --- Silnik V2 ---
         public LLMClient LlmClient => _llmClient;
@@ -223,12 +225,14 @@ namespace Bricscad_AgentAI_V2.UI
             
             _llmClient.OnStatusUpdate += UpdateStatusHUD;
             _llmClient.OnToolCallLogged += AppendToolLog;
+            _llmClient.OnLoopLogged += AppendLoopLog;
             _llmClient.OnStatsUpdate += (stats) => UpdateStatsHUD(stats);
             _llmClient.OnStatsUpdate += (stats) => UpdateTokenBar(stats.TotalTokens);
 
             // Subskrypcja telemetrii od odÄÄ…Ă˘â‚¬ĹˇÄ‚â€žĂ˘â‚¬Â¦czonych narzÄ‚â€žĂ˘â€žËdzi roboczych (np. DelegateTaskTool)
             AgentTelemetry.OnStatusUpdated += UpdateStatusHUD;
             AgentTelemetry.OnToolLogged += AppendToolLog;
+            AgentTelemetry.OnLoopLogged += AppendLoopLog;
             AgentTelemetry.OnStatsUpdated += (stats) => UpdateStatsHUD(stats);
             AgentTelemetry.OnDatasetRecordAdded += (s, e) => {
                 datasetStudio?.AddSessionRecord(e.Title, e.HistorySnapshot, e.ToolsSnapshot, e.Stats);
@@ -695,6 +699,33 @@ namespace Bricscad_AgentAI_V2.UI
             tabDev.Controls.Add(txtToolLogs);
             tabDev.Controls.Add(btnCopyLogs);
 
+            TabPage tabLoop = new TabPage("Log pętli");
+
+            txtLoopLogs = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                Font = new Font("Consolas", 9f),
+                BorderStyle = BorderStyle.None,
+                WordWrap = true,
+                ScrollBars = RichTextBoxScrollBars.Both
+            };
+
+            btnCopyLoopLogs = new Button
+            {
+                Text = "Kopiuj do schowka",
+                Dock = DockStyle.Bottom,
+                Height = 30,
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnCopyLoopLogs.Click += (s, e) => { if (!string.IsNullOrEmpty(txtLoopLogs.Text)) Clipboard.SetText(txtLoopLogs.Text); };
+
+            tabLoop.Controls.Add(txtLoopLogs);
+            tabLoop.Controls.Add(btnCopyLoopLogs);
+
             // ==========================================
             // ZAKÄÄ… ADKA 3: BENCHMARK (OCENA LLM)
             // ==========================================
@@ -1102,6 +1133,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
             
             tabSettingsSub.TabPages.Add(tabDev);
+            tabSettingsSub.TabPages.Add(tabLoop);
             tabSettingsSub.TabPages.Add(tabDebug);
 
             // PodzakÄÄ…Ă˘â‚¬Ĺˇadka Prompt zostaÄÄ…Ă˘â‚¬Ĺˇa przeniesiona do tabAgents
@@ -1312,10 +1344,12 @@ namespace Bricscad_AgentAI_V2.UI
 
             txtHistory.BackColor = bgMain;
             txtToolLogs.BackColor = bgMain;
+            txtLoopLogs.BackColor = bgMain;
             txtInput.BackColor = bgControl;
 
             txtHistory.ForeColor = fgText;
             txtToolLogs.ForeColor = Color.LightSkyBlue;
+            txtLoopLogs.ForeColor = Color.LightGreen;
             txtInput.ForeColor = fgText;
 
             if (txtSystemPromptEditor != null)
@@ -2058,6 +2092,20 @@ namespace Bricscad_AgentAI_V2.UI
             txtToolLogs.ScrollToCaret();
         }
 
+        public void AppendLoopLog(string message)
+        {
+            if (!this.IsHandleCreated) return;
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<string>(AppendLoopLog), message);
+                return;
+            }
+            txtLoopLogs.AppendText($"\n--- PETLA [{DateTime.Now:HH:mm:ss}] ---\n");
+            txtLoopLogs.AppendText(message + "\n");
+            txtLoopLogs.SelectionStart = txtLoopLogs.Text.Length;
+            txtLoopLogs.ScrollToCaret();
+        }
+
         private void ExecuteLispFromExternal(string lispId, string code)
         {
             try
@@ -2290,7 +2338,8 @@ namespace Bricscad_AgentAI_V2.UI
             {
                 string aiResponse = await Task.Run(async () => 
                 {
-                    var result = await _supervisor.ProcessInputAsync(payload, new CadExecutionContext(doc), activeDwgPath);
+                    bool earlyExitEnabled = chkEarlyExit?.Checked ?? true;
+                    var result = await _supervisor.ProcessInputAsync(payload, new CadExecutionContext(doc), activeDwgPath, earlyExitEnabled);
                     return result.DisplayMessage;
                 });
 

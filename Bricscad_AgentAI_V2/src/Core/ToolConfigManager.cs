@@ -383,9 +383,11 @@ EnsureMathPromptFile();
                         settings.Tags = "#layout, #wydruk";
                         changed = true;
                     }
-                    if (!settings.SupportsEarlyExit)
+                    // ListLayoutsTool is often only the discovery step before a layout action.
+                    // Let the ReAct loop decide whether to continue instead of returning a raw list as success.
+                    if (settings.SupportsEarlyExit)
                     {
-                        settings.SupportsEarlyExit = true;
+                        settings.SupportsEarlyExit = false;
                         changed = true;
                     }
                 }

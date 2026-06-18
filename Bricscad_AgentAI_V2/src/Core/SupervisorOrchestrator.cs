@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using Bricscad_AgentAI_V2.Models;
+using System;
 
 namespace Bricscad_AgentAI_V2.Core
 {
@@ -45,8 +46,9 @@ namespace Bricscad_AgentAI_V2.Core
             return sysPrompt + $"\n\n=== NOTATKA DLA RYSUNKU: {activeDwgPath} ===\n{note}\n=== KONIEC NOTATKI ===";
         }
 
-        public async Task<AgentExecutionResult> ProcessInputAsync(object userContent, IExecutionContext context, string activeDwgPath = "")
+        public async Task<AgentExecutionResult> ProcessInputAsync(object userContent, IExecutionContext context, string activeDwgPath = "", bool earlyExitEnabled = true)
         {
+            AgentMemoryState.EarlyExitEnabled = earlyExitEnabled;
             var history = SessionManager.CurrentSession.Messages;
 
             if (history.Count == 0)
@@ -87,15 +89,59 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             history.Add(new ChatMessage { Role = "user", Content = finalContent, ActiveDocumentPath = activeDwgPath });
+            if (ShouldRequireFreshDelegation(finalContent))
+            {
+                history.Add(new ChatMessage
+                {
+                    Role = "system",
+                    Content = "[SYSTEM GUARD] To jest nowe polecenie wykonawcze CAD. Nie wolno odpowiadac z pamieci ani na podstawie poprzedniego podobnego polecenia. Jesli uzytkownik prosi o ustawienie, zmiane, przypisanie albo zastosowanie parametrow w rysunku, uzyj DelegateTask i poczekaj na realny wynik narzedzia. Kopiuj nazwy plikow, style wydruku, layouty, drukarki i wartosci w cudzyslowach dokladnie z polecenia uzytkownika; nie skracaj np. 'CadProfi Color.ctb' do 'CadProfi.ctb'."
+                });
+            }
             SessionManager.SaveSession(); // Natychmiastowy zapis zapobiegajÄ…cy utracie pytania ("ucieĹ‚o moje pytanie")
             
             // Trigger auto-naming w tle, jeĹ›li mamy juĹĽ co najmniej 2 wiadomoĹ›ci (np. system + user)
             SessionManager.TriggerAutoNaming(_client, SessionManager.CurrentSession);
 
-            AgentExecutionResult result = await _client.SendMessageReActAsync(history, context, null, true, 10, "SupervisorProfile");
+            AgentExecutionResult result = await _client.SendMessageReActAsync(history, context, null, earlyExitEnabled, 10, "SupervisorProfile");
             
             SessionManager.SaveSession();
             return result;
+        }
+
+        private static bool ShouldRequireFreshDelegation(object content)
+        {
+            string text = content?.ToString();
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            string lower = text.ToLowerInvariant();
+            bool hasActionVerb =
+                lower.Contains("ustaw") ||
+                lower.Contains("zmien") ||
+                lower.Contains("zmień") ||
+                lower.Contains("przypisz") ||
+                lower.Contains("zastosuj") ||
+                lower.Contains("skonfiguruj") ||
+                lower.Contains("dodaj") ||
+                lower.Contains("usun") ||
+                lower.Contains("usuń") ||
+                lower.Contains("narysuj") ||
+                lower.Contains("utworz") ||
+                lower.Contains("utwórz");
+
+            bool touchesCadState =
+                lower.Contains("arkusz") ||
+                lower.Contains("layout") ||
+                lower.Contains("drukark") ||
+                lower.Contains("format") ||
+                lower.Contains("ctb") ||
+                lower.Contains("stb") ||
+                lower.Contains("warstw") ||
+                lower.Contains("blok") ||
+                lower.Contains("tekst") ||
+                lower.Contains("wymiar") ||
+                lower.Contains("rysunk");
+
+            return hasActionVerb && touchesCadState;
         }
     }
 }

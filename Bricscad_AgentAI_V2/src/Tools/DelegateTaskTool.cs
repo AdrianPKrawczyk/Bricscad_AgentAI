@@ -56,6 +56,13 @@ namespace Bricscad_AgentAI_V2.Tools
             string systemPrompt = ToolConfigManager.LoadEffectivePromptForProfile(targetProfile);
 
             bool explicitSelectionScopeLock = args["SelectionScopeLock"]?.Value<bool>() ?? false;
+            if (explicitSelectionScopeLock &&
+                string.Equals(targetProfile, "CadLayoutProfile", StringComparison.OrdinalIgnoreCase) &&
+                IsLayoutMutationTask(taskDescription))
+            {
+                explicitSelectionScopeLock = false;
+                BielikLogger.LogInfo("[DelegateTask] Ignoring SelectionScopeLock=true for CadLayoutProfile layout/page-setup task.");
+            }
             bool isSelectionScopedTask = explicitSelectionScopeLock || IsSelectionScopedTask(taskDescription);
             if (isSelectionScopedTask && AgentMemoryState.ActiveSelection.Length == 0)
             {
@@ -99,6 +106,9 @@ namespace Bricscad_AgentAI_V2.Tools
             client.OnToolCallLogged += (log) => {
                 AgentTelemetry.ReportToolLog($"--- [{targetProfile}] ---\n{log}");
             };
+            client.OnLoopLogged += (log) => {
+                AgentTelemetry.ReportLoopLog(log);
+            };
             client.OnStatsUpdate += (stats) => {
                 AgentTelemetry.ReportStats(stats);
             };
@@ -107,13 +117,14 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
+                AgentTelemetry.ReportLoopLog($"[Supervisor -> {targetProfile}]\n{taskDescription}");
                 // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ăłwny wÄ…tek przed Deadlockiem
                 AgentExecutionResult result = Task.Run(async () => {
                     return await client.SendMessageReActAsync(
                         conversationHistory: localHistory, 
                         context: context, 
                         initialTags: null, 
-                        earlyExitEnabled: true, 
+                        earlyExitEnabled: AgentMemoryState.EarlyExitEnabled,
                         maxIterations: 10, 
                         profileName: targetProfile);
                 }).GetAwaiter().GetResult();
@@ -134,10 +145,16 @@ namespace Bricscad_AgentAI_V2.Tools
 
                 if (result.IsSuccess)
                 {
+                    if (IsLikelyUnfulfilledLayoutMutation(targetProfile, taskDescription, result.DisplayMessage))
+                    {
+                        return $"BŁĄD: '{targetProfile}' nie wykonał zleconej modyfikacji. Zwrócił tylko listę layoutów zamiast użyć PageSetupTool/Foreach do zmiany ustawień. Powtórz delegowanie z jawnym nakazem wykonania PageSetupTool dla każdego arkusza.";
+                    }
+                    AgentTelemetry.ReportLoopLog($"[{targetProfile} -> Supervisor]\n{result.DisplayMessage}");
                     return $"Zadanie zakoĹ„czone przez '{targetProfile}'. ZwrĂłcony wynik: {result.DisplayMessage}";
                 }
                 else
                 {
+                    AgentTelemetry.ReportLoopLog($"[{targetProfile} -> Supervisor]\nBLAD: {result.DisplayMessage}");
                     return $"BĹÄ„D: '{targetProfile}' zgĹ‚osiĹ‚ awariÄ™: {result.DisplayMessage}";
                 }
             }
@@ -152,6 +169,66 @@ namespace Bricscad_AgentAI_V2.Tools
                     AgentMemoryState.UnlockSelectionScope();
                 }
             }
+        }
+
+        private bool IsLikelyUnfulfilledLayoutMutation(string targetProfile, string taskDescription, string displayMessage)
+        {
+            if (!string.Equals(targetProfile, "CadLayoutProfile", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!IsLayoutMutationTask(taskDescription))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(displayMessage))
+            {
+                return true;
+            }
+
+            string result = displayMessage.ToLowerInvariant();
+            bool isOnlyListResult =
+                result.Contains("wynik: znaleziono") &&
+                result.Contains("layout(ow)") &&
+                !result.Contains("sukces: zastosowano") &&
+                !result.Contains("wykonano") &&
+                !result.Contains("pagesetup") &&
+                !result.Contains("page setup");
+
+            return isOnlyListResult;
+        }
+
+        private bool IsLayoutMutationTask(string taskDescription)
+        {
+            if (string.IsNullOrWhiteSpace(taskDescription)) return false;
+
+            string text = taskDescription.ToLowerInvariant();
+            bool hasActionVerb =
+                text.Contains("ustaw") ||
+                text.Contains("zmien") ||
+                text.Contains("zmień") ||
+                text.Contains("zastosuj") ||
+                text.Contains("skonfiguruj") ||
+                text.Contains("przypisz") ||
+                text.Contains("ustawić") ||
+                text.Contains("zmienić") ||
+                text.Contains("ma byc") ||
+                text.Contains("ma być");
+
+            bool mentionsLayoutOrPlot =
+                text.Contains("arkusz") ||
+                text.Contains("layout") ||
+                text.Contains("drukark") ||
+                text.Contains("format papieru") ||
+                text.Contains("styl wydruku") ||
+                text.Contains("ctb") ||
+                text.Contains("stb") ||
+                text.Contains("page setup") ||
+                text.Contains("pagesetup");
+
+            return hasActionVerb && mentionsLayoutOrPlot;
         }
 
         private bool IsSelectionScopedTask(string taskDescription)

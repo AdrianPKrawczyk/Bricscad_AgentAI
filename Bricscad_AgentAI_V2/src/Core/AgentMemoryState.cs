@@ -15,6 +15,8 @@ namespace Bricscad_AgentAI_V2.Core
         private static ObjectId[] _activeSelection = new ObjectId[0];
         private static bool _selectionScopeLocked;
 
+        public static bool EarlyExitEnabled { get; set; } = true;
+
         /// <summary>
         /// Globalny magazyn przechowujący zmienne sesji Agenta (@zmienna) z automatycznym
         /// lustrzanym odbiciem na Blackboardzie (dla architektury Multi-Agent).

@@ -91,6 +91,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         layout.UpgradeOpen();
 
                         var validator = PlotSettingsValidator.Current;
+                        using (var workingSettings = new PlotSettings(layout.ModelType))
+                        {
+                            workingSettings.CopyFrom(layout);
 
                         var preflightErrors = new List<string>();
                         var preflightWarnings = new List<string>();
@@ -177,7 +180,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             try
                             {
-                                validator.SetPlotConfigurationName(layout, tokDevice.ToString(), null);
+                                validator.SetPlotConfigurationName(workingSettings, tokDevice.ToString(), null);
                                 applied++;
                             }
                             catch (Exception ex)
@@ -192,7 +195,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
 
                             try
                             {
-                                validator.SetCanonicalMediaName(layout, mediaNameArg);
+                                validator.SetCanonicalMediaName(workingSettings, mediaNameArg);
                                 applied++;
                             }
                             catch (Exception ex)
@@ -203,7 +206,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                                 {
                                     try
                                     {
-                                        validator.SetCanonicalMediaName(layout, mediaNameArg + "_p");
+                                        validator.SetCanonicalMediaName(workingSettings, mediaNameArg + "_p");
                                         applied++;
                                         infoMessages.Add($"INFO: MediaName '{mediaNameArg}' nie zostal zaakceptowany przez driver. Automatycznie uzyto '{mediaNameArg}_p' (sufiks _p = format skladany do A4).");
                                     }
@@ -237,7 +240,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             try
                             {
-                                validator.SetCurrentStyleSheet(layout, tokStyle.ToString());
+                                validator.SetCurrentStyleSheet(workingSettings, tokStyle.ToString());
                                 applied++;
                             }
                             catch (Exception ex)
@@ -250,7 +253,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             if (LayoutEnums.TryParseEnum(tokType.ToString(), LayoutEnums.PlotTypeMap, out int pt))
                             {
-                                validator.SetPlotType(layout, (PlotType)pt);
+                                validator.SetPlotType(workingSettings, (PlotType)pt);
                                 applied++;
                             }
                             else
@@ -263,7 +266,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             if (LayoutEnums.TryParseEnum(tokRot.ToString(), LayoutEnums.PlotRotationMap, out int pr))
                             {
-                                validator.SetPlotRotation(layout, (PlotRotation)pr);
+                                validator.SetPlotRotation(workingSettings, (PlotRotation)pr);
                                 applied++;
                             }
                             else
@@ -276,7 +279,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             try
                             {
-                                validator.SetPlotCentered(layout, tokCentered.Value<bool>());
+                                validator.SetPlotCentered(workingSettings, tokCentered.Value<bool>());
                                 applied++;
                             }
                             catch (Exception ex)
@@ -295,7 +298,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                             if (hasOriginY && tokOriginY != null && LayoutEnums.TryParseDouble(tokOriginY.ToString(), out double vy)) oy = vy;
                             try
                             {
-                                validator.SetPlotOrigin(layout, new Point2d(ox, oy));
+                                validator.SetPlotOrigin(workingSettings, new Point2d(ox, oy));
                                 applied++;
                             }
                             catch (Exception ex)
@@ -308,7 +311,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                         {
                             if (LayoutEnums.TryParseEnum(tokUnits.ToString(), LayoutEnums.PlotPaperUnitsMap, out int pu))
                             {
-                                validator.SetPlotPaperUnits(layout, (PlotPaperUnit)pu);
+                                validator.SetPlotPaperUnits(workingSettings, (PlotPaperUnit)pu);
                                 applied++;
                             }
                             else
@@ -324,8 +327,8 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                             {
                                 try
                                 {
-                                    validator.SetUseStandardScale(layout, tokUseStd.Value<bool>());
-                                    validator.SetStdScaleType(layout, (StdScaleType)st);
+                                    validator.SetUseStandardScale(workingSettings, tokUseStd.Value<bool>());
+                                    validator.SetStdScaleType(workingSettings, (StdScaleType)st);
                                     applied++;
                                 }
                                 catch (Exception ex)
@@ -349,7 +352,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                             if (hasDen && tokDen != null && LayoutEnums.TryParseDouble(tokDen.ToString(), out double vd)) den = vd;
                             try
                             {
-                                validator.SetCustomPrintScale(layout, new CustomScale(num, den));
+                                validator.SetCustomPrintScale(workingSettings, new CustomScale(num, den));
                                 applied++;
                             }
                             catch (Exception ex)
@@ -357,6 +360,8 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                                 warnings.Add($"CustomScale: {ex.Message}");
                             }
                         }
+
+                        layout.CopyFrom(workingSettings);
 
                         if (args.TryGetValue("ShadePlot", out var tokShade))
                         {
@@ -460,6 +465,7 @@ if (args.TryGetValue("MediaName", out var tokMediaPre))
                             result += " | " + string.Join(" | ", infoMessages);
                         }
                         return result;
+                        }
                     }
                 }
             }

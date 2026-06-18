@@ -267,12 +267,17 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 tr.Commit();
             }
 
-            string msg = $"SUKCES: Przypisano styl '{styleName}' do {assignedCount} layout(ow).";
             if (warnings.Count > 0)
             {
-                msg += $" Ostrzezenia: {string.Join(" | ", warnings)}";
+                string warningText = string.Join(" | ", warnings);
+                if (assignedCount == 0)
+                {
+                    return $"BLAD PLOT STYLE: Nie przypisano stylu '{styleName}' do zadnego layoutu. Ostrzezenia: {warningText}";
+                }
+
+                return $"BLAD CZESCIOWY PLOT STYLE: Przypisano styl '{styleName}' do {assignedCount} layout(ow), ale wystapily ostrzezenia: {warningText}";
             }
-            return msg;
+            return $"SUKCES: Przypisano styl '{styleName}' do {assignedCount} layout(ow).";
         }
 
         public List<string> Examples => new List<string>

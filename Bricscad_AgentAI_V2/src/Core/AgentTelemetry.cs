@@ -16,6 +16,7 @@ namespace Bricscad_AgentAI_V2.Core
     {
         public static event Action<string> OnStatusUpdated;
         public static event Action<string> OnToolLogged;
+        public static event Action<string> OnLoopLogged;
         public static event Action<LLMStats> OnStatsUpdated;
         public static event EventHandler<DatasetSessionRecordArgs> OnDatasetRecordAdded;
 
@@ -27,6 +28,11 @@ namespace Bricscad_AgentAI_V2.Core
         public static void ReportToolLog(string log)
         {
             OnToolLogged?.Invoke(log);
+        }
+
+        public static void ReportLoopLog(string log)
+        {
+            OnLoopLogged?.Invoke(log);
         }
 
         public static void ReportStats(LLMStats stats)

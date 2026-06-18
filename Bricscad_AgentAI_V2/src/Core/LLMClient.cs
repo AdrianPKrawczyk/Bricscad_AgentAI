@@ -26,6 +26,7 @@ namespace Bricscad_AgentAI_V2.Core
         // Delegaty do aktualizacji interfejsu użytkownika w trybie asynchronicznym (niewątkującym bazy CAD)
         public event Action<string> OnStatusUpdate;
         public event Action<string> OnToolCallLogged;
+        public event Action<string> OnLoopLogged;
         public event Action<LLMStats> OnStatsUpdate; // Obiekt ze statystykami
         public LLMStats LastStats { get; private set; }
         public string LastVisionOcrDiagnostics { get; private set; } = string.Empty;
@@ -76,6 +77,7 @@ namespace Bricscad_AgentAI_V2.Core
             while (iterations < maxIterations)
             {
                 iterations++;
+                LogLoop(profileName, $"[ITERACJA {iterations}/{maxIterations}] Wysylam rozmowe do modelu.");
                 OnStatusUpdate?.Invoke($"Wysyłanie zapytania do struktury (iteracja {iterations}/{maxIterations})...");
 
                 var requestPayload = new Dictionary<string, object>
@@ -182,18 +184,22 @@ namespace Bricscad_AgentAI_V2.Core
 
                 if (assistantMessage.ToolCalls != null && assistantMessage.ToolCalls.Any())
                 {
+                    var loopTools = new List<string>();
                     foreach (var tc in assistantMessage.ToolCalls)
                     {
                         string argsStr = tc.Function?.Arguments;
                         if (argsStr != null && argsStr.Length > 200) argsStr = argsStr.Substring(0, 200) + "...";
                         BielikLogger.LogInfo($"[LLM TOOLCALL] ID={tc.Id}, Name={tc.Function?.Name}, Args={argsStr}");
+                        loopTools.Add($"{tc.Function?.Name}({argsStr})");
                     }
+                    LogLoop(profileName, "[ASSISTANT -> TOOL]\n" + string.Join("\n", loopTools));
                 }
                 else
                 {
                     string contentStr = assistantMessage.Content?.ToString();
                     if (contentStr != null && contentStr.Length > 150) contentStr = contentStr.Substring(0, 150) + "...";
                     BielikLogger.LogInfo($"[LLM TEXT] Response: {contentStr}");
+                    LogLoop(profileName, "[ASSISTANT]\n" + TruncateForLoopLog(assistantMessage.Content?.ToString(), 1200));
                 }
 
                 // 3. Sprawdź warunek zakończenia: jeśli brak wywołań funkcji -> koniec.
@@ -211,6 +217,7 @@ namespace Bricscad_AgentAI_V2.Core
                         });
                         OnStatusUpdate?.Invoke($"[AgentControl] Wymuszam iteracje po {forceHint.Substring(0, Math.Min(60, forceHint.Length))}...");
                         BielikLogger.LogInfo($"[AGENT CONTROL] Forcing continue: {forceHint}");
+                        LogLoop(profileName, "[SYSTEM -> ASSISTANT] Wymuszam kontynuacje po niepelnej akcji.\n" + TruncateForLoopLog(forceHint, 800));
                         continue;
                     }
 
@@ -234,6 +241,11 @@ namespace Bricscad_AgentAI_V2.Core
                 
                 // Flaga wczesnego wyjścia - inicjalnie true (jeśli włączone), resetowana jeśli dowolne narzędzie nie wspiera lub zawiedzie.
                 bool canEarlyExitThisTurn = earlyExitEnabled && assistantMessage.ToolCalls.Any();
+                var earlyExitBlockers = new List<string>();
+                if (!earlyExitEnabled)
+                {
+                    earlyExitBlockers.Add("Early Exit jest wylaczony w UI.");
+                }
 
                 foreach (var toolCall in assistantMessage.ToolCalls)
                 {
@@ -242,6 +254,7 @@ namespace Bricscad_AgentAI_V2.Core
 
                     // Logujemy surowy JSON wywołania do nowego interfejsu 'Logi Narzędzi'
                     OnToolCallLogged?.Invoke(JsonConvert.SerializeObject(toolCall, Newtonsoft.Json.Formatting.Indented));
+                    LogLoop(profileName, $"[TOOL START] {functionName}\nARG: {TruncateForLoopLog(argumentsString, 800)}");
                     OnStatusUpdate?.Invoke($"Uruchamiam narzędzie: {functionName}...");
 
                     JObject argumentsParsed;
@@ -257,10 +270,16 @@ namespace Bricscad_AgentAI_V2.Core
                         if (toolSettings == null || !toolSettings.SupportsEarlyExit)
                         {
                             canEarlyExitThisTurn = false;
+                            earlyExitBlockers.Add($"{functionName}: SupportsEarlyExit=false.");
                         }
 
                         // Przekazanie kontekstu do doca (tymczasowy most dla ToolOrchestrator, który wymaga Doc)
                         toolExecutionResult = _orchestrator.ExecuteTool(functionName, argumentsParsed, context, profileName);
+                        if (LooksLikeToolFailure(toolExecutionResult))
+                        {
+                            canEarlyExitThisTurn = false;
+                            earlyExitBlockers.Add($"{functionName}: wynik narzedzia wyglada na blad.");
+                        }
 
                         // Jeśli wynik zawiera błąd, nie możemy zrobić Early Exit
                         if (toolExecutionResult.ToLower().Contains("błąd") || toolExecutionResult.ToLower().Contains("error"))
@@ -275,6 +294,7 @@ namespace Bricscad_AgentAI_V2.Core
 
                     // 5. Dodaj odpowiedź z roli zastrzeżonej "tool"
                     // V2 VISION: Specjalne traktowanie zrzutów ekranu
+                    LogLoop(profileName, $"[TOOL RESULT] {functionName}\n{TruncateForLoopLog(toolExecutionResult, 1200)}");
                     if (toolExecutionResult.StartsWith(MetricVisionRenderer.MetricVisionToken))
                     {
                         string metricJson = toolExecutionResult.Substring(MetricVisionRenderer.MetricVisionToken.Length);
@@ -427,6 +447,29 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 
                 // KRYTYCZNE: Sprawdzenie Early Exit PO dodaniu wszystkich wyników do historii.
+                if (ShouldForceContinueAfterLastTool(conversationHistory) && iterations < maxIterations)
+                {
+                    string forceHint = BuildForceContinueHint(conversationHistory);
+                    conversationHistory.Add(new ChatMessage
+                    {
+                        Role = "user",
+                        Content = forceHint
+                    });
+                    canEarlyExitThisTurn = false;
+                    OnStatusUpdate?.Invoke($"[AgentControl] Wymuszam iteracje po {forceHint.Substring(0, Math.Min(60, forceHint.Length))}...");
+                    BielikLogger.LogInfo($"[AGENT CONTROL] Forcing continue before early exit: {forceHint}");
+                    string continueReason = earlyExitEnabled
+                        ? "[SYSTEM -> ASSISTANT] Wymuszam kontynuacje przed Early Exit."
+                        : "[SYSTEM -> ASSISTANT] Wymuszam kontynuacje po liscie layoutow.";
+                    LogLoop(profileName, continueReason + "\n" + TruncateForLoopLog(forceHint, 800));
+                    continue;
+                }
+
+                if (!canEarlyExitThisTurn && earlyExitBlockers.Count > 0)
+                {
+                    LogLoop(profileName, "[EARLY EXIT POMINIETY]\n" + string.Join("\n", earlyExitBlockers.Distinct()));
+                }
+
                 if (canEarlyExitThisTurn)
                 {
                     sw.Stop();
@@ -443,6 +486,23 @@ namespace Bricscad_AgentAI_V2.Core
                     {
                         earlyExitMessage = "Operacja wykonana pomyślnie (Tryb Szybki).";
                     }
+
+                    string earlyExitPreview = earlyExitMessage;
+                    if (earlyExitPreview.Length > 600)
+                    {
+                        earlyExitPreview = earlyExitPreview.Substring(0, 600) + "...";
+                    }
+
+                    OnToolCallLogged?.Invoke(
+                        "--- EARLY EXIT ---\n" +
+                        JsonConvert.SerializeObject(new
+                        {
+                            Profile = profileName ?? "(default)",
+                            Iteration = iterations,
+                            Reason = "Wszystkie narzedzia w tej iteracji obsluguja SupportsEarlyExit i zwrocily wynik bez bledu.",
+                            ReturnedMessage = earlyExitPreview
+                        }, Newtonsoft.Json.Formatting.Indented));
+                    LogLoop(profileName, "[EARLY EXIT] Zakonczono petle bez kolejnego kroku modelu.\n" + TruncateForLoopLog(earlyExitMessage, 1200));
 
                     return AgentExecutionResult.Success(earlyExitMessage);
                 }
@@ -1652,10 +1712,23 @@ namespace Bricscad_AgentAI_V2.Core
             OnStatsUpdate?.Invoke(stats);
         }
 
+        private void LogLoop(string profileName, string message)
+        {
+            string profile = string.IsNullOrWhiteSpace(profileName) ? "(default)" : profileName;
+            OnLoopLogged?.Invoke($"[{profile}] {message}");
+        }
+
+        private static string TruncateForLoopLog(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Length <= maxLength ? text : text.Substring(0, maxLength) + "\n...[przycieto]";
+        }
+
         private static string ExtractLastToolResult(List<ChatMessage> history)
         {
             if (history == null || history.Count == 0) return null;
 
+            var results = new List<string>();
             for (int i = history.Count - 1; i >= 0; i--)
             {
                 var msg = history[i];
@@ -1663,16 +1736,52 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     if (msg.Content is string s && !string.IsNullOrEmpty(s))
                     {
-                        return s;
+                        results.Add(s);
                     }
+                    continue;
+                }
+
+                if (results.Count > 0)
+                {
+                    results.Reverse();
+                    return string.Join("\n", results);
                 }
             }
+            if (results.Count > 0)
+            {
+                results.Reverse();
+                return string.Join("\n", results);
+            }
             return null;
+        }
+
+        private static bool LooksLikeToolFailure(string toolExecutionResult)
+        {
+            if (string.IsNullOrWhiteSpace(toolExecutionResult)) return false;
+
+            string lower = toolExecutionResult.ToLowerInvariant();
+            if (lower.StartsWith("blad", StringComparison.Ordinal) ||
+                lower.StartsWith("błąd", StringComparison.Ordinal) ||
+                lower.StartsWith("error", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            return lower.Contains(" błąd ") ||
+                   lower.Contains(" blad ") ||
+                   lower.Contains("błędy:") ||
+                   lower.Contains("bledy:") ||
+                   lower.Contains("error:") ||
+                   lower.Contains("wykonano 0/") ||
+                   lower.Contains("nie istnieje") ||
+                   lower.Contains("nie mozna") ||
+                   lower.Contains("nie można");
         }
 
         private static bool ShouldForceContinueAfterLastTool(List<ChatMessage> history)
         {
             if (history == null || history.Count < 2) return false;
+            if (!LastUserMessageRequestsLayoutAction(history)) return false;
 
             for (int i = history.Count - 1; i >= 0; i--)
             {
@@ -1691,7 +1800,8 @@ namespace Bricscad_AgentAI_V2.Core
                             foreach (var tc in history[prevIdx].ToolCalls)
                             {
                                 if (tc.Id == msg.ToolCallId &&
-                                    string.Equals(tc.Function?.Name, "ListLayoutsTool", StringComparison.OrdinalIgnoreCase))
+                                    string.Equals(tc.Function?.Name, "ListLayoutsTool", StringComparison.OrdinalIgnoreCase) &&
+                                    IsAllLayoutsListCall(tc.Function?.Arguments))
                                 {
                                     isListLayouts = true;
                                     break;
@@ -1709,12 +1819,77 @@ namespace Bricscad_AgentAI_V2.Core
                     if (isListLayouts && listHasLayouts) return true;
                     return false;
                 }
-                if (string.Equals(msg.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(msg.Role, "user", StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
             }
             return false;
+        }
+
+        private static bool IsAllLayoutsListCall(string arguments)
+        {
+            if (string.IsNullOrWhiteSpace(arguments)) return true;
+
+            try
+            {
+                var parsed = JObject.Parse(arguments);
+                return parsed["LayoutName"] == null || string.IsNullOrWhiteSpace(parsed["LayoutName"]?.ToString());
+            }
+            catch
+            {
+                return arguments.IndexOf("LayoutName", StringComparison.OrdinalIgnoreCase) < 0;
+            }
+        }
+
+        private static bool LastUserMessageRequestsLayoutAction(List<ChatMessage> history)
+        {
+            string text = null;
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                var msg = history[i];
+                if (msg == null || !string.Equals(msg.Role, "user", StringComparison.OrdinalIgnoreCase)) continue;
+                text = msg.Content?.ToString();
+                if (!string.IsNullOrWhiteSpace(text)) break;
+            }
+
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            string lower = text.ToLowerInvariant();
+            bool mentionsManyLayouts =
+                lower.Contains("wszystkich arkusz") ||
+                lower.Contains("wszystkie arkusz") ||
+                lower.Contains("kazdym layout") ||
+                lower.Contains("każdym layout") ||
+                lower.Contains("kazdego layout") ||
+                lower.Contains("każdego layout") ||
+                lower.Contains("wszystkich layout") ||
+                lower.Contains("wszystkie layout");
+
+            bool hasActionVerb =
+                lower.Contains("ustaw") ||
+                lower.Contains("zmien") ||
+                lower.Contains("zmień") ||
+                lower.Contains("zastosuj") ||
+                lower.Contains("skonfiguruj") ||
+                lower.Contains("przypisz") ||
+                lower.Contains("ustawić") ||
+                lower.Contains("zmienić") ||
+                lower.Contains("ma byc") ||
+                lower.Contains("ma być");
+
+            bool mentionsPageSetupValue =
+                lower.Contains("drukark") ||
+                lower.Contains("plotdevice") ||
+                lower.Contains("format papieru") ||
+                lower.Contains("media") ||
+                lower.Contains("styl wydruku") ||
+                lower.Contains("ctb") ||
+                lower.Contains("stb") ||
+                lower.Contains("portrait") ||
+                lower.Contains("pionowo");
+
+            return hasActionVerb && (mentionsManyLayouts || mentionsPageSetupValue);
         }
 
         private static string BuildForceContinueHint(List<ChatMessage> history)
