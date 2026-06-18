@@ -174,6 +174,17 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
 ## Dziennik Deweloperski (Logi Zadań)
+## [v2.30.16 GOLD] 2026-06-18T13:10:00+02:00 - Poprawka błędu crashu BricsCAD podczas PublishToPdfTool
+### [ZREALIZOWANO]
+- Zlokalizowano przyczynę zamykania się BricsCAD'a przy użyciu polecenia publikacji wielu arkuszy do pojedynczych plików PDF (SingleFiles).
+- Usunięto synchroniczne wywołanie `LayoutManager.Current.CurrentLayout` działające na wątku pobocznym (Pool Worker), które powodowało błąd z bezpieczeństwem wątków GUI (Access Violation).
+- Zmieniono logikę tak, by zmiana zakładki arkusza była bezpiecznie kolejkowana do Głównego Wątku poprzez przekazanie natywnej komendy `_LAYOUT \n _Set` prosto do wywołania `SendStringToExecute` łącząc to z komendą `-PLOT`.
+### [STAN_SYSTEMU]
+- Publikacja do pojedynczych plików PDF w wątku asynchronicznym w BricsCAD nie powoduje już awarii (Fatal Error).
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na zadania.
 ## [v2.30.15 GOLD] 2026-06-18T13:00:00+02:00 - Poprawka błędu podwójnego arkusza przy imporcie (WblockCloneObjects)
 ### [ZREALIZOWANO]
 - Naprawiono błąd w `ImportLayoutTemplateTool.cs` powodujący pozostawanie domyślnego arkusza (np. "Arkusz4") po klonowaniu geometrii z szablonu.

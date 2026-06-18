@@ -216,10 +216,10 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
-                        LayoutManager.Current.CurrentLayout = layoutName;
-
+                        // Zmiana layoutu z wątku w tle za pomocą API powoduje crash BricsCAD (brak thread-safety GUI).
+                        // Zamiast tego zlecamy zmianę arkusza w samej komendzie poprzez polecenie _LAYOUT.
                         string safePath = fullPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"-PLOT\n\"\"\n\"\"\n\"{safePath}\"\n";
+                        string command = $"_LAYOUT\n_Set\n\"{layoutName}\"\n-PLOT\n\"\"\n\"\"\n\"{safePath}\"\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
