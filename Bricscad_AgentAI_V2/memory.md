@@ -176,6 +176,8 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 ## Dziennik Deweloperski (Logi Zadań)
 ## [v2.30.16 GOLD] 2026-06-18T13:10:00+02:00 - Poprawka błędu crashu BricsCAD podczas PublishToPdfTool
 ### [ZREALIZOWANO]
+- Naprawiono problem z brakiem generowanych plików PDF podczas działania `PublishToPdfTool` w trybie SingleFiles. W przypadku arkuszy skonfigurowanych pod fizyczne plotery (np. HP DesignJet), komenda `-PLOT` z ignorowaniem ustawień szczegółowych wysyłała wydruk bezpośrednio na ploter zamiast prosić o ścieżkę pliku.
+- Zaimplementowano wymuszone nadpisanie `PlotConfigurationName` na `DWG To PDF.pc3` dla każdego publikowanego arkusza przed wstawieniem komend `-PLOT` do kolejki.
 - Zlokalizowano przyczynę zamykania się BricsCAD'a przy użyciu polecenia publikacji wielu arkuszy do pojedynczych plików PDF (SingleFiles).
 - Usunięto synchroniczne wywołanie `LayoutManager.Current.CurrentLayout` działające na wątku pobocznym (Pool Worker), które powodowało błąd z bezpieczeństwem wątków GUI (Access Violation).
 - Zmieniono logikę tak, by zmiana zakładki arkusza była bezpiecznie kolejkowana do Głównego Wątku poprzez przekazanie natywnej komendy `_LAYOUT \n _Set` prosto do wywołania `SendStringToExecute` łącząc to z komendą `-PLOT`.
