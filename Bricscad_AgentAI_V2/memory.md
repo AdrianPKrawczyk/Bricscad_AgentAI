@@ -174,6 +174,16 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
 ## Dziennik Deweloperski (Logi Zadań)
+## [v2.30.15 GOLD] 2026-06-18T13:00:00+02:00 - Poprawka błędu podwójnego arkusza przy imporcie (WblockCloneObjects)
+### [ZREALIZOWANO]
+- Naprawiono błąd w `ImportLayoutTemplateTool.cs` powodujący pozostawanie domyślnego arkusza (np. "Arkusz4") po klonowaniu geometrii z szablonu.
+- Zamieniono błędne usuwanie nowo utworzonego arkusza na bezpieczną zmianę jego nazwy za pomocą `LayoutManager.Current.RenameLayout`.
+### [STAN_SYSTEMU]
+- Import arkuszy działa stabilnie i nie tworzy śmieciowych układów (ghost layouts).
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na zadania.
 ## [v2.20.10] 2026-06-03T10:45:17+02:00 - Inicjalna analiza architektury V2 i protokołów pamięci
 ### [ZREALIZOWANO]
 - Przeprowadzono szczegółową analizę architektury projektu w wersji V2 (Function Calling, LLMClient ReAct, RPN, Dataset Studio, CLI, system receptur i faza Vision).
