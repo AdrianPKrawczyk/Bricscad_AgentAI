@@ -142,6 +142,14 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
             try
             {
+                string pc3 = "DWG To PDF.pc3";
+                switch (outputFormat)
+                {
+                    case "DWF": pc3 = "DWF6 ePlot.pc3"; break;
+                    case "PNG": pc3 = "PublishToWeb PNG.pc3"; break;
+                    default: pc3 = "DWG To PDF.pc3"; break;
+                }
+
                 using (doc.LockDocument())
                 {
                     using (Transaction tr = db.TransactionManager.StartTransaction())
@@ -159,20 +167,16 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
                         layout.UpgradeOpen();
 
-                        string pc3;
                         string extOut;
                         switch (outputFormat)
                         {
                             case "DWF":
-                                pc3 = "DWF6 ePlot.pc3";
                                 extOut = ".dwf";
                                 break;
                             case "PNG":
-                                pc3 = "PublishToWeb PNG.pc3";
                                 extOut = ".png";
                                 break;
                             default:
-                                pc3 = "DWG To PDF.pc3";
                                 extOut = ".pdf";
                                 break;
                         }
@@ -228,14 +232,18 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         tr.Commit();
                     }
 
-                    if (!string.IsNullOrEmpty(layoutName))
-                    {
-                        LayoutManager.Current.CurrentLayout = layoutName;
-                    }
+                    // Usunięto synchroniczne wywołanie LayoutManager.CurrentLayout
                 }
 
                 string safePath = resolvedPath.Replace("\\", "/").Replace("\"", "\\\"");
-                string command = $"_.-PLOT\n\n\n\"{safePath}\"\n";
+                string command = "";
+                if (!string.IsNullOrEmpty(layoutName))
+                {
+                    command += $"CTAB\n{layoutName}\n";
+                }
+                
+                // _.-PLOT -> NIE dla szczegółowej -> Enter (layout) -> Enter (page setup) -> Nazwa urządzenia -> Plik -> Zapisz (Nie) -> Kontynuuj (Tak)
+                command += $"_.-PLOT\n_No\n\n\n{pc3}\n\"{safePath}\"\n_No\n_Yes\n";
                 doc.SendStringToExecute(command, true, false, false);
 
                 return $"SUKCES: Zlecono plotowanie do '{resolvedPath}'. Format: {outputFormat}, Layout: '{(string.IsNullOrEmpty(layoutName) ? "<biezacy>" : layoutName)}'. Plik powinien zostac wygenerowany przez BricsCAD w tle.";

@@ -217,9 +217,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         }
 
                         // Zmiana layoutu za pomocą zmiennej systemowej CTAB (z wątku GUI).
-                        // Używamy _.-PLOT (wersja uniwersalna/angielska). Puste nowelinie (\n) odpowiadają za wciśnięcie Enter.
+                        // Używamy _.-PLOT i omijamy ustawienia strony, podając jawnie "DWG To PDF.pc3" aby uniknąć użycia domyślnego plotera fizycznego.
                         string safePath = fullPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"CTAB\n{layoutName}\n_.-PLOT\n\n\n\"{safePath}\"\n";
+                        string command = $"CTAB\n{layoutName}\n_.-PLOT\n_No\n\n\nDWG To PDF.pc3\n\"{safePath}\"\n_No\n_Yes\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
