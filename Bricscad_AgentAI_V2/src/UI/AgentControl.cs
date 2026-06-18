@@ -2094,12 +2094,20 @@ namespace Bricscad_AgentAI_V2.UI
 
         public void AppendLoopLog(string message)
         {
+            AppendLoopLogWithColor(message, Color.LightGreen);
+        }
+
+        public void AppendLoopLogWithColor(string message, Color color)
+        {
             if (!this.IsHandleCreated) return;
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action<string>(AppendLoopLog), message);
+                this.BeginInvoke(new Action<string, Color>(AppendLoopLogWithColor), message, color);
                 return;
             }
+            txtLoopLogs.SelectionStart = txtLoopLogs.TextLength;
+            txtLoopLogs.SelectionLength = 0;
+            txtLoopLogs.SelectionColor = color;
             txtLoopLogs.AppendText($"\n--- PETLA [{DateTime.Now:HH:mm:ss}] ---\n");
             txtLoopLogs.AppendText(message + "\n");
             txtLoopLogs.SelectionStart = txtLoopLogs.Text.Length;
@@ -2321,6 +2329,7 @@ namespace Bricscad_AgentAI_V2.UI
             }
 
             AppendToHistory("TY", rawInput, isDarkMode ? Color.LightSkyBlue : Color.Blue);
+            AppendLoopLogWithColor($"[USER PROMPT]\n{rawInput}", isDarkMode ? Color.LightSkyBlue : Color.Blue);
             if (!string.IsNullOrEmpty(attachedFilePath))
             {
                 AppendToHistory("SYSTEM", $"DoĹâ€šÄâ€¦czono plik: {System.IO.Path.GetFileName(attachedFilePath)}", Color.Orange);
