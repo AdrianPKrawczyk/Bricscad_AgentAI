@@ -174,6 +174,20 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
 ## Dziennik Deweloperski (Logi Zadań)
+## [v2.30.18 GOLD] 2026-06-18T16:20:00+02:00 - Poprawka PublishToPdfTool SingleFiles PDF naming
+### [ZREALIZOWANO]
+- Naprawiono `PublishToPdfTool` w trybie `SingleFiles`, aby sciezka katalogu `Z:/export/` nie uruchamiala dialogu zapisu PDF i tworzyla pliki wedlug nazw arkuszy.
+- Rozszerzono generowanie DSD o dodatkowe pola publikacji (`OriginalSheetPath`, `LogFilePath`, `SheetSet Properties`, `PromptForDwfName=FALSE`) stabilizujace publikacje bez interakcji uzytkownika.
+- Poprawiono interpretacje prefiksu wyjsciowego, np. `Z:/export/IS.PW-` zachowuje pelny prefiks `IS.PW-` zamiast obcinac po kropce.
+- Dodano laczenie prefiksu z nazwa layoutu bez dodatkowego `_`, gdy prefiks konczy sie separatorem (`-`, `_`, `.`, spacja), np. `IS.PW-01.pdf`.
+### [STAN_SYSTEMU]
+- Publikacja PDF SingleFiles dziala bez okna zapisu i poprawnie tworzy nazwy plikow z opcjonalnym prefiksem.
+### [WERYFIKACJA]
+- `powershell -ExecutionPolicy Bypass -File build.ps1` zakonczony sukcesem: 0 bledow, 4 istniejace ostrzezenia.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Oczekiwanie na zadania.
 ## [v2.30.17 GOLD] 2026-06-18T13:45:00+02:00 - Poprawka ploterów domyślnych w BricsCAD
 ### [ZREALIZOWANO]
 - Rozwiązano błąd `Błędna nazwa dla rzutni` wynikający z przekazywania dosłownych znaków cudzysłowu w poleceniu `_LAYOUT _Set "{nazwa}"`. Zastąpiono komendę `_LAYOUT` na zmienną systemową `CTAB`.

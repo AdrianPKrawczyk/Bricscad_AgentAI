@@ -41,7 +41,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                 "OutputPdfPath", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Sciezka docelowa PDF (obowiazkowe). Dla MultiSheet - jeden plik. Dla SingleFiles - katalog docelowy lub prefix."
+                                    Description = "Sciezka docelowa PDF (obowiazkowe). Dla MultiSheet - jeden plik. Dla SingleFiles - katalog docelowy (np. C:/export/) albo prefix."
                                 }
                             },
                             {
@@ -145,6 +145,15 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
                 if (mode.Equals("MultiSheet", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (IsDirectoryLikePath(resolvedPath))
+                    {
+                        string baseName = SanitizeFileName(Path.GetFileNameWithoutExtension(doc.Name) ?? "publish");
+                        resolvedPath = Path.Combine(resolvedPath, baseName + ".pdf");
+                    }
+                    else if (string.IsNullOrEmpty(Path.GetExtension(resolvedPath)))
+                    {
+                        resolvedPath += ".pdf";
+                    }
                     return PublishMultiSheet(doc, layoutsToProcess, resolvedPath, overwrite);
                 }
                 else
@@ -172,9 +181,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             try
             {
                 string dsdPath = GenerateDsdFile(doc, layouts, outputPdfPath, true);
-                string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
-                doc.SendStringToExecute(command, true, false, false);
+                doc.SendStringToExecute(BuildPublishCommand(dsdPath), true, false, false);
 
                 return $"SUKCES: Zlecono publikacje MultiSheet ({layouts.Count} layoutow) z uzyciem DSD do '{outputPdfPath}'.";
             }
@@ -188,19 +195,23 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
         {
             try
             {
-                string dir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                bool outputIsDirectory = IsDirectoryLikePath(outputPath);
+                string baseDir = outputIsDirectory
+                    ? outputPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    : (Path.GetDirectoryName(outputPath) ?? "");
+
+                if (string.IsNullOrWhiteSpace(baseDir))
                 {
-                    Directory.CreateDirectory(dir);
+                    baseDir = Path.GetDirectoryName(doc.Name) ?? "";
                 }
 
-                string prefix = Path.GetFileNameWithoutExtension(outputPath);
-                if (string.IsNullOrWhiteSpace(prefix))
+                if (!string.IsNullOrEmpty(baseDir) && !Directory.Exists(baseDir))
                 {
-                    prefix = Path.GetFileNameWithoutExtension(doc.Name) ?? "layout";
+                    Directory.CreateDirectory(baseDir);
                 }
 
-                string baseDir = Path.GetDirectoryName(outputPath) ?? "";
+                string prefix = outputIsDirectory ? "" : GetSingleFilesPrefix(outputPath);
+
                 int successCount = 0;
                 var warnings = new List<string>();
 
@@ -208,7 +219,10 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 {
                     try
                     {
-                        string fileName = $"{prefix}_{SanitizeFileName(layoutName)}.pdf";
+                        string safeLayoutName = SanitizeFileName(layoutName);
+                        string fileName = string.IsNullOrWhiteSpace(prefix)
+                            ? $"{safeLayoutName}.pdf"
+                            : $"{JoinPrefixAndLayoutName(prefix, safeLayoutName)}.pdf";
                         string fullPath = Path.Combine(baseDir, fileName);
 
                         if (File.Exists(fullPath) && !overwrite)
@@ -218,9 +232,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         }
 
                         string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath, true);
-                        string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
-                        doc.SendStringToExecute(command, true, false, false);
+                        doc.SendStringToExecute(BuildPublishCommand(dsdPath), true, false, false);
 
                         successCount++;
                     }
@@ -262,15 +274,22 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 {
                     string layoutName = layouts[i];
                     string safeDwgName = Path.GetFileNameWithoutExtension(doc.Name) ?? "Doc";
+                    string sheetTitle = isMultiSheet && layouts.Count == 1
+                        ? SanitizeFileName(layoutName)
+                        : $"{safeDwgName}-{layoutName}";
                     
                     sw.WriteLine($"[DWF6Sheet:Sheet {i + 1}]");
-                    sw.WriteLine($"Name={safeDwgName}-{layoutName}");
+                    sw.WriteLine($"Name={sheetTitle}");
                     sw.WriteLine($"DWG={doc.Name}");
                     sw.WriteLine($"Layout={layoutName}");
                     sw.WriteLine("Setup=");
+                    sw.WriteLine($"OriginalSheetPath={doc.Name}");
+                    sw.WriteLine("Has Plot Port=0");
+                    sw.WriteLine("Has3DDWF=0");
                 }
 
                 string outDir = Path.GetDirectoryName(outputPdfPath) ?? outputPdfPath;
+                string logPath = Path.ChangeExtension(outputPdfPath, ".log");
 
                 sw.WriteLine("[Target]");
                 sw.WriteLine("Type=6");
@@ -278,11 +297,75 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 sw.WriteLine($"OUT={outDir}");
                 sw.WriteLine($"MultiSheet={(isMultiSheet ? "TRUE" : "FALSE")}");
                 sw.WriteLine("PromptForDwfName=FALSE");
+                sw.WriteLine("PWD=");
                 sw.WriteLine("PwdProtectPublishedDWF=FALSE");
                 sw.WriteLine("PromptForPwd=FALSE");
+                sw.WriteLine($"LogFilePath={logPath}");
+                sw.WriteLine("IncludeLayer=TRUE");
+                sw.WriteLine("LineMerge=FALSE");
+                sw.WriteLine("ViewFile=FALSE");
+                sw.WriteLine();
+                sw.WriteLine("[AutoCAD Block Data]");
+                sw.WriteLine("IncludeBlockInfo=0");
+                sw.WriteLine("BlockTmplFilePath=");
+                sw.WriteLine();
+                sw.WriteLine("[SheetSet Properties]");
+                sw.WriteLine("IsSheetSet=FALSE");
+                sw.WriteLine("IsHomogeneous=FALSE");
+                sw.WriteLine("SheetSet Name=");
+                sw.WriteLine("NoOfCopies=1");
+                sw.WriteLine("PlotStampOn=FALSE");
+                sw.WriteLine("ViewFile=FALSE");
+                sw.WriteLine("JobID=0");
+                sw.WriteLine("SelectionSetName=");
+                sw.WriteLine("AcadProfile=");
+                sw.WriteLine("CategoryName=");
+                sw.WriteLine($"LogFilePath={logPath}");
+                sw.WriteLine("PromptForDwfName=FALSE");
             }
 
             return tempDsdPath;
+        }
+
+        private string BuildPublishCommand(string dsdPath)
+        {
+            string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
+            return $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
+        }
+
+        private bool IsDirectoryLikePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            if (path.EndsWith("\\", StringComparison.Ordinal) || path.EndsWith("/", StringComparison.Ordinal)) return true;
+            if (Directory.Exists(path)) return true;
+            return string.IsNullOrEmpty(Path.GetExtension(path));
+        }
+
+        private string GetSingleFilesPrefix(string outputPath)
+        {
+            string fileName = Path.GetFileName(outputPath);
+            if (string.IsNullOrWhiteSpace(fileName)) return "";
+
+            string ext = Path.GetExtension(fileName);
+            if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.GetFileNameWithoutExtension(fileName);
+            }
+
+            return fileName;
+        }
+
+        private string JoinPrefixAndLayoutName(string prefix, string layoutName)
+        {
+            if (string.IsNullOrWhiteSpace(prefix)) return layoutName;
+
+            char last = prefix[prefix.Length - 1];
+            if (last == '-' || last == '_' || last == '.' || char.IsWhiteSpace(last))
+            {
+                return prefix + layoutName;
+            }
+
+            return prefix + "_" + layoutName;
         }
 
         private string GetPdfDeviceName(Document doc)
