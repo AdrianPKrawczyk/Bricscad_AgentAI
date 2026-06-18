@@ -216,9 +216,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
-                        string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath, false);
-                        string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
+                        string command = $"FILEDIA\n0\nCMDDIA\n0\nCTAB\n{layoutName}\n_.-EXPORT\nPDF\n\"{fullPath}\"\nFILEDIA\n1\nCMDDIA\n1\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
