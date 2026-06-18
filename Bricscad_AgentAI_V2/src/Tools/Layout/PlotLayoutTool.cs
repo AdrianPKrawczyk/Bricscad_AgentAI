@@ -142,12 +142,12 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
             try
             {
-                string pc3 = "DWG To PDF.pc3";
+                string pc3 = GetPdfDeviceName();
                 switch (outputFormat)
                 {
                     case "DWF": pc3 = "DWF6 ePlot.pc3"; break;
                     case "PNG": pc3 = "PublishToWeb PNG.pc3"; break;
-                    default: pc3 = "DWG To PDF.pc3"; break;
+                    default: break; // Używa GetPdfDeviceName()
                 }
 
                 using (doc.LockDocument())
@@ -256,6 +256,31 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             {
                 HostApplicationServices.WorkingDatabase = oldDb;
             }
+        }
+
+        private string GetPdfDeviceName()
+        {
+            try
+            {
+                var devices = PlotSettingsValidator.Current.GetPlotDeviceList();
+                if (devices != null)
+                {
+                    foreach (string dev in devices)
+                    {
+                        if (dev.Equals("Print As PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                    }
+                    foreach (string dev in devices)
+                    {
+                        if (dev.Equals("DWG To PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                    }
+                    foreach (string dev in devices)
+                    {
+                        if (dev.IndexOf("PDF", StringComparison.OrdinalIgnoreCase) >= 0 && dev.EndsWith(".pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                    }
+                }
+            }
+            catch { }
+            return "Print As PDF.pc3";
         }
 
         public List<string> Examples => new List<string>

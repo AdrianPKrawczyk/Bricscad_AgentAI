@@ -174,14 +174,14 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
 ## Dziennik Deweloperski (Logi Zadań)
-## [v2.30.17 GOLD] 2026-06-18T13:34:00+02:00 - Poprawka nieznanych komend i domyślnych ploterów fizycznych (PublishToPdfTool)
+## [v2.30.17 GOLD] 2026-06-18T13:45:00+02:00 - Poprawka ploterów domyślnych w BricsCAD
 ### [ZREALIZOWANO]
 - Rozwiązano błąd `Błędna nazwa dla rzutni` wynikający z przekazywania dosłownych znaków cudzysłowu w poleceniu `_LAYOUT _Set "{nazwa}"`. Zastąpiono komendę `_LAYOUT` na zmienną systemową `CTAB`.
 - Zastosowano globalny prefix `_.-PLOT` (angielska nazwa komendy, pozbawiona modyfikatora dialogowego) we wszystkich wezwaniach `-PLOT`, co rozwiązuje błąd w zlokalizowanych (polskich) wersjach BricsCAD.
 - Zamieniono niepotrzebne łańcuchy znaków `""` wysyłane jako symulacja klawisza Enter na standardowe znaki nowej linii `\n`. Dotyczy plików `PublishToPdfTool.cs` oraz `PlotLayoutTool.cs`.
-- Naprawiono problem w którym `PublishToPdfTool` drukował arkusze do lokalnych drukarek fizycznych, jeśli takie były zapisane jako domyślne dla układu. Wymuszono nadpisywanie plotera na `DWG To PDF.pc3` bezpośrednio w strumieniu polecenia do paska komend, omijając ustawienia strony arkusza.
+- Naprawiono problem w którym BricsCAD odrzucał `DWG To PDF.pc3` z powodu jego braku (jest to ploter specyficzny dla AutoCAD). Skrypty pobierają teraz zainstalowaną listę urządzeń (PlotSettingsValidator.GetPlotDeviceList) i dynamicznie wybierają m.in. wbudowany w BricsCAD `Print As PDF.pc3`.
 ### [STAN_SYSTEMU]
-- Polecenia działają poprawnie i wymuszają tworzenie plików PDF, pomijając ewentualne zapisane plotery systemowe wewnątrz DWG.
+- Polecenia wymuszają tworzenie plików PDF, używając dostępnego lokalnie plotera PDF.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]

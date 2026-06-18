@@ -185,6 +185,8 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
         private string PublishSingleFiles(Document doc, List<string> layouts, string outputPath, bool overwrite)
         {
+            string pdfDeviceName = GetPdfDeviceName();
+
             try
             {
                 string dir = Path.GetDirectoryName(outputPath);
@@ -217,9 +219,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         }
 
                         // Zmiana layoutu za pomocą zmiennej systemowej CTAB (z wątku GUI).
-                        // Używamy _.-PLOT i omijamy ustawienia strony, podając jawnie "DWG To PDF.pc3" aby uniknąć użycia domyślnego plotera fizycznego.
+                        // Używamy _.-PLOT i omijamy ustawienia strony, podając jawnie odpowiedni ploter PDF.
                         string safePath = fullPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"CTAB\n{layoutName}\n_.-PLOT\n_No\n\n\nDWG To PDF.pc3\n\"{safePath}\"\n_No\n_Yes\n";
+                        string command = $"CTAB\n{layoutName}\n_.-PLOT\n_No\n\n\n{pdfDeviceName}\n\"{safePath}\"\n_No\n_Yes\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
@@ -252,6 +254,31 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 name = name.Replace(c, '_');
             }
             return name;
+        }
+
+        private string GetPdfDeviceName()
+        {
+            try
+            {
+                var devices = PlotSettingsValidator.Current.GetPlotDeviceList();
+                if (devices != null)
+                {
+                    foreach (string dev in devices)
+                    {
+                        if (dev.Equals("Print As PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                    }
+                    foreach (string dev in devices)
+                    {
+                        if (dev.Equals("DWG To PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                    }
+                    foreach (string dev in devices)
+                    {
+                        if (dev.IndexOf("PDF", StringComparison.OrdinalIgnoreCase) >= 0 && dev.EndsWith(".pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                    }
+                }
+            }
+            catch { }
+            return "Print As PDF.pc3";
         }
 
         public List<string> Examples => new List<string>
