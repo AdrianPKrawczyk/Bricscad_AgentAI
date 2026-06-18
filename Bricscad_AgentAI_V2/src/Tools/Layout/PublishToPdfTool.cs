@@ -217,7 +217,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
-                        string command = $"_.-PLOT\n_No\n{layoutName}\n\n{GetPdfDeviceName(doc)}\n\"{fullPath}\"\n_No\n_Yes\n";
+                        string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath, true);
+                        string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
+                        string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
