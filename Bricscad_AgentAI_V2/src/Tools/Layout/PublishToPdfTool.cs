@@ -216,6 +216,26 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
+                        // Wymuszamy urządzenie PDF przed wysłaniem komendy PLOT, 
+                        // inaczej domyślny sprzętowy ploter nie poprosi o nazwę pliku, a proces się "zgubi"
+                        using (doc.LockDocument())
+                        {
+                            using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+                            {
+                                CadLayout layout = LayoutHelpers.GetLayoutByName(doc.Database, layoutName, tr);
+                                if (layout != null)
+                                {
+                                    layout.UpgradeOpen();
+                                    try
+                                    {
+                                        PlotSettingsValidator.Current.SetPlotConfigurationName(layout, "DWG To PDF.pc3", null);
+                                    }
+                                    catch { }
+                                }
+                                tr.Commit();
+                            }
+                        }
+
                         // Zmiana layoutu z wątku w tle za pomocą API powoduje crash BricsCAD (brak thread-safety GUI).
                         // Zamiast tego zlecamy zmianę arkusza w samej komendzie poprzez polecenie _LAYOUT.
                         string safePath = fullPath.Replace("\\", "/").Replace("\"", "\\\"");
