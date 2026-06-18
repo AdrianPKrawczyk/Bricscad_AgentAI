@@ -172,7 +172,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             {
                 string dsdPath = GenerateDsdFile(doc, layouts, outputPdfPath);
                 string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                string command = $"_.-PUBLISH\n\"{safeDsd}\"\n";
+                string command = $"FILEDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\n";
                 doc.SendStringToExecute(command, true, false, false);
 
                 return $"SUKCES: Zlecono publikacje MultiSheet ({layouts.Count} layoutow) z uzyciem DSD do '{outputPdfPath}'.";
@@ -218,7 +218,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
                         string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath);
                         string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"_.-PUBLISH\n\"{safeDsd}\"\n";
+                        string command = $"FILEDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
@@ -273,6 +273,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 sw.WriteLine("Type=6");
                 sw.WriteLine($"DWF={outputPdfPath}");
                 sw.WriteLine($"OUT={outputPdfPath}");
+                sw.WriteLine("PromptForDwfName=FALSE");
+                sw.WriteLine("PwdProtectPublishedDWF=FALSE");
+                sw.WriteLine("PromptForPwd=FALSE");
             }
 
             return tempDsdPath;
