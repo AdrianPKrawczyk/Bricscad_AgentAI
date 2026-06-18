@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
@@ -46,6 +47,13 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                     Type = "boolean",
                                     Description = "Czy uwzglednic layout 'Model' w trybie listy wszystkich (domyslnie true). Ignorowane gdy podano LayoutName."
                                 }
+                            },
+                            {
+                                "SourceDwtPath", new ToolParameter
+                                {
+                                    Type = "string",
+                                    Description = "Opcjonalna sciezka do pliku DWT/DWG - jesli podana, narzedzie zwroci liste layoutow z tego pliku zamiast z biezacego rysunku."
+                                }
                             }
                         }
                     }
@@ -57,10 +65,16 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
         {
             string layoutName = args["LayoutName"]?.ToString();
             string saveAs = args["SaveAs"]?.ToString();
+            string sourceDwtPath = args["SourceDwtPath"]?.ToString();
             bool includeModel = true;
             if (args["IncludeModel"] != null)
             {
                 try { includeModel = args["IncludeModel"].Value<bool>(); } catch { }
+            }
+
+            if (!string.IsNullOrWhiteSpace(sourceDwtPath))
+            {
+                return ListLayoutsFromDwt(sourceDwtPath);
             }
 
             Database db = doc.Database;
@@ -89,6 +103,85 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             finally
             {
                 HostApplicationServices.WorkingDatabase = oldDb;
+            }
+        }
+
+        private static string ListLayoutsFromDwt(string dwtPath)
+        {
+            if (string.IsNullOrWhiteSpace(dwtPath))
+            {
+                return "BLAD: SourceDwtPath jest wymagany.";
+            }
+
+            string resolvedPath = LayoutHelpers.ValidateAndResolvePath(dwtPath);
+            if (!System.IO.File.Exists(resolvedPath))
+            {
+                return $"BLAD: Plik '{resolvedPath}' nie istnieje.";
+            }
+
+            try
+            {
+                using (Database sourceDb = new Database(false, true))
+                {
+                    sourceDb.ReadDwgFile(resolvedPath, FileOpenMode.OpenForReadAndAllShare, true, "");
+
+                    using (Transaction sourceTr = sourceDb.TransactionManager.StartTransaction())
+                    {
+                        DBDictionary sourceLayoutDict = sourceTr.GetObject(
+                            sourceDb.LayoutDictionaryId, OpenMode.ForRead) as DBDictionary;
+
+                        if (sourceLayoutDict == null)
+                        {
+                            return "BLAD: Nie mozna odczytac LayoutDictionaryId z pliku.";
+                        }
+
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"LAYOUTY W PLIKU '{Path.GetFileName(resolvedPath)}':");
+
+                        int count = 0;
+                        foreach (DBDictionaryEntry entry in sourceLayoutDict)
+                        {
+                            try
+                            {
+                                CadLayout layout = sourceTr.GetObject(entry.Value, OpenMode.ForRead) as CadLayout;
+                                if (layout != null)
+                                {
+                                    string media = "(brak)";
+                                    try
+                                    {
+                                        if (layout.CanonicalMediaName != null && layout.CanonicalMediaName.Length > 0)
+                                            media = layout.CanonicalMediaName;
+                                    }
+                                    catch { }
+
+                                    string size = "(?)";
+                                    try
+                                    {
+                                        double w = layout.PlotPaperSize.X;
+                                        double h = layout.PlotPaperSize.Y;
+                                        size = $"{w:F1}x{h:F1}mm";
+                                    }
+                                    catch { }
+
+                                    sb.AppendLine($"  - {entry.Key,-40} | {media,-30} | {size}");
+                                    count++;
+                                }
+                            }
+                            catch { }
+                        }
+
+                        sb.AppendLine();
+                        sb.AppendLine($"RAZEM: {count} layout(ow).");
+                        sb.AppendLine("Aby zaimportowac konkretny layout, uzyj ImportLayoutTemplateTool z SourceLayoutName=<nazwa> i SourcePath=<sciezka_do_dwt>.");
+
+                        sourceTr.Commit();
+                        return sb.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"BLAD ODCZYTU DWT: {ex.Message}";
             }
         }
 

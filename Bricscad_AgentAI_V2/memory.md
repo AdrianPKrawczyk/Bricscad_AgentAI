@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.13 GOLD [LIST LAYOUTS IN DWT] - Nowa funkcja `ListLayoutsTool` z parametrem `SourceDwtPath` - listuje layouty zewnetrznego pliku DWT/DWG bez otwierania go. Uzywa `Database.ReadDwgFile()` + `LayoutDictionaryId` + `DBDictionary` iteration. Zwraca liste z: nazwa layoutu, `CanonicalMediaName`, `PlotPaperSize` (mm). Dzieki temu LLM moze zobaczyc dostepne layouty w DWT przed importem. Problem wczesniejszy: `LayoutManager.Current.CloneLayout` dziala TYLKO na biezacym DWT - nie mozna klonowac miedzy DWT. Wrocilem do `WblockCloneObjects` + reczne kopiowanie PlotSettings (z `try/catch` dla bezpieczenstwa). Dla `ListLayoutsFromDwt` uzywam `layout.PlotPaperSize.X/Y` (V22 nie ma `LayoutSettings` property).
 - v2.30.12 GOLD [IMPORT CLONE LAYOUT] - `ImportLayoutTemplateTool`: zamiana `WblockCloneObjects` + `CreateLayout` + recznego kopiowania PlotSettings na **oficjalny `LayoutManager.CloneLayout(copyName, newName, newTabOrder)`** z Teigha API. Stary kod tworzyl dodatkowe puste layouty (np. "Arkusz4", "Arkusz6") przez konflikty nazw w `DuplicateRecordCloning.Replace` + reczne kopiowanie properties. `CloneLayout` kopiuje layout wraz z Page Setup, BlockTableRecord i wszystkimi zaleznosciami atomowo - bez duplikatow. Usunieto ~80 linii recznego kopiowania Validatorem. Kazde wywolanie `CloneLayout` to 1-2 linie kodu zamiast 30+ linii.
 - v2.30.11 GOLD [AGENT CONTROL] - Wymuszenie iteracji po `ListLayoutsTool` w `LLMClient`. Problem: LLM (gemma-4-31B) po `ListLayoutsTool` konczyl odpowiedz tekstem zamiast wykonac akcje na layoutach (np. Foreach). Fix: nowe metody `ShouldForceContinueAfterLastTool()` + `BuildForceContinueHint()` w `LLMClient.cs`. Po `ListLayoutsTool` (bez LayoutName) z wynikiem zawierajacym layouty, jesli LLM probuje zakonczyc (brak tool_calls w nastepnej iteracji), AgentControl dodaje `[SYSTEM REMINDER]` do `conversationHistory` z instrukcja "Musisz wykonac akcje na kazdym z {N} layoutow - uzyj Foreach z ActionTemplate". Pozwala to LLM z slabym "agentness" (gemma-4-31B) iterowac do wlasciwego rozwiazania.
 - v2.30.10 GOLD [FOREACH PROFILE] - Dodanie `ForeachTool` do `CadLayoutProfile.AllowedTools` (linia 723 + 786 w `ToolConfigManager.cs`). LLM poprzednio wywolywal PageSetupTool N razy dla N layoutow zamiast uzyc `Foreach` z `ActionTemplate`. Teraz ma dostep. Prompt `system_prompt_layout.txt` z nowa sekcja `### ForeachTool (PETLA - KRYTYCZNE dla CadLayoutProfile)` z przykladem `Foreach` Items=[Arkusz1, Arkusz2] ActionTemplate=`PageSetupTool LayoutName="{item}" PlotDevice="RICOH" MediaName="A3"`. Zasady korzystania: "Dla operacji na WIELU layoutach ZAWSZE uzyj Foreach z ActionTemplate - NIE wywoluj PageSetupTool recznie N razy".
@@ -4417,6 +4418,38 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Manualne testy z importem `297x580_p` i `297x1320_p` - powinny pojawic sie TYLKO 2 layouty (importowane) + Model, bez "Arkusz4"/"Arkusz6".
 - Sprawdzic czy `CloneLayout` dziala z DWT ktory ma wiele layoutow (np. `Arkusze_HP_T120_297mm.dwt` z 2-3 layoutami).
 - Rozwazyc dodanie opcji `KeepSourceLayouts=true` do importu wielu layoutow na raz z jednego DWT.
+
+## [v2.30.13] 2026-06-18 - Layout: ListLayoutsFromDwt + revert CloneLayout (KROK-30.16)
+### [PROBLEM]
+- Test: "zaimportuj arkusz 297x580_p z DWT" zwrocil `BLAD IMPORTU LAYOUT: eNullObjectId` (9ms po wywolaniu, PRZED otwarciem DWT).
+- Drugi prompt: "zrob liste arkuszy w pliku DWT" - LLM odpowiedzial "nie moge bezposrednio wypisac listy arkuszy zewnetrznego pliku". User musi znac dokladne nazwy layoutow w DWT.
+### [PRZYCZYNA]
+- KROK-30.15 fix: `LayoutManager.Current.CloneLayout(sourceName, ...)` - **nie dziala** dla layoutow z obcego DWT! `LayoutManager.Current` dziala TYLKO na biezacym DWT. `CloneLayout` wymaga aktywnego DWT z layoutem. Przy probie klonowania zewnetrznego DWT - `eNullObjectId` (ObjectId null poniewaz source nie jest w biezacym DWT).
+### [NAPRAWIONE]
+- `src/Tools/Layout/ImportLayoutTemplateTool.cs`:
+    * **WROCIL** do `WblockCloneObjects` + `LayoutManager.Current.CreateLayout` + reczne kopiowanie 11 wlasciwosci PlotSettings.
+    * Dodane `try/catch` wokol `DeleteLayout` dla bezpieczenstwa.
+    * `LayoutSettings` property nie istnieje w V22 - uzywam `layout.PlotPaperSize.X/Y` bezposrednio.
+- `src/Tools/Layout/ListLayoutsTool.cs`:
+    * Nowy parametr `SourceDwtPath` - otwiera zewnetrzny DWT i listuje jego layouty.
+    * Nowa metoda `ListLayoutsFromDwt(dwtPath)` - otwiera Database w trybie read-only, czyta `LayoutDictionaryId`, iteruje `DBDictionary` i zwraca liste z `CanonicalMediaName` + `PlotPaperSize` (mm).
+    * Error message informuje: "Aby zaimportowac konkretny layout, uzyj ImportLayoutTemplateTool z SourceLayoutName=<nazwa> i SourcePath=<sciezka_do_dwt>".
+- Przykladowy output:
+    ```
+    LAYOUTY W PLIKU 'Arkusze_HP_T120_297mm.dwt':
+      - 297x580_p                              | 297x600_mm_p               | 210.0x600.0mm
+      - 297x1320_p                             | 297x1320_p                 | 210.0x1320.0mm
+      - Model                                   | ISO_A4_(210.00_x_297.00_MM) | 210.0x297.0mm
+
+    RAZEM: 3 layout(ow).
+    ```
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 3 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1180672 bytes).
+### [KOLEJNY_KROK]
+- Manualne testy z "ListLayoutsTool SourceDwtPath=D:\...dwt" - powinien zwrocic liste layoutow z DWT.
+- Sprawdzic czy dodane guard'y `try/catch` w ImportLayoutTemplateTool eliminuja "Arkusz4"/"Arkusz6" dodatkowe layouty.
+- Rozwazyc dodanie `SourceDwtPath` do `ImportLayoutTemplateTool` jako optional preflight - pokaz liste dostepnych layoutow jesli SourceLayoutName nie istnieje.
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]
