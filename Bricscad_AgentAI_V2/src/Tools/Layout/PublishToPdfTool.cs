@@ -6,6 +6,7 @@ using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json.Linq;
 using Teigha.DatabaseServices;
+using CadLayout = Teigha.DatabaseServices.Layout;
 
 namespace Bricscad_AgentAI_V2.Tools.Layout
 {
@@ -216,7 +217,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
-                        string command = $"FILEDIA\n0\nCMDDIA\n0\nCTAB\n{layoutName}\n_.-EXPORT\nPDF\n\"{fullPath}\"\nFILEDIA\n1\nCMDDIA\n1\n";
+                        string command = $"_.-PLOT\n_No\n{layoutName}\n\n{GetPdfDeviceName(doc)}\n\"{fullPath}\"\n_No\n_Yes\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
@@ -280,6 +281,41 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             }
 
             return tempDsdPath;
+        }
+
+        private string GetPdfDeviceName(Document doc)
+        {
+            try
+            {
+                Database db = doc.Database;
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    var layoutDict = (DBDictionary)tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead);
+                    var layoutId = layoutDict.GetAt("Model");
+                    var layout = (CadLayout)tr.GetObject(layoutId, OpenMode.ForRead);
+                    PlotSettingsValidator psv = PlotSettingsValidator.Current;
+                    psv.RefreshLists(layout);
+                    var devices = psv.GetPlotDeviceList();
+                    if (devices != null)
+                    {
+                        foreach (string dev in devices)
+                        {
+                            if (dev.Equals("Print As PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                        }
+                        foreach (string dev in devices)
+                        {
+                            if (dev.Equals("DWG To PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                        }
+                        foreach (string dev in devices)
+                        {
+                            if (dev.IndexOf("PDF", StringComparison.OrdinalIgnoreCase) >= 0 && dev.EndsWith(".pc3", StringComparison.OrdinalIgnoreCase)) return dev;
+                        }
+                    }
+                    tr.Commit();
+                }
+            }
+            catch { }
+            return "Print As PDF.pc3";
         }
 
         private string SanitizeFileName(string name)
