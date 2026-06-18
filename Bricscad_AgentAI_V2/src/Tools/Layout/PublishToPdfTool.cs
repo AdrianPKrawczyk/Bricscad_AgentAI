@@ -170,12 +170,12 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
             try
             {
-                string safePath = outputPdfPath.Replace("\\", "/").Replace("\"", "\\\"");
-                string layoutList = string.Join(",", layouts);
-                string command = $"-PUBLISH\n\"{safePath}\"\n";
+                string dsdPath = GenerateDsdFile(doc, layouts, outputPdfPath);
+                string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
+                string command = $"_.-PUBLISH\n\"{safeDsd}\"\n";
                 doc.SendStringToExecute(command, true, false, false);
 
-                return $"SUKCES: Zlecono publikacje MultiSheet ({layouts.Count} layoutow: {layoutList}) do '{outputPdfPath}'. Plik zostanie wygenerowany przez BricsCAD w tle.";
+                return $"SUKCES: Zlecono publikacje MultiSheet ({layouts.Count} layoutow) z uzyciem DSD do '{outputPdfPath}'.";
             }
             catch (Exception ex)
             {
@@ -185,8 +185,6 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
         private string PublishSingleFiles(Document doc, List<string> layouts, string outputPath, bool overwrite)
         {
-            string pdfDeviceName = GetPdfDeviceName();
-
             try
             {
                 string dir = Path.GetDirectoryName(outputPath);
@@ -218,10 +216,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             continue;
                         }
 
-                        // Zmiana layoutu za pomocą zmiennej systemowej CTAB (z wątku GUI).
-                        // Używamy _.-PLOT i omijamy ustawienia strony, podając jawnie odpowiedni ploter PDF.
-                        string safePath = fullPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"CTAB\n{layoutName}\n_.-PLOT\n_No\n\n\n{pdfDeviceName}\n\"{safePath}\"\n_No\n_Yes\n";
+                        string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath);
+                        string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
+                        string command = $"_.-PUBLISH\n\"{safeDsd}\"\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
@@ -232,7 +229,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                     }
                 }
 
-                string msg = $"SUKCES: Zlecono {successCount}/{layouts.Count} layout(ow) do SingleFiles w '{baseDir}'.";
+                string msg = $"SUKCES: Zlecono {successCount}/{layouts.Count} layout(ow) do SingleFiles w '{baseDir}' uzywajac DSD.";
                 if (warnings.Count > 0)
                 {
                     msg += $" Ostrzezenia: {string.Join(" | ", warnings)}";
@@ -245,6 +242,42 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             }
         }
 
+        private string GenerateDsdFile(Document doc, List<string> layouts, string outputPdfPath)
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BricscadAgentAI_DSD");
+            if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+            
+            string dsdFileName = $"publish_{Guid.NewGuid():N}.dsd";
+            string tempDsdPath = Path.Combine(tempDir, dsdFileName);
+
+            using (StreamWriter sw = new StreamWriter(tempDsdPath))
+            {
+                sw.WriteLine("[DWF6Version]");
+                sw.WriteLine("Ver=1");
+                sw.WriteLine("[DSDVersion]");
+                sw.WriteLine("Ver=1");
+
+                for (int i = 0; i < layouts.Count; i++)
+                {
+                    string layoutName = layouts[i];
+                    string safeDwgName = Path.GetFileNameWithoutExtension(doc.Name) ?? "Doc";
+                    
+                    sw.WriteLine($"[DWF6Sheet:Sheet {i + 1}]");
+                    sw.WriteLine($"Name={safeDwgName}-{layoutName}");
+                    sw.WriteLine($"DWG={doc.Name}");
+                    sw.WriteLine($"Layout={layoutName}");
+                    sw.WriteLine("Setup=");
+                }
+
+                sw.WriteLine("[Target]");
+                sw.WriteLine("Type=6");
+                sw.WriteLine($"DWF={outputPdfPath}");
+                sw.WriteLine($"OUT={outputPdfPath}");
+            }
+
+            return tempDsdPath;
+        }
+
         private string SanitizeFileName(string name)
         {
             if (string.IsNullOrEmpty(name)) return "unnamed";
@@ -254,31 +287,6 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 name = name.Replace(c, '_');
             }
             return name;
-        }
-
-        private string GetPdfDeviceName()
-        {
-            try
-            {
-                var devices = PlotSettingsValidator.Current.GetPlotDeviceList();
-                if (devices != null)
-                {
-                    foreach (string dev in devices)
-                    {
-                        if (dev.Equals("Print As PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
-                    }
-                    foreach (string dev in devices)
-                    {
-                        if (dev.Equals("DWG To PDF.pc3", StringComparison.OrdinalIgnoreCase)) return dev;
-                    }
-                    foreach (string dev in devices)
-                    {
-                        if (dev.IndexOf("PDF", StringComparison.OrdinalIgnoreCase) >= 0 && dev.EndsWith(".pc3", StringComparison.OrdinalIgnoreCase)) return dev;
-                    }
-                }
-            }
-            catch { }
-            return "Print As PDF.pc3";
         }
 
         public List<string> Examples => new List<string>
