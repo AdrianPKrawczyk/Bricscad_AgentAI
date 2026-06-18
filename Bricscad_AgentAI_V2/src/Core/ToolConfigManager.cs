@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -468,6 +468,17 @@ EnsureMathPromptFile();
                     }
                 }
 
+                if (name.Equals("ManageSheetSetTool", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("SheetSetSheetTool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#sheetset", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#layout, #wydruk, #sheetset";
+                        changed = true;
+                    }
+                }
+
                 if (name.Equals("ListPlotDevicesTool", StringComparison.OrdinalIgnoreCase))
                 {
                     var settings = _config.Tools[name];
@@ -662,7 +673,7 @@ EnsureMathPromptFile();
                 {
                     SystemPromptFile = LayoutPromptFile,
                     AllowedTools = new List<string>(),
-                    AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle" }
+                    AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle", "#sheetset" }
                 };
                 _config.Profiles["CadLayoutProfile"] = layoutProf;
                 changed = true;
@@ -672,15 +683,22 @@ EnsureMathPromptFile();
                 layoutProf.SystemPromptFile = LayoutPromptFile;
                 changed = true;
             }
+            if (!layoutProf.AllowedTags.Contains("#sheetset"))
+            {
+                layoutProf.AllowedTags.Add("#sheetset");
+                changed = true;
+            }
             var layoutDefaults = new List<string>
             {
                 "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
                 "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
                 "ListPlotDevicesTool", "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
+                "ManageSheetSetTool", "SheetSetSheetTool",
                 "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
                 "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps",
-                "Foreach"
+                "Foreach", "ManageViewportsTool"
             };
+            
             if (layoutProf.AllowedTools == null)
             {
                 layoutProf.AllowedTools = new List<string>();
@@ -786,11 +804,12 @@ EnsureMathPromptFile();
                     "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
                     "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
                     "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
+                    "ManageSheetSetTool", "SheetSetSheetTool",
                     "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
                     "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps",
                     "Foreach"
                 },
-                AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle" }
+                AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle", "#sheetset" }
             };
 
             // BEZWZGLÄDNY ZAPIS PO WYGENEROWANIU

@@ -41,7 +41,14 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                 "OutputPdfPath", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Sciezka docelowa PDF (obowiazkowe). Dla MultiSheet - jeden plik. Dla SingleFiles - katalog docelowy (np. C:/export/) albo prefix."
+                                    Description = "Sciezka docelowa PDF (obowiazkowe). Dla MultiSheet - jeden plik. Dla SingleFiles - katalog docelowy (np. C:/export/). Dla prefiksu nazw uzyj FileNamePrefix."
+                                }
+                            },
+                            {
+                                "FileNamePrefix", new ToolParameter
+                                {
+                                    Type = "string",
+                                    Description = "Opcjonalny prefiks nazw PDF w trybie SingleFiles, np. 'VPT-TEST-' da pliki VPT-TEST-Arkusz1.pdf, VPT-TEST-Arkusz2.pdf."
                                 }
                             },
                             {
@@ -76,6 +83,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
         {
             JArray layoutNamesToken = args["LayoutNames"] as JArray;
             string outputPath = args["OutputPdfPath"]?.ToString() ?? "";
+            string fileNamePrefix = args["FileNamePrefix"]?.ToString() ?? "";
             string mode = args["Mode"]?.ToString() ?? "MultiSheet";
             bool includeModel = false;
             bool overwrite = false;
@@ -158,7 +166,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 }
                 else
                 {
-                    return PublishSingleFiles(doc, layoutsToProcess, resolvedPath, overwrite);
+                    return PublishSingleFiles(doc, layoutsToProcess, resolvedPath, overwrite, fileNamePrefix);
                 }
             }
             catch (Exception ex)
@@ -191,14 +199,25 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             }
         }
 
-        private string PublishSingleFiles(Document doc, List<string> layouts, string outputPath, bool overwrite)
+        private string PublishSingleFiles(Document doc, List<string> layouts, string outputPath, bool overwrite, string explicitFileNamePrefix)
         {
             try
             {
-                bool outputIsDirectory = IsDirectoryLikePath(outputPath);
-                string baseDir = outputIsDirectory
-                    ? outputPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    : (Path.GetDirectoryName(outputPath) ?? "");
+                bool hasExplicitPrefix = !string.IsNullOrWhiteSpace(explicitFileNamePrefix);
+                bool outputIsLegacyPrefix = !hasExplicitPrefix && IsSingleFilesLegacyPrefixPath(outputPath);
+                bool outputIsDirectory = hasExplicitPrefix || (!outputIsLegacyPrefix && IsDirectoryLikePath(outputPath));
+                string baseDir;
+
+                if (outputIsLegacyPrefix)
+                {
+                    baseDir = Path.GetDirectoryName(outputPath) ?? "";
+                }
+                else
+                {
+                    baseDir = outputIsDirectory
+                        ? outputPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        : (Path.GetDirectoryName(outputPath) ?? "");
+                }
 
                 if (string.IsNullOrWhiteSpace(baseDir))
                 {
@@ -210,7 +229,9 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                     Directory.CreateDirectory(baseDir);
                 }
 
-                string prefix = outputIsDirectory ? "" : GetSingleFilesPrefix(outputPath);
+                string prefix = hasExplicitPrefix
+                    ? explicitFileNamePrefix.Trim()
+                    : (outputIsDirectory ? "" : GetSingleFilesPrefix(outputPath));
 
                 int successCount = 0;
                 var warnings = new List<string>();
@@ -242,7 +263,8 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                     }
                 }
 
-                string msg = $"SUKCES: Zlecono {successCount}/{layouts.Count} layout(ow) do SingleFiles w '{baseDir}' uzywajac DSD.";
+                string prefixInfo = string.IsNullOrWhiteSpace(prefix) ? "" : $" Prefiks='{prefix}'.";
+                string msg = $"SUKCES: Zlecono {successCount}/{layouts.Count} layout(ow) do SingleFiles w '{baseDir}' uzywajac DSD.{prefixInfo}";
                 if (warnings.Count > 0)
                 {
                     msg += $" Ostrzezenia: {string.Join(" | ", warnings)}";
@@ -341,6 +363,20 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             return string.IsNullOrEmpty(Path.GetExtension(path));
         }
 
+        private bool IsSingleFilesLegacyPrefixPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            if (path.EndsWith("\\", StringComparison.Ordinal) || path.EndsWith("/", StringComparison.Ordinal)) return false;
+            if (Directory.Exists(path)) return false;
+            if (!string.IsNullOrEmpty(Path.GetExtension(path))) return false;
+
+            string fileName = Path.GetFileName(path);
+            if (string.IsNullOrWhiteSpace(fileName)) return false;
+
+            char last = fileName[fileName.Length - 1];
+            return last == '-' || last == '_' || last == '.';
+        }
+
         private string GetSingleFilesPrefix(string outputPath)
         {
             string fileName = Path.GetFileName(outputPath);
@@ -418,7 +454,8 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
         {
             "{ \"Mode\": \"MultiSheet\", \"OutputPdfPath\": \"C:/export/projekt.pdf\" }",
             "{ \"Mode\": \"MultiSheet\", \"OutputPdfPath\": \"C:/export/projekt.pdf\", \"LayoutNames\": [\"A4-PION-1\", \"A4-PION-2\"] }",
-            "{ \"Mode\": \"SingleFiles\", \"OutputPdfPath\": \"C:/export/arkusze\" }"
+            "{ \"Mode\": \"SingleFiles\", \"OutputPdfPath\": \"C:/export/\" }",
+            "{ \"Mode\": \"SingleFiles\", \"OutputPdfPath\": \"C:/export/\", \"FileNamePrefix\": \"VPT-TEST-\", \"LayoutNames\": [\"Arkusz1\", \"Arkusz2\"] }"
         };
     }
 }

@@ -221,6 +221,8 @@
     <Compile Include="tests\Tools\CalculateMathToolTests.cs" />
     <Compile Include="tests\Tools\ModifyPropertiesToolTests.cs" />
     <Compile Include="tests\Tools\ManageLayersToolTests.cs" />
+    <Compile Include="tests\Tools\ManageViewportsToolTests.cs" />
+    <Compile Include="tests\Tools\PublishToPdfToolTests.cs" />
     <Compile Include="tests\Tools\ForeachToolTests.cs" />
     <Compile Include="tests\Tools\ReadXDataToolTests.cs" />
     <Compile Include="tests\Tools\WriteXDataToolTests.cs" />
@@ -260,7 +262,11 @@
     <Compile Include="src\Tools\Layout\ExportLayoutTemplateTool.cs" />
     <Compile Include="src\Tools\Layout\PlotLayoutTool.cs" />
     <Compile Include="src\Tools\Layout\PublishToPdfTool.cs" />
+    <Compile Include="src\Tools\Layout\ManageViewportsTool.cs" />
     <Compile Include="src\Tools\Layout\ListPlotDevicesTool.cs" />
+    <Compile Include="src\Tools\Layout\SheetSetComHelpers.cs" />
+    <Compile Include="src\Tools\Layout\ManageSheetSetTool.cs" />
+    <Compile Include="src\Tools\Layout\SheetSetSheetTool.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
