@@ -152,6 +152,14 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             {
                                 if (importEntities)
                                 {
+                                    var layoutsBefore = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                    DBDictionary layoutDictPre = targetTr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead) as DBDictionary;
+                                    if (layoutDictPre != null)
+                                    {
+                                        foreach (DBDictionaryEntry e2 in layoutDictPre)
+                                            layoutsBefore.Add(e2.Key);
+                                    }
+
                                     if (LayoutHelpers.LayoutExists(db, targetLayoutName, targetTr))
                                     {
                                         try
@@ -170,6 +178,22 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                         mapping,
                                         DuplicateRecordCloning.Replace,
                                         false);
+
+                                    DBDictionary layoutDictPost = targetTr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead) as DBDictionary;
+                                    if (layoutDictPost != null)
+                                    {
+                                        foreach (DBDictionaryEntry e2 in layoutDictPost)
+                                        {
+                                            if (!layoutsBefore.Contains(e2.Key) && !e2.Key.Equals(targetLayoutName, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                try
+                                                {
+                                                    LayoutManager.Current.DeleteLayout(e2.Key);
+                                                }
+                                                catch { }
+                                            }
+                                        }
+                                    }
                                 }
 
                                 if (importPlotSettings)
