@@ -172,7 +172,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
             {
                 string dsdPath = GenerateDsdFile(doc, layouts, outputPdfPath);
                 string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                string command = $"FILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\n";
+                string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
                 doc.SendStringToExecute(command, true, false, false);
 
                 return $"SUKCES: Zlecono publikacje MultiSheet ({layouts.Count} layoutow) z uzyciem DSD do '{outputPdfPath}'.";
@@ -218,7 +218,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
 
                         string dsdPath = GenerateDsdFile(doc, new List<string> { layoutName }, fullPath);
                         string safeDsd = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
-                        string command = $"FILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\n";
+                        string command = $"BACKGROUNDPLOT\n0\nFILEDIA\n0\nCMDDIA\n0\n_.-PUBLISH\n\"{safeDsd}\"\nFILEDIA\n1\nCMDDIA\n1\nBACKGROUNDPLOT\n2\n";
                         doc.SendStringToExecute(command, true, false, false);
 
                         successCount++;
