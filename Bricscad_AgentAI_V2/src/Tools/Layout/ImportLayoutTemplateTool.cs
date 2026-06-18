@@ -148,6 +148,12 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                             {
                                 if (importEntities)
                                 {
+                                    if (LayoutHelpers.LayoutExists(db, targetLayoutName, targetTr))
+                                    {
+                                        LayoutManager.Current.DeleteLayout(targetLayoutName);
+                                    }
+                                    LayoutManager.Current.CloneLayout(sourceLayoutName, targetLayoutName, 0);
+
                                     IdMapping mapping = new IdMapping();
                                     ObjectIdCollection ids = new ObjectIdCollection { sourceBtrId };
 
@@ -158,37 +164,13 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                                         DuplicateRecordCloning.Replace,
                                         false);
                                 }
-
-                                if (importPlotSettings)
+                                else if (importPlotSettings)
                                 {
-                                    CadLayout sourceSettings = sourceLayout;
-                                    LayoutManager.Current.CreateLayout(targetLayoutName);
-
                                     if (LayoutHelpers.LayoutExists(db, targetLayoutName, targetTr))
                                     {
-                                        CadLayout newLayout = LayoutHelpers.GetLayoutByName(db, targetLayoutName, targetTr);
-                                        if (newLayout != null)
-                                        {
-                                            newLayout.UpgradeOpen();
-
-                                            var validator = PlotSettingsValidator.Current;
-                                            try { validator.SetPlotConfigurationName(newLayout, sourceSettings.PlotConfigurationName ?? "", null); } catch { }
-                                            try { validator.SetCanonicalMediaName(newLayout, sourceSettings.CanonicalMediaName ?? ""); } catch { }
-                                            try { validator.SetCurrentStyleSheet(newLayout, sourceSettings.CurrentStyleSheet ?? ""); } catch { }
-                                            try { validator.SetPlotType(newLayout, sourceSettings.PlotType); } catch { }
-                                            try { validator.SetPlotRotation(newLayout, sourceSettings.PlotRotation); } catch { }
-                                            try { validator.SetPlotCentered(newLayout, sourceSettings.PlotCentered); } catch { }
-                                            try { validator.SetPlotOrigin(newLayout, sourceSettings.PlotOrigin); } catch { }
-                                            try { validator.SetUseStandardScale(newLayout, sourceSettings.UseStandardScale); } catch { }
-                                            try { validator.SetStdScaleType(newLayout, sourceSettings.StdScaleType); } catch { }
-                                            try { validator.SetCustomPrintScale(newLayout, new CustomScale(sourceSettings.CustomPrintScale.Numerator, sourceSettings.CustomPrintScale.Denominator)); } catch { }
-                                            try { validator.SetPlotPaperUnits(newLayout, sourceSettings.PlotPaperUnits); } catch { }
-                                        }
+                                        LayoutManager.Current.DeleteLayout(targetLayoutName);
                                     }
-                                }
-                                else if (importEntities)
-                                {
-                                    LayoutManager.Current.CreateLayout(targetLayoutName);
+                                    LayoutManager.Current.CloneLayout(sourceLayoutName, targetLayoutName, 0);
                                 }
 
                                 targetTr.Commit();

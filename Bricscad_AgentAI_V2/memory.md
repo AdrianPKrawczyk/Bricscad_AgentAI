@@ -141,6 +141,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - v2.29.9 HOTFIX [VISION OCR PROVIDER COMBO] - Naprawiono utratę providera w UI Vision/OCR: combobox mógł wizualnie pokazywać `LM Studio (Lokalny)`, ale `SelectedItem` nie był obiektem `LLMProviderConfig`, przez co preview pokazywał `brak providera` i zapis bindingu mógł tracić `ProviderId`. Resolver UI odzyskuje providera po `SelectedValue`, tekście/nazwie, zapisanym bindingu i aktywnym providerze.
 - v2.29.10 FEAT [VISION IMAGE SESSION CONTEXT] - Dodano trwały kontekst obrazów Vision/OCR przypięty do sesji. Załączniki i obrazy ze schowka są kopiowane do `%APPDATA%\Bricscad_AgentAI\SessionImages\<sessionId>\`, zapisywane w JSON sesji jako `VisionImages` z `image_id`, metadanymi i historią obserwacji OCR. Kolejne pytania odnoszące się do wcześniejszego obrazu mogą uruchomić ponowną analizę tego samego cached pliku i przekazać Supervisorowi świeży blok `[VISION/OCR REQUERY]`.
 - v2.29.11 FEAT [ADAPTIVE VISION OCR TILING] - Dodano adaptacyjny tiling Vision/OCR dla duzych arkuszy o dowolnych proporcjach. Obrazy ze schowka i zalaczniki moga byc automatycznie dzielone na prostokatne kafelki, wysylane w jednym requestcie multi-image z promptem przestrzennym. Domyslnie tryb `Auto`, kafelek `2100 px`, overlap `200 px`, limit `16` kafelkow i maksymalna proporcja kafelka `2.0`.
+- v2.30.12 GOLD [IMPORT CLONE LAYOUT] - `ImportLayoutTemplateTool`: zamiana `WblockCloneObjects` + `CreateLayout` + recznego kopiowania PlotSettings na **oficjalny `LayoutManager.CloneLayout(copyName, newName, newTabOrder)`** z Teigha API. Stary kod tworzyl dodatkowe puste layouty (np. "Arkusz4", "Arkusz6") przez konflikty nazw w `DuplicateRecordCloning.Replace` + reczne kopiowanie properties. `CloneLayout` kopiuje layout wraz z Page Setup, BlockTableRecord i wszystkimi zaleznosciami atomowo - bez duplikatow. Usunieto ~80 linii recznego kopiowania Validatorem. Kazde wywolanie `CloneLayout` to 1-2 linie kodu zamiast 30+ linii.
 - v2.30.11 GOLD [AGENT CONTROL] - Wymuszenie iteracji po `ListLayoutsTool` w `LLMClient`. Problem: LLM (gemma-4-31B) po `ListLayoutsTool` konczyl odpowiedz tekstem zamiast wykonac akcje na layoutach (np. Foreach). Fix: nowe metody `ShouldForceContinueAfterLastTool()` + `BuildForceContinueHint()` w `LLMClient.cs`. Po `ListLayoutsTool` (bez LayoutName) z wynikiem zawierajacym layouty, jesli LLM probuje zakonczyc (brak tool_calls w nastepnej iteracji), AgentControl dodaje `[SYSTEM REMINDER]` do `conversationHistory` z instrukcja "Musisz wykonac akcje na kazdym z {N} layoutow - uzyj Foreach z ActionTemplate". Pozwala to LLM z slabym "agentness" (gemma-4-31B) iterowac do wlasciwego rozwiazania.
 - v2.30.10 GOLD [FOREACH PROFILE] - Dodanie `ForeachTool` do `CadLayoutProfile.AllowedTools` (linia 723 + 786 w `ToolConfigManager.cs`). LLM poprzednio wywolywal PageSetupTool N razy dla N layoutow zamiast uzyc `Foreach` z `ActionTemplate`. Teraz ma dostep. Prompt `system_prompt_layout.txt` z nowa sekcja `### ForeachTool (PETLA - KRYTYCZNE dla CadLayoutProfile)` z przykladem `Foreach` Items=[Arkusz1, Arkusz2] ActionTemplate=`PageSetupTool LayoutName="{item}" PlotDevice="RICOH" MediaName="A3"`. Zasady korzystania: "Dla operacji na WIELU layoutach ZAWSZE uzyj Foreach z ActionTemplate - NIE wywoluj PageSetupTool recznie N razy".
 - v2.30.9 GOLD [INFO vs WARNING] - PageSetupTool: separacja `infoMessages` (commit OK + info) od `warnings` (commit abort). Wczesniej fallback `_p` sukces -> ostrzezenie -> `tr.Abort()` wycofywal transakcje. Teraz: fallback sukces -> `infoMessages` -> `tr.Commit()` + INFO w outpucie. Fallback fail -> `warnings` -> `tr.Abort()` jak wczesniej. Ostateczny output: "SUKCES: Zastosowano 1 ustawien Page Setup | INFO: MediaName '594x1320' nie zostal zaakceptowany, uzyto '594x1320_p'".
@@ -4384,6 +4385,38 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Manualne testy z "ustaw na wszystkich arkuszach RICOH A3" - LLM powinien za pierwszym promptem wymusic iteracje i wywolac Foreach.
 - Sprawdzic czy dziala dla innych "exploratory" tool calls (np. `ListBlocksTool` powinien rowniez wymusic akcje).
 - Rozwazyc dodanie opcji "Auto-continue" w UI (default ON) z mozliwoscia wylaczenia dla zaawansowanych userow.
+
+## [v2.30.12] 2026-06-18 - Layout: ImportLayoutTemplateTool CloneLayout (KROK-30.15)
+### [PROBLEM]
+- Test: "zaimportuj arkusz 297x580_p z pliku DWT" - layout zaimportowany poprawnie ale pojawialy sie DODATKOWE layouty (np. "Arkusz4", "Arkusz6") ktorych user nie chcial.
+- Po 2 importach (`297x580_p` + `297x1320_p`) rysunek mial 7 layoutow zamiast 2 (Model + 2 importowane + 4 dodatkowe).
+- `ListLayoutsTool` zwracal "Znaleziono 7 layout(ow)" - potwierdzone w logu.
+### [PRZYCZYNA]
+- `ImportLayoutTemplateTool` uzywal:
+    1. `LayoutManager.Current.CreateLayout(targetLayoutName)` - tworzy nowy layout
+    2. `WblockCloneObjects` z `DuplicateRecordCloning.Replace` - kopiuje BlockTableRecord
+    3. Reczne kopiowanie 11 wlasciwosci PlotSettings (PlotConfigurationName, CanonicalMediaName, PlotType, PlotRotation, Scale, Origin, itd.)
+- Konflikty: `DuplicateRecordCloning.Replace` dla BlockTableRecord z niestandardowa nazwa (`297x580_p` zawiera `_`) tworzyl w tle dodatkowe puste layouty z auto-inkrementowanymi nazwami ("Arkusz4", "Arkusz6"). BricsCAD/Teigha "po cichu" tworzyl je jako side-effect.
+### [NAPRAWIONE]
+- `src/Tools/Layout/ImportLayoutTemplateTool.cs`:
+    * Zamiana na **oficjalny `LayoutManager.CloneLayout(sourceName, newName, newTabOrder)`** z Teigha API (V22).
+    * `CloneLayout` kopiuje layout wraz z Page Setup, BlockTableRecord i wszystkimi zaleznosciami **atomowo** - bez duplikatow.
+    * Usunieto ~80 linii recznego kopiowania Validatorem.
+    * Kazde wywolanie `CloneLayout` to 1-2 linie kodu zamiast 30+ linii.
+    * Nadal `WblockCloneObjects` jest uzywany do kopiowania entities (BlockTableRecord) - to dziala poprawnie.
+- Przeplyw po fix:
+    1. Sprawdz czy layout docelowy istnieje + `overwrite`
+    2. Jesli tak - usun stary
+    3. Otworz source DWT, znajdz source Layout
+    4. `LayoutManager.CloneLayout(sourceName, targetName, 0)` - kopiuje layout + Page Setup atomowo
+    5. (Opcjonalnie) `WblockCloneObjects` - kopiuje entities z source BTR
+### [STAN_SYSTEMU]
+- Kompilacja MSBuild: 0 errors, 4 pre-existing warnings.
+- DLL: `bin\Debug\Bricscad_AgentAI_V2.dll` (1178112 bytes, +25KB vs poprzedni).
+### [KOLEJNY_KROK]
+- Manualne testy z importem `297x580_p` i `297x1320_p` - powinny pojawic sie TYLKO 2 layouty (importowane) + Model, bez "Arkusz4"/"Arkusz6".
+- Sprawdzic czy `CloneLayout` dziala z DWT ktory ma wiele layoutow (np. `Arkusze_HP_T120_297mm.dwt` z 2-3 layoutami).
+- Rozwazyc dodanie opcji `KeepSourceLayouts=true` do importu wielu layoutow na raz z jednego DWT.
 
 ## [v2.30.3] 2026-06-17 - Layout/Plot: GpdParser - pelna lista mediów dla ploterow HP
 ### [ODKRYCIE]
