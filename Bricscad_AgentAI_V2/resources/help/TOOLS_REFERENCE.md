@@ -145,9 +145,14 @@ Eksportuje wybrany layout do osobnego pliku DWT (szablon arkusza). Opcjonalnie k
 Drukuje pojedynczy layout do PDF/DWF/PNG. Konfiguruje urządzenie wyjściowe (np. DWG To PDF.pc3), parametry skalowania, centrowania, shade plot. Generuje plik w tle przez komendę `-PLOT`.
 
 ### 30. `PublishToPdfTool` **[TAG: #wydruk, #publish, #pdf]**
-Batch publish wielu layoutów. Tryb `MultiSheet` = jeden PDF z wszystkimi arkuszami. Tryb `SingleFiles` = osobny PDF per layout. Limit 50 layoutów w trybie MultiSheet.
+Batch publish wielu layoutów. Tryb `MultiSheet` = jeden PDF z wszystkimi arkuszami. Tryb `SingleFiles` = osobny PDF per layout. Limit 50 layoutów w trybie MultiSheet. W `SingleFiles` parametr `OutputPdfPath` powinien wskazywac katalog docelowy, a opcjonalny `FileNamePrefix` dodaje prefiks do nazw plikow, np. `FileNamePrefix="VPT-TEST-"` tworzy `VPT-TEST-Arkusz1.pdf`.
 
-### 31. `PlotStyleTool` **[TAG: #wydruk, #plotstyle, #ctb] [Early Exit: Tak]**
+### 31. `ManageViewportsTool` **[TAG: #layout, #viewport, #rzutnie, #wydruk]**
+Zarzadzanie rzutniami papierowymi na layoutach: `List`, `Create`, `Modify`, `Delete`. Narzedzie uzywa natywnego API `Viewport`, bez komend CAD i bez dialogow. Obsluguje pozycje i rozmiar rzutni na arkuszu, zakres modelu Window XY (`ModelMinX/Y`, `ModelMaxX/Y`), widoki nazwane (`NamedView`), skale rzutni (`1:50`, `1_50`, `1/50`, `0.02`), skale opisowa, blokade, widocznosc, warstwe ramki i ukrywanie linii. Domyslnie nowe rzutnie trafiaja na warstwe `_rzutnie`; jesli jej brakuje, jest tworzona automatycznie z kolorem 200 i wylaczonym drukiem. Parametr `Layer` pozwala wskazac inna warstwe.
+
+Opcje zaawansowane: `FreezeLayers`, `ThawLayers` i `ThawAllLayers` steruja zamrozeniem warstw tylko w konkretnej rzutni. `ClipBoundaryHandle` ustawia nieprostokatny clipping z istniejacej granicy papierowej, a `ClipBoundaryPaperPoints` tworzy nowa zamknieta polilinie clippingu z punktow arkusza. `RemoveNonRectClip=true` wylacza clipping nieprostokatny.
+
+### 32. `PlotStyleTool` **[TAG: #wydruk, #plotstyle, #ctb] [Early Exit: Tak]**
 Zarządzanie stylami wydruku (CTB/STB): listowanie dostępnych stylów, ładowanie z pliku (przez `_.PSETUPIN`), informacje o stylu, przypisywanie do layoutu (bieżącego, wszystkich lub wg nazwy). Bezpieczne blokady dla layoutu `Model`.
 
 ---
@@ -179,3 +184,30 @@ Od wersji **v2.16.0** każde narzędzie może być częścią zapisanego "Przepi
 * SearchQuery *(wymagane)*: Poszukiwana fraza tekstowa (wielko�� liter jest ignorowana).
 * RelativePath *(opcjonalne)*: �cie�ka podfolderu, w kt�rym zaw�one zostanie wyszukiwanie.
 * FileExtension *(opcjonalne)*: Filtr rozszerzenia, np. *.cs, *.md, *.txt.
+
+---
+
+## ManageSheetSetTool - Sheet Set Metadata i Custom Properties
+
+Nowe akcje dla plikow `.dst`:
+
+- `ListMetadata`: wypisuje ustawienia widoczne w UI Sheet Set Manager: nazwa, opis, sciezka DST, blok etykiety, bloki wywolan, liczba arkuszy, lokalizacja nowych arkuszy i wzor arkuszy.
+- `SetMetadata`: zmienia natywne ustawienia zestawu: `Name`, `Description`, `NewSheetLocation`, `SheetCreationTemplatePath` + `SheetCreationTemplateLayout`, `LabelBlockPath` + `LabelBlockName`, `CalloutBlockPath` + `CalloutBlockName`.
+- `ListProperties`: wypisuje wlasciwosci uzytkownika. Bez `PropertyScope` zwraca zakres `SheetSet` i `Sheet`.
+- `SetProperty`: tworzy albo zmienia wlasciwosc uzytkownika.
+- `RegisterPropertyName`: zapamietuje nazwy recznie utworzonych etykiet, gdy BricsCAD COM nie potrafi ich wyliczyc enumeratorem.
+
+Parametry:
+
+- `PropertyScope`: `SheetSet`, `Sheet` albo `SheetInstance`.
+- `PropertyName`: nazwa/etykieta wlasciwosci.
+- `PropertyNames`: lista nazw etykiet oddzielona przecinkami/srednikami albo tablica JSON; uzywana przy `ListProperties` i `RegisterPropertyName`.
+- `PropertyValue`: wartosc albo domyslna wartosc.
+- `SheetNumber`: wymagany tylko dla `SheetInstance`.
+
+Uwaga: pola `ProjectNumber`, `ProjectName`, `ProjectPhase`, `ProjectMilestone` z sekcji "Kontrola Projektu" sa obslugiwane przez probe late-binding `Get/SetProject...`. Jesli BricsCAD COM odrzuci zapis, narzedzie zwroci ostrzezenie i nie zapisze ich jako zwyklych Custom Properties, zeby nie raportowac falszywego sukcesu w UI.
+
+Mapowanie na UI BricsCAD:
+
+- `SheetSet`: sekcja "Dostosuj Wlasciwosci Zestawu Arkuszy".
+- `Sheet`: sekcja "Dostosuj Wlasciwosci Arkusza".

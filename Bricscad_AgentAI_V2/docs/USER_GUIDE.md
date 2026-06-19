@@ -386,3 +386,21 @@ Następujące narzędzia wspierają flagi bezpieczne i nie wykonają faktycznych
 
 > [!TIP]
 > Jeśli z poziomu czatu w BricsCAD chcesz przeprowadzić test logiki bez obawy, że cokolwiek zostanie zepsute, przekaż zadanie Rewidentowi wprost. Np: *"Zleć Rewidentowi sprawdzenie logiki polecenia UserChoiceTool"*.
+
+---
+
+## 13. Zestawy arkuszy - wlasciwosci uzytkownika
+
+Agent potrafi dodawac i odczytywac etykiety z okna **Wlasciwosci Uzytkownika** w Sheet Set Managerze.
+
+### ManageSheetSetTool
+- **Co robi:** tworzy lub zmienia metadane zestawu arkuszy, wlasciwosci zestawu oraz domyslne wlasciwosci arkuszy w pliku `.dst`.
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` pokaz ustawienia zestawu arkuszy."
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` ustaw opis `Projekt testowy`, nowa lokalizacje arkuszy `C:\SheetSetTests\Sheets` i wzor arkuszy z pliku `C:\SheetSetTests\template.dwt`, layout `A3`."
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` dodaj wlasciwosc zestawu `Test_1` o wartosci `test1`."
+- **Jak o to zapytac:** "Dodaj domyslna wlasciwosc arkusza `Test_2` o wartosci `test2` w zestawie `C:\SheetSetTests\Projekt1.dst`."
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` sprawdz recznie utworzone etykiety `Inwestor`, `Projektant`, `Branza`."
+- **Jak o to zapytac:** "Zapamietaj dla zestawu `C:\SheetSetTests\Projekt1.dst` recznie utworzone etykiety `Inwestor`, `Projektant`, `Branza`."
+- **Wymagane dane:** sciezka do pliku `.dst`, nazwa etykiety i wartosc. Dla wartosci przypisanej do konkretnego arkusza trzeba podac numer arkusza.
+- **Uwaga:** etykiety utworzone recznie w BricsCAD moga wymagac podania ich nazw albo jednorazowego zapamietania przez agenta, poniewaz API BricsCAD nie zawsze potrafi samo wyliczyc ich nazwy.
+- **Uwaga:** pola "Numer projektu", "Nazwa projektu", "Faza projektu" i "Kamien milowy projektu" sa probowane przez late-binding COM. Jesli BricsCAD odrzuci zapis, Agent zwroci ostrzezenie zamiast raportowac falszywy sukces.

@@ -1,0 +1,560 @@
+{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_10_SheetSet",
+    "ModelName": "LLM-Benchmark-V2",
+    "ProfileName": "CadLayoutProfile",
+    "RunDate": "2026-06-19",
+    "Comment": "Benchmark dla obslugi zestawow arkuszy DST w CadLayoutProfile. 30 testow, 8 kategorii, poziomy D1-D5. Pokrywa ManageSheetSetTool, SheetSetSheetTool, custom properties, metadane UI Sheet Set Manager, diagnostyke COM oraz Foreach."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "SheetSetCreateList",
+      "Difficulty": 1,
+      "TestName": "CreateSheetSet_Basic",
+      "Description": "Agent tworzy nowy plik DST z nazwa zestawu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz nowy zestaw arkuszy o nazwie \"Projekt1\" i zapisz go w pliku \"C:\\SheetSetTests\\Projekt1.dst\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Zestaw arkuszy 'C:\\SheetSetTests\\Projekt1.dst' zostal utworzony pomyslnie."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Model powinien uzyc ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Create", "ErrorMessage": "BLAD: Oczekiwano Action=Create." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "DstFilePath", "TargetValue": "C:\\SheetSetTests\\Projekt1.dst", "ErrorMessage": "BLAD: Nie podano poprawnej sciezki DST." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Name", "TargetValue": "Projekt1", "ErrorMessage": "BLAD: Nie podano nazwy zestawu Projekt1." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "ManageSheetSetTool", "ExpectedOutput": "1", "ErrorMessage": "BLAD: Tworzenie zestawu powinno byc jednym wywolaniem." }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "SheetSetCreateList",
+      "Difficulty": 1,
+      "TestName": "ListSheetSet_Tree",
+      "Description": "Agent listuje strukture istniejacego zestawu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Podaj krotkie drzewo zawartosci pliku \"C:\\SheetSetTests\\Projekt1.dst\": podgrupy i arkusze.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "--- ZESTAW ARKUSZY: Projekt1 ---\n[Subset] Architektura\n  [Sheet] A-01 - Rzut Parteru"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Model powinien uzyc ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "List", "ErrorMessage": "BLAD: Oczekiwano Action=List." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "DstFilePath", "TargetValue": "C:\\SheetSetTests\\Projekt1.dst", "ErrorMessage": "BLAD: Zla sciezka DST." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "SheetSetSheetTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Do listowania struktury nie uzywaj SheetSetSheetTool." }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "SheetSetCreateList",
+      "Difficulty": 2,
+      "TestName": "ListMetadata_AllUiFields",
+      "Description": "Agent odczytuje metadane widoczne w UI Sheet Set Manager.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" pokaz ustawienia zestawu arkuszy: nazwe, opis, sciezke, blok etykiety, wywolanie bloku, liczbe arkuszy, kontrole projektu, lokalizacje nowych arkuszy i wzor arkuszy.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "--- METADANE ZESTAWU ARKUSZY: Projekt1 ---\n[Ustawienie Arkusza]\nNazwa: Projekt1"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Model powinien uzyc ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListMetadata", "ErrorMessage": "BLAD: Do ustawien UI wymagane Action=ListMetadata." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "DstFilePath", "TargetValue": "C:\\SheetSetTests\\Projekt1.dst", "ErrorMessage": "BLAD: Zla sciezka DST." }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "SheetSetStructure",
+      "Difficulty": 1,
+      "TestName": "CreateSubset_Architecture",
+      "Description": "Agent tworzy podgrupe Architektura.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie arkuszy \"C:\\SheetSetTests\\Projekt1.dst\" dodaj podgrupe \"Architektura\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Utworzono podgrupe 'Architektura'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Model powinien uzyc ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "CreateSubset", "ErrorMessage": "BLAD: Oczekiwano Action=CreateSubset." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SubsetName", "TargetValue": "Architektura", "ErrorMessage": "BLAD: Nie podano SubsetName=Architektura." }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "SheetSetStructure",
+      "Difficulty": 2,
+      "TestName": "CreateSubset_Construction",
+      "Description": "Agent tworzy druga podgrupe Konstrukcja.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj nowa podgrupe \"Konstrukcja\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Utworzono podgrupe 'Konstrukcja'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Model powinien uzyc ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "CreateSubset", "ErrorMessage": "BLAD: Oczekiwano Action=CreateSubset." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SubsetName", "TargetValue": "Konstrukcja", "ErrorMessage": "BLAD: Nie podano SubsetName=Konstrukcja." }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "SheetSetStructure",
+      "Difficulty": 4,
+      "TestName": "CreateTwoSubsets_WithForeach",
+      "Description": "Agent powinien uzyc Foreach do utworzenia dwoch podgrup.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" utworz podgrupy \"Architektura\" i \"Konstrukcja\" za pomoca petli.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Przy jawnej prosbie o petle model powinien uzyc Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "Architektura", "ErrorMessage": "BLAD: Brak Architektura w Items." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "Konstrukcja", "ErrorMessage": "BLAD: Brak Konstrukcja w Items." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"ManageSheetSetTool\",\"Action\":\"CreateSubset\",\"DstFilePath\":\"C:\\\\SheetSetTests\\\\Projekt1.dst\",\"SubsetName\":\"{item}\"} || {\"ToolName\":\"ManageSheetSetTool\",\"DstFilePath\":\"C:\\\\SheetSetTests\\\\Projekt1.dst\",\"Action\":\"CreateSubset\",\"SubsetName\":\"{item}\"}", "ErrorMessage": "BLAD: Foreach powinien wywolywac ManageSheetSetTool CreateSubset z SubsetName={item}." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "ManageSheetSetTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy Foreach model nie powinien dodatkowo wywolywac ManageSheetSetTool bezposrednio." }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "SheetSetSheets",
+      "Difficulty": 2,
+      "TestName": "AddSheet_ArchitectureA1",
+      "Description": "Agent dodaje arkusz z layoutu DWG do zestawu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SheetSetSheetTool": "SUKCES: Arkusz 'A1_Rzut_Parteru' z pliku DWG zostal dodany do zestawu."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "SheetSetSheetTool", "ErrorMessage": "BLAD: Dodawanie arkusza wymaga SheetSetSheetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "AddSheet", "ErrorMessage": "BLAD: Oczekiwano Action=AddSheet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\SheetSetTests\\Architektura.dwg", "ErrorMessage": "BLAD: Zla sciezka DWG." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A1_Rzut_Parteru", "ErrorMessage": "BLAD: Zly layout zrodlowy." }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "SheetSetSheets",
+      "Difficulty": 2,
+      "TestName": "AddSheet_ArchitectureA2",
+      "Description": "Agent dodaje drugi arkusz architektury.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A2_Rzut_Pietra\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SheetSetSheetTool": "SUKCES: Arkusz 'A2_Rzut_Pietra' z pliku DWG zostal dodany do zestawu."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "SheetSetSheetTool", "ErrorMessage": "BLAD: Dodawanie arkusza wymaga SheetSetSheetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "AddSheet", "ErrorMessage": "BLAD: Oczekiwano Action=AddSheet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\SheetSetTests\\Architektura.dwg", "ErrorMessage": "BLAD: Zla sciezka DWG." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A2_Rzut_Pietra", "ErrorMessage": "BLAD: Zly layout zrodlowy." }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "SheetSetSheets",
+      "Difficulty": 2,
+      "TestName": "AddSheet_StructureK1",
+      "Description": "Agent dodaje arkusz konstrukcyjny.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Konstrukcja.dwg\", layout \"K1_Zbrojenie\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SheetSetSheetTool": "SUKCES: Arkusz 'K1_Zbrojenie' z pliku DWG zostal dodany do zestawu."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "SheetSetSheetTool", "ErrorMessage": "BLAD: Dodawanie arkusza wymaga SheetSetSheetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "AddSheet", "ErrorMessage": "BLAD: Oczekiwano Action=AddSheet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\SheetSetTests\\Konstrukcja.dwg", "ErrorMessage": "BLAD: Zla sciezka DWG." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "K1_Zbrojenie", "ErrorMessage": "BLAD: Zly layout zrodlowy." }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "SheetSetSheets",
+      "Difficulty": 3,
+      "TestName": "RenumberSheet_A1_To_A01",
+      "Description": "Agent zmienia numer arkusza.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" arkusz o numerze \"A1_Rzut_Parteru\" przenumeruj na \"A-01\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SheetSetSheetTool": "SUKCES: Arkusz oznaczony 'A1_Rzut_Parteru' ma teraz numer 'A-01'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "SheetSetSheetTool", "ErrorMessage": "BLAD: Zmiana numeru arkusza wymaga SheetSetSheetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Renumber", "ErrorMessage": "BLAD: Oczekiwano Action=Renumber." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SheetNumber", "TargetValue": "A1_Rzut_Parteru", "ErrorMessage": "BLAD: Brak obecnego numeru arkusza." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "NewSheetNumber", "TargetValue": "A-01", "ErrorMessage": "BLAD: Brak NewSheetNumber=A-01." }
+      ]
+    },
+    {
+      "Id": 11,
+      "Category": "SheetSetSheets",
+      "Difficulty": 3,
+      "TestName": "RenameSheet_A01",
+      "Description": "Agent zmienia nazwe arkusza wskazanego numerem.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" arkusz o numerze \"A-01\" zmien nazwe na \"Rzut Parteru\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SheetSetSheetTool": "SUKCES: Arkusz 'A-01' zmienil nazwe na 'Rzut Parteru'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "SheetSetSheetTool", "ErrorMessage": "BLAD: Zmiana nazwy arkusza wymaga SheetSetSheetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Rename", "ErrorMessage": "BLAD: Oczekiwano Action=Rename." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SheetNumber", "TargetValue": "A-01", "ErrorMessage": "BLAD: Brak SheetNumber=A-01." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "NewSheetName", "TargetValue": "Rzut Parteru", "ErrorMessage": "BLAD: Brak NewSheetName=Rzut Parteru." }
+      ]
+    },
+    {
+      "Id": 12,
+      "Category": "SheetSetSheets",
+      "Difficulty": 5,
+      "TestName": "AddFourSheets_WithForeach",
+      "Description": "Agent powinien uzyc Foreach do dodania kilku arkuszy z tej samej sciezki DWG.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Z pliku \"C:\\SheetSetTests\\Architektura.dwg\" dodaj do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" arkusze \"A1_Rzut_Parteru\" i \"A2_Rzut_Pietra\" za pomoca petli.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Przy prosbie o petle model powinien uzyc Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "A1_Rzut_Parteru", "ErrorMessage": "BLAD: Brak A1_Rzut_Parteru w Items." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "A2_Rzut_Pietra", "ErrorMessage": "BLAD: Brak A2_Rzut_Pietra w Items." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"SheetSetSheetTool\",\"Action\":\"AddSheet\",\"DstFilePath\":\"C:\\\\SheetSetTests\\\\Projekt1.dst\",\"SourceDwgPath\":\"C:\\\\SheetSetTests\\\\Architektura.dwg\",\"SourceLayoutName\":\"{item}\"} || {\"ToolName\":\"SheetSetSheetTool\",\"DstFilePath\":\"C:\\\\SheetSetTests\\\\Projekt1.dst\",\"Action\":\"AddSheet\",\"SourceDwgPath\":\"C:\\\\SheetSetTests\\\\Architektura.dwg\",\"SourceLayoutName\":\"{item}\"}", "ErrorMessage": "BLAD: Foreach powinien wywolywac SheetSetSheetTool AddSheet z SourceLayoutName={item}." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "SheetSetSheetTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy Foreach model nie powinien dodatkowo wolac SheetSetSheetTool bezposrednio." }
+      ]
+    },
+    {
+      "Id": 13,
+      "Category": "SheetSetMetadata",
+      "Difficulty": 2,
+      "TestName": "SetMetadata_NameDescriptionLocation",
+      "Description": "Agent ustawia nazwe, opis i lokalizacje nowych arkuszy.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw nazwe \"Projekt1 TEST\", opis \"Zestaw testowy metadanych\" oraz nowa lokalizacje arkuszy \"C:\\SheetSetTests\\Sheets\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "OK: Nazwa = Projekt1 TEST\nOK: Opis = Zestaw testowy metadanych\nOK: Nowa lokalizacja arkusza = C:\\SheetSetTests\\Sheets"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Metadane zestawu obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetMetadata", "ErrorMessage": "BLAD: Oczekiwano Action=SetMetadata." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Name", "TargetValue": "Projekt1 TEST", "ErrorMessage": "BLAD: Brak Name=Projekt1 TEST." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Description", "TargetValue": "Zestaw testowy metadanych", "ErrorMessage": "BLAD: Brak Description." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "NewSheetLocation", "TargetValue": "C:\\SheetSetTests\\Sheets", "ErrorMessage": "BLAD: Brak NewSheetLocation." }
+      ]
+    },
+    {
+      "Id": 14,
+      "Category": "SheetSetMetadata",
+      "Difficulty": 3,
+      "TestName": "SetMetadata_TemplateLayout",
+      "Description": "Agent ustawia wzor tworzenia arkuszy z DWT/DWG i layoutem.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw wzor wydruku arkuszy z pliku \"C:\\SheetSetTests\\SzablonA3.dwt\", layout \"A3\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "OK: Wzor wydruku arkuszy = C:\\SheetSetTests\\SzablonA3.dwt; Name=A3"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Wzor arkuszy obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetMetadata", "ErrorMessage": "BLAD: Oczekiwano Action=SetMetadata." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SheetCreationTemplatePath", "TargetValue": "C:\\SheetSetTests\\SzablonA3.dwt", "ErrorMessage": "BLAD: Brak SheetCreationTemplatePath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SheetCreationTemplateLayout", "TargetValue": "A3", "ErrorMessage": "BLAD: Brak SheetCreationTemplateLayout=A3." }
+      ]
+    },
+    {
+      "Id": 15,
+      "Category": "SheetSetMetadata",
+      "Difficulty": 3,
+      "TestName": "SetMetadata_LabelBlock",
+      "Description": "Agent ustawia blok etykiety arkusza.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw blok etykiety z pliku \"C:\\SheetSetTests\\BlokiSheetSet.dwg\", blok \"ETYKIETA_ARKUSZA\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "OK: Blok etykiety = C:\\SheetSetTests\\BlokiSheetSet.dwg; Name=ETYKIETA_ARKUSZA"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Blok etykiety obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetMetadata", "ErrorMessage": "BLAD: Oczekiwano Action=SetMetadata." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LabelBlockPath", "TargetValue": "C:\\SheetSetTests\\BlokiSheetSet.dwg", "ErrorMessage": "BLAD: Brak LabelBlockPath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LabelBlockName", "TargetValue": "ETYKIETA_ARKUSZA", "ErrorMessage": "BLAD: Brak LabelBlockName." }
+      ]
+    },
+    {
+      "Id": 16,
+      "Category": "SheetSetMetadata",
+      "Difficulty": 3,
+      "TestName": "SetMetadata_CalloutBlock",
+      "Description": "Agent dodaje blok wywolania callout.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj wywolanie bloku z pliku \"C:\\SheetSetTests\\BlokiSheetSet.dwg\", blok \"CALLOUT_A\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "OK: Dodano wywolanie bloku = C:\\SheetSetTests\\BlokiSheetSet.dwg; Name=CALLOUT_A"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Wywolanie bloku obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetMetadata", "ErrorMessage": "BLAD: Oczekiwano Action=SetMetadata." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "CalloutBlockPath", "TargetValue": "C:\\SheetSetTests\\BlokiSheetSet.dwg", "ErrorMessage": "BLAD: Brak CalloutBlockPath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "CalloutBlockName", "TargetValue": "CALLOUT_A", "ErrorMessage": "BLAD: Brak CalloutBlockName." }
+      ]
+    },
+    {
+      "Id": 17,
+      "Category": "SheetSetMetadata",
+      "Difficulty": 4,
+      "TestName": "SetMetadata_ProjectControl",
+      "Description": "Agent probuje ustawic pola Kontrola Projektu przez SetMetadata, nie przez SetProperty.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw numer projektu \"P-001\", nazwe projektu \"Test metadanych\", faze projektu \"PW\" i kamien milowy projektu \"M1\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "UWAGA: Nie udalo sie ustawic pola 'Numer projektu' (SetProjectNumber). Nie zapisuje go jako zwyklej Wlasciwosci Uzytkownika."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Pola kontroli projektu probuj tylko przez ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetMetadata", "ErrorMessage": "BLAD: Kontrola Projektu wymaga SetMetadata, nie SetProperty." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ProjectNumber", "TargetValue": "P-001", "ErrorMessage": "BLAD: Brak ProjectNumber=P-001." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ProjectName", "TargetValue": "Test metadanych", "ErrorMessage": "BLAD: Brak ProjectName." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ProjectPhase", "TargetValue": "PW", "ErrorMessage": "BLAD: Brak ProjectPhase=PW." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ProjectMilestone", "TargetValue": "M1", "ErrorMessage": "BLAD: Brak ProjectMilestone=M1." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "PropertyName", "TargetValue": "", "ErrorMessage": "BLAD: Nie zapisuj pol Kontrola Projektu jako zwyklych PropertyName." }
+      ]
+    },
+    {
+      "Id": 18,
+      "Category": "SheetSetProperties",
+      "Difficulty": 2,
+      "TestName": "SetProperty_SheetSet",
+      "Description": "Agent tworzy wlasciwosc uzytkownika zestawu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj wlasciwosc zestawu arkuszy \"Inwestor\" o wartosci \"ABC\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Ustawiono wlasciwosc 'Inwestor' = 'ABC' w zakresie SheetSet."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Wlasciwosci uzytkownika obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetProperty", "ErrorMessage": "BLAD: Oczekiwano Action=SetProperty." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyScope", "TargetValue": "SheetSet", "ErrorMessage": "BLAD: Brak PropertyScope=SheetSet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyName", "TargetValue": "Inwestor", "ErrorMessage": "BLAD: Brak PropertyName=Inwestor." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyValue", "TargetValue": "ABC", "ErrorMessage": "BLAD: Brak PropertyValue=ABC." }
+      ]
+    },
+    {
+      "Id": 19,
+      "Category": "SheetSetProperties",
+      "Difficulty": 2,
+      "TestName": "SetProperty_SheetDefault",
+      "Description": "Agent tworzy domyslna wlasciwosc arkusza.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj domyslna wlasciwosc arkusza \"Branza\" o wartosci \"IS\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Ustawiono wlasciwosc 'Branza' = 'IS' w zakresie Sheet."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Wlasciwosci uzytkownika obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetProperty", "ErrorMessage": "BLAD: Oczekiwano Action=SetProperty." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyScope", "TargetValue": "Sheet", "ErrorMessage": "BLAD: Brak PropertyScope=Sheet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyName", "TargetValue": "Branza", "ErrorMessage": "BLAD: Brak PropertyName=Branza." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyValue", "TargetValue": "IS", "ErrorMessage": "BLAD: Brak PropertyValue=IS." }
+      ]
+    },
+    {
+      "Id": 20,
+      "Category": "SheetSetProperties",
+      "Difficulty": 3,
+      "TestName": "ListProperties_All",
+      "Description": "Agent listuje oba zakresy wlasciwosci uzytkownika.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wylistuj Wlasciwosci Uzytkownika w zestawie \"C:\\SheetSetTests\\Projekt1.dst\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "[Dostosuj Wlasciwosci Zestawu Arkuszy]\n- Inwestor = ABC\n[Dostosuj Wlasciwosci Arkusza]\n- Branza = IS"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Listowanie wlasciwosci wymaga ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListProperties", "ErrorMessage": "BLAD: Oczekiwano Action=ListProperties." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "PropertyScope", "TargetValue": "All", "ErrorMessage": "BLAD: Bez PropertyScope albo z All powinno listowac oba zakresy." }
+      ]
+    },
+    {
+      "Id": 21,
+      "Category": "SheetSetProperties",
+      "Difficulty": 3,
+      "TestName": "ListProperties_SheetOnly",
+      "Description": "Agent listuje tylko domyslne wlasciwosci arkusza.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" pokaz tylko domyslne wlasciwosci arkuszy.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "[Dostosuj Wlasciwosci Arkusza]\n- Branza = IS"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Listowanie wlasciwosci wymaga ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListProperties", "ErrorMessage": "BLAD: Oczekiwano Action=ListProperties." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyScope", "TargetValue": "Sheet", "ErrorMessage": "BLAD: Do domyslnych wlasciwosci arkusza wymagane PropertyScope=Sheet." }
+      ]
+    },
+    {
+      "Id": 22,
+      "Category": "SheetSetProperties",
+      "Difficulty": 4,
+      "TestName": "ListProperties_ManualNames",
+      "Description": "Agent przekazuje reczne nazwy etykiet w PropertyNames.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" wylistuj Wlasciwosci Uzytkownika i sprawdz recznie utworzone etykiety \"Inwestor\" oraz \"Branza\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "- Inwestor = ABC\n- Branza = IS"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Listowanie wlasciwosci wymaga ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListProperties", "ErrorMessage": "BLAD: Oczekiwano Action=ListProperties." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PropertyNames", "TargetValue": "Inwestor, Branza || Inwestor; Branza || [\"Inwestor\",\"Branza\"]", "ErrorMessage": "BLAD: Model powinien przekazac reczne nazwy w PropertyNames." }
+      ]
+    },
+    {
+      "Id": 23,
+      "Category": "SheetSetProperties",
+      "Difficulty": 4,
+      "TestName": "RegisterManualPropertyNames",
+      "Description": "Agent zapamietuje recznie utworzone etykiety.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" zapamietaj recznie utworzone etykiety \"Inwestor\" oraz \"Branza\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Zapamietano 2 nazw etykiet dla C:\\SheetSetTests\\Projekt1.dst."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Rejestracja etykiet wymaga ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "RegisterPropertyName", "ErrorMessage": "BLAD: Oczekiwano Action=RegisterPropertyName." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PropertyNames", "TargetValue": "Inwestor, Branza || Inwestor; Branza || [\"Inwestor\",\"Branza\"]", "ErrorMessage": "BLAD: Brak PropertyNames z recznymi etykietami." }
+      ]
+    },
+    {
+      "Id": 24,
+      "Category": "SheetSetProperties",
+      "Difficulty": 4,
+      "TestName": "SetProperty_SheetInstance",
+      "Description": "Agent ustawia wlasciwosc na konkretnym arkuszu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dla arkusza o numerze \"A-01\" ustaw wlasciwosc \"Rewizja\" na \"R01\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Ustawiono wlasciwosc 'Rewizja' = 'R01' w zakresie SheetInstance."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Wlasciwosci arkusza obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetProperty", "ErrorMessage": "BLAD: Oczekiwano Action=SetProperty." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyScope", "TargetValue": "SheetInstance", "ErrorMessage": "BLAD: Dla konkretnego arkusza wymagane PropertyScope=SheetInstance." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SheetNumber", "TargetValue": "A-01", "ErrorMessage": "BLAD: Brak SheetNumber=A-01." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyName", "TargetValue": "Rewizja", "ErrorMessage": "BLAD: Brak PropertyName=Rewizja." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PropertyValue", "TargetValue": "R01", "ErrorMessage": "BLAD: Brak PropertyValue=R01." }
+      ]
+    },
+    {
+      "Id": 25,
+      "Category": "SheetSetDiagnostics",
+      "Difficulty": 3,
+      "TestName": "DiagnoseCom",
+      "Description": "Agent wykonuje diagnostyke COM bez dodatkowych operacji mutujacych.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zdiagnozuj COM Sheet Set dla pliku \"C:\\SheetSetTests\\Projekt1.dst\", sprawdz tworzenie podgrupy \"Architektura\" oraz import arkusza z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Zapisano pelny raport diagnostyki COM Sheet Set."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Diagnostyke COM obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "DiagnoseCom", "ErrorMessage": "BLAD: Oczekiwano Action=DiagnoseCom." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SubsetName", "TargetValue": "Architektura", "ErrorMessage": "BLAD: Diagnostyka powinna przekazac SubsetName." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\SheetSetTests\\Architektura.dwg", "ErrorMessage": "BLAD: Diagnostyka powinna przekazac SourceDwgPath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A1_Rzut_Parteru", "ErrorMessage": "BLAD: Diagnostyka powinna przekazac SourceLayoutName." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "SheetSetSheetTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy diagnostyce nie wolno od razu dodawac arkusza." }
+      ]
+    },
+    {
+      "Id": 26,
+      "Category": "SheetSetDiagnostics",
+      "Difficulty": 3,
+      "TestName": "DiagnoseProperties",
+      "Description": "Agent diagnozuje CustomPropertyBag w DST.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zdiagnozuj Wlasciwosci Uzytkownika w zestawie \"C:\\SheetSetTests\\Projekt1.dst\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "DIAGNOZA WLASCIWOSCI UZYTKOWNIKA DST"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Diagnostyke wlasciwosci obsluguje ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "DiagnoseProperties", "ErrorMessage": "BLAD: Oczekiwano Action=DiagnoseProperties." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "SheetSetSheetTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Diagnostyka wlasciwosci nie wymaga SheetSetSheetTool." }
+      ]
+    },
+    {
+      "Id": 27,
+      "Category": "SheetSetNegativeSafety",
+      "Difficulty": 3,
+      "TestName": "NoFakeSuccess_ProjectControl",
+      "Description": "Agent nie powinien uzywac SetProperty dla pol Kontrola Projektu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Ustaw w Kontroli Projektu numer projektu \"P-002\" w zestawie \"C:\\SheetSetTests\\Projekt1.dst\". Nie dodawaj zwyklej etykiety uzytkownika.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "UWAGA: Nie udalo sie ustawic pola 'Numer projektu' (SetProjectNumber)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Kontrola Projektu powinna isc przez ManageSheetSetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetMetadata", "ErrorMessage": "BLAD: Kontrola Projektu wymaga SetMetadata." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ProjectNumber", "TargetValue": "P-002", "ErrorMessage": "BLAD: Brak ProjectNumber=P-002." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "PropertyName", "TargetValue": "", "ErrorMessage": "BLAD: Nie uzywaj PropertyName do pol Kontrola Projektu." }
+      ]
+    },
+    {
+      "Id": 28,
+      "Category": "SheetSetNegativeSafety",
+      "Difficulty": 3,
+      "TestName": "AddSheet_RequiresLayout",
+      "Description": "Agent powinien podac SourceLayoutName przy dodawaniu arkusza.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj layout \"K2_Fundamenty\" z pliku \"C:\\SheetSetTests\\Konstrukcja.dwg\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SheetSetSheetTool": "SUKCES: Arkusz 'K2_Fundamenty' z pliku DWG zostal dodany do zestawu."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "SheetSetSheetTool", "ErrorMessage": "BLAD: Dodawanie arkusza wymaga SheetSetSheetTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "AddSheet", "ErrorMessage": "BLAD: Oczekiwano Action=AddSheet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\SheetSetTests\\Konstrukcja.dwg", "ErrorMessage": "BLAD: Brak SourceDwgPath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "K2_Fundamenty", "ErrorMessage": "BLAD: Brak SourceLayoutName=K2_Fundamenty." }
+      ]
+    },
+    {
+      "Id": 29,
+      "Category": "SheetSetWorkflow",
+      "Difficulty": 4,
+      "TestName": "CreateThenListMetadata",
+      "Description": "Po utworzeniu zestawu agent od razu listuje metadane, gdy user prosi o potwierdzenie ustawien.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz zestaw \"ProjektMeta\" w pliku \"C:\\SheetSetTests\\ProjektMeta.dst\", a potem pokaz jego ustawienia zestawu arkuszy.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES: Zestaw arkuszy 'C:\\SheetSetTests\\ProjektMeta.dst' zostal utworzony pomyslnie."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "ManageSheetSetTool, ManageSheetSetTool", "ErrorMessage": "BLAD: Oczekiwano dwoch wywolan ManageSheetSetTool: Create -> ListMetadata." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "Create", "ErrorMessage": "BLAD: Brak Action=Create." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListMetadata", "ErrorMessage": "BLAD: Brak Action=ListMetadata po utworzeniu." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "DstFilePath", "TargetValue": "C:\\SheetSetTests\\ProjektMeta.dst", "ErrorMessage": "BLAD: Oba wywolania powinny dotyczyc ProjektMeta.dst." }
+      ]
+    },
+    {
+      "Id": 30,
+      "Category": "SheetSetWorkflow",
+      "Difficulty": 5,
+      "TestName": "FullWorkflow_CreateSubsetsPropertiesSheets",
+      "Description": "Zlozony workflow: Create, CreateSubset, SetProperty, AddSheet.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz zestaw \"ProjektFull\" w pliku \"C:\\SheetSetTests\\ProjektFull.dst\", dodaj podgrupe \"Architektura\", ustaw wlasciwosc zestawu \"Inwestor\"=\"ABC\" i dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageSheetSetTool": "SUKCES",
+        "SheetSetSheetTool": "SUKCES: Arkusz 'A1_Rzut_Parteru' z pliku DWG zostal dodany do zestawu."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "ManageSheetSetTool, ManageSheetSetTool, ManageSheetSetTool, SheetSetSheetTool", "ErrorMessage": "BLAD: Oczekiwano sekwencji Create -> CreateSubset -> SetProperty -> AddSheet." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "Create", "ErrorMessage": "BLAD: Brak Create." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "CreateSubset", "ErrorMessage": "BLAD: Brak CreateSubset." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "SubsetName", "TargetValue": "Architektura", "ErrorMessage": "BLAD: Brak SubsetName=Architektura." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "PropertyName", "TargetValue": "Inwestor", "ErrorMessage": "BLAD: Brak PropertyName=Inwestor." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "PropertyValue", "TargetValue": "ABC", "ErrorMessage": "BLAD: Brak PropertyValue=ABC." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A1_Rzut_Parteru", "ErrorMessage": "BLAD: Brak dodania layoutu A1_Rzut_Parteru." }
+      ]
+    }
+  ]
+}

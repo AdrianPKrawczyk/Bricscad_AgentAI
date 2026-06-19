@@ -111,10 +111,23 @@ Przykladowe prompty dla listy ploterow (eksploracja):
 - Aby stworzyć całkowicie NOWY zestaw arkuszy (plik .dst), uzyj ManageSheetSetTool z Action="Create", podajac DstFilePath (np. "C:\Projekt.dst") oraz opcjonalnie Name (nazwa zestawu, domyslnie nazwa pliku bez rozszerzenia). Zawsze utworzy on tez podfolder, jesli nie istnieje.
 - Gdy uzytkownik chce pracowac z ISTNIEJACYM zewnetrznym zestawem arkuszy (plik .dst), uzyj ManageSheetSetTool(Action="List") podajac DstFilePath by zapoznac sie ze struktura.
 - Mozesz tworzyc nowe subsety (grupy) dla istniejacego zestawu za pomoca Action="CreateSubset" w ManageSheetSetTool.
+- Ustawienia zestawu arkuszy widoczne w UI Sheet Set Manager obsluguj przez ManageSheetSetTool:
+  - `Action="ListMetadata"` pokazuje sekcje: Ustawienie Arkusza, Kontrola Projektu, Stworz Arkusz.
+  - `Action="SetMetadata"` zmienia natywne pola: `Name`, `Description`, `NewSheetLocation`, `SheetCreationTemplatePath` + `SheetCreationTemplateLayout`, `LabelBlockPath` + `LabelBlockName`, `CalloutBlockPath` + `CalloutBlockName`.
+  - Pola `ProjectNumber`, `ProjectName`, `ProjectPhase`, `ProjectMilestone` probuj zmieniac tylko przez `Action="SetMetadata"`. Nie uzywaj do nich `SetProperty`; narzedzie samo zwroci ostrzezenie, jesli BricsCAD COM odrzuci zapis.
+- Wlasciwosci Uzytkownika w Sheet Set Manager obsluguj przez ManageSheetSetTool:
+  - `Action="ListProperties"` wypisuje etykiety/wartosci. Bez `PropertyScope` pokazuje oba zakresy.
+  - `Action="SetProperty", PropertyScope="SheetSet"` tworzy/zmienia pozycje z sekcji "Dostosuj Wlasciwosci Zestawu Arkuszy".
+  - `Action="SetProperty", PropertyScope="Sheet"` tworzy/zmienia domyslna pozycje z sekcji "Dostosuj Wlasciwosci Arkusza".
+  - `PropertyScope="SheetInstance"` stosuj tylko wtedy, gdy user chce wartosc na konkretnym arkuszu; wtedy podaj `SheetNumber`.
+  - BricsCAD COM potrafi nie wyliczac nazw recznie utworzonych etykiet, mimo ze `GetProperty(nazwa)` dziala. Jesli user poda reczne nazwy etykiet, przekaz je w `PropertyNames` przy `ListProperties`.
+  - Jesli user chce, zeby reczne etykiety byly pamietane przy kolejnych wywolaniach, uzyj `Action="RegisterPropertyName"` z `PropertyName` albo `PropertyNames`, a potem ponow `ListProperties`.
+  - Gdy listowanie wlasciwosci zwraca pusty wynik mimo znanych nazw przekazanych w `PropertyNames`, uzyj `Action="DiagnoseProperties"` dla tego samego pliku DST.
 - Do obslugi i modyfikacji konkretnych arkuszy (dodawanie z pliku DWG, zmiana nazwy, numeru) wewnatrz pliku .dst, uzywaj SheetSetSheetTool (Action="AddSheet", "Rename", "Renumber").
 - Dla prostego tworzenia/listowania zestawu arkuszy wykonaj jedno lub dwa krotkie wywolania narzedzi. Nie opisuj recznie struktury DST i nie generuj dlugiej odpowiedzi przed wywolaniem narzedzia.
 - Po `ManageSheetSetTool(Action="Create")`, jesli user prosi tez o zawartosc, wykonaj od razu `ManageSheetSetTool(Action="List")` na tej samej sciezce i zwroc krotkie podsumowanie wyniku.
 - Narzedzia te uzywaja technologii COM Late-binding dla AcSmSheetSetMgr.
+- Gdy user prosi o diagnostyke Sheet Set COM, uzyj TYLKO `ManageSheetSetTool(Action="DiagnoseCom")`; nie wykonuj potem `CreateSubset`, `AddSheet`, `Rename` ani `Renumber`, dopoki user nie poprosi o naprawe/ponowienie. Jesli user wspomina nazwe podgrupy, przekaz ja jako `SubsetName`; jesli wspomina DWG/layout, przekaz `SourceDwgPath` i `SourceLayoutName`.
 - W razie bledu, np. braku zarejestrowanego komponentu w systemie, poinforumuj o nim i popros o ew. udostepnienie DLL API z folderu z instalacja BricsCAD.
 - Zmiany na wielu arkuszach w zestawie .dst wspieraja takze iteracje.
 

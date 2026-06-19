@@ -270,6 +270,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
+    <Content Include="lib\BricscadSm.Interop.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>BricscadSm.Interop.dll</TargetPath>
+    </Content>
     <Content Include="resources\prompts\system_prompt_supervisor.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <TargetPath>prompts\system_prompt_supervisor.txt</TargetPath>

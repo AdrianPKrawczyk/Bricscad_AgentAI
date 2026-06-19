@@ -109,6 +109,38 @@ Uzyj profilu CadLayoutProfile. Podaj krotkie drzewo zawartosci pliku "C:\SheetSe
 
 Oczekiwany rezultat: `ManageSheetSetTool Action="List"` i zwiezly wynik bez dlugiego komentarza.
 
+## Test 6: Metadane zestawu arkuszy z UI Sheet Set Manager
+
+Prompt 6A:
+```text
+Uzyj profilu CadLayoutProfile. W zestawie "C:\SheetSetTests\Projekt1.dst" pokaz ustawienia zestawu arkuszy: nazwe, opis, sciezke, blok etykiety, wywolanie bloku, liczbe arkuszy, kontrole projektu, lokalizacje nowych arkuszy i wzor arkuszy.
+```
+
+Oczekiwany tool call:
+```json
+{
+  "Action": "ListMetadata",
+  "DstFilePath": "C:\\SheetSetTests\\Projekt1.dst"
+}
+```
+
+Prompt 6B:
+```text
+Uzyj profilu CadLayoutProfile. W zestawie "C:\SheetSetTests\Projekt1.dst" ustaw opis "Zestaw testowy po zmianie" oraz nowa lokalizacje arkuszy "C:\SheetSetTests\Sheets".
+```
+
+Oczekiwany tool call:
+```json
+{
+  "Action": "SetMetadata",
+  "DstFilePath": "C:\\SheetSetTests\\Projekt1.dst",
+  "Description": "Zestaw testowy po zmianie",
+  "NewSheetLocation": "C:\\SheetSetTests\\Sheets"
+}
+```
+
+Uwaga: pola `ProjectNumber`, `ProjectName`, `ProjectPhase`, `ProjectMilestone` sa probowane przez late-binding `Get/SetProject...`. Jesli BricsCAD COM odrzuci zapis, narzedzie ma zwrocic ostrzezenie, a nie falszywy sukces.
+
 ## Uwaga o limicie tokenow
 
 Jesli subagent zaczyna generowac dluga odpowiedz zamiast wolac narzedzie, uzyj krotszej formy:

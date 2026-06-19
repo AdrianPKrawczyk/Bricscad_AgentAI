@@ -139,3 +139,30 @@ Od wersji **v2.16.0** każde narzędzie może być częścią zapisanego "Przepi
 - **Trigger $**: Umożliwia wywołanie sekwencji narzędzi jednym poleceniem.
 - **Few-Shot Prompting**: Receptury są wstrzykiwane jako przykłady `tool_calls`, co pomaga Agentowi zrozumieć poprawne parametry i kolejność wywołań w specyficznym kontekście inżynierskim.
 - **Kategoryzacja**: Wybranie przepisu może automatycznie załadować powiązane kategorie narzędzi (#bloki, #wymiary itp.), zapewniając, że Agent ma dostęp do wymaganego "zestawu instrumentów".
+
+---
+
+## ManageSheetSetTool - Sheet Set Metadata i Custom Properties
+
+Nowe akcje dla plikow `.dst`:
+
+- `ListMetadata`: wypisuje ustawienia widoczne w UI Sheet Set Manager: nazwa, opis, sciezka DST, blok etykiety, bloki wywolan, liczba arkuszy, lokalizacja nowych arkuszy i wzor arkuszy.
+- `SetMetadata`: zmienia natywne ustawienia zestawu: `Name`, `Description`, `NewSheetLocation`, `SheetCreationTemplatePath` + `SheetCreationTemplateLayout`, `LabelBlockPath` + `LabelBlockName`, `CalloutBlockPath` + `CalloutBlockName`.
+- `ListProperties`: wypisuje wlasciwosci uzytkownika. Bez `PropertyScope` zwraca zakres `SheetSet` i `Sheet`.
+- `SetProperty`: tworzy albo zmienia wlasciwosc uzytkownika.
+- `RegisterPropertyName`: zapamietuje nazwy recznie utworzonych etykiet, gdy BricsCAD COM nie potrafi ich wyliczyc enumeratorem.
+
+Parametry:
+
+- `PropertyScope`: `SheetSet`, `Sheet` albo `SheetInstance`.
+- `PropertyName`: nazwa/etykieta wlasciwosci.
+- `PropertyNames`: lista nazw etykiet oddzielona przecinkami/srednikami albo tablica JSON; uzywana przy `ListProperties` i `RegisterPropertyName`.
+- `PropertyValue`: wartosc albo domyslna wartosc.
+- `SheetNumber`: wymagany tylko dla `SheetInstance`.
+
+Uwaga: pola `ProjectNumber`, `ProjectName`, `ProjectPhase`, `ProjectMilestone` z sekcji "Kontrola Projektu" sa obslugiwane przez probe late-binding `Get/SetProject...`. Jesli BricsCAD COM odrzuci zapis, narzedzie zwroci ostrzezenie i nie zapisze ich jako zwyklych Custom Properties, zeby nie raportowac falszywego sukcesu w UI.
+
+Mapowanie na UI BricsCAD:
+
+- `SheetSet`: sekcja "Dostosuj Wlasciwosci Zestawu Arkuszy".
+- `Sheet`: sekcja "Dostosuj Wlasciwosci Arkusza".

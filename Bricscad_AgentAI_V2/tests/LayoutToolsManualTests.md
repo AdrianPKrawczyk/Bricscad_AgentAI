@@ -144,7 +144,125 @@ Przypisz styl monochrome.ctb tylko do layoutu A4-PION.
 
 ---
 
-## 9. Bezpieczenstwo - testowe "anti-blokady"
+## 9. Rzutnie arkuszowe
+
+```
+Wylistuj rzutnie papierowe na layoucie "01".
+```
+Oczekiwane: lista rzutni z indeksem i Handle albo informacja, ze brak rzutni papierowych poza systemowa.
+
+```
+Na layoucie "01" stworz prostokatna rzutnie 180x120 mm ze srodkiem w punkcie 148.5,105. Pokaz zakres modelu od 0,0 do 9000,6000, ustaw skale 1:50, skale opisowa 1:50 i zablokuj rzutnie.
+```
+Oczekiwane: `ManageViewportsTool Action=Create`, rzutnia wlaczona i zablokowana, bez dialogow CAD.
+Ramka rzutni powinna trafic na warstwe `_rzutnie`; jesli warstwy nie bylo, ma zostac utworzona z kolorem 200 i wylaczonym drukiem.
+
+Przykladowy JSON narzedzia:
+```json
+{
+  "Action": "Create",
+  "LayoutName": "01",
+  "CenterPaperX": 148.5,
+  "CenterPaperY": 105,
+  "WidthPaper": 180,
+  "HeightPaper": 120,
+  "ModelMinX": 0,
+  "ModelMinY": 0,
+  "ModelMaxX": 9000,
+  "ModelMaxY": 6000,
+  "Scale": "1:50",
+  "AnnotationScale": "1:50",
+  "Locked": true
+}
+```
+
+```
+Na layoucie "01" stworz rzutnie 180x120 mm ze srodkiem w punkcie 148.5,105 na warstwie "A-RZUTNIE". Jesli warstwa nie istnieje, utworz ja.
+```
+Oczekiwane: `ManageViewportsTool Action=Create` z `Layer="A-RZUTNIE"` i `CreateLayerIfMissing=true`; ramka rzutni lezy na wskazanej warstwie, a nie na `_rzutnie`.
+
+```
+Zmien rzutnie nr 1 na layoucie "01" na zakres modelu 1000,1000 do 12000,8000 i skale 1:100.
+```
+Oczekiwane: jesli rzutnia jest zablokowana, narzedzie zwroci blad z prosba o `OverwriteUnlocked=true`.
+
+```
+Zmien rzutnie nr 1 na layoucie "01" na zakres modelu 1000,1000 do 12000,8000 i skale 1:100. Jesli jest zablokowana, odblokuj tymczasowo i zablokuj z powrotem.
+```
+Oczekiwane: `Modify` z `OverwriteUnlocked=true` i `Locked=true`.
+
+Przykladowy JSON narzedzia:
+```json
+{
+  "Action": "Modify",
+  "LayoutName": "01",
+  "ViewportIndex": 1,
+  "ModelMinX": 1000,
+  "ModelMinY": 1000,
+  "ModelMaxX": 12000,
+  "ModelMaxY": 8000,
+  "Scale": "1:100",
+  "OverwriteUnlocked": true,
+  "Locked": true
+}
+```
+
+```
+Usun rzutnie nr 1 z layoutu "01".
+```
+Oczekiwane: usuwa wskazana rzutnie papierowa, nie usuwa systemowej rzutni papieru.
+
+```
+Na layoucie "01" ustaw rzutnie nr 1 wedlug widoku nazwanego "Rzut parteru". Jesli rzutnia jest zablokowana, odblokuj tymczasowo i zablokuj z powrotem.
+```
+Oczekiwane: `ManageViewportsTool Action=Modify` z `NamedView="Rzut parteru"`, `OverwriteUnlocked=true`, `Locked=true`; rzutnia pokazuje zapisany widok nazwany.
+
+```
+Na layoucie "01" w rzutni nr 1 zamroz warstwy "A-MEBLE" i "A-OPIS" tylko w tej rzutni.
+```
+Oczekiwane: `FreezeLayers=["A-MEBLE","A-OPIS"]`; obiekty z tych warstw znikaja tylko w tej rzutni, a w modelu i innych rzutniach pozostaja bez zmian.
+
+```
+Na layoucie "01" w rzutni nr 1 odmroz warstwe "A-MEBLE" tylko w tej rzutni.
+```
+Oczekiwane: `ThawLayers=["A-MEBLE"]`; warstwa wraca tylko w tej rzutni.
+
+```
+Na layoucie "01" w rzutni nr 1 odmroz wszystkie warstwy zamrozone lokalnie.
+```
+Oczekiwane: `ThawAllLayers=true`.
+
+```
+Na layoucie "01" ustaw rzutni nr 1 nieprostokatny clipping z punktow papieru: 40,40; 260,40; 250,170; 170,155; 40,160. Jesli rzutnia jest zablokowana, odblokuj tymczasowo i zablokuj z powrotem.
+```
+Oczekiwane: narzedzie tworzy zamknieta polilinie w przestrzeni papieru i ustawia ja jako `NonRectClipEntityId`; `List` pokazuje `NonRectClipOn=True` i `ClipHandle`.
+
+Przykladowy JSON narzedzia:
+```json
+{
+  "Action": "Modify",
+  "LayoutName": "01",
+  "ViewportIndex": 1,
+  "ClipBoundaryPaperPoints": [
+    { "X": 40, "Y": 40 },
+    { "X": 260, "Y": 40 },
+    { "X": 250, "Y": 170 },
+    { "X": 170, "Y": 155 },
+    { "X": 40, "Y": 160 }
+  ],
+  "OverwriteUnlocked": true,
+  "Locked": true
+}
+```
+
+```
+Na layoucie "01" usun nieprostokatny clipping z rzutni nr 1.
+```
+Oczekiwane: `RemoveNonRectClip=true`; rzutnia wraca do prostokatnego obrysu.
+
+---
+
+## 10. Bezpieczenstwo - testowe "anti-blokady"
 
 ```
 Usun layout Model.
@@ -168,7 +286,7 @@ Oczekiwany blad - layout nie istnieje.
 
 ---
 
-## 10. Zlozone scenariusze
+## 11. Zlozone scenariusze
 
 ```
 Sprawdz ustawienia Page Setup wszystkich layoutow. Wyswietl dla kazdego: papier, urzadzenie, styl, skale, obrot.
@@ -188,7 +306,7 @@ Zaimportuj layout TitleBlock z C:/templates/standard.dwt, ustaw na nim plot type
 
 ---
 
-## 11. Format RPN (opcjonalnie - zaawansowane)
+## 12. Format RPN (opcjonalnie - zaawansowane)
 
 ```
 Ustaw OriginX na 12.5 mm dla layoutu A4-PION. OriginY na 25.4 mm.
@@ -220,6 +338,15 @@ Wartosci z prefixem `RPN:` sa wspierane w PageSetupTool (np. `RPN:Scale = 1/50`)
 - [ ] `PlotLayoutTool` - drukowanie pojedynczego layoutu
 - [ ] `PublishToPdfTool` - tryb MultiSheet
 - [ ] `PublishToPdfTool` - tryb SingleFiles
+- [ ] `ManageViewportsTool` - List bez rzutni zwraca czytelny wynik
+- [ ] `ManageViewportsTool` - Create z Window XY, Scale, AnnotationScale, Locked
+- [ ] `ManageViewportsTool` - Modify zablokowanej rzutni bez OverwriteUnlocked zwraca blad
+- [ ] `ManageViewportsTool` - Modify z OverwriteUnlocked zmienia zakres/skale i przywraca Locked
+- [ ] `ManageViewportsTool` - Delete usuwa tylko wskazana rzutnie papierowa
+- [ ] `ManageViewportsTool` - NamedView ustawia widok nazwany w rzutni
+- [ ] `ManageViewportsTool` - FreezeLayers/ThawLayers/ThawAllLayers dzialaja per rzutnia
+- [ ] `ManageViewportsTool` - ClipBoundaryPaperPoints tworzy nieprostokatny clipping
+- [ ] `ManageViewportsTool` - RemoveNonRectClip wylacza clipping nieprostokatny
 - [ ] `PlotStyleTool` - List/GetInfo
 - [ ] `PlotStyleTool` - Load (przez PSETUPIN)
 - [ ] `PlotStyleTool` - Assign do layoutu/wszystkich/ByName

@@ -17,6 +17,8 @@ namespace Bricscad_AgentAI_V2.Tests
                 BatchWriteXDataToolTests.RunTests();
                 MetricVisionToolTests.RunTests();
                 SelectEntitiesToolTests.RunTests();
+                ManageViewportsToolTests.RunTests();
+                PublishToPdfToolTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.UI.LatexToUnicodeConverterTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.DynamicFormulaManagerTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.VisionOcrTilerTests.RunTests();

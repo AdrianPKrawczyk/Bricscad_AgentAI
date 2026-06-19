@@ -362,13 +362,32 @@ Przy imporcie mozna wybrac, czy przenosimy tylko Page Setup (bez geometrii), czy
 - Wszystkie arkusze do jednego PDF: *"Opublikuj wszystkie layouty do jednego PDF w C:/export/komplet.pdf."*
 - Osobne pliki per arkusz: *"Opublikuj layouty A4-PION i A4-KRAJOBRAZ do osobnych plikow PDF w C:/export/."*
 
-### 13.6. Style wydruku (CTB/STB)
+### 13.6. Rzutnie na arkuszach
+Agent potrafi tworzyc i edytowac rzutnie papierowe na layoutach. Mozesz podac, gdzie rzutnia ma lezec na arkuszu, jaki fragment modelu ma pokazywac, jaka ma byc skala widoku oraz czy rzutnia ma byc zablokowana.
+
+Domyslnie ramka nowej rzutni trafia na warstwe `_rzutnie`. Jesli tej warstwy nie ma w rysunku, Agent utworzy ja automatycznie z kolorem 200 i wylaczonym drukiem, dzieki czemu ramki rzutni nie pojawia sie na PDF. Mozesz tez poprosic o inna warstwe ramki.
+
+Rzutnia moze tez korzystac z widoku nazwanego, miec nieprostokatny clipping z granicy na arkuszu oraz lokalnie zamrazac lub odmrazac warstwy tylko w tej jednej rzutni.
+
+Przykladowe prompty:
+- *"Na layoucie 01 stworz rzutnie 180x120 mm na srodku arkusza, pokaz zakres modelu od 0,0 do 9000,6000, skala 1:50, skala opisowa 1:50, zablokuj rzutnie."*
+- *"Na layoucie 01 stworz rzutnie na warstwie A-RZUTNIE i utworz te warstwe, jesli nie istnieje."*
+- *"W rzutni nr 1 na layoucie 01 ustaw widok nazwany Rzut parteru i zablokuj rzutnie z powrotem."*
+- *"W rzutni nr 1 na layoucie 01 zamroz warstwy A-MEBLE i A-OPIS tylko w tej rzutni."*
+- *"Na layoucie 01 ustaw rzutni nr 1 nieprostokatny clipping z punktow papieru 30,30; 260,30; 250,170; 30,160."*
+- *"Wylistuj rzutnie na layoucie 01."*
+- *"Zmien rzutnie nr 1 na layoucie 01 na skale 1:100 i zakres modelu od 1000,1000 do 12000,8000."*
+- *"Usun rzutnie nr 1 z layoutu 01."*
+
+Do zmiany istniejacej rzutni Agent uzywa indeksu z listy albo uchwytu rzutni. Jesli rzutnia jest zablokowana, Agent nie zmieni przypadkowo zakresu lub skali - najpierw zwroci czytelny komunikat, a zmiana wymaga jawnego polecenia odblokowania/nadpisania.
+
+### 13.7. Style wydruku (CTB/STB)
 Agent zarzadza tablicami stylow wydruku:
 - Listowanie: *"Pokaz wszystkie dostepne style wydruku."*
 - Ladowanie z pliku: *"Zaladuj styl z C:/Users/Adrian/AppData/Roaming/Bricsys/BricsCAD/V22/pl/PlotStyles/acad.ctb."*
 - Przypisanie: *"Przypisz styl acad.ctb do wszystkich layoutow oprocz Model."*
 
-### 13.7. Custom formaty papieru (297x600, User266)
+### 13.8. Custom formaty papieru (297x600, User266)
 
 Plotery HP DesignJet (i inne plotery z driverem gdiplot7.hdi) czesto uzywaja **formatow niestandardowych** zdefiniowanych przez uzytkownika w driverze Windows. Przykladowo: `297x600` (297mm szerokosci, 600mm dlugosci), `594x841` (format ISOA1), `594x1320_p` (594x1320mm z sufiksem `_p` oznaczajacym format skladany do A4).
 
@@ -489,3 +508,21 @@ Następujące narzędzia wspierają flagi bezpieczne i nie wykonają faktycznych
 
 > [!TIP]
 > Jeśli z poziomu czatu w BricsCAD chcesz przeprowadzić test logiki bez obawy, że cokolwiek zostanie zepsute, przekaż zadanie Rewidentowi wprost. Np: *"Zleć Rewidentowi sprawdzenie logiki polecenia UserChoiceTool"*.
+
+---
+
+## 13. Zestawy arkuszy - wlasciwosci uzytkownika
+
+Agent potrafi dodawac i odczytywac etykiety z okna **Wlasciwosci Uzytkownika** w Sheet Set Managerze.
+
+### ManageSheetSetTool
+- **Co robi:** tworzy lub zmienia metadane zestawu arkuszy, wlasciwosci zestawu oraz domyslne wlasciwosci arkuszy w pliku `.dst`.
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` pokaz ustawienia zestawu arkuszy."
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` ustaw opis `Projekt testowy`, nowa lokalizacje arkuszy `C:\SheetSetTests\Sheets` i wzor arkuszy z pliku `C:\SheetSetTests\template.dwt`, layout `A3`."
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` dodaj wlasciwosc zestawu `Test_1` o wartosci `test1`."
+- **Jak o to zapytac:** "Dodaj domyslna wlasciwosc arkusza `Test_2` o wartosci `test2` w zestawie `C:\SheetSetTests\Projekt1.dst`."
+- **Jak o to zapytac:** "W zestawie `C:\SheetSetTests\Projekt1.dst` sprawdz recznie utworzone etykiety `Inwestor`, `Projektant`, `Branza`."
+- **Jak o to zapytac:** "Zapamietaj dla zestawu `C:\SheetSetTests\Projekt1.dst` recznie utworzone etykiety `Inwestor`, `Projektant`, `Branza`."
+- **Wymagane dane:** sciezka do pliku `.dst`, nazwa etykiety i wartosc. Dla wartosci przypisanej do konkretnego arkusza trzeba podac numer arkusza.
+- **Uwaga:** etykiety utworzone recznie w BricsCAD moga wymagac podania ich nazw albo jednorazowego zapamietania przez agenta, poniewaz API BricsCAD nie zawsze potrafi samo wyliczyc ich nazwy.
+- **Uwaga:** pola "Numer projektu", "Nazwa projektu", "Faza projektu" i "Kamien milowy projektu" sa probowane przez late-binding COM. Jesli BricsCAD odrzuci zapis, Agent zwroci ostrzezenie zamiast raportowac falszywy sukces.

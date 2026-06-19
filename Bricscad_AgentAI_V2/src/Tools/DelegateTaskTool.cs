@@ -118,33 +118,70 @@ namespace Bricscad_AgentAI_V2.Tools
             try
             {
                 AgentTelemetry.ReportLoopLog($"[Supervisor -> {targetProfile}]\n{taskDescription}");
-                // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ăłwny wÄ…tek przed Deadlockiem
-                AgentExecutionResult result = Task.Run(async () => {
-                    return await client.SendMessageReActAsync(
-                        conversationHistory: localHistory, 
-                        context: context, 
-                        initialTags: null, 
-                        earlyExitEnabled: AgentMemoryState.EarlyExitEnabled,
-                        maxIterations: 10, 
-                        profileName: targetProfile);
-                }).GetAwaiter().GetResult();
+                AgentExecutionResult result = null;
+                WorkValidationReport validation = null;
+                const int maxValidationAttempts = 2;
 
-                // --- DATASET STUDIO INTEGRATION FOR WORKER ---
-                try
+                for (int attempt = 1; attempt <= maxValidationAttempts; attempt++)
                 {
-                    var historySnapshot = new List<ChatMessage>(localHistory);
-                    var toolsSnapshot = ToolOrchestrator.Instance.GetToolsPayloadForProfile(targetProfile);
-                    AgentTelemetry.ReportDatasetRecord(
-                        $"[{targetProfile}] {taskDescription}", 
-                        historySnapshot, 
-                        toolsSnapshot, 
-                        client.LastStats
-                    );
+                    // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ăłwny wÄ…tek przed Deadlockiem
+                    result = Task.Run(async () => {
+                        return await client.SendMessageReActAsync(
+                            conversationHistory: localHistory,
+                            context: context,
+                            initialTags: null,
+                            earlyExitEnabled: AgentMemoryState.EarlyExitEnabled,
+                            maxIterations: 10,
+                            profileName: targetProfile);
+                    }).GetAwaiter().GetResult();
+
+                    // --- DATASET STUDIO INTEGRATION FOR WORKER ---
+                    try
+                    {
+                        var historySnapshot = new List<ChatMessage>(localHistory);
+                        var toolsSnapshot = ToolOrchestrator.Instance.GetToolsPayloadForProfile(targetProfile);
+                        AgentTelemetry.ReportDatasetRecord(
+                            $"[{targetProfile}] {taskDescription}",
+                            historySnapshot,
+                            toolsSnapshot,
+                            client.LastStats
+                        );
+                    }
+                    catch { }
+
+                    if (!result.IsSuccess)
+                    {
+                        break;
+                    }
+
+                    validation = WorkValidator.Validate(targetProfile, taskDescription, localHistory, result.DisplayMessage);
+                    AgentTelemetry.ReportLoopLog(validation.ToLoopLog());
+
+                    if (validation.Decision == WorkValidationDecision.Accept)
+                    {
+                        break;
+                    }
+
+                    if (validation.Decision == WorkValidationDecision.Retry && attempt < maxValidationAttempts)
+                    {
+                        string repairPrompt = validation.BuildRepairPrompt();
+                        AgentTelemetry.ReportLoopLog($"[WORK VALIDATION -> {targetProfile}]\n{repairPrompt}");
+                        localHistory.Add(new ChatMessage { Role = "user", Content = repairPrompt });
+                        continue;
+                    }
+
+                    break;
                 }
-                catch { }
 
                 if (result.IsSuccess)
                 {
+                    if (validation != null && validation.Decision != WorkValidationDecision.Accept)
+                    {
+                        string reason = validation.Reason ?? "Walidator nie zaakceptowal pracy subagenta.";
+                        AgentTelemetry.ReportLoopLog($"[{targetProfile} -> Supervisor]\nBLAD WALIDACJI: {reason}");
+                        return $"BŁĄD: '{targetProfile}' nie dostarczyl wystarczajacego dowodu wykonania zadania. {reason}";
+                    }
+
                     if (IsLikelyUnfulfilledLayoutMutation(targetProfile, taskDescription, result.DisplayMessage))
                     {
                         return $"BŁĄD: '{targetProfile}' nie wykonał zleconej modyfikacji. Zwrócił tylko listę layoutów zamiast użyć PageSetupTool/Foreach do zmiany ustawień. Powtórz delegowanie z jawnym nakazem wykonania PageSetupTool dla każdego arkusza.";

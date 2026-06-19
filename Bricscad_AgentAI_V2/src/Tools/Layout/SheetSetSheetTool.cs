@@ -118,10 +118,43 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                     {
                         if (string.IsNullOrWhiteSpace(sourceDwg) || string.IsNullOrWhiteSpace(sourceLayout))
                             return "BLAD: Akcja AddSheet wymaga SourceDwgPath i SourceLayoutName.";
+
+                        if (FindSheetByName(sheetSet, sourceLayout) != null)
+                            return $"SUKCES: Arkusz '{sourceLayout}' juz istnieje w zestawie.";
                         
-                        dynamic newSheet = sheetSet.ImportSheet(null, sourceDwg, sourceLayout);
+                        object newSheet;
+                        string importError;
+                        if (!SheetSetComHelpers.TryImportSheetTyped(sheetSet, sourceDwg, sourceLayout, out newSheet, out importError))
+                        {
+                            return $"BLAD: Nie udalo sie zaimportowac arkusza z pliku DWG. Typowany COM: {importError}";
+                        }
+
                         if (newSheet == null) return $"BLAD: Nie udalo sie zaimportowac arkusza z pliku DWG.";
-                        if (!locked) SheetSetComHelpers.TrySaveDatabase(mgr, db, dstPath);
+
+                        try
+                        {
+                            dynamic sheet = newSheet;
+                            sheet.SetName(sourceLayout);
+                            sheet.SetTitle(sourceLayout);
+                            if (string.IsNullOrWhiteSpace(sheet.GetNumber()))
+                                sheet.SetNumber(sourceLayout);
+                        }
+                        catch
+                        {
+                            // Some Sheet Set implementations fill metadata during import; continue with insertion.
+                        }
+
+                        bool inserted = FindSheetByName(sheetSet, sourceLayout) != null
+                            || SheetSetComHelpers.TryInsertComponent(sheetSet, newSheet);
+
+                        if (!inserted)
+                            return $"BLAD: ImportSheet utworzyl obiekt arkusza, ale nie udalo sie wstawic go do struktury zestawu.";
+
+                        SheetSetComHelpers.TrySaveDatabase(mgr, db, dstPath);
+
+                        if (FindSheetByName(sheetSet, sourceLayout) == null)
+                            return $"BLAD: ImportSheet zwrocil arkusz, ale po zapisie nie znaleziono go w enumeratorze zestawu. Nie zglaszam sukcesu.";
+
                         return $"SUKCES: Arkusz '{sourceLayout}' z pliku DWG zostal dodany do zestawu.";
                     }
                     else if (string.Equals(action, "Rename", StringComparison.OrdinalIgnoreCase))
@@ -133,7 +166,24 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         if (targetSheet == null) return $"BLAD: Nie znaleziono arkusza o numerze '{sheetNumber}'.";
                         
                         targetSheet.SetName(newSheetName);
-                        if (!locked) SheetSetComHelpers.TrySaveDatabase(mgr, db, dstPath);
+                        try { targetSheet.SetTitle(newSheetName); } catch { }
+                        SheetSetComHelpers.TrySaveDatabase(mgr, db, dstPath);
+
+                        dynamic renamedSheet = FindSheetByNumber(sheetSet, sheetNumber);
+                        if (renamedSheet == null)
+                            return $"BLAD: Po zmianie nazwy nie znaleziono arkusza o numerze '{sheetNumber}' w zestawie.";
+
+                        string actualName = string.Empty;
+                        string actualTitle = string.Empty;
+                        try { actualName = renamedSheet.GetName(); } catch { }
+                        try { actualTitle = renamedSheet.GetTitle(); } catch { }
+
+                        if (!string.Equals(actualName, newSheetName, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(actualTitle, newSheetName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return $"BLAD: Wywolano zmiane nazwy, ale arkusz nadal ma Name='{actualName}', Title='{actualTitle}'.";
+                        }
+
                         return $"SUKCES: Arkusz '{sheetNumber}' zmienil nazwe na '{newSheetName}'.";
                     }
                     else if (string.Equals(action, "Renumber", StringComparison.OrdinalIgnoreCase))
@@ -145,7 +195,11 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                         if (targetSheet == null) return $"BLAD: Nie znaleziono arkusza o numerze '{sheetNumber}'.";
                         
                         targetSheet.SetNumber(newSheetNumber);
-                        if (!locked) SheetSetComHelpers.TrySaveDatabase(mgr, db, dstPath);
+                        SheetSetComHelpers.TrySaveDatabase(mgr, db, dstPath);
+
+                        if (FindSheetByNumber(sheetSet, newSheetNumber) == null)
+                            return $"BLAD: Wywolano zmiane numeru, ale nie znaleziono arkusza o nowym numerze '{newSheetNumber}'.";
+
                         return $"SUKCES: Arkusz oznaczony '{sheetNumber}' ma teraz numer '{newSheetNumber}'.";
                     }
 
@@ -185,6 +239,38 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 }
                 comp = iter.Next();
             }
+            return null;
+        }
+
+        private dynamic FindSheetByName(dynamic parent, string targetName)
+        {
+            dynamic iter = parent.GetSheetEnumerator();
+            if (iter == null) return null;
+
+            iter.Reset();
+            dynamic comp = iter.Next();
+            while (comp != null)
+            {
+                string typeName = comp.GetTypeName();
+                if (typeName == "AcSmSubset")
+                {
+                    dynamic found = FindSheetByName(comp, targetName);
+                    if (found != null) return found;
+                }
+                else if (typeName == "AcSmSheet")
+                {
+                    string name = comp.GetName();
+                    string title = string.Empty;
+                    try { title = comp.GetTitle(); } catch { }
+
+                    if (string.Equals(name, targetName, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(title, targetName, StringComparison.OrdinalIgnoreCase))
+                        return comp;
+                }
+
+                comp = iter.Next();
+            }
+
             return null;
         }
 

@@ -174,6 +174,34 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 - **Silent Name Mismatch (Death Spiral)**: Naprawiono błąd w v2.9.1, gdzie klucze `ToolConfigManager` korzystały z nazw klas C# zamiast API Names z `FunctionSchema`, co unieruchamiało mechanizm Early Exit i gubiło narzędzia #core.
 
 ## Dziennik Deweloperski (Logi Zadań)
+## [v2.30.20 GOLD] 2026-06-18T16:45:00+02:00 - Zestawy Arkuszy (Sheet Set Manager) w profilu Layout
+### [ZREALIZOWANO]
+- Utworzono narzędzie `ManageSheetSetTool` korzystające z COM (AcSmSheetSetMgr) dla operacji takich jak Open, Close, List, CreateSubset.
+- Utworzono narzędzie `SheetSetSheetTool` do operowania na arkuszach zestawu (AddSheet, Rename, Renumber).
+- Zaktualizowano `ToolConfigManager.cs` by wspierał `ManageSheetSetTool` i `SheetSetSheetTool` pod tagiem `#sheetset` w profilu CadLayoutProfile.
+- Rozszerzono `system_prompt_layout.txt` i `system_prompt_supervisor.txt` o logikę rutingu dla `zestawów arkuszy` oraz plików `.dst`.
+### [WERYFIKACJA]
+- Brak błędów składniowych podczas kompilacji (`build.ps1`). Przekopiowanie DLL niemożliwe z powodu zablokowania pliku przez pracujący BricsCAD.
+### [BLOKADY / PROBLEMY]
+- Wymagane ponowne uruchomienie BricsCAD w celu udanej dystrybucji DLL przez kompilator.
+### [KOLEJNY_KROK]
+- Oczekiwanie na manualny build oraz testy w BricsCAD.
+
+## [v2.30.19 GOLD] 2026-06-18T16:40:00+02:00 - ManageViewportsTool dla rzutni arkuszowych
+### [ZREALIZOWANO]
+- Dodano `ManageViewportsTool` do obslugi prostokatnych rzutni papierowych w layoutach: `List`, `Create`, `Modify`, `Delete`.
+- Narzedzie uzywa natywnego API `Teigha.DatabaseServices.Viewport`, bez komend CAD i bez dialogow, aby uniknac problemow lokalizacji i interakcji.
+- Obslugiwane sa: pozycja i rozmiar rzutni na papierze, zakres modelu Window XY, `CustomScale`, skala opisowa, `Locked`, `On`, `TwistAngle`, `HiddenLinesRemoved`, warstwa ramki oraz tworzenie brakujacej warstwy na zadanie.
+- `Modify` chroni zablokowane rzutnie: bez `OverwriteUnlocked=true` pozwala tylko na zmiane `Locked`/`On`.
+- Dodano rejestracje w profilach `CadProfile` i `CadLayoutProfile`, tagi `#viewport/#rzutnie`, WorkValidator, prompt layoutowy, dokumentacje i manualne scenariusze testowe.
+- Poprawka po tescie manualnym: rzutnia uzytkownika z `On=false` moze miec `Viewport.Number == 0`, dlatego systemowa rzutnia papieru jest teraz rozpoznawana tylko jako `Number == 1`. List/Modify/Delete nie gubia juz wylaczonych rzutni.
+- Domyslna warstwa nowych rzutni to `_rzutnie`; narzedzie tworzy ja automatycznie, ustawia kolor ACI 200 i `IsPlottable=false`. Parametr `Layer` pozwala subagentowi umiescic ramke na innej wskazanej warstwie.
+### [WERYFIKACJA]
+- `powershell -ExecutionPolicy Bypass -File build.ps1` zakonczony sukcesem: 0 bledow, 4 istniejace ostrzezenia.
+### [BLOKADY / PROBLEMY]
+- Etap restore w build.ps1 pokazuje odmowe dostepu do `C:\Users\Adrian\AppData\Roaming\NuGet\NuGet.Config`, ale nastepny etap rebuild korzysta z lokalnych pakietow i konczy sie sukcesem.
+### [KOLEJNY_KROK]
+- Manualne testy w BricsCAD: Create/Modify/Delete rzutni i publikacja PDF po utworzeniu rzutni.
 ## [v2.30.18 GOLD] 2026-06-18T16:20:00+02:00 - Poprawka PublishToPdfTool SingleFiles PDF naming
 ### [ZREALIZOWANO]
 - Naprawiono `PublishToPdfTool` w trybie `SingleFiles`, aby sciezka katalogu `Z:/export/` nie uruchamiala dialogu zapisu PDF i tworzyla pliki wedlug nazw arkuszy.
