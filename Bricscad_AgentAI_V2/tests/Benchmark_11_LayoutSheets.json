@@ -1,0 +1,584 @@
+{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_11_LayoutSheets",
+    "ModelName": "LLM-Benchmark-V2",
+    "ProfileName": "CadLayoutProfile",
+    "RunDate": "2026-06-19",
+    "Comment": "Benchmark dla obslugi arkuszy/layoutow w aktywnym DWG w CadLayoutProfile. 30 testow, 8 kategorii, poziomy D1-D5. Pokrywa ListLayoutsTool, ManageLayoutTool, PageSetupTool, Import/ExportLayoutTemplateTool, ListPlotDevicesTool, PlotStyleTool, PlotLayoutTool, PublishToPdfTool, ManageViewportsTool i Foreach."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "LayoutList",
+      "Difficulty": 1,
+      "TestName": "ListAllLayouts",
+      "Description": "Agent listuje wszystkie layouty w aktywnym rysunku.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wylistuj wszystkie layouty w aktywnym rysunku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListLayoutsTool": "Znaleziono 3 layout(ow): Model, Arkusz1, Arkusz2."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ListLayoutsTool", "ErrorMessage": "BLAD: Model powinien uzyc ListLayoutsTool." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "LayoutName", "TargetValue": "", "ErrorMessage": "BLAD: Przy liscie wszystkich layoutow nie podawaj LayoutName." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "ListLayoutsTool", "ExpectedOutput": "1", "ErrorMessage": "BLAD: Do listowania wystarczy jedno wywolanie ListLayoutsTool." }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "LayoutList",
+      "Difficulty": 1,
+      "TestName": "ListSpecificLayoutSettings",
+      "Description": "Agent odczytuje szczegolowe Page Setup jednego layoutu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Pokaz szczegolowe ustawienia arkusza \"Arkusz1\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListLayoutsTool": "SZCZEGOLOWE USTAWIENIA LAYOUTU Arkusz1: PlotDevice=DWG To PDF.pc3 Media=A3"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ListLayoutsTool", "ErrorMessage": "BLAD: Ustawienia konkretnego layoutu czyta ListLayoutsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Dla konkretnego arkusza wymagane LayoutName=Arkusz1." }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "LayoutList",
+      "Difficulty": 2,
+      "TestName": "ListLayoutsFromDwt",
+      "Description": "Agent listuje layouty w zewnetrznym pliku DWT/DWG.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Sprawdz jakie layouty sa w szablonie \"C:\\LayoutTests\\A3_template.dwt\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListLayoutsTool": "Layouty w pliku C:\\LayoutTests\\A3_template.dwt: A3_POZIOM, A3_PION"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ListLayoutsTool", "ErrorMessage": "BLAD: Layouty w DWT listuje ListLayoutsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwtPath", "TargetValue": "C:\\LayoutTests\\A3_template.dwt", "ErrorMessage": "BLAD: Brak SourceDwtPath do pliku DWT." }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "LayoutCrud",
+      "Difficulty": 1,
+      "TestName": "CreateLayout",
+      "Description": "Agent tworzy nowy layout.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz nowy layout o nazwie \"A3_TEST\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageLayoutTool": "SUKCES: Utworzono layout 'A3_TEST'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: Tworzenie layoutu wymaga ManageLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Create", "ErrorMessage": "BLAD: Oczekiwano Action=Create." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "A3_TEST", "ErrorMessage": "BLAD: Brak LayoutName=A3_TEST." }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "LayoutCrud",
+      "Difficulty": 2,
+      "TestName": "RenameLayout",
+      "Description": "Agent zmienia nazwe layoutu.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zmien nazwe layoutu \"A3_TEST\" na \"A3_FINAL\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageLayoutTool": "SUKCES: Zmieniono nazwe layoutu 'A3_TEST' na 'A3_FINAL'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: Zmiana nazwy layoutu wymaga ManageLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Rename", "ErrorMessage": "BLAD: Oczekiwano Action=Rename." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "A3_TEST", "ErrorMessage": "BLAD: Brak LayoutName=A3_TEST." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "NewName", "TargetValue": "A3_FINAL", "ErrorMessage": "BLAD: Brak NewName=A3_FINAL." }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "LayoutCrud",
+      "Difficulty": 2,
+      "TestName": "CloneLayout",
+      "Description": "Agent klonuje layout z nadaniem nowej nazwy.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Sklonuj layout \"Arkusz1\" jako \"Arkusz1_KOPIA\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageLayoutTool": "SUKCES: Sklonowano layout 'Arkusz1' jako 'Arkusz1_KOPIA'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: Klonowanie layoutu wymaga ManageLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Clone", "ErrorMessage": "BLAD: Oczekiwano Action=Clone." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "NewName", "TargetValue": "Arkusz1_KOPIA", "ErrorMessage": "BLAD: Brak NewName=Arkusz1_KOPIA." }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "LayoutCrud",
+      "Difficulty": 2,
+      "TestName": "SetCurrentLayout",
+      "Description": "Agent ustawia aktywny layout.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Ustaw layout \"Arkusz2\" jako aktualny.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageLayoutTool": "SUKCES: Ustawiono aktualny layout 'Arkusz2'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: Ustawienie aktualnego layoutu wymaga ManageLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "SetCurrent", "ErrorMessage": "BLAD: Oczekiwano Action=SetCurrent." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz2." }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "LayoutCrud",
+      "Difficulty": 3,
+      "TestName": "DeleteLayout_NotModel",
+      "Description": "Agent usuwa zwykly layout, nie Model.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Usun layout \"Arkusz1_KOPIA\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageLayoutTool": "SUKCES: Usunieto layout 'Arkusz1_KOPIA'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: Usuwanie layoutu wymaga ManageLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Delete", "ErrorMessage": "BLAD: Oczekiwano Action=Delete." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1_KOPIA", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1_KOPIA." }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "LayoutTemplates",
+      "Difficulty": 3,
+      "TestName": "CopyFromTemplate_ManageLayout",
+      "Description": "Agent uzywa ManageLayoutTool CopyFromTemplate z poprawnymi nazwami parametrow.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Skopiuj layout \"A3_POZIOM\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" do biezacego rysunku jako \"A3_IMPORT\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageLayoutTool": "SUKCES: Skopiowano layout z szablonu."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: CopyFromTemplate obsluguje ManageLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "CopyFromTemplate", "ErrorMessage": "BLAD: Oczekiwano Action=CopyFromTemplate." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\LayoutTests\\A3_template.dwt", "ErrorMessage": "BLAD: Brak SourceDwgPath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "TemplateLayoutName", "TargetValue": "A3_POZIOM", "ErrorMessage": "BLAD: Brak TemplateLayoutName=A3_POZIOM." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "A3_IMPORT", "ErrorMessage": "BLAD: LayoutName powinien byc docelowa nazwa A3_IMPORT." }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "LayoutTemplates",
+      "Difficulty": 3,
+      "TestName": "ImportLayoutTemplate_Full",
+      "Description": "Agent importuje layout przez dedykowane narzedzie ImportLayoutTemplateTool.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zaimportuj layout \"A3_PION\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" jako \"A3_PION_IMPORT\" razem z geometria i Page Setup.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ImportLayoutTemplateTool": "SUKCES: Zaimportowano layout 'A3_PION_IMPORT'."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ImportLayoutTemplateTool", "ErrorMessage": "BLAD: Import layoutu z DWT obsluguje ImportLayoutTemplateTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourcePath", "TargetValue": "C:\\LayoutTests\\A3_template.dwt", "ErrorMessage": "BLAD: ImportLayoutTemplateTool wymaga SourcePath, nie SourceDwgPath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A3_PION", "ErrorMessage": "BLAD: Brak SourceLayoutName=A3_PION." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "TargetLayoutName", "TargetValue": "A3_PION_IMPORT", "ErrorMessage": "BLAD: Brak TargetLayoutName=A3_PION_IMPORT." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "ImportEntities", "TargetValue": "true", "ErrorMessage": "BLAD: ImportEntities powinno byc true albo pominiete." }
+      ]
+    },
+    {
+      "Id": 11,
+      "Category": "LayoutTemplates",
+      "Difficulty": 3,
+      "TestName": "ImportLayoutTemplate_PlotSettingsOnly",
+      "Description": "Agent importuje tylko Page Setup bez geometrii.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Z szablonu \"C:\\LayoutTests\\A3_template.dwt\" przenies tylko Page Setup layoutu \"A3_POZIOM\" na layout docelowy \"Arkusz1\", bez importowania geometrii.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ImportLayoutTemplateTool": "SUKCES: Zaimportowano Page Setup bez geometrii."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ImportLayoutTemplateTool", "ErrorMessage": "BLAD: Import Page Setup z szablonu obsluguje ImportLayoutTemplateTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourcePath", "TargetValue": "C:\\LayoutTests\\A3_template.dwt", "ErrorMessage": "BLAD: Brak SourcePath." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A3_POZIOM", "ErrorMessage": "BLAD: Brak SourceLayoutName=A3_POZIOM." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "TargetLayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak TargetLayoutName=Arkusz1." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "ImportPlotSettings", "TargetValue": "true", "ErrorMessage": "BLAD: Page Setup wymaga ImportPlotSettings=true." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "ImportEntities", "TargetValue": "false", "ErrorMessage": "BLAD: Bez geometrii wymaga ImportEntities=false." }
+      ]
+    },
+    {
+      "Id": 12,
+      "Category": "LayoutTemplates",
+      "Difficulty": 3,
+      "TestName": "ExportLayoutTemplate",
+      "Description": "Agent eksportuje layout do DWT.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wyeksportuj layout \"Arkusz1\" do pliku \"C:\\LayoutTests\\export\\Arkusz1_template.dwt\" wraz z Page Setup i blokami, nadpisz jesli istnieje.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ExportLayoutTemplateTool": "SUKCES: Wyeksportowano layout do DWT."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ExportLayoutTemplateTool", "ErrorMessage": "BLAD: Eksport layoutu do DWT obsluguje ExportLayoutTemplateTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "TargetPath", "TargetValue": "C:\\LayoutTests\\export\\Arkusz1_template.dwt", "ErrorMessage": "BLAD: Brak TargetPath." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "IncludePlotSettings", "TargetValue": "true", "ErrorMessage": "BLAD: Brak IncludePlotSettings=true." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "IncludeBlocks", "TargetValue": "true", "ErrorMessage": "BLAD: Brak IncludeBlocks=true." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "OverwriteIfExists", "TargetValue": "true", "ErrorMessage": "BLAD: User pozwolil nadpisac, wymagane OverwriteIfExists=true." }
+      ]
+    },
+    {
+      "Id": 13,
+      "Category": "PageSetup",
+      "Difficulty": 2,
+      "TestName": "PageSetup_A3Pdf",
+      "Description": "Agent ustawia ploter PDF, A3, styl i centrowanie.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Dla layoutu \"Arkusz1\" ustaw Page Setup: ploter \"DWG To PDF.pc3\", format \"A3\", styl \"acad.ctb\", obrot poziomy i centrowanie.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PageSetupTool": "SUKCES: Zastosowano 5 ustawien Page Setup."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PageSetupTool", "ErrorMessage": "BLAD: Page Setup obsluguje PageSetupTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PlotDevice", "TargetValue": "DWG To PDF.pc3", "ErrorMessage": "BLAD: Brak PlotDevice=DWG To PDF.pc3." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MediaName", "TargetValue": "A3", "ErrorMessage": "BLAD: Brak MediaName=A3." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "StyleSheet", "TargetValue": "acad.ctb", "ErrorMessage": "BLAD: Brak StyleSheet=acad.ctb." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PlotRotation", "TargetValue": "Ninety || Zero", "ErrorMessage": "BLAD: Brak jawnego PlotRotation dla orientacji." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "PlotCentered", "TargetValue": "true", "ErrorMessage": "BLAD: Brak PlotCentered=true." }
+      ]
+    },
+    {
+      "Id": 14,
+      "Category": "PageSetup",
+      "Difficulty": 3,
+      "TestName": "PageSetup_CustomMediaNoPreflight",
+      "Description": "Agent ustawia custom format podany wprost i nie odpytuje ListPlotDevicesTool.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Dla layoutu \"IS.W.01\" ustaw format papieru \"297x600\" na ploterze \"HP DesignJet T120 - Adrian.pc3\". Nie sprawdzaj listy formatow, podalem dokladna nazwe.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PageSetupTool": "SUKCES: Ustawiono MediaName 297x600."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PageSetupTool", "ErrorMessage": "BLAD: Ustawienie formatu papieru obsluguje PageSetupTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "IS.W.01", "ErrorMessage": "BLAD: Brak LayoutName=IS.W.01." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PlotDevice", "TargetValue": "HP DesignJet T120 - Adrian.pc3", "ErrorMessage": "BLAD: Brak PlotDevice HP." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MediaName", "TargetValue": "297x600", "ErrorMessage": "BLAD: Brak MediaName=297x600." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "ListPlotDevicesTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy dokladnej nazwie MediaName nie wolno rutynowo odpytywac ListPlotDevicesTool." }
+      ]
+    },
+    {
+      "Id": 15,
+      "Category": "PageSetup",
+      "Difficulty": 3,
+      "TestName": "PageSetup_WindowScale",
+      "Description": "Agent ustawia plot window i skale wlasna.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Dla layoutu \"Arkusz2\" ustaw drukowanie obszaru Window w skali 1:50, bez dopasowania do papieru, z origin 0,0.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PageSetupTool": "SUKCES: Ustawiono PlotType Window i skale 1:50."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PageSetupTool", "ErrorMessage": "BLAD: Page Setup obsluguje PageSetupTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz2." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "PlotType", "TargetValue": "Window", "ErrorMessage": "BLAD: Brak PlotType=Window." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "UseStandardScale", "TargetValue": "false", "ErrorMessage": "BLAD: Skala wlasna wymaga UseStandardScale=false." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "CustomScaleNumerator", "TargetValue": "1 || 1.0", "ErrorMessage": "BLAD: Brak CustomScaleNumerator=1." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "CustomScaleDenominator", "TargetValue": "50 || 50.0", "ErrorMessage": "BLAD: Brak CustomScaleDenominator=50." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PlotOriginX", "TargetValue": "0 || 0.0", "ErrorMessage": "BLAD: Brak PlotOriginX=0." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PlotOriginY", "TargetValue": "0 || 0.0", "ErrorMessage": "BLAD: Brak PlotOriginY=0." }
+      ]
+    },
+    {
+      "Id": 16,
+      "Category": "PageSetup",
+      "Difficulty": 4,
+      "TestName": "PageSetup_AllLayouts_Foreach",
+      "Description": "Agent listuje layouty i uzywa Foreach do PageSetup na wielu arkuszach.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na wszystkich layoutach ustaw ploter \"DWG To PDF.pc3\", format \"A3\" i styl \"acad.ctb\". Uzyj Foreach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListLayoutsTool": "Znaleziono 2 layout(ow): Arkusz1, Arkusz2.",
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "ListLayoutsTool, Foreach", "ErrorMessage": "BLAD: Dla wszystkich layoutow oczekiwano ListLayoutsTool -> Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Foreach powinien miec Arkusz1 w Items." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Foreach powinien miec Arkusz2 w Items." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"PageSetupTool\",\"LayoutName\":\"{item}\",\"PlotDevice\":\"DWG To PDF.pc3\",\"MediaName\":\"A3\",\"StyleSheet\":\"acad.ctb\"} || {\"ToolName\":\"PageSetupTool\",\"PlotDevice\":\"DWG To PDF.pc3\",\"MediaName\":\"A3\",\"StyleSheet\":\"acad.ctb\",\"LayoutName\":\"{item}\"}", "ErrorMessage": "BLAD: Foreach powinien wywolywac PageSetupTool z LayoutName={item}." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "PageSetupTool", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Przy Foreach nie wolno dodatkowo wolac PageSetupTool bezposrednio." }
+      ]
+    },
+    {
+      "Id": 17,
+      "Category": "PlotDevicesStyles",
+      "Difficulty": 2,
+      "TestName": "ListPlotDevices_Hp",
+      "Description": "Agent eksploruje plotery i formaty dla HP.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Jakie formaty obsluguje ploter \"HP DesignJet T120\"?",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ListPlotDevicesTool": "LISTA URZADZEN DRUKUJACYCH: HP DesignJet T120 - Adrian.pc3"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ListPlotDevicesTool", "ErrorMessage": "BLAD: Eksploracja ploterow wymaga ListPlotDevicesTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Filter", "TargetValue": "HP DesignJet T120", "ErrorMessage": "BLAD: Brak filtra HP DesignJet T120." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "IncludeMediaPerDevice", "TargetValue": "true", "ErrorMessage": "BLAD: Dla formatow konkretnego plotera wymagane IncludeMediaPerDevice=true." }
+      ]
+    },
+    {
+      "Id": 18,
+      "Category": "PlotDevicesStyles",
+      "Difficulty": 1,
+      "TestName": "PlotStyle_List",
+      "Description": "Agent listuje style wydruku.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Pokaz dostepne style wydruku CTB/STB.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PlotStyleTool": "DOSTEPNE STYLE: acad.ctb, monochrome.ctb"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PlotStyleTool", "ErrorMessage": "BLAD: Style wydruku obsluguje PlotStyleTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "List", "ErrorMessage": "BLAD: Oczekiwano Action=List." }
+      ]
+    },
+    {
+      "Id": 19,
+      "Category": "PlotDevicesStyles",
+      "Difficulty": 2,
+      "TestName": "PlotStyle_Load",
+      "Description": "Agent laduje styl CTB z pliku.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zaladuj styl wydruku z pliku \"C:\\PlotStyles\\firmowy.ctb\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PlotStyleTool": "SUKCES: Zaladowano styl firmowy.ctb."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PlotStyleTool", "ErrorMessage": "BLAD: Ladowanie CTB obsluguje PlotStyleTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Load", "ErrorMessage": "BLAD: Oczekiwano Action=Load." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FilePath", "TargetValue": "C:\\PlotStyles\\firmowy.ctb", "ErrorMessage": "BLAD: Brak FilePath do CTB." }
+      ]
+    },
+    {
+      "Id": 20,
+      "Category": "PlotDevicesStyles",
+      "Difficulty": 3,
+      "TestName": "PlotStyle_AssignAll",
+      "Description": "Agent przypisuje styl do wszystkich layoutow.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Przypisz styl \"monochrome.ctb\" do wszystkich layoutow.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PlotStyleTool": "SUKCES: Przypisano styl do wszystkich layoutow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PlotStyleTool", "ErrorMessage": "BLAD: Przypisywanie CTB obsluguje PlotStyleTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Assign", "ErrorMessage": "BLAD: Oczekiwano Action=Assign." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "StyleSheetName", "TargetValue": "monochrome.ctb", "ErrorMessage": "BLAD: Brak StyleSheetName=monochrome.ctb." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "ApplyTo", "TargetValue": "AllLayouts", "ErrorMessage": "BLAD: Do wszystkich layoutow wymagane ApplyTo=AllLayouts." }
+      ]
+    },
+    {
+      "Id": 21,
+      "Category": "PlotPublish",
+      "Difficulty": 2,
+      "TestName": "PlotLayout_Pdf",
+      "Description": "Agent drukuje pojedynczy layout do PDF.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wydrukuj layout \"Arkusz1\" do PDF \"C:\\LayoutTests\\pdf\\Arkusz1.pdf\", dopasuj do papieru i wycentruj.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PlotLayoutTool": "SUKCES: Wydrukowano layout Arkusz1 do PDF."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PlotLayoutTool", "ErrorMessage": "BLAD: Pojedynczy wydruk obsluguje PlotLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "OutputPath", "TargetValue": "C:\\LayoutTests\\pdf\\Arkusz1.pdf", "ErrorMessage": "BLAD: Brak OutputPath PDF." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "OutputFormat", "TargetValue": "PDF", "ErrorMessage": "BLAD: Brak OutputFormat=PDF." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "ScaleToFit", "TargetValue": "true", "ErrorMessage": "BLAD: Brak ScaleToFit=true." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "CenterOnPage", "TargetValue": "true", "ErrorMessage": "BLAD: Brak CenterOnPage=true." }
+      ]
+    },
+    {
+      "Id": 22,
+      "Category": "PlotPublish",
+      "Difficulty": 2,
+      "TestName": "PlotLayout_Png",
+      "Description": "Agent eksportuje pojedynczy layout do PNG.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wyeksportuj layout \"Arkusz2\" do PNG \"C:\\LayoutTests\\png\\Arkusz2.png\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PlotLayoutTool": "SUKCES: Wydrukowano layout Arkusz2 do PNG."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PlotLayoutTool", "ErrorMessage": "BLAD: Eksport layoutu do PNG obsluguje PlotLayoutTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz2." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "OutputPath", "TargetValue": "C:\\LayoutTests\\png\\Arkusz2.png", "ErrorMessage": "BLAD: Brak OutputPath PNG." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "OutputFormat", "TargetValue": "PNG", "ErrorMessage": "BLAD: Brak OutputFormat=PNG." }
+      ]
+    },
+    {
+      "Id": 23,
+      "Category": "PlotPublish",
+      "Difficulty": 3,
+      "TestName": "Publish_MultiSheet",
+      "Description": "Agent publikuje kilka layoutow do jednego PDF.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Opublikuj layouty \"Arkusz1\" i \"Arkusz2\" do jednego pliku PDF \"C:\\LayoutTests\\pdf\\Komplet.pdf\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PublishToPdfTool": "SUKCES: Zlecono 2/2 layout(ow) do MultiSheet."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PublishToPdfTool", "ErrorMessage": "BLAD: Publikacje wielu layoutow obsluguje PublishToPdfTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Mode", "TargetValue": "MultiSheet", "ErrorMessage": "BLAD: Jeden PDF wymaga Mode=MultiSheet." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "OutputPdfPath", "TargetValue": "C:\\LayoutTests\\pdf\\Komplet.pdf", "ErrorMessage": "BLAD: Brak OutputPdfPath do jednego PDF." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "LayoutNames[0]", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak Arkusz1 w LayoutNames." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "LayoutNames[1]", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Brak Arkusz2 w LayoutNames." }
+      ]
+    },
+    {
+      "Id": 24,
+      "Category": "PlotPublish",
+      "Difficulty": 4,
+      "TestName": "Publish_SingleFiles_WithPrefix",
+      "Description": "Agent publikuje osobne PDF z prefiksem nazw plikow, nie tworzy folderu z prefiksem.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Opublikuj layouty \"Arkusz1\" i \"Arkusz2\" do pojedynczych plikow PDF w katalogu \"C:\\LayoutTests\\export\\\". Dodaj na poczatku nazwy pdf \"VPT-TEST-\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "PublishToPdfTool": "SUKCES: Zlecono 2/2 layout(ow) do SingleFiles w 'C:\\LayoutTests\\export' uzywajac DSD."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "PublishToPdfTool", "ErrorMessage": "BLAD: Publikacje osobnych PDF obsluguje PublishToPdfTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Mode", "TargetValue": "SingleFiles", "ErrorMessage": "BLAD: Osobne pliki wymagaja Mode=SingleFiles." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "OutputPdfPath", "TargetValue": "C:\\LayoutTests\\export\\", "ErrorMessage": "BLAD: OutputPdfPath ma byc katalogiem, bez prefiksu." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FileNamePrefix", "TargetValue": "VPT-TEST-", "ErrorMessage": "BLAD: Prefiks nazw PDF musi trafic do FileNamePrefix." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "LayoutNames[0]", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak Arkusz1 w LayoutNames." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "LayoutNames[1]", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Brak Arkusz2 w LayoutNames." }
+      ]
+    },
+    {
+      "Id": 25,
+      "Category": "Viewports",
+      "Difficulty": 2,
+      "TestName": "Viewport_List",
+      "Description": "Agent listuje rzutnie papierowe na layoucie.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wylistuj rzutnie papierowe na layoucie \"Arkusz1\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageViewportsTool": "RZUTNIE PAPIEROWE layoutu 'Arkusz1': [1] Handle=81"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageViewportsTool", "ErrorMessage": "BLAD: Rzutnie obsluguje ManageViewportsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "List", "ErrorMessage": "BLAD: Oczekiwano Action=List." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." }
+      ]
+    },
+    {
+      "Id": 26,
+      "Category": "Viewports",
+      "Difficulty": 3,
+      "TestName": "Viewport_CreateWindowScale",
+      "Description": "Agent tworzy rzutnie z Window XY, skala i blokada.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na layoucie \"Arkusz1\" utworz rzutnie 180x120 mm ze srodkiem w punkcie 210,148.5. Pokaz zakres modelu od 0,0 do 9000,6000, ustaw skale 1:50, skale opisowa 1:50 i zablokuj rzutnie.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageViewportsTool": "SUKCES: Utworzono rzutnie papierowa na layoucie Arkusz1."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageViewportsTool", "ErrorMessage": "BLAD: Tworzenie rzutni wymaga ManageViewportsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Create", "ErrorMessage": "BLAD: Oczekiwano Action=Create." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "CenterPaperX", "TargetValue": "210 || 210.0", "ErrorMessage": "BLAD: Brak CenterPaperX=210." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "CenterPaperY", "TargetValue": "148.5 || 148,5", "ErrorMessage": "BLAD: Brak CenterPaperY=148.5." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "WidthPaper", "TargetValue": "180 || 180.0", "ErrorMessage": "BLAD: Brak WidthPaper=180." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "HeightPaper", "TargetValue": "120 || 120.0", "ErrorMessage": "BLAD: Brak HeightPaper=120." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ModelMaxX", "TargetValue": "9000 || 9000.0", "ErrorMessage": "BLAD: Brak ModelMaxX=9000." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ModelMaxY", "TargetValue": "6000 || 6000.0", "ErrorMessage": "BLAD: Brak ModelMaxY=6000." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Scale", "TargetValue": "1:50", "ErrorMessage": "BLAD: Brak Scale=1:50." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "AnnotationScale", "TargetValue": "1:50", "ErrorMessage": "BLAD: Brak AnnotationScale=1:50." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Locked", "TargetValue": "true", "ErrorMessage": "BLAD: Brak Locked=true." }
+      ]
+    },
+    {
+      "Id": 27,
+      "Category": "Viewports",
+      "Difficulty": 3,
+      "TestName": "Viewport_ModifyLockedOverwrite",
+      "Description": "Agent modyfikuje zablokowana rzutnie przez OverwriteUnlocked.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na layoucie \"Arkusz1\" zmien rzutnie nr 1 na skale 1:100, odblokuj ja tymczasowo jesli jest zablokowana i po zmianie zablokuj z powrotem.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageViewportsTool": "SUKCES: Zmieniono rzutnie nr 1."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageViewportsTool", "ErrorMessage": "BLAD: Modyfikacje rzutni obsluguje ManageViewportsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Modify", "ErrorMessage": "BLAD: Oczekiwano Action=Modify." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ViewportIndex", "TargetValue": "1 || 1.0", "ErrorMessage": "BLAD: Brak ViewportIndex=1." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Scale", "TargetValue": "1:100", "ErrorMessage": "BLAD: Brak Scale=1:100." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "OverwriteUnlocked", "TargetValue": "true", "ErrorMessage": "BLAD: Tymczasowe odblokowanie wymaga OverwriteUnlocked=true." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Locked", "TargetValue": "true", "ErrorMessage": "BLAD: Po zmianie rzutnia ma byc Locked=true." }
+      ]
+    },
+    {
+      "Id": 28,
+      "Category": "Viewports",
+      "Difficulty": 4,
+      "TestName": "Viewport_NamedViewFreezeLayer",
+      "Description": "Agent ustawia widok nazwany i zamraza warstwe tylko w rzutni.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. W rzutni nr 1 na layoucie \"Arkusz1\" ustaw widok nazwany \"Rzut parteru\", zamroz warstwy \"A-MEBLE\" i \"A-OPIS\" tylko w tej rzutni, a potem zablokuj rzutnie.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageViewportsTool": "SUKCES: Zmieniono NamedView i warstwy VP Freeze."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageViewportsTool", "ErrorMessage": "BLAD: Rzutnie obsluguje ManageViewportsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Modify", "ErrorMessage": "BLAD: Oczekiwano Action=Modify." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "NamedView", "TargetValue": "Rzut parteru", "ErrorMessage": "BLAD: Brak NamedView=Rzut parteru." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FreezeLayers[0]", "TargetValue": "A-MEBLE", "ErrorMessage": "BLAD: Brak A-MEBLE w FreezeLayers." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FreezeLayers[1]", "TargetValue": "A-OPIS", "ErrorMessage": "BLAD: Brak A-OPIS w FreezeLayers." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "OverwriteUnlocked", "TargetValue": "true", "ErrorMessage": "BLAD: Zmiana widoku zablokowanej rzutni wymaga OverwriteUnlocked=true." }
+      ]
+    },
+    {
+      "Id": 29,
+      "Category": "Viewports",
+      "Difficulty": 4,
+      "TestName": "Viewport_NonRectClip",
+      "Description": "Agent ustawia nieprostokatny clipping z punktow papieru.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na layoucie \"Arkusz1\" ustaw rzutni nr 1 nieprostokatny clipping z punktow papieru 30,30; 260,30; 250,170; 30,160.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageViewportsTool": "SUKCES: Ustawiono nieprostokatny clipping."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageViewportsTool", "ErrorMessage": "BLAD: Clipping rzutni obsluguje ManageViewportsTool." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Modify", "ErrorMessage": "BLAD: Oczekiwano Action=Modify." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz1", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz1." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ViewportIndex", "TargetValue": "1 || 1.0", "ErrorMessage": "BLAD: Brak ViewportIndex=1." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ClipBoundaryPaperPoints[0].X", "TargetValue": "30 || 30.0", "ErrorMessage": "BLAD: Brak pierwszego punktu clippingu X=30." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ClipBoundaryPaperPoints[1].X", "TargetValue": "260 || 260.0", "ErrorMessage": "BLAD: Brak drugiego punktu clippingu X=260." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "ClipBoundaryPaperPoints[2].Y", "TargetValue": "170 || 170.0", "ErrorMessage": "BLAD: Brak trzeciego punktu clippingu Y=170." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "OverwriteUnlocked", "TargetValue": "true", "ErrorMessage": "BLAD: Zmiana clippingu powinna miec OverwriteUnlocked=true." }
+      ]
+    },
+    {
+      "Id": 30,
+      "Category": "LayoutWorkflow",
+      "Difficulty": 5,
+      "TestName": "Workflow_ImportSetupViewportPublish",
+      "Description": "Zlozony workflow layoutowy: import szablonu, Page Setup, rzutnia, publish PDF.",
+      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zaimportuj layout \"A3_POZIOM\" z \"C:\\LayoutTests\\A3_template.dwt\" jako \"IS.W.01\", ustaw na nim ploter \"DWG To PDF.pc3\" i format \"A3\", utworz rzutnie 180x120 mm w srodku 210,148.5 pokazujaca model 0,0-9000,6000 w skali 1:50, a potem opublikuj ten layout do PDF \"C:\\LayoutTests\\pdf\\IS.W.01.pdf\".",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ImportLayoutTemplateTool": "SUKCES: Zaimportowano layout.",
+        "PageSetupTool": "SUKCES: Ustawiono Page Setup.",
+        "ManageViewportsTool": "SUKCES: Utworzono rzutnie.",
+        "PublishToPdfTool": "SUKCES: Opublikowano PDF."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "ImportLayoutTemplateTool, PageSetupTool, ManageViewportsTool, PublishToPdfTool", "ErrorMessage": "BLAD: Oczekiwano sekwencji Import -> PageSetup -> Viewport -> Publish." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A3_POZIOM", "ErrorMessage": "BLAD: Brak importu SourceLayoutName=A3_POZIOM." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "TargetLayoutName", "TargetValue": "IS.W.01", "ErrorMessage": "BLAD: Brak TargetLayoutName=IS.W.01." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "IS.W.01", "ErrorMessage": "BLAD: Narzedzia po imporcie powinny dzialac na IS.W.01." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "PlotDevice", "TargetValue": "DWG To PDF.pc3", "ErrorMessage": "BLAD: Brak PlotDevice=DWG To PDF.pc3." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "MediaName", "TargetValue": "A3", "ErrorMessage": "BLAD: Brak MediaName=A3." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Scale", "TargetValue": "1:50", "ErrorMessage": "BLAD: Brak skali rzutni 1:50." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "OutputPdfPath", "TargetValue": "C:\\LayoutTests\\pdf\\IS.W.01.pdf", "ErrorMessage": "BLAD: Brak OutputPdfPath PDF." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Mode", "TargetValue": "MultiSheet", "ErrorMessage": "BLAD: Dla pojedynczego PDF przez PublishToPdfTool oczekiwano Mode=MultiSheet." }
+      ]
+    }
+  ]
+}
