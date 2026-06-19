@@ -13,7 +13,7 @@
       "Difficulty": 1,
       "TestName": "CreateSheetSet_Basic",
       "Description": "Agent tworzy nowy plik DST z nazwa zestawu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz nowy zestaw arkuszy o nazwie \"Projekt1\" i zapisz go w pliku \"C:\\SheetSetTests\\Projekt1.dst\".",
+      "UserPrompt": "Utworz nowy zestaw arkuszy o nazwie \"Projekt1\" i zapisz go w pliku \"C:\\SheetSetTests\\Projekt1.dst\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Zestaw arkuszy 'C:\\SheetSetTests\\Projekt1.dst' zostal utworzony pomyslnie."
@@ -32,7 +32,7 @@
       "Difficulty": 1,
       "TestName": "ListSheetSet_Tree",
       "Description": "Agent listuje strukture istniejacego zestawu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Podaj krotkie drzewo zawartosci pliku \"C:\\SheetSetTests\\Projekt1.dst\": podgrupy i arkusze.",
+      "UserPrompt": "Podaj krotkie drzewo zawartosci pliku \"C:\\SheetSetTests\\Projekt1.dst\": podgrupy i arkusze.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "--- ZESTAW ARKUSZY: Projekt1 ---\n[Subset] Architektura\n  [Sheet] A-01 - Rzut Parteru"
@@ -50,7 +50,7 @@
       "Difficulty": 2,
       "TestName": "ListMetadata_AllUiFields",
       "Description": "Agent odczytuje metadane widoczne w UI Sheet Set Manager.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" pokaz ustawienia zestawu arkuszy: nazwe, opis, sciezke, blok etykiety, wywolanie bloku, liczbe arkuszy, kontrole projektu, lokalizacje nowych arkuszy i wzor arkuszy.",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" pokaz ustawienia zestawu arkuszy: nazwe, opis, sciezke, blok etykiety, wywolanie bloku, liczbe arkuszy, kontrole projektu, lokalizacje nowych arkuszy i wzor arkuszy.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "--- METADANE ZESTAWU ARKUSZY: Projekt1 ---\n[Ustawienie Arkusza]\nNazwa: Projekt1"
@@ -67,7 +67,7 @@
       "Difficulty": 1,
       "TestName": "CreateSubset_Architecture",
       "Description": "Agent tworzy podgrupe Architektura.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie arkuszy \"C:\\SheetSetTests\\Projekt1.dst\" dodaj podgrupe \"Architektura\".",
+      "UserPrompt": "W zestawie arkuszy \"C:\\SheetSetTests\\Projekt1.dst\" dodaj podgrupe \"Architektura\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Utworzono podgrupe 'Architektura'."
@@ -84,7 +84,7 @@
       "Difficulty": 2,
       "TestName": "CreateSubset_Construction",
       "Description": "Agent tworzy druga podgrupe Konstrukcja.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj nowa podgrupe \"Konstrukcja\".",
+      "UserPrompt": "Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj nowa podgrupe \"Konstrukcja\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Utworzono podgrupe 'Konstrukcja'."
@@ -101,7 +101,7 @@
       "Difficulty": 4,
       "TestName": "CreateTwoSubsets_WithForeach",
       "Description": "Agent powinien uzyc Foreach do utworzenia dwoch podgrup.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" utworz podgrupy \"Architektura\" i \"Konstrukcja\" za pomoca petli.",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" utworz podgrupy \"Architektura\" i \"Konstrukcja\" za pomoca petli.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "Foreach": "SUKCES: Wykonano 2/2 operacji."
@@ -120,7 +120,7 @@
       "Difficulty": 2,
       "TestName": "AddSheet_ArchitectureA1",
       "Description": "Agent dodaje arkusz z layoutu DWG do zestawu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
+      "UserPrompt": "Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "SheetSetSheetTool": "SUKCES: Arkusz 'A1_Rzut_Parteru' z pliku DWG zostal dodany do zestawu."
@@ -138,7 +138,7 @@
       "Difficulty": 2,
       "TestName": "AddSheet_ArchitectureA2",
       "Description": "Agent dodaje drugi arkusz architektury.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A2_Rzut_Pietra\".",
+      "UserPrompt": "Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A2_Rzut_Pietra\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "SheetSetSheetTool": "SUKCES: Arkusz 'A2_Rzut_Pietra' z pliku DWG zostal dodany do zestawu."
@@ -156,7 +156,7 @@
       "Difficulty": 2,
       "TestName": "AddSheet_StructureK1",
       "Description": "Agent dodaje arkusz konstrukcyjny.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Konstrukcja.dwg\", layout \"K1_Zbrojenie\".",
+      "UserPrompt": "Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj arkusz z pliku \"C:\\SheetSetTests\\Konstrukcja.dwg\", layout \"K1_Zbrojenie\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "SheetSetSheetTool": "SUKCES: Arkusz 'K1_Zbrojenie' z pliku DWG zostal dodany do zestawu."
@@ -174,7 +174,7 @@
       "Difficulty": 3,
       "TestName": "RenumberSheet_A1_To_A01",
       "Description": "Agent zmienia numer arkusza.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" arkusz o numerze \"A1_Rzut_Parteru\" przenumeruj na \"A-01\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" arkusz o numerze \"A1_Rzut_Parteru\" przenumeruj na \"A-01\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "SheetSetSheetTool": "SUKCES: Arkusz oznaczony 'A1_Rzut_Parteru' ma teraz numer 'A-01'."
@@ -192,7 +192,7 @@
       "Difficulty": 3,
       "TestName": "RenameSheet_A01",
       "Description": "Agent zmienia nazwe arkusza wskazanego numerem.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" arkusz o numerze \"A-01\" zmien nazwe na \"Rzut Parteru\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" arkusz o numerze \"A-01\" zmien nazwe na \"Rzut Parteru\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "SheetSetSheetTool": "SUKCES: Arkusz 'A-01' zmienil nazwe na 'Rzut Parteru'."
@@ -210,7 +210,7 @@
       "Difficulty": 5,
       "TestName": "AddFourSheets_WithForeach",
       "Description": "Agent powinien uzyc Foreach do dodania kilku arkuszy z tej samej sciezki DWG.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Z pliku \"C:\\SheetSetTests\\Architektura.dwg\" dodaj do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" arkusze \"A1_Rzut_Parteru\" i \"A2_Rzut_Pietra\" za pomoca petli.",
+      "UserPrompt": "Z pliku \"C:\\SheetSetTests\\Architektura.dwg\" dodaj do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" arkusze \"A1_Rzut_Parteru\" i \"A2_Rzut_Pietra\" za pomoca petli.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "Foreach": "SUKCES: Wykonano 2/2 operacji."
@@ -229,7 +229,7 @@
       "Difficulty": 2,
       "TestName": "SetMetadata_NameDescriptionLocation",
       "Description": "Agent ustawia nazwe, opis i lokalizacje nowych arkuszy.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw nazwe \"Projekt1 TEST\", opis \"Zestaw testowy metadanych\" oraz nowa lokalizacje arkuszy \"C:\\SheetSetTests\\Sheets\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw nazwe \"Projekt1 TEST\", opis \"Zestaw testowy metadanych\" oraz nowa lokalizacje arkuszy \"C:\\SheetSetTests\\Sheets\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "OK: Nazwa = Projekt1 TEST\nOK: Opis = Zestaw testowy metadanych\nOK: Nowa lokalizacja arkusza = C:\\SheetSetTests\\Sheets"
@@ -248,7 +248,7 @@
       "Difficulty": 3,
       "TestName": "SetMetadata_TemplateLayout",
       "Description": "Agent ustawia wzor tworzenia arkuszy z DWT/DWG i layoutem.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw wzor wydruku arkuszy z pliku \"C:\\SheetSetTests\\SzablonA3.dwt\", layout \"A3\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw wzor wydruku arkuszy z pliku \"C:\\SheetSetTests\\SzablonA3.dwt\", layout \"A3\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "OK: Wzor wydruku arkuszy = C:\\SheetSetTests\\SzablonA3.dwt; Name=A3"
@@ -266,7 +266,7 @@
       "Difficulty": 3,
       "TestName": "SetMetadata_LabelBlock",
       "Description": "Agent ustawia blok etykiety arkusza.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw blok etykiety z pliku \"C:\\SheetSetTests\\BlokiSheetSet.dwg\", blok \"ETYKIETA_ARKUSZA\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw blok etykiety z pliku \"C:\\SheetSetTests\\BlokiSheetSet.dwg\", blok \"ETYKIETA_ARKUSZA\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "OK: Blok etykiety = C:\\SheetSetTests\\BlokiSheetSet.dwg; Name=ETYKIETA_ARKUSZA"
@@ -284,7 +284,7 @@
       "Difficulty": 3,
       "TestName": "SetMetadata_CalloutBlock",
       "Description": "Agent dodaje blok wywolania callout.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj wywolanie bloku z pliku \"C:\\SheetSetTests\\BlokiSheetSet.dwg\", blok \"CALLOUT_A\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj wywolanie bloku z pliku \"C:\\SheetSetTests\\BlokiSheetSet.dwg\", blok \"CALLOUT_A\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "OK: Dodano wywolanie bloku = C:\\SheetSetTests\\BlokiSheetSet.dwg; Name=CALLOUT_A"
@@ -302,7 +302,7 @@
       "Difficulty": 4,
       "TestName": "SetMetadata_ProjectControl",
       "Description": "Agent probuje ustawic pola Kontrola Projektu przez SetMetadata, nie przez SetProperty.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw numer projektu \"P-001\", nazwe projektu \"Test metadanych\", faze projektu \"PW\" i kamien milowy projektu \"M1\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" ustaw numer projektu \"P-001\", nazwe projektu \"Test metadanych\", faze projektu \"PW\" i kamien milowy projektu \"M1\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "UWAGA: Nie udalo sie ustawic pola 'Numer projektu' (SetProjectNumber). Nie zapisuje go jako zwyklej Wlasciwosci Uzytkownika."
@@ -323,7 +323,7 @@
       "Difficulty": 2,
       "TestName": "SetProperty_SheetSet",
       "Description": "Agent tworzy wlasciwosc uzytkownika zestawu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj wlasciwosc zestawu arkuszy \"Inwestor\" o wartosci \"ABC\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj wlasciwosc zestawu arkuszy \"Inwestor\" o wartosci \"ABC\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Ustawiono wlasciwosc 'Inwestor' = 'ABC' w zakresie SheetSet."
@@ -342,7 +342,7 @@
       "Difficulty": 2,
       "TestName": "SetProperty_SheetDefault",
       "Description": "Agent tworzy domyslna wlasciwosc arkusza.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj domyslna wlasciwosc arkusza \"Branza\" o wartosci \"IS\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dodaj domyslna wlasciwosc arkusza \"Branza\" o wartosci \"IS\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Ustawiono wlasciwosc 'Branza' = 'IS' w zakresie Sheet."
@@ -361,7 +361,7 @@
       "Difficulty": 3,
       "TestName": "ListProperties_All",
       "Description": "Agent listuje oba zakresy wlasciwosci uzytkownika.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wylistuj Wlasciwosci Uzytkownika w zestawie \"C:\\SheetSetTests\\Projekt1.dst\".",
+      "UserPrompt": "Wylistuj Wlasciwosci Uzytkownika w zestawie \"C:\\SheetSetTests\\Projekt1.dst\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "[Dostosuj Wlasciwosci Zestawu Arkuszy]\n- Inwestor = ABC\n[Dostosuj Wlasciwosci Arkusza]\n- Branza = IS"
@@ -378,7 +378,7 @@
       "Difficulty": 3,
       "TestName": "ListProperties_SheetOnly",
       "Description": "Agent listuje tylko domyslne wlasciwosci arkusza.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" pokaz tylko domyslne wlasciwosci arkuszy.",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" pokaz tylko domyslne wlasciwosci arkuszy.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "[Dostosuj Wlasciwosci Arkusza]\n- Branza = IS"
@@ -395,7 +395,7 @@
       "Difficulty": 4,
       "TestName": "ListProperties_ManualNames",
       "Description": "Agent przekazuje reczne nazwy etykiet w PropertyNames.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" wylistuj Wlasciwosci Uzytkownika i sprawdz recznie utworzone etykiety \"Inwestor\" oraz \"Branza\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" wylistuj Wlasciwosci Uzytkownika i sprawdz recznie utworzone etykiety \"Inwestor\" oraz \"Branza\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "- Inwestor = ABC\n- Branza = IS"
@@ -412,7 +412,7 @@
       "Difficulty": 4,
       "TestName": "RegisterManualPropertyNames",
       "Description": "Agent zapamietuje recznie utworzone etykiety.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" zapamietaj recznie utworzone etykiety \"Inwestor\" oraz \"Branza\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" zapamietaj recznie utworzone etykiety \"Inwestor\" oraz \"Branza\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Zapamietano 2 nazw etykiet dla C:\\SheetSetTests\\Projekt1.dst."
@@ -429,7 +429,7 @@
       "Difficulty": 4,
       "TestName": "SetProperty_SheetInstance",
       "Description": "Agent ustawia wlasciwosc na konkretnym arkuszu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dla arkusza o numerze \"A-01\" ustaw wlasciwosc \"Rewizja\" na \"R01\".",
+      "UserPrompt": "W zestawie \"C:\\SheetSetTests\\Projekt1.dst\" dla arkusza o numerze \"A-01\" ustaw wlasciwosc \"Rewizja\" na \"R01\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Ustawiono wlasciwosc 'Rewizja' = 'R01' w zakresie SheetInstance."
@@ -449,7 +449,7 @@
       "Difficulty": 3,
       "TestName": "DiagnoseCom",
       "Description": "Agent wykonuje diagnostyke COM bez dodatkowych operacji mutujacych.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zdiagnozuj COM Sheet Set dla pliku \"C:\\SheetSetTests\\Projekt1.dst\", sprawdz tworzenie podgrupy \"Architektura\" oraz import arkusza z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
+      "UserPrompt": "Zdiagnozuj COM Sheet Set dla pliku \"C:\\SheetSetTests\\Projekt1.dst\", sprawdz tworzenie podgrupy \"Architektura\" oraz import arkusza z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Zapisano pelny raport diagnostyki COM Sheet Set."
@@ -469,7 +469,7 @@
       "Difficulty": 3,
       "TestName": "DiagnoseProperties",
       "Description": "Agent diagnozuje CustomPropertyBag w DST.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zdiagnozuj Wlasciwosci Uzytkownika w zestawie \"C:\\SheetSetTests\\Projekt1.dst\".",
+      "UserPrompt": "Zdiagnozuj Wlasciwosci Uzytkownika w zestawie \"C:\\SheetSetTests\\Projekt1.dst\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "DIAGNOZA WLASCIWOSCI UZYTKOWNIKA DST"
@@ -486,7 +486,7 @@
       "Difficulty": 3,
       "TestName": "NoFakeSuccess_ProjectControl",
       "Description": "Agent nie powinien uzywac SetProperty dla pol Kontrola Projektu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Ustaw w Kontroli Projektu numer projektu \"P-002\" w zestawie \"C:\\SheetSetTests\\Projekt1.dst\". Nie dodawaj zwyklej etykiety uzytkownika.",
+      "UserPrompt": "Ustaw w Kontroli Projektu numer projektu \"P-002\" w zestawie \"C:\\SheetSetTests\\Projekt1.dst\". Nie dodawaj zwyklej etykiety uzytkownika.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "UWAGA: Nie udalo sie ustawic pola 'Numer projektu' (SetProjectNumber)."
@@ -504,7 +504,7 @@
       "Difficulty": 3,
       "TestName": "AddSheet_RequiresLayout",
       "Description": "Agent powinien podac SourceLayoutName przy dodawaniu arkusza.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj layout \"K2_Fundamenty\" z pliku \"C:\\SheetSetTests\\Konstrukcja.dwg\".",
+      "UserPrompt": "Do zestawu \"C:\\SheetSetTests\\Projekt1.dst\" dodaj layout \"K2_Fundamenty\" z pliku \"C:\\SheetSetTests\\Konstrukcja.dwg\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "SheetSetSheetTool": "SUKCES: Arkusz 'K2_Fundamenty' z pliku DWG zostal dodany do zestawu."
@@ -522,7 +522,7 @@
       "Difficulty": 4,
       "TestName": "CreateThenListMetadata",
       "Description": "Po utworzeniu zestawu agent od razu listuje metadane, gdy user prosi o potwierdzenie ustawien.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz zestaw \"ProjektMeta\" w pliku \"C:\\SheetSetTests\\ProjektMeta.dst\", a potem pokaz jego ustawienia zestawu arkuszy.",
+      "UserPrompt": "Utworz zestaw \"ProjektMeta\" w pliku \"C:\\SheetSetTests\\ProjektMeta.dst\", a potem pokaz jego ustawienia zestawu arkuszy.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES: Zestaw arkuszy 'C:\\SheetSetTests\\ProjektMeta.dst' zostal utworzony pomyslnie."
@@ -540,7 +540,7 @@
       "Difficulty": 5,
       "TestName": "FullWorkflow_CreateSubsetsPropertiesSheets",
       "Description": "Zlozony workflow: Create, CreateSubset, SetProperty, AddSheet.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz zestaw \"ProjektFull\" w pliku \"C:\\SheetSetTests\\ProjektFull.dst\", dodaj podgrupe \"Architektura\", ustaw wlasciwosc zestawu \"Inwestor\"=\"ABC\" i dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
+      "UserPrompt": "Utworz zestaw \"ProjektFull\" w pliku \"C:\\SheetSetTests\\ProjektFull.dst\", dodaj podgrupe \"Architektura\", ustaw wlasciwosc zestawu \"Inwestor\"=\"ABC\" i dodaj arkusz z pliku \"C:\\SheetSetTests\\Architektura.dwg\", layout \"A1_Rzut_Parteru\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageSheetSetTool": "SUKCES",

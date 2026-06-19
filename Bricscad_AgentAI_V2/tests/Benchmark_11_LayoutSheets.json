@@ -13,7 +13,7 @@
       "Difficulty": 1,
       "TestName": "ListAllLayouts",
       "Description": "Agent listuje wszystkie layouty w aktywnym rysunku.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wylistuj wszystkie layouty w aktywnym rysunku.",
+      "UserPrompt": "Wylistuj wszystkie layouty w aktywnym rysunku.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ListLayoutsTool": "Znaleziono 3 layout(ow): Model, Arkusz1, Arkusz2."
@@ -30,7 +30,7 @@
       "Difficulty": 1,
       "TestName": "ListSpecificLayoutSettings",
       "Description": "Agent odczytuje szczegolowe Page Setup jednego layoutu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Pokaz szczegolowe ustawienia arkusza \"Arkusz1\".",
+      "UserPrompt": "Pokaz szczegolowe ustawienia arkusza \"Arkusz1\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ListLayoutsTool": "SZCZEGOLOWE USTAWIENIA LAYOUTU Arkusz1: PlotDevice=DWG To PDF.pc3 Media=A3"
@@ -46,7 +46,7 @@
       "Difficulty": 2,
       "TestName": "ListLayoutsFromDwt",
       "Description": "Agent listuje layouty w zewnetrznym pliku DWT/DWG.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Sprawdz jakie layouty sa w szablonie \"C:\\LayoutTests\\A3_template.dwt\".",
+      "UserPrompt": "Sprawdz jakie layouty sa w szablonie \"C:\\LayoutTests\\A3_template.dwt\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ListLayoutsTool": "Layouty w pliku C:\\LayoutTests\\A3_template.dwt: A3_POZIOM, A3_PION"
@@ -62,7 +62,7 @@
       "Difficulty": 1,
       "TestName": "CreateLayout",
       "Description": "Agent tworzy nowy layout.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Utworz nowy layout o nazwie \"A3_TEST\".",
+      "UserPrompt": "Utworz nowy layout o nazwie \"A3_TEST\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageLayoutTool": "SUKCES: Utworzono layout 'A3_TEST'."
@@ -79,7 +79,7 @@
       "Difficulty": 2,
       "TestName": "RenameLayout",
       "Description": "Agent zmienia nazwe layoutu.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zmien nazwe layoutu \"A3_TEST\" na \"A3_FINAL\".",
+      "UserPrompt": "Zmien nazwe layoutu \"A3_TEST\" na \"A3_FINAL\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageLayoutTool": "SUKCES: Zmieniono nazwe layoutu 'A3_TEST' na 'A3_FINAL'."
@@ -97,7 +97,7 @@
       "Difficulty": 2,
       "TestName": "CloneLayout",
       "Description": "Agent klonuje layout z nadaniem nowej nazwy.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Sklonuj layout \"Arkusz1\" jako \"Arkusz1_KOPIA\".",
+      "UserPrompt": "Sklonuj layout \"Arkusz1\" jako \"Arkusz1_KOPIA\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageLayoutTool": "SUKCES: Sklonowano layout 'Arkusz1' jako 'Arkusz1_KOPIA'."
@@ -115,7 +115,7 @@
       "Difficulty": 2,
       "TestName": "SetCurrentLayout",
       "Description": "Agent ustawia aktywny layout.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Ustaw layout \"Arkusz2\" jako aktualny.",
+      "UserPrompt": "Ustaw layout \"Arkusz2\" jako aktualny.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageLayoutTool": "SUKCES: Ustawiono aktualny layout 'Arkusz2'."
@@ -132,7 +132,7 @@
       "Difficulty": 3,
       "TestName": "DeleteLayout_NotModel",
       "Description": "Agent usuwa zwykly layout, nie Model.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Usun layout \"Arkusz1_KOPIA\".",
+      "UserPrompt": "Usun layout \"Arkusz1_KOPIA\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageLayoutTool": "SUKCES: Usunieto layout 'Arkusz1_KOPIA'."
@@ -149,7 +149,7 @@
       "Difficulty": 3,
       "TestName": "CopyFromTemplate_ManageLayout",
       "Description": "Agent uzywa ManageLayoutTool CopyFromTemplate z poprawnymi nazwami parametrow.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Skopiuj layout \"A3_POZIOM\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" do biezacego rysunku jako \"A3_IMPORT\".",
+      "UserPrompt": "Skopiuj layout \"A3_POZIOM\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" do biezacego rysunku jako \"A3_IMPORT\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageLayoutTool": "SUKCES: Skopiowano layout z szablonu."
@@ -168,7 +168,7 @@
       "Difficulty": 3,
       "TestName": "ImportLayoutTemplate_Full",
       "Description": "Agent importuje layout przez dedykowane narzedzie ImportLayoutTemplateTool.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zaimportuj layout \"A3_PION\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" jako \"A3_PION_IMPORT\" razem z geometria i Page Setup.",
+      "UserPrompt": "Zaimportuj layout \"A3_PION\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" jako \"A3_PION_IMPORT\" razem z geometria i Page Setup.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ImportLayoutTemplateTool": "SUKCES: Zaimportowano layout 'A3_PION_IMPORT'."
@@ -187,7 +187,7 @@
       "Difficulty": 3,
       "TestName": "ImportLayoutTemplate_PlotSettingsOnly",
       "Description": "Agent importuje tylko Page Setup bez geometrii.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Z szablonu \"C:\\LayoutTests\\A3_template.dwt\" przenies tylko Page Setup layoutu \"A3_POZIOM\" na layout docelowy \"Arkusz1\", bez importowania geometrii.",
+      "UserPrompt": "Z szablonu \"C:\\LayoutTests\\A3_template.dwt\" przenies tylko Page Setup layoutu \"A3_POZIOM\" na layout docelowy \"Arkusz1\", bez importowania geometrii.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ImportLayoutTemplateTool": "SUKCES: Zaimportowano Page Setup bez geometrii."
@@ -207,7 +207,7 @@
       "Difficulty": 3,
       "TestName": "ExportLayoutTemplate",
       "Description": "Agent eksportuje layout do DWT.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wyeksportuj layout \"Arkusz1\" do pliku \"C:\\LayoutTests\\export\\Arkusz1_template.dwt\" wraz z Page Setup i blokami, nadpisz jesli istnieje.",
+      "UserPrompt": "Wyeksportuj layout \"Arkusz1\" do pliku \"C:\\LayoutTests\\export\\Arkusz1_template.dwt\" wraz z Page Setup i blokami, nadpisz jesli istnieje.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ExportLayoutTemplateTool": "SUKCES: Wyeksportowano layout do DWT."
@@ -227,7 +227,7 @@
       "Difficulty": 2,
       "TestName": "PageSetup_A3Pdf",
       "Description": "Agent ustawia ploter PDF, A3, styl i centrowanie.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Dla layoutu \"Arkusz1\" ustaw Page Setup: ploter \"DWG To PDF.pc3\", format \"A3\", styl \"acad.ctb\", obrot poziomy i centrowanie.",
+      "UserPrompt": "Dla layoutu \"Arkusz1\" ustaw Page Setup: ploter \"DWG To PDF.pc3\", format \"A3\", styl \"acad.ctb\", obrot poziomy i centrowanie.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PageSetupTool": "SUKCES: Zastosowano 5 ustawien Page Setup."
@@ -248,7 +248,7 @@
       "Difficulty": 3,
       "TestName": "PageSetup_CustomMediaNoPreflight",
       "Description": "Agent ustawia custom format podany wprost i nie odpytuje ListPlotDevicesTool.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Dla layoutu \"IS.W.01\" ustaw format papieru \"297x600\" na ploterze \"HP DesignJet T120 - Adrian.pc3\". Nie sprawdzaj listy formatow, podalem dokladna nazwe.",
+      "UserPrompt": "Dla layoutu \"IS.W.01\" ustaw format papieru \"297x600\" na ploterze \"HP DesignJet T120 - Adrian.pc3\". Nie sprawdzaj listy formatow, podalem dokladna nazwe.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PageSetupTool": "SUKCES: Ustawiono MediaName 297x600."
@@ -267,7 +267,7 @@
       "Difficulty": 3,
       "TestName": "PageSetup_WindowScale",
       "Description": "Agent ustawia plot window i skale wlasna.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Dla layoutu \"Arkusz2\" ustaw drukowanie obszaru Window w skali 1:50, bez dopasowania do papieru, z origin 0,0.",
+      "UserPrompt": "Dla layoutu \"Arkusz2\" ustaw drukowanie obszaru Window w skali 1:50, bez dopasowania do papieru, z origin 0,0.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PageSetupTool": "SUKCES: Ustawiono PlotType Window i skale 1:50."
@@ -289,7 +289,7 @@
       "Difficulty": 4,
       "TestName": "PageSetup_AllLayouts_Foreach",
       "Description": "Agent listuje layouty i uzywa Foreach do PageSetup na wielu arkuszach.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na wszystkich layoutach ustaw ploter \"DWG To PDF.pc3\", format \"A3\" i styl \"acad.ctb\". Uzyj Foreach.",
+      "UserPrompt": "Na wszystkich layoutach ustaw ploter \"DWG To PDF.pc3\", format \"A3\" i styl \"acad.ctb\". Uzyj Foreach.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ListLayoutsTool": "Znaleziono 2 layout(ow): Arkusz1, Arkusz2.",
@@ -309,7 +309,7 @@
       "Difficulty": 2,
       "TestName": "ListPlotDevices_Hp",
       "Description": "Agent eksploruje plotery i formaty dla HP.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Jakie formaty obsluguje ploter \"HP DesignJet T120\"?",
+      "UserPrompt": "Jakie formaty obsluguje ploter \"HP DesignJet T120\"?",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ListPlotDevicesTool": "LISTA URZADZEN DRUKUJACYCH: HP DesignJet T120 - Adrian.pc3"
@@ -326,7 +326,7 @@
       "Difficulty": 1,
       "TestName": "PlotStyle_List",
       "Description": "Agent listuje style wydruku.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Pokaz dostepne style wydruku CTB/STB.",
+      "UserPrompt": "Pokaz dostepne style wydruku CTB/STB.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PlotStyleTool": "DOSTEPNE STYLE: acad.ctb, monochrome.ctb"
@@ -342,7 +342,7 @@
       "Difficulty": 2,
       "TestName": "PlotStyle_Load",
       "Description": "Agent laduje styl CTB z pliku.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zaladuj styl wydruku z pliku \"C:\\PlotStyles\\firmowy.ctb\".",
+      "UserPrompt": "Zaladuj styl wydruku z pliku \"C:\\PlotStyles\\firmowy.ctb\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PlotStyleTool": "SUKCES: Zaladowano styl firmowy.ctb."
@@ -359,7 +359,7 @@
       "Difficulty": 3,
       "TestName": "PlotStyle_AssignAll",
       "Description": "Agent przypisuje styl do wszystkich layoutow.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Przypisz styl \"monochrome.ctb\" do wszystkich layoutow.",
+      "UserPrompt": "Przypisz styl \"monochrome.ctb\" do wszystkich layoutow.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PlotStyleTool": "SUKCES: Przypisano styl do wszystkich layoutow."
@@ -377,7 +377,7 @@
       "Difficulty": 2,
       "TestName": "PlotLayout_Pdf",
       "Description": "Agent drukuje pojedynczy layout do PDF.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wydrukuj layout \"Arkusz1\" do PDF \"C:\\LayoutTests\\pdf\\Arkusz1.pdf\", dopasuj do papieru i wycentruj.",
+      "UserPrompt": "Wydrukuj layout \"Arkusz1\" do PDF \"C:\\LayoutTests\\pdf\\Arkusz1.pdf\", dopasuj do papieru i wycentruj.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PlotLayoutTool": "SUKCES: Wydrukowano layout Arkusz1 do PDF."
@@ -397,7 +397,7 @@
       "Difficulty": 2,
       "TestName": "PlotLayout_Png",
       "Description": "Agent eksportuje pojedynczy layout do PNG.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wyeksportuj layout \"Arkusz2\" do PNG \"C:\\LayoutTests\\png\\Arkusz2.png\".",
+      "UserPrompt": "Wyeksportuj layout \"Arkusz2\" do PNG \"C:\\LayoutTests\\png\\Arkusz2.png\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PlotLayoutTool": "SUKCES: Wydrukowano layout Arkusz2 do PNG."
@@ -415,7 +415,7 @@
       "Difficulty": 3,
       "TestName": "Publish_MultiSheet",
       "Description": "Agent publikuje kilka layoutow do jednego PDF.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Opublikuj layouty \"Arkusz1\" i \"Arkusz2\" do jednego pliku PDF \"C:\\LayoutTests\\pdf\\Komplet.pdf\".",
+      "UserPrompt": "Opublikuj layouty \"Arkusz1\" i \"Arkusz2\" do jednego pliku PDF \"C:\\LayoutTests\\pdf\\Komplet.pdf\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PublishToPdfTool": "SUKCES: Zlecono 2/2 layout(ow) do MultiSheet."
@@ -434,7 +434,7 @@
       "Difficulty": 4,
       "TestName": "Publish_SingleFiles_WithPrefix",
       "Description": "Agent publikuje osobne PDF z prefiksem nazw plikow, nie tworzy folderu z prefiksem.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Opublikuj layouty \"Arkusz1\" i \"Arkusz2\" do pojedynczych plikow PDF w katalogu \"C:\\LayoutTests\\export\\\". Dodaj na poczatku nazwy pdf \"VPT-TEST-\".",
+      "UserPrompt": "Opublikuj layouty \"Arkusz1\" i \"Arkusz2\" do pojedynczych plikow PDF w katalogu \"C:\\LayoutTests\\export\\\". Dodaj na poczatku nazwy pdf \"VPT-TEST-\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "PublishToPdfTool": "SUKCES: Zlecono 2/2 layout(ow) do SingleFiles w 'C:\\LayoutTests\\export' uzywajac DSD."
@@ -454,7 +454,7 @@
       "Difficulty": 2,
       "TestName": "Viewport_List",
       "Description": "Agent listuje rzutnie papierowe na layoucie.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Wylistuj rzutnie papierowe na layoucie \"Arkusz1\".",
+      "UserPrompt": "Wylistuj rzutnie papierowe na layoucie \"Arkusz1\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageViewportsTool": "RZUTNIE PAPIEROWE layoutu 'Arkusz1': [1] Handle=81"
@@ -471,7 +471,7 @@
       "Difficulty": 3,
       "TestName": "Viewport_CreateWindowScale",
       "Description": "Agent tworzy rzutnie z Window XY, skala i blokada.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na layoucie \"Arkusz1\" utworz rzutnie 180x120 mm ze srodkiem w punkcie 210,148.5. Pokaz zakres modelu od 0,0 do 9000,6000, ustaw skale 1:50, skale opisowa 1:50 i zablokuj rzutnie.",
+      "UserPrompt": "Na layoucie \"Arkusz1\" utworz rzutnie 180x120 mm ze srodkiem w punkcie 210,148.5. Pokaz zakres modelu od 0,0 do 9000,6000, ustaw skale 1:50, skale opisowa 1:50 i zablokuj rzutnie.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageViewportsTool": "SUKCES: Utworzono rzutnie papierowa na layoucie Arkusz1."
@@ -497,7 +497,7 @@
       "Difficulty": 3,
       "TestName": "Viewport_ModifyLockedOverwrite",
       "Description": "Agent modyfikuje zablokowana rzutnie przez OverwriteUnlocked.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na layoucie \"Arkusz1\" zmien rzutnie nr 1 na skale 1:100, odblokuj ja tymczasowo jesli jest zablokowana i po zmianie zablokuj z powrotem.",
+      "UserPrompt": "Na layoucie \"Arkusz1\" zmien rzutnie nr 1 na skale 1:100, odblokuj ja tymczasowo jesli jest zablokowana i po zmianie zablokuj z powrotem.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageViewportsTool": "SUKCES: Zmieniono rzutnie nr 1."
@@ -518,7 +518,7 @@
       "Difficulty": 4,
       "TestName": "Viewport_NamedViewFreezeLayer",
       "Description": "Agent ustawia widok nazwany i zamraza warstwe tylko w rzutni.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. W rzutni nr 1 na layoucie \"Arkusz1\" ustaw widok nazwany \"Rzut parteru\", zamroz warstwy \"A-MEBLE\" i \"A-OPIS\" tylko w tej rzutni, a potem zablokuj rzutnie.",
+      "UserPrompt": "W rzutni nr 1 na layoucie \"Arkusz1\" ustaw widok nazwany \"Rzut parteru\", zamroz warstwy \"A-MEBLE\" i \"A-OPIS\" tylko w tej rzutni, a potem zablokuj rzutnie.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageViewportsTool": "SUKCES: Zmieniono NamedView i warstwy VP Freeze."
@@ -538,7 +538,7 @@
       "Difficulty": 4,
       "TestName": "Viewport_NonRectClip",
       "Description": "Agent ustawia nieprostokatny clipping z punktow papieru.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Na layoucie \"Arkusz1\" ustaw rzutni nr 1 nieprostokatny clipping z punktow papieru 30,30; 260,30; 250,170; 30,160.",
+      "UserPrompt": "Na layoucie \"Arkusz1\" ustaw rzutni nr 1 nieprostokatny clipping z punktow papieru 30,30; 260,30; 250,170; 30,160.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ManageViewportsTool": "SUKCES: Ustawiono nieprostokatny clipping."
@@ -560,7 +560,7 @@
       "Difficulty": 5,
       "TestName": "Workflow_ImportSetupViewportPublish",
       "Description": "Zlozony workflow layoutowy: import szablonu, Page Setup, rzutnia, publish PDF.",
-      "UserPrompt": "Uzyj profilu CadLayoutProfile. Zaimportuj layout \"A3_POZIOM\" z \"C:\\LayoutTests\\A3_template.dwt\" jako \"IS.W.01\", ustaw na nim ploter \"DWG To PDF.pc3\" i format \"A3\", utworz rzutnie 180x120 mm w srodku 210,148.5 pokazujaca model 0,0-9000,6000 w skali 1:50, a potem opublikuj ten layout do PDF \"C:\\LayoutTests\\pdf\\IS.W.01.pdf\".",
+      "UserPrompt": "Zaimportuj layout \"A3_POZIOM\" z \"C:\\LayoutTests\\A3_template.dwt\" jako \"IS.W.01\", ustaw na nim ploter \"DWG To PDF.pc3\" i format \"A3\", utworz rzutnie 180x120 mm w srodku 210,148.5 pokazujaca model 0,0-9000,6000 w skali 1:50, a potem opublikuj ten layout do PDF \"C:\\LayoutTests\\pdf\\IS.W.01.pdf\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
         "ImportLayoutTemplateTool": "SUKCES: Zaimportowano layout.",
