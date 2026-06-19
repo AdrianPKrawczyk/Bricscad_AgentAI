@@ -91,6 +91,15 @@ namespace Bricscad_AgentAI_V2.Tools
                                     Type = "object",
                                     Description = "Opcjonalne filtry obiektów we wnętrzu bloku: {\"Type\": \"Line\", \"Layer\": \"0\", \"Color\": 256}."
                                 }
+                            },
+                            {
+                                "AllowFieldOverride", new ToolParameter
+                                {
+                                    Type = "boolean",
+                                    Description = "Domyslnie false. Gdy true, FindText/ReplaceText nadpisze tekst " +
+                                                  "nawet w obiektach z polami CAD - UZYWAJ TYLKO gdy swiadomie " +
+                                                  "chcesz zniszczyc istniejace pola inline."
+                                }
                             }
                         },
                         Required = new List<string> { "Target" }
@@ -111,6 +120,7 @@ namespace Bricscad_AgentAI_V2.Tools
             bool removeDims = args["RemoveDimensions"]?.Value<bool>() ?? false;
             string findText = args["FindText"]?.ToString();
             string replaceText = args["ReplaceText"]?.ToString();
+            bool allowFieldOverride = args["AllowFieldOverride"]?.Value<bool>() ?? false;
             JArray mods = args["Modifications"] as JArray;
             JObject filters = args["Filters"] as JObject;
 
@@ -159,7 +169,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     // Przetwarzanie definicji bloków
                     foreach (ObjectId btrId in targetBtrIds)
                     {
-                        ProcessBlockDefinition(btrId, tr, recursive, removeDims, findText, replaceText, mods, filters);
+                        ProcessBlockDefinition(btrId, tr, recursive, removeDims, findText, replaceText, allowFieldOverride, mods, filters);
                     }
 
                     tr.Commit();
@@ -178,7 +188,7 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
 
-        private void ProcessBlockDefinition(ObjectId btrId, Transaction tr, bool recursive, bool removeDims, string find, string replace, JArray mods, JObject filters)
+        private void ProcessBlockDefinition(ObjectId btrId, Transaction tr, bool recursive, bool removeDims, string find, string replace, bool allowFieldOverride, JArray mods, JObject filters)
         {
             if (_visitedBtrs.Contains(btrId)) return;
             _visitedBtrs.Add(btrId);
@@ -222,15 +232,33 @@ namespace Bricscad_AgentAI_V2.Tools
                 {
                     if (ent is DBText dbText && dbText.TextString.Contains(find))
                     {
-                        dbText.UpgradeOpen();
-                        dbText.TextString = dbText.TextString.Replace(find, replace);
-                        isModified = true;
+                        if (!allowFieldOverride && EntityHasField(ent))
+                        {
+                            _warnings.Add($"[BLOKADA POLA] DBText (ID: {ent.Id}) w bloku '{btr.Name}' " +
+                                          $"zawiera pole CAD. Pominieto. Uzyj ManageFieldsTool " +
+                                          $"lub ponow z AllowFieldOverride=true.");
+                        }
+                        else
+                        {
+                            dbText.UpgradeOpen();
+                            dbText.TextString = dbText.TextString.Replace(find, replace);
+                            isModified = true;
+                        }
                     }
                     else if (ent is MText mText && mText.Contents.Contains(find))
                     {
-                        mText.UpgradeOpen();
-                        mText.Contents = mText.Contents.Replace(find, replace);
-                        isModified = true;
+                        if (!allowFieldOverride && EntityHasField(ent))
+                        {
+                            _warnings.Add($"[BLOKADA POLA] MText (ID: {ent.Id}) w bloku '{btr.Name}' " +
+                                          $"zawiera pole CAD. Pominieto. Uzyj ManageFieldsTool " +
+                                          $"lub ponow z AllowFieldOverride=true.");
+                        }
+                        else
+                        {
+                            mText.UpgradeOpen();
+                            mText.Contents = mText.Contents.Replace(find, replace);
+                            isModified = true;
+                        }
                     }
                 }
 
@@ -245,7 +273,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 // 5. Rekurencja
                 if (recursive && ent is BlockReference nestedBr)
                 {
-                    ProcessBlockDefinition(nestedBr.BlockTableRecord, tr, recursive, removeDims, find, replace, mods, filters);
+                    ProcessBlockDefinition(nestedBr.BlockTableRecord, tr, recursive, removeDims, find, replace, allowFieldOverride, mods, filters);
                 }
             }
 
@@ -260,6 +288,31 @@ namespace Bricscad_AgentAI_V2.Tools
                 if (btr.IsDynamicBlock) btr.UpdateAnonymousBlocks();
             } 
             catch { /* Ignorujemy błędy odświeżania na tym etapie */ }
+        }
+
+        private static bool EntityHasField(Entity ent)
+        {
+            try
+            {
+                if (ent.HasFields) return true;
+            }
+            catch
+            {
+                // Brak dostepu do flagi - polegamy na heurystyce tresci.
+            }
+            try
+            {
+                switch (ent)
+                {
+                    case DBText dt: return (dt.TextString ?? "").Contains("%<");
+                    case MText mt: return (mt.Contents ?? "").Contains("%<");
+                }
+            }
+            catch
+            {
+                // Brak dostepu do tresci - traktujemy jako brak pola.
+            }
+            return false;
         }
 
         private bool IsMatchingFilters(Entity ent, JObject filters)

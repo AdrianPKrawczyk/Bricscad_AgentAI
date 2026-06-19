@@ -9,7 +9,7 @@ namespace Bricscad_AgentAI_V2.Tests
         {
             try
             {
-                ForeachToolTests.RunTests();
+ForeachToolTests.RunTests();
                 ReadXDataToolTests.RunTests();
                 WriteXDataToolTests.RunTests();
                 FindXDataToolTests.RunTests();
@@ -19,6 +19,8 @@ namespace Bricscad_AgentAI_V2.Tests
                 SelectEntitiesToolTests.RunTests();
                 ManageViewportsToolTests.RunTests();
                 PublishToPdfToolTests.RunTests();
+                ReadFieldsToolTests.RunTests();
+                ManageFieldsToolTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.UI.LatexToUnicodeConverterTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.DynamicFormulaManagerTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.VisionOcrTilerTests.RunTests();

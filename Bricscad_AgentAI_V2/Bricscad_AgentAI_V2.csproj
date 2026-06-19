@@ -167,6 +167,8 @@
     <Compile Include="src\Tools\EditAttributesTool.cs" />
     <Compile Include="src\Tools\ListBlocksTool.cs" />
     <Compile Include="src\Tools\InsertBlockTool.cs" />
+    <Compile Include="src\Tools\ReadFieldsTool.cs" />
+    <Compile Include="src\Tools\ManageFieldsTool.cs" />
     <Compile Include="src\Tools\CreateBlockTool.cs" />
     <Compile Include="src\Tools\UserInputTool.cs" />
     <Compile Include="src\Tools\UserChoiceTool.cs" />
@@ -230,6 +232,8 @@
     <Compile Include="tests\Tools\ExtractRoomDataEntitiesToolTests.cs" />
     <Compile Include="tests\Tools\BatchWriteXDataToolTests.cs" />
     <Compile Include="tests\Tools\MetricVisionToolTests.cs" />
+    <Compile Include="tests\Tools\ReadFieldsToolTests.cs" />
+    <Compile Include="tests\Tools\ManageFieldsToolTests.cs" />
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />

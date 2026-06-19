@@ -19,7 +19,9 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "TextEditTool",
-                    Description = "Modyfikuje treść oraz formatowanie wizualne (RTF) obiektów tekstowych (DBText, MText) w zaznaczeniu.",
+                    Description = "Modyfikuje treść oraz formatowanie wizualne (RTF) obiektów tekstowych (DBText, MText) w zaznaczeniu. " +
+                                  "UWAGA: tryb Replace NIE nadpisuje tekstu zawierającego pola CAD (%<\\Ac...>) - " +
+                                  "obiekt zostanie pominięty z ostrzeżeniem. Do pracy z polami użyj narzędzia ManageFields.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -60,6 +62,14 @@ namespace Bricscad_AgentAI_V2.Tools
                                     Type = "boolean",
                                     Description = "Czy zastosować pogrubienie dla FormatHighlight."
                                 }
+                            },
+                            {
+                                "AllowFieldOverride", new ToolParameter
+                                {
+                                    Type = "boolean",
+                                    Description = "Domyślnie false. Gdy true, tryb Replace nadpisze tekst nawet w obiektach z polami CAD - " +
+                                                  "UŻYWAJ TYLKO gdy świadomie chcesz zniszczyć istniejące pola inline."
+                                }
                             }
                         },
                         Required = new List<string> { "Mode" }
@@ -81,6 +91,7 @@ namespace Bricscad_AgentAI_V2.Tools
             string replaceWith = args["ReplaceWith"]?.ToString() ?? "";
             int colorIndex = args["ColorIndex"]?.Value<int>() ?? 1;
             bool isBold = args["IsBold"]?.Value<bool>() ?? false;
+            bool allowFieldOverride = args["AllowFieldOverride"]?.Value<bool>() ?? false;
 
             if (string.IsNullOrEmpty(mode)) return "BŁĄD: Brak wymaganego parametru Mode.";
 
@@ -99,11 +110,11 @@ namespace Bricscad_AgentAI_V2.Tools
 
                         if (ent is DBText dbText)
                         {
-                            HandleDBText(dbText, mode, findText, replaceWith, warnings, ref modifiedCount);
+                            HandleDBText(dbText, mode, findText, replaceWith, allowFieldOverride, warnings, ref modifiedCount);
                         }
                         else if (ent is MText mText)
                         {
-                            HandleMText(mText, mode, findText, replaceWith, colorIndex, isBold, warnings, ref modifiedCount);
+                            HandleMText(mText, mode, findText, replaceWith, colorIndex, isBold, allowFieldOverride, warnings, ref modifiedCount);
                         }
                     }
 
@@ -123,8 +134,17 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
 
-        private void HandleDBText(DBText dbText, string mode, string findText, string replaceWith, HashSet<string> warnings, ref int modifiedCount)
+        private void HandleDBText(DBText dbText, string mode, string findText, string replaceWith, bool allowFieldOverride, HashSet<string> warnings, ref int modifiedCount)
         {
+            // Sprawdz czy obiekt ma pola CAD - jesli tak, zabezpiecz przed zniszczeniem.
+            if (!allowFieldOverride && HasAnyField(dbText))
+            {
+                warnings.Add($"[BLOKADA POLA] DBText (ID: {dbText.Id}) zawiera pole CAD (%<\\Ac...>). " +
+                             $"Tryb '{mode}' nie zostanie wykonany. Uzyj ManageFieldsTool " +
+                             $"lub ponow wywolanie z AllowFieldOverride=true.");
+                return;
+            }
+
             switch (mode)
             {
                 case "Append":
@@ -151,8 +171,27 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
 
-        private void HandleMText(MText mText, string mode, string findText, string replaceWith, int colorIndex, bool isBold, HashSet<string> warnings, ref int modifiedCount)
+        private void HandleMText(MText mText, string mode, string findText, string replaceWith, int colorIndex, bool isBold, bool allowFieldOverride, HashSet<string> warnings, ref int modifiedCount)
         {
+            // Sprawdz czy obiekt ma pola CAD - w trybie Replace zablokuj,
+            // w Append/Prepend dodaj tylko ostrzezenie.
+            bool hasField = HasAnyField(mText);
+
+            if (!allowFieldOverride && mode == "Replace" && hasField)
+            {
+                warnings.Add($"[BLOKADA POLA] MText (ID: {mText.Id}) zawiera pole CAD (%<\\Ac...>). " +
+                             $"Tryb Replace nie zostanie wykonany. Uzyj ManageFieldsTool " +
+                             $"lub ponow wywolanie z AllowFieldOverride=true.");
+                return;
+            }
+
+            if (hasField && (mode == "Append" || mode == "Prepend" || mode == "FormatHighlight"))
+            {
+                warnings.Add($"[OSTRZEZENIE POLA] MText (ID: {mText.Id}) zawiera pole CAD. " +
+                             $"Tryb '{mode}' zostanie wykonany, ale moze zakłócic formatowanie pola. " +
+                             $"Rozwaz ManageFieldsTool.InsertField.");
+            }
+
             switch (mode)
             {
                 case "Append":
@@ -185,18 +224,54 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
                     break;
                 case "ClearFormatting":
+                    if (hasField && !allowFieldOverride)
+                    {
+                        warnings.Add($"[BLOKADA POLA] MText (ID: {mText.Id}) zawiera pole CAD. " +
+                                     $"Tryb ClearFormatting nie zostanie wykonany, bo usunalby " +
+                                     $"zawartosc z kodami pol. Uzyj ManageFieldsTool.ConvertToText.");
+                        return;
+                    }
                     // HACK NL: Zachowanie znaków nowej linii \P
                     string originalContents = mText.Contents;
                     mText.Contents = originalContents.Replace("\\P", " @@@NL@@@ ").Replace("\\n", " @@@NL@@@ ");
-                    
+
                     // .Text automatycznie usuwa kody RTF
                     string cleanText = mText.Text;
-                    
+
                     // Przywracamy \P
                     mText.Contents = cleanText.Replace(" @@@NL@@@ ", "\\P").Replace("@@@NL@@@", "\\P").Trim();
                     modifiedCount++;
                     break;
             }
+        }
+
+        private static bool HasAnyField(Entity ent)
+        {
+            try
+            {
+                if (ent.HasFields) return true;
+            }
+            catch
+            {
+                // Ignorujemy - traktujemy jako brak flagi.
+            }
+
+            // Drugie zabezpieczenie: wykrycie znacznika %< w tresci.
+            try
+            {
+                switch (ent)
+                {
+                    case DBText dt:
+                        return (dt.TextString ?? "").Contains("%<");
+                    case MText mt:
+                        return (mt.Contents ?? "").Contains("%<");
+                }
+            }
+            catch
+            {
+                // Brak dostepu do tresci - zakladamy brak pola.
+            }
+            return false;
         }
         public List<string> Examples => null;
     }

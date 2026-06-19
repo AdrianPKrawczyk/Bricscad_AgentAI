@@ -493,6 +493,24 @@ EnsureMathPromptFile();
                         changed = true;
                     }
                 }
+
+                // Tagi dla narzedzi obslugujacych pola CAD (Field codes)
+                if (name.Equals("ReadFields", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ManageFields", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) ||
+                        settings.Tags.IndexOf("#fields", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = "#fields, #metadata";
+                        changed = true;
+                    }
+                    if (settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = false;
+                        changed = true;
+                    }
+                }
             }
 
             if (_config.Profiles == null)
@@ -588,7 +606,7 @@ EnsureMathPromptFile();
                 blocksProf.SystemPromptFile = BlocksPromptFile;
                 changed = true;
             }
-            if (EnsureAllowedTools(blocksProf, new[] { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps" })) changed = true;
+            if (EnsureAllowedTools(blocksProf, new[] { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps", "ReadFields", "ManageFields" })) changed = true;
 
             // 5. Zabezpieczenie/Synchronizacja CadMetadataProfile
             if (!_config.Profiles.TryGetValue("CadMetadataProfile", out var metadataProf))
@@ -607,7 +625,7 @@ EnsureMathPromptFile();
                 metadataProf.SystemPromptFile = MetadataPromptFile;
                 changed = true;
             }
-            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps", "PlotStyleTool" })) changed = true;
+            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps", "PlotStyleTool", "ReadFields", "ManageFields" })) changed = true;
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
@@ -764,15 +782,15 @@ EnsureMathPromptFile();
             _config.Profiles["CadBlocksProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = BlocksPromptFile,
-                AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
+                AllowedTools = new List<string> { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "ReadFields", "ManageFields" },
                 AllowedTags = new List<string> { "#bloki" }
             };
 
             _config.Profiles["CadMetadataProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = MetadataPromptFile,
-                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem" },
-                AllowedTags = new List<string> { "#xdata" }
+                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "ReadFields", "ManageFields" },
+                AllowedTags = new List<string> { "#xdata", "#fields" }
             };
 
             _config.Profiles["CadMathProfile"] = new AgentProfileConfig
