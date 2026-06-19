@@ -1,0 +1,525 @@
+{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_12_ManageFields",
+    "ModelName": "LLM-Benchmark-V2",
+    "ProfileName": "CadMetadataProfile",
+    "RunDate": "2026-06-19",
+    "Comment": "Benchmark dla ReadFields i ManageFields w profilu CadMetadataProfile. 30 testow, 10 kategorii, poziomy D1-D5. Pokrywa inspekcje pol (%<\\Ac...>), kategorie (SystemVariable/Expression/DateTime/ObjectProperty), wstawianie/usuwanie/konwersje, filtry MatchText/BlockNameFilter/AttributeTagFilter, IncludeConstantAttributes, EvaluateAll, sekwencje ReadFields -> ManageFields i Foreach."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "ReadFieldsBasic",
+      "Difficulty": 1,
+      "TestName": "ReadFields_AllNoFilter",
+      "Description": "Agent listuje wszystkie pola w zaznaczonych obiektach bez filtrowania.",
+      "UserPrompt": "Wylistuj wszystkie pola CAD w zaznaczonych obiektach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "WYNIK: Znaleziono 8 pol w 6 obiektach (sprawdzono 18):\n- [MText] kategoria=BinaryField status=NotYetEvaluated kod='%<\\FldIdx 0>' wartosc=''\n- [DBText] kategoria=DateTime status=NotYetEvaluated kod='%<\\AcDate \\yyyy-MM-dd>' wartosc='%<\\AcDate \\yyyy-MM-dd>'\n- [AttributeReference Tag=TYTUL] kategoria=SystemVariable status=NotYetEvaluated"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: Inspekcja pol wymaga ReadFields." }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "ReadFieldsBasic",
+      "Difficulty": 2,
+      "TestName": "ReadFields_FilterDateTime",
+      "Description": "Agent filtruje pole po kategorii DateTime.",
+      "UserPrompt": "Pokaz tylko pola kategorii DateTime.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "WYNIK: Znaleziono 1 pol w 1 obiektach (sprawdzono 18):\n- [DBText] kategoria=DateTime"
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: Filtrowanie pol wymaga ReadFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FilterByCategory", "TargetValue": "DateTime", "ErrorMessage": "BLAD: Brak FilterByCategory='DateTime'." }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "ReadFieldsBasic",
+      "Difficulty": 2,
+      "TestName": "ReadFields_SaveAsMemory",
+      "Description": "Agent zapisuje raport z polami do pamieci Agenta jako zmienna.",
+      "UserPrompt": "Wylistuj wszystkie pola i zapisz raport jako FieldsReport w pamieci.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "ZAPISANO W PAMIECI JAKO @FieldsReport (format JSON, 8 wpisow)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: Zapis raportu wymaga ReadFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "SaveAs", "TargetValue": "FieldsReport", "ErrorMessage": "BLAD: Brak SaveAs='FieldsReport' (bez @)." }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "ReadFieldsCategories",
+      "Difficulty": 2,
+      "TestName": "ReadFields_FilterSystemVariable",
+      "Description": "Agent filtruje pole kategorii SystemVariable (zmienne systemowe DWG).",
+      "UserPrompt": "Pokaz tylko pola kategorii SystemVariable.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "WYNIK: Znaleziono 4 pol w 4 obiektach kategorii SystemVariable."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: Filtrowanie po kategorii wymaga ReadFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FilterByCategory", "TargetValue": "SystemVariable", "ErrorMessage": "BLAD: Brak FilterByCategory='SystemVariable'." }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "ReadFieldsCategories",
+      "Difficulty": 2,
+      "TestName": "ReadFields_FilterExpression",
+      "Description": "Agent filtruje pole kategorii Expression (wyrazenia arytmetyczne).",
+      "UserPrompt": "Pokaz tylko pola Expression (obliczane arytmetycznie).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "WYNIK: Znaleziono 1 pol w 1 obiektach kategorii Expression."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: ReadFields jest wymagany." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FilterByCategory", "TargetValue": "Expression", "ErrorMessage": "BLAD: Brak FilterByCategory='Expression'." }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "ReadFieldsCategories",
+      "Difficulty": 2,
+      "TestName": "ReadFields_FilterObjectProperty",
+      "Description": "Agent filtruje pole kategorii ObjectProperty (wlasciwosci obiektu).",
+      "UserPrompt": "Pokaz pola ObjectProperty.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "WYNIK: Znaleziono 1 pol w 1 obiektach kategorii ObjectProperty."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: ReadFields jest wymagany." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "FilterByCategory", "TargetValue": "ObjectProperty", "ErrorMessage": "BLAD: Brak FilterByCategory='ObjectProperty'." }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "ReadFieldsBlockAttributes",
+      "Difficulty": 3,
+      "TestName": "ReadFields_BlockAttrsByName",
+      "Description": "Agent selekcjonuje blok po nazwie i czyta pola w jego atrybutach.",
+      "UserPrompt": "Zaznacz bloki BenchPole_MText i wylistuj pola w ich atrybutach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "WYNIK: Zaznaczono 2 obiekty.",
+        "ReadFields": "WYNIK: Znaleziono 2 pola w 2 atrybutach (ParentBlock=BenchPole_MText, Tag=TYTUL)."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "SelectEntities, ReadFields", "ErrorMessage": "BLAD: Oczekiwano SelectEntities -> ReadFields." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Name", "TargetValue": "BenchPole_MText", "ErrorMessage": "BLAD: SelectEntities powinien filtrowac po Name='BenchPole_MText'." }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "ReadFieldsBlockAttributes",
+      "Difficulty": 3,
+      "TestName": "ReadFields_DualAttrBlock",
+      "Description": "Agent czyta pola w bloku z dwoma atrybutami - tylko TYTUL ma pole.",
+      "UserPrompt": "W bloku BenchPole_DualAttr wylistuj pola w atrybutach.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "Znaleziono 3 atrybuty TYTUL z polem, NUMER bez pola."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ReadFields", "ErrorMessage": "BLAD: Odczyt pol w bloku wymaga ReadFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_DualAttr", "ErrorMessage": "BLAD: Oczekiwano BlockNameFilter='BenchPole_DualAttr' (bez wybierania calej selekcji)." }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 1,
+      "TestName": "InsertField_PositionEnd",
+      "Description": "Agent wstawia pole na koncu istniejacego tekstu.",
+      "UserPrompt": "Wstaw aktualna date na koncu tekstu 'Staly numer referencyjny'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 1 obiektach."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie pola wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "InsertField", "ErrorMessage": "BLAD: Oczekiwano Action='InsertField'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "End", "ErrorMessage": "BLAD: Brak Position='End'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcDate \\yyyy-MM-dd> || %<\\AcVar \"DWGNAME\"> || %<\\AcVar \"SAVENAME\">", "ErrorMessage": "BLAD: Brak poprawnego kodu DWG pola w FieldCode." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Staly numer referencyjny", "ErrorMessage": "BLAD: Brak MatchText='Staly numer referencyjny' (filtr precyzujacy obiekt)." }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 2,
+      "TestName": "InsertField_PositionStart",
+      "Description": "Agent wstawia pole na poczatku tekstu.",
+      "UserPrompt": "Dodaj pole z nazwa pliku na poczatku tekstu 'Wynik: 50'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 1 obiektach (pominieto 17)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "InsertField", "ErrorMessage": "BLAD: Brak Action='InsertField'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "Start", "ErrorMessage": "BLAD: Brak Position='Start'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"DWGNAME\"> || %<\\AcVar \"SAVENAME\">", "ErrorMessage": "BLAD: Brak kodu zmiennej systemowej w FieldCode." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Wynik: 50", "ErrorMessage": "BLAD: Brak MatchText='Wynik: 50' (filtr precyzujacy)." }
+      ]
+    },
+    {
+      "Id": 11,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 2,
+      "TestName": "InsertField_PositionReplace",
+      "Description": "Agent wstawia pole zastepujac cala tresc.",
+      "UserPrompt": "Wstaw numer arkusza zamiast tekstu 'A-001'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 1 obiektach."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "Replace", "ErrorMessage": "BLAD: Brak Position='Replace'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcFido", "ErrorMessage": "BLAD: Brak kodu %<\\AcFido (numer arkusza)." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "A-001", "ErrorMessage": "BLAD: Brak MatchText='A-001' (filtr precyzujacy)." }
+      ]
+    },
+    {
+      "Id": 12,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 3,
+      "TestName": "InsertField_BlockAttrByTag",
+      "Description": "Agent wstawia pole do atrybutu NUMER w bloku BenchPole_DBText.",
+      "UserPrompt": "Wstaw aktualna date w atrybucie NUMER bloku BenchPole_DBText.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 0 obiektach tekstowych i 2 atrybutach blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie do bloku wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "AttributeTagFilter", "TargetValue": "NUMER", "ErrorMessage": "BLAD: Brak AttributeTagFilter='NUMER' (precyzja atrybutu)." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_DBText", "ErrorMessage": "BLAD: Brak BlockNameFilter='BenchPole_DBText' (precyzja bloku)." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcDate", "ErrorMessage": "BLAD: Brak kodu %<\\AcDate w FieldCode." }
+      ]
+    },
+    {
+      "Id": 13,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 3,
+      "TestName": "InsertField_MTextBlockAttr",
+      "Description": "Agent wstawia pole do atrybutu MText w bloku BenchPole_MText (z istniejacym polem).",
+      "UserPrompt": "Wstaw kod SAVENAME w atrybucie TYTUL bloku BenchPole_MText.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 0 obiektach tekstowych i 2 atrybutach blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "AttributeTagFilter", "TargetValue": "TYTUL", "ErrorMessage": "BLAD: Brak AttributeTagFilter='TYTUL'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_MText", "ErrorMessage": "BLAD: Brak BlockNameFilter='BenchPole_MText'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"SAVENAME\"", "ErrorMessage": "BLAD: Brak kodu %<\\AcVar \"SAVENAME\" w FieldCode." }
+      ]
+    },
+    {
+      "Id": 14,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 3,
+      "TestName": "InsertField_ConstantAttrOverride",
+      "Description": "Agent probuje wstawic pole w atrybut stalym (Constant=true) - powinien dostac odmowe lub uzyc IncludeConstantAttributes=true.",
+      "UserPrompt": "Wstaw date w stalym atrybucie STALY bloku BenchPole_Constant.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "Atrybut stale (Constant=true) w [STALY]: pominieto wstawienie pola."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "AttributeTagFilter", "TargetValue": "STALY", "ErrorMessage": "BLAD: Brak AttributeTagFilter='STALY'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_Constant", "ErrorMessage": "BLAD: Brak BlockNameFilter='BenchPole_Constant'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "IncludeConstantAttributes", "TargetValue": "true", "ErrorMessage": "BLAD: Atrybut jest Constant - agent powinien ustawic IncludeConstantAttributes=true (lub zaakceptowac pominięcie)." }
+      ]
+    },
+    {
+      "Id": 15,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 4,
+      "TestName": "InsertField_BeforeText",
+      "Description": "Agent wstawia pole przed konkretnym slowem w tekscie.",
+      "UserPrompt": "Wstaw date przed slowem 'KONIEC' w tekscie 'Sekcja A - KONIEC'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 1 obiektach."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Position", "TargetValue": "Before:KONIEC || Before:KONIEC ", "ErrorMessage": "BLAD: Brak Position='Before:KONIEC' (precyzja pozycji)." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Sekcja A - KONIEC", "ErrorMessage": "BLAD: Brak MatchText='Sekcja A - KONIEC' (filtr obiektu)." }
+      ]
+    },
+    {
+      "Id": 16,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 4,
+      "TestName": "InsertField_AfterText",
+      "Description": "Agent wstawia pole za konkretnym slowem w tekscie.",
+      "UserPrompt": "Wstaw godzine za slowem 'Start:' w tekscie 'Start: 09:00'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 1 obiektach."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Position", "TargetValue": "After:Start: || After:Start: ", "ErrorMessage": "BLAD: Brak Position='After:Start:'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Start: 09:00", "ErrorMessage": "BLAD: Brak MatchText='Start: 09:00'." }
+      ]
+    },
+    {
+      "Id": 17,
+      "Category": "ManageFieldsInsert",
+      "Difficulty": 4,
+      "TestName": "InsertField_AllTextOnLayout",
+      "Description": "Agent wstawia pole do wszystkich tekstow w model-space (Targets=AllMTextOnLayout).",
+      "UserPrompt": "Wstaw date do wszystkich MText w biezacym layout (bez selekcji).",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wstawiono pole w 5 obiektach tekstowych."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Targets", "TargetValue": "AllMTextOnLayout", "ErrorMessage": "BLAD: Brak Targets='AllMTextOnLayout'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcDate", "ErrorMessage": "BLAD: Brak kodu %<\\AcDate w FieldCode." }
+      ]
+    },
+    {
+      "Id": 18,
+      "Category": "ManageFieldsRemove",
+      "Difficulty": 2,
+      "TestName": "RemoveField_FromText",
+      "Description": "Agent usuwa wszystkie pola z konkretnego MText (MatchText).",
+      "UserPrompt": "Usun wszystkie pola z tekstu 'Stary projekt'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Usunieto pole/pola w 1 obiektach (pominieto 17)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Usuwanie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "RemoveField", "ErrorMessage": "BLAD: Brak Action='RemoveField'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Stary projekt", "ErrorMessage": "BLAD: Brak MatchText='Stary projekt'." }
+      ]
+    },
+    {
+      "Id": 19,
+      "Category": "ManageFieldsRemove",
+      "Difficulty": 3,
+      "TestName": "RemoveField_FromAllText",
+      "Description": "Agent usuwa wszystkie pola ze wszystkich obiektow tekstowych w rysunku.",
+      "UserPrompt": "Usun wszystkie pola ze wszystkich tekstow w biezacym layout.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Usunieto pole/pola w 6 obiektach (pominieto 12)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Usuwanie wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "RemoveField", "ErrorMessage": "BLAD: Brak Action='RemoveField'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Targets", "TargetValue": "AllTextOnLayout", "ErrorMessage": "BLAD: Brak Targets='AllTextOnLayout'." }
+      ]
+    },
+    {
+      "Id": 20,
+      "Category": "ManageFieldsConvert",
+      "Difficulty": 2,
+      "TestName": "ConvertToText_Single",
+      "Description": "Agent zamienia pola w konkretnym obiekcie na zwykly tekst z zachowaniem wartosci.",
+      "UserPrompt": "Zamien wszystkie pola w tekscie 'Karta tytulowa' na zwykly tekst.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Zamieniono pola na tekst w 1 obiektach (pominieto 17)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Konwersja wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ConvertToText", "ErrorMessage": "BLAD: Brak Action='ConvertToText'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Karta tytulowa", "ErrorMessage": "BLAD: Brak MatchText='Karta tytulowa' (precyzja)." }
+      ]
+    },
+    {
+      "Id": 21,
+      "Category": "ManageFieldsConvert",
+      "Difficulty": 3,
+      "TestName": "ConvertToText_AllLayout",
+      "Description": "Agent konwertuje WSZYSTKIE pola w rysunku na tekst (czesto przed plotowaniem).",
+      "UserPrompt": "Zamien wszystkie pola w rysunku na tekst przed wydrukiem.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Zamieniono pola na tekst w 6 obiektach (pominieto 12)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Konwersja wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ConvertToText", "ErrorMessage": "BLAD: Brak Action='ConvertToText'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Targets", "TargetValue": "AllMTextOnLayout || AllTextOnLayout || Selection", "ErrorMessage": "BLAD: Brak Targets pokrywajacego caly layout." }
+      ]
+    },
+    {
+      "Id": 22,
+      "Category": "ManageFieldsConvert",
+      "Difficulty": 3,
+      "TestName": "ConvertToText_BlockAttr",
+      "Description": "Agent konwertuje pola w atrybucie bloku BenchPole_DualAttr/TYTUL.",
+      "UserPrompt": "Zamien pola w atrybucie TYTUL bloku BenchPole_DualAttr na tekst.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Zamieniono pola na tekst w 0 obiektach tekstowych i 3 atrybutach blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Konwersja wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ConvertToText", "ErrorMessage": "BLAD: Brak Action='ConvertToText'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "AttributeTagFilter", "TargetValue": "TYTUL", "ErrorMessage": "BLAD: Brak AttributeTagFilter='TYTUL'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_DualAttr", "ErrorMessage": "BLAD: Brak BlockNameFilter='BenchPole_DualAttr'." }
+      ]
+    },
+    {
+      "Id": 23,
+      "Category": "ManageFieldsEvaluate",
+      "Difficulty": 1,
+      "TestName": "EvaluateAll_Regen",
+      "Description": "Agent wymusza przeliczenie wszystkich pol przez _.REGEN.",
+      "UserPrompt": "Wymus przeliczenie wszystkich pol w rysunku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Wyslano komende _.REGEN do wymuszenia przeliczenia pol."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wymuszenie przeliczenia wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "EvaluateAll", "ErrorMessage": "BLAD: Brak Action='EvaluateAll'." }
+      ]
+    },
+    {
+      "Id": 24,
+      "Category": "ManageFieldsReplace",
+      "Difficulty": 3,
+      "TestName": "ReplaceFieldCode_InText",
+      "Description": "Agent zamienia kod pola DWGNAME na SAVENAME w konkretnym tekscie.",
+      "UserPrompt": "W tekscie 'Projekt: ' zamien pole DWGNAME na SAVENAME.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "WYNIK: Zamieniono kod pola w 1 obiektach (pominieto 17)."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Zamiana kodu wymaga ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ReplaceFieldCode", "ErrorMessage": "BLAD: Brak Action='ReplaceFieldCode'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"SAVENAME\"", "ErrorMessage": "BLAD: Brak nowego kodu %<\\AcVar \"SAVENAME\" w FieldCode." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "MatchText", "TargetValue": "Projekt:", "ErrorMessage": "BLAD: Brak MatchText='Projekt:' (precyzja obiektu)." }
+      ]
+    },
+    {
+      "Id": 25,
+      "Category": "WorkflowSequence",
+      "Difficulty": 4,
+      "TestName": "Workflow_ReadFields_Then_Insert",
+      "Description": "Sekwencja: ReadFields (inwentaryzacja) -> ManageFields InsertField (po potwierdzeniu).",
+      "UserPrompt": "Wylistuj pola, a potem dodaj SAVENAME do tekstu 'Karta tytulowa'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "Znaleziono 8 pol.",
+        "ManageFields": "Wstawiono pole w 1 obiektach."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "ReadFields, ManageFields", "ErrorMessage": "BLAD: Oczekiwano sekwencji ReadFields -> ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "InsertField", "ErrorMessage": "BLAD: ManageFields powinien miec Action='InsertField'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"SAVENAME\"", "ErrorMessage": "BLAD: Brak kodu SAVENAME w FieldCode." }
+      ]
+    },
+    {
+      "Id": 26,
+      "Category": "WorkflowSequence",
+      "Difficulty": 4,
+      "TestName": "Workflow_ConvertThenEvaluate",
+      "Description": "Sekwencja: ConvertToText (wszystkie pola) -> EvaluateAll (wymus REGEN).",
+      "UserPrompt": "Zamien wszystkie pola na tekst, a potem wymus przeliczenie rysunku.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "Zamieniono pola na tekst. Wyslano _.REGEN."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Oba kroki (ConvertToText i EvaluateAll) przez ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Targets", "TargetValue": "AllTextOnLayout", "ErrorMessage": "BLAD: Brak Targets='AllTextOnLayout' dla ConvertToText." }
+      ]
+    },
+    {
+      "Id": 27,
+      "Category": "WorkflowSequence",
+      "Difficulty": 4,
+      "TestName": "Workflow_ReadFieldsInsertByTag",
+      "Description": "Sekwencja: SelectEntities (blok) -> ReadFields (sprawdz atrybuty) -> ManageFields InsertField (z AttributeTagFilter).",
+      "UserPrompt": "Zaznacz blok BenchPole_DualAttr, sprawdz jego atrybuty i wstaw date w atrybucie TYTUL.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "Zaznaczono 3 obiekty.",
+        "ReadFields": "Block=BenchPole_DualAttr, Tag=TYTUL (z polem), Tag=NUMER (bez pola).",
+        "ManageFields": "Wstawiono pole w 3 atrybutach blokow."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "SelectEntities, ReadFields, ManageFields", "ErrorMessage": "BLAD: Oczekiwano SelectEntities -> ReadFields -> ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "AttributeTagFilter", "TargetValue": "TYTUL", "ErrorMessage": "BLAD: ManageFields powinien miec AttributeTagFilter='TYTUL'." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_DualAttr", "ErrorMessage": "BLAD: Brak BlockNameFilter='BenchPole_DualAttr'." }
+      ]
+    },
+    {
+      "Id": 28,
+      "Category": "WorkflowSequence",
+      "Difficulty": 5,
+      "TestName": "Workflow_Foreach_InsertByBlockName",
+      "Description": "Agent uzywa Foreach z Items=[BenchPole_MText, BenchPole_DBText] i wywoluje ManageFields InsertField z {item} jako BlockNameFilter.",
+      "UserPrompt": "Dla blokow BenchPole_MText i BenchPole_DBText wstaw aktualna date w atrybucie TYTUL/NUMER odpowiednio.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 2/2 operacji."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "Foreach", "ErrorMessage": "BLAD: Masowa operacja po blokach wymaga Foreach." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[0]", "TargetValue": "BenchPole_MText", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[0]='BenchPole_MText'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Items[1]", "TargetValue": "BenchPole_DBText", "ErrorMessage": "BLAD: Foreach powinien otrzymac Items[1]='BenchPole_DBText'." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "{\"ToolName\":\"ManageFields\",\"Action\":\"InsertField\",\"BlockNameFilter\":\"{item}\"", "ErrorMessage": "BLAD: Foreach Action powinien wywolac ManageFields z BlockNameFilter='{item}'." },
+        { "RuleType": "ToolCallCountMax", "TargetValue": "ManageFields", "ExpectedOutput": "0", "ErrorMessage": "BLAD: Bezposrednie ManageFields poza Foreach jest zabronione." }
+      ]
+    },
+    {
+      "Id": 29,
+      "Category": "WorkflowSequence",
+      "Difficulty": 5,
+      "TestName": "Workflow_AuditTrail",
+      "Description": "Agent wykonuje sekwencje ReadFields, potem ManageFields ConvertToText, potem ManageFields EvaluateAll - pelny audit trail.",
+      "UserPrompt": "Sprawdz jakie pola sa w rysunku, zamien wszystkie na tekst, a potem przelicz rysunek.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "Znaleziono 8 pol.",
+        "ManageFields": "Zamieniono 6 pol. REGEN wykonany."
+      },
+      "ValidationRules": [
+        { "RuleType": "SequenceMatch", "TargetValue": "ReadFields, ManageFields", "ErrorMessage": "BLAD: Oczekiwano ReadFields przed ManageFields." },
+        { "RuleType": "ArgumentMatch", "TargetArgument": "Targets", "TargetValue": "AllTextOnLayout", "ErrorMessage": "BLAD: Brak Targets='AllTextOnLayout' dla ConvertToText." }
+      ]
+    },
+    {
+      "Id": 30,
+      "Category": "ErrorHandling",
+      "Difficulty": 3,
+      "TestName": "Error_InvalidFieldCode",
+      "Description": "Agent probuje wstawic nieprawidlowy kod - powinien dostac blad.",
+      "UserPrompt": "Wstaw 'to nie jest kod' jako pole.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ManageFields": "BLAD: Podany FieldCode 'to nie jest kod' nie wyglada jak kod pola DWG."
+      },
+      "ValidationRules": [
+        { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "to nie jest kod", "ErrorMessage": "BLAD: Brak testowanego (niepoprawnego) FieldCode." }
+      ]
+    }
+  ]
+}
