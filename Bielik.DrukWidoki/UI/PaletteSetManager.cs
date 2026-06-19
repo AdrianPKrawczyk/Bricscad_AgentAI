@@ -10,6 +10,8 @@ namespace Bielik.DrukWidoki.UI
         private static PaletteSet _paletteSet;
         private static MainView _mainView;
 
+        public static MainView MainViewInstance => _mainView;
+
         [CommandMethod("DRUK_WIDOKI")]
         public static void ShowPalette()
         {
@@ -31,6 +33,9 @@ namespace Bielik.DrukWidoki.UI
             var db = Teigha.DatabaseServices.HostApplicationServices.WorkingDatabase;
             var data = Core.NodManager.LoadViews(db);
             _mainView.ViewModel.LoadData(data);
+
+            // Register Reactors
+            Reactors.PolylineReactor.Register();
 
             _paletteSet.Visible = true;
         }

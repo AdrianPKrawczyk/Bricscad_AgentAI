@@ -16,7 +16,11 @@ namespace Bielik.DrukWidoki.UI
 
         private void BtnAdd_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implement Jig
+            var doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc != null)
+            {
+                doc.SendStringToExecute("BIELIK_DRAW_VIEW ", true, false, false);
+            }
         }
 
         private void BtnShow_Click(object sender, RoutedEventArgs e)
