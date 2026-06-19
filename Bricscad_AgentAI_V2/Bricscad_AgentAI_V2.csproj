@@ -271,6 +271,7 @@
     <Compile Include="src\Tools\Layout\SheetSetComHelpers.cs" />
     <Compile Include="src\Tools\Layout\ManageSheetSetTool.cs" />
     <Compile Include="src\Tools\Layout\SheetSetSheetTool.cs" />
+    <Compile Include="src\Tools\Layout\ReadViewDefinitionsTool.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

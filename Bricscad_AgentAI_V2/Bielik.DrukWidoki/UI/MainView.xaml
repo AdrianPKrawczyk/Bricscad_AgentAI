@@ -1,0 +1,31 @@
+<UserControl x:Class="Bielik.DrukWidoki.UI.MainView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ToolBar Grid.Row="0">
+            <Button Content="➕ Dodaj" Click="BtnAdd_Click"/>
+            <Button Content="👁️ Pokaż" Click="BtnShow_Click"/>
+            <Button Content="🔄 Odtwórz" Click="BtnRebuild_Click"/>
+        </ToolBar>
+
+        <ListBox Grid.Row="1" ItemsSource="{Binding Views}" SelectedItem="{Binding SelectedView}" DisplayMemberPath="Name" Margin="5"/>
+
+        <StackPanel Grid.Row="2" Margin="5" DataContext="{Binding SelectedView}">
+            <TextBlock Text="Szczegóły widoku:" FontWeight="Bold" Margin="0,0,0,5"/>
+            <TextBlock Text="Nazwa:" />
+            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
+            <TextBlock Text="Typ:" />
+            <TextBox Text="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

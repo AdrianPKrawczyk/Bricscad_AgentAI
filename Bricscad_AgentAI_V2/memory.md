@@ -4617,3 +4617,18 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Dalsze testy manualne z `tests/LayoutToolsManualTests.md` (Page Setup, Import/Export, Publish, Plot Style).
 - Po ustabilizowaniu: aktualizacja `BricsCAD_API_V22.txt` o brakujÄ…ce/zmienione sygnatury metod Layout/Plot.
 
+
+## [v2.30.22] 2026-06-19T22:03:22+02:00 - Implementacja Druk Widoki (WPF & CAD Hooks)
+### [ZREALIZOWANO]
+- Utworzono projekt Bielik.DrukWidoki.csproj (WPF/MVVM, .NET 4.8).
+- Dodano klasê DTO BielikViewDef oraz obs³ugê NOD (NodManager).
+- Zaimplementowano interfejs graficzny PaletteSet (WPF) w BricsCAD z modelem widoku.
+- Stworzono stuby Jigs (EntityJig dla rysowania) oraz Reactors (ObjectModified dla Polyline).
+- Stworzono integracjê z Agentem AI V2: ReadViewDefinitionsTool (#layout), pobieraj¹cy s³ownik BIELIK_DRUK_WIDOKI.
+- Zaktualizowano prompt systemowy (system_prompt_layout.txt).
+### [STAN_SYSTEMU]
+- Kompilacja obu projektów przebieg³a bez b³êdów. Narzêdzia AI potrafi¹ czytaæ NOD przez nowo dodane narzêdzie.
+### [BLOKADY / PROBLEMY]
+- Brak.
+### [KOLEJNY_KROK]
+- Rozpoczêcie Fazy 5: Pe³na integracja z poleceniami BricsCAD (Jigi) oraz finalne testy manualne.
