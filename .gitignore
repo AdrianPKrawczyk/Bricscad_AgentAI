@@ -390,3 +390,6 @@ Bricscad_AgentAI_V2/tests/**/Benchmark_*_FULL_*.json
 Bricscad_AgentAI_V2/tests/**/Benchmark_*_ERRORS_*.json
 Bricscad_AgentAI_V2/tests/google_*/
 Bricscad_AgentAI_V2/tests/qwen*/
+
+# Lokalne notatki robocze agentów (szkice, drafty) - "@" prefix oznacza prywatne
+Bricscad_AgentAI_V2/@memory.md
