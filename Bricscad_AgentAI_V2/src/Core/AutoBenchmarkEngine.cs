@@ -516,6 +516,30 @@ namespace Bricscad_AgentAI_V2.Core
                                 ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", newlineValues)}', oczekiwano wartosci z \\n)";
                             break;
 
+                        // v2.33.2: Substring match - wartosc argumentu musi zawierac
+                        // podany fragment (case-insensitive). Przydatne dla kodow DWG
+                        // z " i %< gdzie JSON-escape vs literal psuja exact match.
+                        case "StringContains":
+                            var substringValues = test.RecordedToolCalls
+                                .Where(c => c.Arguments != null)
+                                .Select(c => ResolveJsonPath(c.Arguments, rule.TargetArgument))
+                                .Where(v => v != null)
+                                .ToList();
+
+                            if (substringValues.Count == 0)
+                            {
+                                rulePassed = false;
+                                ruleError = $"{ruleError} (Argument '{rule.TargetArgument}' nie zostal znaleziony w zadnym wywolaniu)";
+                                break;
+                            }
+
+                            string substringNeedle = rule.TargetValue ?? "";
+                            rulePassed = substringValues.Any(v =>
+                                v.IndexOf(substringNeedle, StringComparison.OrdinalIgnoreCase) >= 0);
+                            if (!rulePassed)
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", substringValues)}', oczekiwano substringu: '{substringNeedle}')";
+                            break;
+
 
                         case "ToolCallCountMax":
                             if (!int.TryParse(rule.ExpectedOutput, out int maxAllowedCalls))

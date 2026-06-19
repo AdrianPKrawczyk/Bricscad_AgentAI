@@ -17,6 +17,25 @@ Pola CAD (ReadFields, ManageFields):
 - ManageFieldsTool.ConvertToText zamienia pola na zwykly tekst z zachowaniem obliczonej wartosci
   (nieodwracalne - pola przestaja sie przeliczac).
 
+KRYTYCZNE: Poprawny format FieldCode w wywolaniu JSON:
+- Wewnatrz stringu JSON cudzyslowy wewnetrzne MUSZA byc escapowane jako \"
+- Pole NIE moze miec spacji przed zamykajacym > (BricsCAD zwroci blad)
+- Przyklady poprawnego zapisu w arguments:
+  - arguments: {"Action":"InsertField","FieldCode":"%<\\AcVar \\\"DWGNAME\\\">"}
+  - arguments: {"Action":"InsertField","FieldCode":"%<\\AcDate \\\"yyyy-MM-dd\\\">"}
+  - arguments: {"Action":"InsertField","FieldCode":"%<\\AcVar \\\"SAVENAME\\\">"}
+  - arguments: {"Action":"InsertField","FieldCode":"%<\\AcFido \\\"SHEET\\\">"}
+- Bledny format (LLM czasem bladnie):
+  - arguments: {"Action":"InsertField`,FieldCode:","...       <- przecinek zamiast dwukropka
+  - arguments: {"FieldCode":"%<\\AcVar "DWGNAME">"}              <- brak \"
+  - arguments: {"FieldCode":"%<\\AcDate \\C1 >"}                  <- spacja przed >
+- Przed wyslaniem sprawdz czy JSON jest poprawny: kazdy " w stringu ma \", kazdy klucz ma :, kazdy string ma "...".
+
+Walidacja inputu ManageFields:
+- ManageFields NIE waliduje poprawnosci FieldCode - zle kody DWG sa akceptowane jako tekst.
+- Przed wywolaniem ManageFields z nowym kodem: sprawdz pisownie kategorii (AcVar, AcDate, AcExpr, AcObjProp, AcFido, AcDim).
+- Sprawdz czy selekcja jest niepusta przed wywolaniem z Targets=Selection (inactive selection zwroci blad).
+
 Pipeline danych pomieszczen (Extract -> Analyze -> Write):
 - ExtractRoomDataEntities: skanuje warstwe obrysow (Polyline) i warstwe metek (BlockReference z atrybutami),
   paruje je testem Point-in-Polygon, zwraca JSON z trzema listami: Matched, UnmatchedBoundaries, UnmatchedTags.
