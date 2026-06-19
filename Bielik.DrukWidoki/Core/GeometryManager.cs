@@ -9,7 +9,7 @@ namespace Bielik.DrukWidoki.Core
 {
     public class GeometryManager
     {
-        public const string LayerName = "_BIELIK_ZAKRESY";
+        public const string LayerName = "_ZAKRESY";
         public const string RegAppName = "BIELIK_VIEW_DEF";
 
         public static void EnsureLayerExists(Database db, Transaction tr)
@@ -22,6 +22,27 @@ namespace Bielik.DrukWidoki.Core
                 ltr.Name = LayerName;
                 ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1); // Red
                 ltr.IsPlottable = false;
+                ltr.IsLocked = true; // Zablokowana domyślnie
+                ltr.LineWeight = LineWeight.LineWeight005; // 0.05
+                
+                // Próba wczytania i przypisania typu linii HIDDEN
+                var ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForRead);
+                if (!ltt.Has("HIDDEN"))
+                {
+                    try
+                    {
+                        db.LoadLineTypeFile("HIDDEN", "default.lin");
+                    }
+                    catch
+                    {
+                        // Ignore if loading fails
+                    }
+                }
+                if (ltt.Has("HIDDEN"))
+                {
+                    ltr.LinetypeObjectId = ltt["HIDDEN"];
+                }
+
                 lt.Add(ltr);
                 tr.AddNewlyCreatedDBObject(ltr, true);
             }

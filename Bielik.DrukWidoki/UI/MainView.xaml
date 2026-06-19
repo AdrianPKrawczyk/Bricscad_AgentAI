@@ -18,14 +18,23 @@
             <Button Content="🔄 Odtwórz" Click="BtnRebuild_Click"/>
         </ToolBar>
 
-        <ListBox Grid.Row="1" ItemsSource="{Binding Views}" SelectedItem="{Binding SelectedView}" DisplayMemberPath="Name" Margin="5"/>
+        <ListView Grid.Row="1" ItemsSource="{Binding Views}" SelectedItem="{Binding SelectedView}" Margin="5">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Nazwa" DisplayMemberBinding="{Binding Name}" Width="100"/>
+                    <GridViewColumn Header="Typ" DisplayMemberBinding="{Binding Type}" Width="80"/>
+                    <GridViewColumn Header="Wymiary" DisplayMemberBinding="{Binding Dimensions}" Width="100"/>
+                    <GridViewColumn Header="Pozycja" DisplayMemberBinding="{Binding Position}" Width="100"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
 
         <StackPanel Grid.Row="2" Margin="5" DataContext="{Binding SelectedView}">
             <TextBlock Text="Szczegóły widoku:" FontWeight="Bold" Margin="0,0,0,5"/>
             <TextBlock Text="Nazwa:" />
-            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
+            <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,5"/>
             <TextBlock Text="Typ:" />
-            <TextBox Text="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
+            <TextBox Text="{Binding Type, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,5"/>
         </StackPanel>
     </Grid>
 </UserControl>

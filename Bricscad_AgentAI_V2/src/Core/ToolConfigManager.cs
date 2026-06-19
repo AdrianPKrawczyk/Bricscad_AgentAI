@@ -531,7 +531,7 @@ EnsureMathPromptFile();
                 supervisorProf.SystemPromptFile = SupervisorPromptFile;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps", "ExtractRoomDataEntities" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps", "ExtractRoomDataEntities", "ReadViewDefinitionsTool" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -714,7 +714,7 @@ EnsureMathPromptFile();
                 "ManageSheetSetTool", "SheetSetSheetTool",
                 "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
                 "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps",
-                "Foreach", "ManageViewportsTool"
+                "Foreach", "ManageViewportsTool", "ReadViewDefinitionsTool"
             };
             
             if (layoutProf.AllowedTools == null)

@@ -8,6 +8,8 @@ using Bielik.DrukWidoki.Models;
 using System;
 using System.Collections.Generic;
 
+[assembly: CommandClass(typeof(Bielik.DrukWidoki.UI.ViewDrawCommand))]
+
 namespace Bielik.DrukWidoki.UI
 {
     public class ViewDrawCommand
@@ -31,13 +33,13 @@ namespace Bielik.DrukWidoki.UI
             {
                 var viewId = Guid.NewGuid();
                 var poly = jig.GetEntity();
-                poly.Layer = GeometryManager.LayerName;
                 
                 using (var docLock = doc.LockDocument())
                 {
                     using (var tr = doc.TransactionManager.StartTransaction())
                     {
                         GeometryManager.EnsureLayerExists(db, tr);
+                        poly.Layer = GeometryManager.LayerName;
                         GeometryManager.EnsureRegAppExists(db, tr);
 
                         var rb = new ResultBuffer(

@@ -20,6 +20,7 @@ namespace Bielik.DrukWidoki.Jigs
             _poly.AddVertexAt(2, new Point2d(_startPt.X, _startPt.Y), 0, 0, 0);
             _poly.AddVertexAt(3, new Point2d(_startPt.X, _startPt.Y), 0, 0, 0);
             _poly.Closed = true;
+            _poly.ColorIndex = 3; // Zielony
         }
 
         protected override SamplerStatus Sampler(JigPrompts prompts)

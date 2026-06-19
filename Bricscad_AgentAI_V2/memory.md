@@ -4632,3 +4632,12 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 - Brak.
 ### [KOLEJNY_KROK]
 - Rozpocz�cie Fazy 5: Pe�na integracja z poleceniami BricsCAD (Jigi) oraz finalne testy manualne.
+
+## [v2.30.23] 2026-06-20 - Rozbudowa interfejsu i logiki Reaktora w DrukWidoki
+### [ZREALIZOWANO]
+- Przebudowa ListBox na ListView z kolumnami (Nazwa, Typ, Wymiary, Pozycja) w MainView.xaml.
+- Automatyczne wyliczanie wymiarów i pozycji na podstawie geometrii polilinii (ViewItemViewModel.cs).
+- Zmiana Jiga ramki na zielony kolor.
+- Skonfigurowano warstwę _ZAKRESY (IsLocked=true, typ HIDDEN, grubość 0.05).
+- Naprawa nadpisywania właściwości (Nazwa, Typ) przez Reaktor: dodano SaveToDb() wyzwalane przy edycji TextBoxów.
+- Zarejestrowano ReadViewDefinitionsTool w SupervisorProfile i CadLayoutProfile.
