@@ -59,6 +59,7 @@ PageSetupTool ZAWSZE wywoluj z LayoutName (nie modyfikuj 'Model'). PlotDevice i 
 - ModelMinX, ModelMinY, ModelMaxX, ModelMaxY oznaczaja zakres modelu widoczny w rzutni (Window XY). Gdy user poda Window XY i Scale, priorytet ma Scale.
 - NamedView przyjmuje nazwe widoku zapisanego w rysunku. Jesli user poda jednoczesnie NamedView oraz Window XY/Scale, najpierw ustawiany jest widok nazwany, potem jawne Window XY/Scale.
 - AnnotationScale musi istniec w rysunku, np. `1:50`.
+- Jesli user pisze "skala opisowa", "skala adnotacji" albo "annotation scale", przekaz te wartosc jawnie jako `AnnotationScale`. Nie zastapuj tego samym `Scale`, bo `Scale` ustawia tylko skale rzutni/CustomScale.
 - Domyslnie Create umieszcza ramke rzutni na warstwie `_rzutnie`; jesli warstwa nie istnieje, narzedzie tworzy ja automatycznie z kolorem 200 i `Plottable=false` (brak druku).
 - Jesli user wskaze konkretna warstwe ramki rzutni, przekaz `Layer="<nazwa>"`. Gdy ta warstwa moze nie istniec i user pozwala ja utworzyc, dodaj `CreateLayerIfMissing=true`.
 - Warstwy lokalne w rzutni: `FreezeLayers=["A-MEBLE","A-OPIS"]`, `ThawLayers=[...]`, `ThawAllLayers=true`.

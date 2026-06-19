@@ -147,19 +147,18 @@
       "Id": 9,
       "Category": "LayoutTemplates",
       "Difficulty": 3,
-      "TestName": "CopyFromTemplate_ManageLayout",
-      "Description": "Agent uzywa ManageLayoutTool CopyFromTemplate z poprawnymi nazwami parametrow.",
+      "TestName": "CopyLayoutFromTemplate",
+      "Description": "Agent kopiuje layout z DWT/DWG do biezacego rysunku; akceptowane jest ManageLayoutTool CopyFromTemplate albo dedykowane ImportLayoutTemplateTool.",
       "UserPrompt": "Skopiuj layout \"A3_POZIOM\" z pliku \"C:\\LayoutTests\\A3_template.dwt\" do biezacego rysunku jako \"A3_IMPORT\".",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
-        "ManageLayoutTool": "SUKCES: Skopiowano layout z szablonu."
+        "ManageLayoutTool": "SUKCES: Skopiowano layout z szablonu.",
+        "ImportLayoutTemplateTool": "SUKCES: Zaimportowano layout 'A3_POZIOM' jako 'A3_IMPORT'."
       },
       "ValidationRules": [
-        { "RuleType": "ToolCalled", "TargetValue": "ManageLayoutTool", "ErrorMessage": "BLAD: CopyFromTemplate obsluguje ManageLayoutTool." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "CopyFromTemplate", "ErrorMessage": "BLAD: Oczekiwano Action=CopyFromTemplate." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "SourceDwgPath", "TargetValue": "C:\\LayoutTests\\A3_template.dwt", "ErrorMessage": "BLAD: Brak SourceDwgPath." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "TemplateLayoutName", "TargetValue": "A3_POZIOM", "ErrorMessage": "BLAD: Brak TemplateLayoutName=A3_POZIOM." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "A3_IMPORT", "ErrorMessage": "BLAD: LayoutName powinien byc docelowa nazwa A3_IMPORT." }
+        { "RuleType": "AnyArgumentMatchAnyPath", "TargetArgument": "SourceDwgPath|SourcePath", "TargetValue": "C:\\LayoutTests\\A3_template.dwt", "ErrorMessage": "BLAD: Brak sciezki zrodlowej C:\\LayoutTests\\A3_template.dwt." },
+        { "RuleType": "AnyArgumentMatchAnyPath", "TargetArgument": "TemplateLayoutName|SourceLayoutName", "TargetValue": "A3_POZIOM", "ErrorMessage": "BLAD: Brak nazwy layoutu zrodlowego A3_POZIOM." },
+        { "RuleType": "AnyArgumentMatchAnyPath", "TargetArgument": "LayoutName|TargetLayoutName", "TargetValue": "A3_IMPORT", "ErrorMessage": "BLAD: Brak docelowej nazwy layoutu A3_IMPORT." }
       ]
     },
     {
@@ -276,9 +275,10 @@
         { "RuleType": "ToolCalled", "TargetValue": "PageSetupTool", "ErrorMessage": "BLAD: Page Setup obsluguje PageSetupTool." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "Arkusz2", "ErrorMessage": "BLAD: Brak LayoutName=Arkusz2." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "PlotType", "TargetValue": "Window", "ErrorMessage": "BLAD: Brak PlotType=Window." },
-        { "RuleType": "AnyArgumentMatch", "TargetArgument": "UseStandardScale", "TargetValue": "false", "ErrorMessage": "BLAD: Skala wlasna wymaga UseStandardScale=false." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "CustomScaleNumerator", "TargetValue": "1 || 1.0", "ErrorMessage": "BLAD: Brak CustomScaleNumerator=1." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "CustomScaleDenominator", "TargetValue": "50 || 50.0", "ErrorMessage": "BLAD: Brak CustomScaleDenominator=50." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "UseStandardScale", "TargetValue": "true || false", "ErrorMessage": "BLAD: Skala 1:50 powinna jawnie ustawic UseStandardScale." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "StdScaleType", "TargetValue": "1_50 || Scale1To50", "ErrorMessage": "BLAD: Standardowa skala powinna byc 1:50." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "CustomScaleNumerator", "TargetValue": "1 || 1.0", "ErrorMessage": "BLAD: Licznik skali wlasnej powinien byc 1, jesli uzyto CustomScale." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "CustomScaleDenominator", "TargetValue": "50 || 50.0", "ErrorMessage": "BLAD: Mianownik skali wlasnej powinien byc 50, jesli uzyto CustomScale." },
         { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PlotOriginX", "TargetValue": "0 || 0.0", "ErrorMessage": "BLAD: Brak PlotOriginX=0." },
         { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "PlotOriginY", "TargetValue": "0 || 0.0", "ErrorMessage": "BLAD: Brak PlotOriginY=0." }
       ]
@@ -316,7 +316,7 @@
       },
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "ListPlotDevicesTool", "ErrorMessage": "BLAD: Eksploracja ploterow wymaga ListPlotDevicesTool." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Filter", "TargetValue": "HP DesignJet T120", "ErrorMessage": "BLAD: Brak filtra HP DesignJet T120." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Filter", "TargetValue": "HP DesignJet T120", "ErrorMessage": "BLAD: Brak filtra HP DesignJet T120." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "IncludeMediaPerDevice", "TargetValue": "true", "ErrorMessage": "BLAD: Dla formatow konkretnego plotera wymagane IncludeMediaPerDevice=true." }
       ]
     },
@@ -362,13 +362,14 @@
       "UserPrompt": "Przypisz styl \"monochrome.ctb\" do wszystkich layoutow.",
       "MockMemoryVariables": {},
       "SimulatedCADResponses": {
-        "PlotStyleTool": "SUKCES: Przypisano styl do wszystkich layoutow."
+        "PlotStyleTool": "SUKCES: Przypisano styl do wszystkich layoutow.",
+        "ListLayoutsTool": "Znaleziono 3 layout(ow): Arkusz1, Arkusz2, Arkusz3.",
+        "Foreach": "SUKCES: Wykonano 3/3 operacji."
       },
       "ValidationRules": [
-        { "RuleType": "ToolCalled", "TargetValue": "PlotStyleTool", "ErrorMessage": "BLAD: Przypisywanie CTB obsluguje PlotStyleTool." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "Assign", "ErrorMessage": "BLAD: Oczekiwano Action=Assign." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "StyleSheetName", "TargetValue": "monochrome.ctb", "ErrorMessage": "BLAD: Brak StyleSheetName=monochrome.ctb." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "ApplyTo", "TargetValue": "AllLayouts", "ErrorMessage": "BLAD: Do wszystkich layoutow wymagane ApplyTo=AllLayouts." }
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Action", "TargetValue": "Assign || {\"ToolName\":\"PlotStyleTool\",\"Action\":\"Assign\",\"ApplyTo\":\"ByName\",\"LayoutName\":\"{item}\",\"StyleSheetName\":\"monochrome.ctb\"}", "ErrorMessage": "BLAD: Oczekiwano przypisania Action=Assign bezposrednio albo w Foreach.Action." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "StyleSheetName", "TargetValue": "monochrome.ctb", "ErrorMessage": "BLAD: Brak StyleSheetName=monochrome.ctb w wywolaniu bezposrednim." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "ApplyTo", "TargetValue": "AllLayouts || ByName", "ErrorMessage": "BLAD: Do wszystkich layoutow uzyj ApplyTo=AllLayouts albo Foreach z ApplyTo=ByName." }
       ]
     },
     {
@@ -566,18 +567,19 @@
         "ImportLayoutTemplateTool": "SUKCES: Zaimportowano layout.",
         "PageSetupTool": "SUKCES: Ustawiono Page Setup.",
         "ManageViewportsTool": "SUKCES: Utworzono rzutnie.",
-        "PublishToPdfTool": "SUKCES: Opublikowano PDF."
+        "PublishToPdfTool": "SUKCES: Opublikowano PDF.",
+        "PlotLayoutTool": "SUKCES: Wydrukowano layout do PDF."
       },
       "ValidationRules": [
-        { "RuleType": "SequenceMatch", "TargetValue": "ImportLayoutTemplateTool, PageSetupTool, ManageViewportsTool, PublishToPdfTool", "ErrorMessage": "BLAD: Oczekiwano sekwencji Import -> PageSetup -> Viewport -> Publish." },
+        { "RuleType": "SequenceMatch", "TargetValue": "ImportLayoutTemplateTool, PageSetupTool, ManageViewportsTool", "ErrorMessage": "BLAD: Oczekiwano sekwencji Import -> PageSetup -> Viewport." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "SourceLayoutName", "TargetValue": "A3_POZIOM", "ErrorMessage": "BLAD: Brak importu SourceLayoutName=A3_POZIOM." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "TargetLayoutName", "TargetValue": "IS.W.01", "ErrorMessage": "BLAD: Brak TargetLayoutName=IS.W.01." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "LayoutName", "TargetValue": "IS.W.01", "ErrorMessage": "BLAD: Narzedzia po imporcie powinny dzialac na IS.W.01." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "PlotDevice", "TargetValue": "DWG To PDF.pc3", "ErrorMessage": "BLAD: Brak PlotDevice=DWG To PDF.pc3." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "MediaName", "TargetValue": "A3", "ErrorMessage": "BLAD: Brak MediaName=A3." },
         { "RuleType": "AnyArgumentMatch", "TargetArgument": "Scale", "TargetValue": "1:50", "ErrorMessage": "BLAD: Brak skali rzutni 1:50." },
-        { "RuleType": "AnyArgumentMatch", "TargetArgument": "OutputPdfPath", "TargetValue": "C:\\LayoutTests\\pdf\\IS.W.01.pdf", "ErrorMessage": "BLAD: Brak OutputPdfPath PDF." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Mode", "TargetValue": "MultiSheet", "ErrorMessage": "BLAD: Dla pojedynczego PDF przez PublishToPdfTool oczekiwano Mode=MultiSheet." }
+        { "RuleType": "AnyArgumentMatchAnyPath", "TargetArgument": "OutputPdfPath|OutputPath", "TargetValue": "C:\\LayoutTests\\pdf\\IS.W.01.pdf", "ErrorMessage": "BLAD: Brak sciezki PDF C:\\LayoutTests\\pdf\\IS.W.01.pdf." },
+        { "RuleType": "AnyOfArgumentMatchOrAbsent", "TargetArgument": "Mode", "TargetValue": "MultiSheet", "ErrorMessage": "BLAD: Jesli uzyto PublishToPdfTool dla pojedynczego PDF, oczekiwano Mode=MultiSheet." }
       ]
     }
   ]

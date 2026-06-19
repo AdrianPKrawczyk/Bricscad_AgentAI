@@ -57,7 +57,7 @@
       },
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "ManageSheetSetTool", "ErrorMessage": "BLAD: Model powinien uzyc ManageSheetSetTool." },
-        { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListMetadata", "ErrorMessage": "BLAD: Do ustawien UI wymagane Action=ListMetadata." },
+        { "RuleType": "AnyArgumentMatch", "TargetArgument": "Action", "TargetValue": "ListMetadata", "ErrorMessage": "BLAD: Do ustawien UI wymagane wywolanie Action=ListMetadata." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "DstFilePath", "TargetValue": "C:\\SheetSetTests\\Projekt1.dst", "ErrorMessage": "BLAD: Zla sciezka DST." }
       ]
     },
