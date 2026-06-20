@@ -150,7 +150,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie pola wymaga ManageFields." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "InsertField", "ErrorMessage": "BLAD: Oczekiwano Action='InsertField'." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "End", "ErrorMessage": "BLAD: Brak Position='End'." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcDate \\yyyy-MM-dd> || %<\\AcVar \"DWGNAME\"> || %<\\AcVar \"SAVENAME\">", "ErrorMessage": "BLAD: Brak poprawnego kodu DWG pola w FieldCode." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcDate \\\"yyyy-MM-dd\\\"> || %<\\AcVar \\\"DWGNAME\\\"> || %<\\AcVar \\\"SAVENAME\\\">", "ErrorMessage": "BLAD: Brak poprawnego kodu DWG pola w FieldCode." },
         { "RuleType": "StringContains", "TargetArgument": "MatchText", "TargetValue": "Staly numer referencyjny", "ErrorMessage": "BLAD: Brak MatchText zawierajacego 'Staly numer referencyjny' (filtr precyzujacy obiekt)." }
       ]
     },
@@ -258,7 +258,7 @@
       },
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Position", "TargetValue": "Before:KONIEC || Before:KONIEC ", "ErrorMessage": "BLAD: Brak Position='Before:KONIEC' (precyzja pozycji)." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Position", "TargetValue": "Before:KONIEC || Before:KONIEC || Before:<KONIEC> || Before:<KONIEC> ", "ErrorMessage": "BLAD: Brak Position='Before:KONIEC' (precyzja pozycji)." },
         { "RuleType": "StringContains", "TargetArgument": "MatchText", "TargetValue": "Sekcja A - KONIEC", "ErrorMessage": "BLAD: Brak MatchText zawierajacego 'Sekcja A - KONIEC' (filtr obiektu)." }
       ]
     },
@@ -275,7 +275,7 @@
       },
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Position", "TargetValue": "After:Start: || After:Start: ", "ErrorMessage": "BLAD: Brak Position='After:Start:'." },
+        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "Position", "TargetValue": "After:Start: || After:Start: || After:<Start:> || After:<Start:> ", "ErrorMessage": "BLAD: Brak Position='After:Start:'." },
         { "RuleType": "StringContains", "TargetArgument": "MatchText", "TargetValue": "Start: 09:00", "ErrorMessage": "BLAD: Brak MatchText zawierajacego 'Start: 09:00'." }
       ]
     },

@@ -533,11 +533,16 @@ namespace Bricscad_AgentAI_V2.Core
                                 break;
                             }
 
-                            string substringNeedle = rule.TargetValue ?? "";
-                            rulePassed = substringValues.Any(v =>
+                            // v2.33.3: Normalizacja JSON-escape - needle z benchmarku
+                            // i actual z LLM porownywane po konwersji \" -> ".
+                            string substringNeedle = NormalizeJsonEscape(rule.TargetValue ?? "");
+                            var normalizedValues = substringValues
+                                .Select(v => NormalizeJsonEscape(v))
+                                .ToList();
+                            rulePassed = normalizedValues.Any(v =>
                                 v.IndexOf(substringNeedle, StringComparison.OrdinalIgnoreCase) >= 0);
                             if (!rulePassed)
-                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", substringValues)}', oczekiwano substringu: '{substringNeedle}')";
+                                ruleError = $"{ruleError} (Znaleziono: '{string.Join(" | ", normalizedValues)}', oczekiwano substringu: '{substringNeedle}')";
                             break;
 
 
@@ -699,6 +704,22 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
+        // v2.33.3: Normalizacja JSON-escape w stringach porownawczych.
+        // LLM w odpowiedzi JSON ma podwójny escape (\\") ktory po deserializacji
+        // Newtonsoft zostawia jako 2 znaki: backslash+quote (\\"). Benchmarki
+        // historycznie pisaly needle z pojedynczym cudzyslowem ("). Normalizacja
+        // konwertuje oba do wspolnej formy: sam cudzyslow ("). Wywolywana przez
+        // ValuesMatch() i StringContains case (patrz nizej).
+        // Przyklad: "\"\"" wewnatrz stringu -> "" (pojedynczy znak cudzyslowu).
+        private static string NormalizeJsonEscape(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            // Najpierw zamieniamy \"  na " (2 znaki -> 1 znak).
+            // Uzywamy Replace zamiast recznego parsera - jest deterministyczny
+            // i nie wplywa na zwykle backslash'e (tylko \" jest mierzone).
+            return s.Replace("\\\"", "\"");
+        }
+
         // v2.28.52a: Helper do konwersji JToken na string z InvariantCulture.
         // Powod: Newtonsoft ma extension method ToString(Formatting) ktory zaciemnia wbudowany overload JToken.ToString(IFormatProvider).
         // Rozwiazanie: dla JValue z liczba uzywamy Convert.ToString z InvariantCulture.
@@ -720,6 +741,12 @@ namespace Bricscad_AgentAI_V2.Core
 
         private bool ValuesMatch(string actual, string expected)
         {
+            // v2.33.3: Normalizacja JSON-escape - pozwala porownywac needle z "
+            // (z benchmarku) z actual z \" (z LLM output). Przed porownaniem
+            // oba stringi sa sprowadzane do wspolnej formy (tylko ").
+            actual = NormalizeJsonEscape(actual);
+            expected = NormalizeJsonEscape(expected);
+
             if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
