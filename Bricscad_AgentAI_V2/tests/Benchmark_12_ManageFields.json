@@ -169,7 +169,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "InsertField", "ErrorMessage": "BLAD: Brak Action='InsertField'." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Position", "TargetValue": "Start", "ErrorMessage": "BLAD: Brak Position='Start'." },
-        { "RuleType": "AnyOfArgumentMatch", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"DWGNAME\"> || %<\\AcVar \"SAVENAME\">", "ErrorMessage": "BLAD: Brak kodu zmiennej systemowej w FieldCode." },
+        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \\\"DWGNAME\\\"", "ErrorMessage": "BLAD: Brak kodu zmiennej systemowej w FieldCode (oczekiwano %<\\AcVar \\\"DWGNAME\\\")." },
         { "RuleType": "StringContains", "TargetArgument": "MatchText", "TargetValue": "Wynik: 50", "ErrorMessage": "BLAD: Brak MatchText zawierajacego 'Wynik: 50' (filtr precyzujacy)." }
       ]
     },
@@ -224,7 +224,7 @@
         { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Wstawienie wymaga ManageFields." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "AttributeTagFilter", "TargetValue": "TYTUL", "ErrorMessage": "BLAD: Brak AttributeTagFilter='TYTUL'." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "BlockNameFilter", "TargetValue": "BenchPole_MText", "ErrorMessage": "BLAD: Brak BlockNameFilter='BenchPole_MText'." },
-        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"SAVENAME\"", "ErrorMessage": "BLAD: Brak kodu %<\\AcVar \"SAVENAME\" w FieldCode." }
+        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \\\"SAVENAME\\\"", "ErrorMessage": "BLAD: Brak kodu %<\\AcVar \\\"SAVENAME\\\" w FieldCode." }
       ]
     },
     {
@@ -412,7 +412,7 @@
       "ValidationRules": [
         { "RuleType": "ToolCalled", "TargetValue": "ManageFields", "ErrorMessage": "BLAD: Zamiana kodu wymaga ManageFields." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "ReplaceFieldCode", "ErrorMessage": "BLAD: Brak Action='ReplaceFieldCode'." },
-        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"SAVENAME\"", "ErrorMessage": "BLAD: Brak nowego kodu %<\\AcVar \"SAVENAME\" w FieldCode." },
+        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \\\"SAVENAME\\\"", "ErrorMessage": "BLAD: Brak nowego kodu %<\\AcVar \\\"SAVENAME\\\" w FieldCode." },
         { "RuleType": "StringContains", "TargetArgument": "MatchText", "TargetValue": "Projekt:", "ErrorMessage": "BLAD: Brak MatchText zawierajacego 'Projekt:' (precyzja obiektu)." }
       ]
     },
@@ -431,7 +431,7 @@
       "ValidationRules": [
         { "RuleType": "SequenceMatch", "TargetValue": "ReadFields, ManageFields", "ErrorMessage": "BLAD: Oczekiwano sekwencji ReadFields -> ManageFields." },
         { "RuleType": "ArgumentMatch", "TargetArgument": "Action", "TargetValue": "InsertField", "ErrorMessage": "BLAD: ManageFields powinien miec Action='InsertField'." },
-        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \"SAVENAME\"", "ErrorMessage": "BLAD: Brak kodu SAVENAME w FieldCode." }
+        { "RuleType": "StringContains", "TargetArgument": "FieldCode", "TargetValue": "%<\\AcVar \\\"SAVENAME\\\"", "ErrorMessage": "BLAD: Brak kodu SAVENAME w FieldCode." }
       ]
     },
     {
