@@ -117,10 +117,15 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
+                // Filar 6: Master kill switch. Gdy AuditorGloballyDisabled=true,
+                // Worker dziala jak w v2.28.x (bez audytu, bez CB, bez Auto-Inject).
+                // Uzyteczne do szybkich testow i dla userow ktorzy nie chca audytu.
+                bool auditorActive = !AgentMemoryState.AuditorGloballyDisabled;
+
                 // ============== CIRCUIT BREAKER (Filar 4) ==============
                 // Blokada delegacji do profilu, ktory zbyt wiele razy z rzędu
                 // zglosil awarie/odrzucona prace. Chroni przed Agent Death Loop.
-                if (CircuitBreakerState.IsTripped(targetProfile))
+                if (auditorActive && CircuitBreakerState.IsTripped(targetProfile))
                 {
                     var snap = CircuitBreakerState.GetSnapshot(targetProfile);
                     AgentTelemetry.ReportLoopLog(
@@ -147,7 +152,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 // Wymaga AuditorEnabled=true. AuditorPrewarmEnabled steruje czy
                 // wykonujemy w ogole (domyslnie false - opt-in dla Multi-GPU).
                 Task prewarmTask = null;
-                if (AgentMemoryState.AuditorEnabled && AgentMemoryState.AuditorPrewarmEnabled)
+                if (auditorActive && AgentMemoryState.AuditorEnabled && AgentMemoryState.AuditorPrewarmEnabled)
                 {
                     prewarmTask = Task.Run(async () =>
                     {
@@ -202,8 +207,12 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (!result.IsSuccess)
                     {
                         // Filar 4: Worker zglosil awarie (np. wyjatek, max iteracji)
-                        CircuitBreakerState.RecordFailure(targetProfile,
-                            $"Worker nie zwrocil sukcesu: {result.DisplayMessage?.Substring(0, System.Math.Min(120, result.DisplayMessage?.Length ?? 0))}");
+                        // Filar 6: pomin CB gdy auditor wylaczony.
+                        if (auditorActive)
+                        {
+                            CircuitBreakerState.RecordFailure(targetProfile,
+                                $"Worker nie zwrocil sukcesu: {result.DisplayMessage?.Substring(0, System.Math.Min(120, result.DisplayMessage?.Length ?? 0))}");
+                        }
                         break;
                     }
 
@@ -211,37 +220,41 @@ namespace Bricscad_AgentAI_V2.Tools
                     // AuditChain uruchamia sie PO Workervalidator (Accept), ale PRZED
                     // zwroceniem wyniku do Supervisora. Jesli Wariant A odrzuci
                     // (np. Worker klamal o mutacji) - NIE trzeba budzic LLM Auditora.
-                    auditReport = Task.Run(async () =>
+                    // Filar 6: pomin caly blok gdy AuditorGloballyDisabled.
+                    if (auditorActive)
                     {
-                        return await AuditorAuditService.AuditMutationAsync(
-                            client, targetProfile, taskDescription, result,
-                            mutationsBeforeWorker, modelSpaceCountBefore, attempt, maxValidationAttempts);
-                    }).GetAwaiter().GetResult();
-
-                    AgentTelemetry.ReportLoopLog(
-                        $"[AUDITOR -> {targetProfile}] Decision={auditReport.Decision} Severity={auditReport.Severity} Heuristic={auditReport.HeuristicOnly} Reason={auditReport.Reason}");
-
-                    if (auditReport.Decision == WorkValidationDecision.Reject)
-                    {
-                        // Filar 4: Auditor odrzucil kategorycznie
-                        CircuitBreakerState.RecordFailure(targetProfile,
-                            $"Auditor REJECT: {auditReport.Reason}");
-                        break;
-                    }
-
-                    if (auditReport.Decision == WorkValidationDecision.Retry)
-                    {
-                        if (attempt < maxValidationAttempts)
+                        auditReport = Task.Run(async () =>
                         {
-                            string repair = auditReport.FeedbackForWorker;
-                            AgentTelemetry.ReportLoopLog($"[AUDITOR REPAIR -> {targetProfile}]\n{repair}");
-                            localHistory.Add(new ChatMessage { Role = "user", Content = repair });
-                            continue;
+                            return await AuditorAuditService.AuditMutationAsync(
+                                client, targetProfile, taskDescription, result,
+                                mutationsBeforeWorker, modelSpaceCountBefore, attempt, maxValidationAttempts);
+                        }).GetAwaiter().GetResult();
+
+                        AgentTelemetry.ReportLoopLog(
+                            $"[AUDITOR -> {targetProfile}] Decision={auditReport.Decision} Severity={auditReport.Severity} Heuristic={auditReport.HeuristicOnly} Reason={auditReport.Reason}");
+
+                        if (auditReport.Decision == WorkValidationDecision.Reject)
+                        {
+                            // Filar 4: Auditor odrzucil kategorycznie
+                            CircuitBreakerState.RecordFailure(targetProfile,
+                                $"Auditor REJECT: {auditReport.Reason}");
+                            break;
                         }
-                        // Filar 4: Ostatnia proba - Auditor odrzucil, nie ma wiecej szans
-                        CircuitBreakerState.RecordFailure(targetProfile,
-                            $"Auditor odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
-                        break;
+
+                        if (auditReport.Decision == WorkValidationDecision.Retry)
+                        {
+                            if (attempt < maxValidationAttempts)
+                            {
+                                string repair = auditReport.FeedbackForWorker;
+                                AgentTelemetry.ReportLoopLog($"[AUDITOR REPAIR -> {targetProfile}]\n{repair}");
+                                localHistory.Add(new ChatMessage { Role = "user", Content = repair });
+                                continue;
+                            }
+                            // Filar 4: Ostatnia proba - Auditor odrzucil, nie ma wiecej szans
+                            CircuitBreakerState.RecordFailure(targetProfile,
+                                $"Auditor odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
+                            break;
+                        }
                     }
                     // Accept - sukces audytu, przejdz do standardowej walidacji WorkValidator
                     // ===============================================================
@@ -252,7 +265,11 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (validation.Decision == WorkValidationDecision.Accept)
                     {
                         // Filar 4: Sukces calkowity (Auditor Accept + Validator Accept) - reset CB
-                        CircuitBreakerState.Reset(targetProfile);
+                        // Filar 6: pomin CB gdy auditor wylaczony.
+                        if (auditorActive)
+                        {
+                            CircuitBreakerState.Reset(targetProfile);
+                        }
                         break;
                     }
 
@@ -265,7 +282,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
 
                     // Filar 4: Validator Retry na ostatniej probie = awaria
-                    if (validation.Decision == WorkValidationDecision.Retry)
+                    if (auditorActive && validation.Decision == WorkValidationDecision.Retry)
                     {
                         CircuitBreakerState.RecordFailure(targetProfile,
                             $"WorkValidator RETRY po {attempt}/{maxValidationAttempts} probach: {validation.Reason}");

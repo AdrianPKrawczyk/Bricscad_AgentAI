@@ -37,6 +37,7 @@ namespace Bricscad_AgentAI_V2.UI
         private Label lblCircuitBreakerState;
         private CheckBox chkAutoInjectProperties;
         private NumericUpDown numSamplePercent;
+        private CheckBox chkAuditorGloballyDisabled;
         private DatasetStudioControl datasetStudio;
         public DatasetStudioControl DatasetStudio => datasetStudio;
         private KnowledgeBaseControl knowledgeBaseControl;
@@ -1344,6 +1345,8 @@ namespace Bricscad_AgentAI_V2.UI
             AgentMemoryState.CircuitBreakerThreshold = s.CircuitBreakerThreshold;
             AgentMemoryState.AutoInjectPropertiesEnabled = s.AutoInjectPropertiesEnabled;
             AgentMemoryState.AutoInjectSamplePercent = s.AutoInjectSamplePercent;
+            // Filar 6: master kill switch (domyslnie false).
+            AgentMemoryState.AuditorGloballyDisabled = s.AuditorGloballyDisabled;
         }
 
 
@@ -3219,10 +3222,37 @@ Ostatnia rozmowa:
             {
                 Dock = DockStyle.Top,
                 ColumnCount = 1,
-                RowCount = 6,
+                RowCount = 7,
                 AutoSize = true,
                 Padding = new Padding(0, 10, 0, 0)
             };
+
+            // === Filar 6: Master kill switch (caly Rewident) ===
+            chkAuditorGloballyDisabled = new CheckBox
+            {
+                Text = "WYLACZ calkowicie Rewidenta (Worker bez audytu, Auto-Inject, CB)",
+                AutoSize = true,
+                ForeColor = Color.OrangeRed,
+                Font = new System.Drawing.Font(this.Font, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 10)
+            };
+            chkAuditorGloballyDisabled.Checked = UISettingsManager.Settings.AuditorGloballyDisabled;
+            chkAuditorGloballyDisabled.CheckedChanged += (s, e) =>
+            {
+                bool disabled = chkAuditorGloballyDisabled.Checked;
+                AgentMemoryState.AuditorGloballyDisabled = disabled;
+                UISettingsManager.Settings.AuditorGloballyDisabled = disabled;
+                UISettingsManager.Save();
+                // Wylacz/wlacz pozostale checkboxy jako wizualna informacja
+                chkAuditorEnabled.Enabled = !disabled;
+                chkAuditorPrewarm.Enabled = !disabled && UISettingsManager.Settings.AuditorEnabled;
+                chkAuditorEvidence.Enabled = !disabled && UISettingsManager.Settings.AuditorEnabled;
+                chkAutoInjectProperties.Enabled = !disabled;
+                numSamplePercent.Enabled = !disabled && UISettingsManager.Settings.AutoInjectPropertiesEnabled;
+                chkCircuitBreaker.Enabled = !disabled;
+                numCircuitBreakerThreshold.Enabled = !disabled && UISettingsManager.Settings.CircuitBreakerEnabled;
+            };
+            outer.Controls.Add(chkAuditorGloballyDisabled, 0, 0);
 
             // === Auditor ON/OFF ===
             chkAuditorEnabled = new CheckBox

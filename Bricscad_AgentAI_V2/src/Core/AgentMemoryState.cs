@@ -19,6 +19,12 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static bool EarlyExitEnabled { get; set; } = true;
 
+        // Filar 6 (Auditor Global Switch): Master kill switch dla calego Agenta Rewidenta.
+        // Gdy true - WSZYSTKIE mechanizmy Auditora sa wylaczone (Auto-Inject, Circuit Breaker,
+        // Rollback detection, Filar A heurystyczny, Filar B LLM). Worker dziala jak w v2.28.x
+        // (bez audytu). Domyslnie false - user musi swiadomie wylaczyc w UI.
+        public static bool AuditorGloballyDisabled { get; set; } = false;
+
         // Flaga wlacza Chain of Evidence (Filar 2 Auditor). Domyslnie false -
         // opt-in jak reszta flag Agenta Rewidenta. Wlaczana z UI checkboxem
         // lub z kodu przez Supervisor przed delegacja do ryzykownego zadania.

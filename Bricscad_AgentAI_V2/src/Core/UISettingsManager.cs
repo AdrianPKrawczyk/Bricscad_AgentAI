@@ -49,6 +49,11 @@ namespace Bricscad_AgentAI_V2.Core
         // Auditor (Agent Rewident) - Filar 5 (Auto-Inject Properties)
         public bool AutoInjectPropertiesEnabled { get; set; } = true;
         public int AutoInjectSamplePercent { get; set; } = 2;
+
+        // Filar 6: Master kill switch dla calego Agenta Rewidenta.
+        // Gdy true - WSZYSTKIE mechanizmy Auditora sa wylaczone (Auto-Inject, CB,
+        // rollback detection, Filar A i B). Worker dziala jak w v2.28.x.
+        public bool AuditorGloballyDisabled { get; set; } = false;
     }
 
     public class VisionOcrQualityPreset

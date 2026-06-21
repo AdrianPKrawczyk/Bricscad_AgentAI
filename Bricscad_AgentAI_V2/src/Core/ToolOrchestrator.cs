@@ -225,7 +225,7 @@ namespace Bricscad_AgentAI_V2.Core
                 // Snapshot ModelSpace count dla Auto-Inject (Filar 5). Dziala nawet gdy
                 // EngineTracer nie jest wlaczony (czyste C# bez subskrypcji).
                 int modelSpaceCountBefore = EngineTracer.CountObjectsInModelSpace();
-                if (isMutating && AgentMemoryState.EvidenceEnabled)
+                if (isMutating && AgentMemoryState.EvidenceEnabled && !AgentMemoryState.AuditorGloballyDisabled)
                 {
                     var currentSel = AgentMemoryState.ActiveSelection;
                     int cap = Math.Min(currentSel.Length, AgentMemoryState.MaxEvidenceHandles);
@@ -262,7 +262,7 @@ namespace Bricscad_AgentAI_V2.Core
                 }
 
                 // ============== CHAIN OF EVIDENCE - AFTER ==============
-                if (isMutating && AgentMemoryState.EvidenceEnabled)
+                if (isMutating && AgentMemoryState.EvidenceEnabled && !AgentMemoryState.AuditorGloballyDisabled)
                 {
                     int mutationsAfter = AgentMemoryState.MutationCount;
                     if (mutationsAfter > mutationsBefore)
@@ -287,7 +287,8 @@ namespace Bricscad_AgentAI_V2.Core
                 // wiec sledzimy rollbacki heurystycznie - jesli narzedzie mutujace
                 // zwraca blad ALBO wynik zawiera "Abort" / "przerwan", raportujemy
                 // rollback do AgentMemoryState. Auditor w Wariancie A to wykryje.
-                if (isMutating && !string.IsNullOrEmpty(result))
+                // Filar 6: pomin gdy AuditorGloballyDisabled.
+                if (isMutating && !string.IsNullOrEmpty(result) && !AgentMemoryState.AuditorGloballyDisabled)
                 {
                     bool looksLikeRollback = result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
                         || result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase)
@@ -316,7 +317,8 @@ namespace Bricscad_AgentAI_V2.Core
                 if (isMutating && AgentMemoryState.AutoInjectPropertiesEnabled
                     && !string.IsNullOrEmpty(result)
                     && !result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
-                    && !result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase))
+                    && !result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase)
+                    && !AgentMemoryState.AuditorGloballyDisabled)
                 {
                     int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
                     string injection = AuditorAutoInjector.BuildInjection(modelSpaceCountBefore, modelSpaceCountAfter);
