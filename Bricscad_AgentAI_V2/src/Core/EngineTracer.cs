@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using Bricscad.ApplicationServices;
-using Bricscad.DatabaseServices;
 using Teigha.DatabaseServices;
+using Teigha.Geometry;
 
 namespace Bricscad_AgentAI_V2.Core
 {
