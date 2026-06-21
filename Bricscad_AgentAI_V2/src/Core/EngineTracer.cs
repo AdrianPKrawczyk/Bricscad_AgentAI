@@ -42,7 +42,6 @@ namespace Bricscad_AgentAI_V2.Core
                 db.ObjectAppended += Db_ObjectAppended;
                 db.ObjectModified += Db_ObjectModified;
                 try { db.ObjectErased += Db_ObjectErased; } catch { /* ObjectErased moze nie istniec w starszych wersjach */ }
-                try { doc.TransactionManager.TransactionAborted += Tr_TransactionAborted; } catch { }
                 Log(">>> Engine Tracer włączony. Nasłuchiwanie zdarzeń bazy danych...");
             }
             else
@@ -50,7 +49,6 @@ namespace Bricscad_AgentAI_V2.Core
                 db.ObjectAppended -= Db_ObjectAppended;
                 db.ObjectModified -= Db_ObjectModified;
                 try { db.ObjectErased -= Db_ObjectErased; } catch { }
-                try { doc.TransactionManager.TransactionAborted -= Tr_TransactionAborted; } catch { }
                 Log("<<< Engine Tracer wyłączony.");
             }
         }
@@ -67,7 +65,7 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 ObjectId id = e.DBObject?.Id ?? ObjectId.Null;
                 if (!id.IsNull) AgentMemoryState.RecordMutation(id);
-                Log($"[APPENDED] {e.DBObject?.GetType().Name ?? "?"} (Hand: {(id.IsNull ? "null" : id.Handle.ToString("X"))})");
+                Log($"[APPENDED] {e.DBObject?.GetType().Name ?? "?"} (Hand: {(id.IsNull ? "null" : id.Handle.ToString())})");
             }
             catch { }
         }
@@ -78,7 +76,7 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 ObjectId id = e.DBObject?.Id ?? ObjectId.Null;
                 if (!id.IsNull) AgentMemoryState.RecordMutation(id);
-                Log($"[MODIFIED] {e.DBObject?.GetType().Name ?? "?"} (Hand: {(id.IsNull ? "null" : id.Handle.ToString("X"))})");
+                Log($"[MODIFIED] {e.DBObject?.GetType().Name ?? "?"} (Hand: {(id.IsNull ? "null" : id.Handle.ToString())})");
             }
             catch { }
         }
@@ -95,7 +93,7 @@ namespace Bricscad_AgentAI_V2.Core
                 if (prop != null)
                 {
                     var dbObj = prop.GetValue(e) as DBObject;
-                    if (dbObj != null) handleStr = dbObj.Handle.ToString("X");
+                    if (dbObj != null) handleStr = dbObj.Handle.ToString();
                 }
                 var eraseProp = e.GetType().GetProperty("Erase");
                 if (eraseProp != null && eraseProp.PropertyType == typeof(bool))
@@ -105,23 +103,6 @@ namespace Bricscad_AgentAI_V2.Core
                 Log($"[ERASED] Hand: 0x{handleStr} (Erase={eraseFlag})");
             }
             catch { }
-        }
-
-        private static void Tr_TransactionAborted(object sender, EventArgs e)
-        {
-            AgentMemoryState.RecordRollback();
-            Log("[TRANSACTION ABORTED] - mutacje z tej transakcji zostaly wycofane");
-        }
-
-        /// <summary>
-        /// Zwraca liczbe mutacji (ObjectAppended + ObjectModified) od ostatniego BeginSession().
-        /// Uzywane do taniej walidacji heurystycznej w Wariancie A (Filar C): jesli Worker
-        /// zglosil sukces zadania mutujacego, a licznik == 0, odrzucamy natychmiast bez
-        /// budzenia LLM-a Rewidenta.
-        /// </summary>
-        public static int CountMutationsSinceSession()
-        {
-            return AgentMemoryState.MutationCount;
         }
 
         /// <summary>
@@ -143,21 +124,26 @@ namespace Bricscad_AgentAI_V2.Core
 
                     var snap = new EvidenceSnapshot
                     {
-                        Handle = id.Handle.ToString("X"),
+                        Handle = id.Handle.ToString(),
                         ObjectType = obj.GetType().Name,
                         TimestampUtcTicks = DateTime.UtcNow.Ticks
                     };
 
-                    int count = 0;
-                    foreach (var derivedProps in EnumerateSafeProperties(obj))
+                    // Warstwa Layer/Color/Linetype jest na Entity (nie na bazowym DBObject)
+                    Entity ent = obj as Entity;
+                    if (ent != null)
                     {
-                        if (count >= MaxSnapshotProperties) break;
-                        string key = derivedProps.Key;
-                        string val = derivedProps.Value;
-                        if (val == null) val = "";
-                        if (val.Length > 256) val = val.Substring(0, 256) + "...";
-                        snap.Properties[key] = val;
-                        count++;
+                        int count = 0;
+                        foreach (var derivedProps in EnumerateSafeProperties(ent))
+                        {
+                            if (count >= MaxSnapshotProperties) break;
+                            string key = derivedProps.Key;
+                            string val = derivedProps.Value;
+                            if (val == null) val = "";
+                            if (val.Length > 256) val = val.Substring(0, 256) + "...";
+                            snap.Properties[key] = val;
+                            count++;
+                        }
                     }
 
                     tr.Commit();
@@ -190,9 +176,10 @@ namespace Bricscad_AgentAI_V2.Core
             }
         }
 
-        private static IEnumerable<KeyValuePair<string, string>> EnumerateSafeProperties(DBObject obj)
+        private static IEnumerable<KeyValuePair<string, string>> EnumerateSafeProperties(Entity obj)
         {
             // Warstwa 1: podstawowe wlasciwosci refleksyjne (Layer, Color, Linetype, itp.)
+            // Te propertisy sa na Entity (nie na bazowym DBObject).
             yield return new KeyValuePair<string, string>("Layer", SafeGet(() => obj.Layer));
             yield return new KeyValuePair<string, string>("ColorIndex", SafeGet(() => obj.ColorIndex.ToString()));
             yield return new KeyValuePair<string, string>("Linetype", SafeGet(() => obj.Linetype));

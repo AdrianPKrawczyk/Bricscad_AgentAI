@@ -54,7 +54,7 @@ namespace Bricscad_AgentAI_V2.Core
         public static string BlackboardKey(string mode, ObjectId id)
         {
             if (id.IsNull) return null;
-            return BlackboardKey(mode, id.Handle.ToString("X"));
+            return BlackboardKey(mode, id.Handle.ToString());
         }
 
         /// <summary>
