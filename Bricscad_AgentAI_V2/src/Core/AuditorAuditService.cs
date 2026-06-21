@@ -145,6 +145,16 @@ namespace Bricscad_AgentAI_V2.Core
                 report.Reason = "Wariant A (heurystyczny) zaakceptowal - Wariant B (LLM) wylaczony w ustawieniach.";
                 return report;
             }
+            // Fix v2.34.22: Auditor LLM BEZ Chain of Evidence jest BESENSOWNY.
+            // AuditorProfile bedzie pytal o @evidence_before/after ktorych nie ma,
+            // odrzuci prace, a Worker w repair prompt zacznie HALUCYNOWAC dodatkowe
+            // mutacje (jak w tescie 2 v2.34.20-21 - 3 okregi zamiast 1).
+            // Wymuszamy "przepuszczam WorkerResult" zamiast odpalac LLM.
+            if (!AgentMemoryState.EvidenceEnabled)
+            {
+                report.Reason = "Wariant A zaakceptowal - Wariant B (LLM) wymaga Chain of Evidence (wlacz w Ustawienia -> Rewident -> Evidence).";
+                return report;
+            }
             // Wariant B (LLM) potrzebny tylko jesli sa mutacje do walidacji.
             // Sprawdzamy OBA detektory (EngineTracer subscription + ModelSpace polling) -
             // bo EngineTracer moze nie byc wlaczony i wowczas newMutations==0 mimo realnej mutacji.

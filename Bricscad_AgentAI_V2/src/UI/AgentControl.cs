@@ -3222,7 +3222,7 @@ Ostatnia rozmowa:
             {
                 Dock = DockStyle.Top,
                 ColumnCount = 1,
-                RowCount = 7,
+                RowCount = 9,
                 AutoSize = true,
                 Padding = new Padding(0, 10, 0, 0)
             };
@@ -3257,22 +3257,45 @@ Ostatnia rozmowa:
             // === Auditor ON/OFF ===
             chkAuditorEnabled = new CheckBox
             {
-                Text = "Audytor (Auditor) - waliduj mutacje w rysunku DWG",
+                Text = "Audytor (Auditor LLM) - EKSPERYMENTALNE, moze pogorszyc wyniki",
                 AutoSize = true,
-                ForeColor = Color.LightGreen,
+                ForeColor = Color.Orange,
+                Font = new System.Drawing.Font(this.Font, FontStyle.Bold),
                 Margin = new Padding(0, 5, 0, 5)
             };
             chkAuditorEnabled.Checked = UISettingsManager.Settings.AuditorEnabled;
             chkAuditorEnabled.CheckedChanged += (s, e) =>
             {
-                AgentMemoryState.AuditorEnabled = chkAuditorEnabled.Checked;
-                UISettingsManager.Settings.AuditorEnabled = chkAuditorEnabled.Checked;
+                bool enabled = chkAuditorEnabled.Checked;
+                AgentMemoryState.AuditorEnabled = enabled;
+                UISettingsManager.Settings.AuditorEnabled = enabled;
                 UISettingsManager.Save();
-                chkAuditorPrewarm.Enabled = chkAuditorEnabled.Checked;
-                chkAuditorEvidence.Enabled = chkAuditorEnabled.Checked;
+                chkAuditorPrewarm.Enabled = enabled;
+                chkAuditorEvidence.Enabled = enabled;
+                // Fix v2.34.22: Auditor LLM BEZ Chain of Evidence jest bezcelowy
+                // (AuditorProfile bedzie pytal o @evidence_* ktorych nie ma).
+                // Wymuszamy auto-wlaczenie Evidence gdy user zaznacza Auditor.
+                if (enabled && !chkAuditorEvidence.Checked)
+                {
+                    chkAuditorEvidence.Checked = true;
+                }
                 UpdateCircuitBreakerLabel();
             };
             outer.Controls.Add(chkAuditorEnabled, 0, 0);
+
+            // Ostrzezenie pod checkboxem Auditor
+            var lblAuditorWarning = new Label
+            {
+                Text = "UWAGA: LLM Auditor to funkcja eksperymentalna. W testach czesto HALUCYNUJE " +
+                       "i zmusza Worker do tworzenia fikcyjnych danych (Blackboard) lub dodatkowych " +
+                       "mutacji (np. 3 okregi zamiast 1). Wymaga Chain of Evidence - jest wlaczana " +
+                       "automatycznie. Dla zwyklego uzytku ZOSTAW WYLACZONY.",
+                AutoSize = true,
+                ForeColor = Color.DarkOrange,
+                MaximumSize = new System.Drawing.Size(700, 0),
+                Margin = new Padding(20, 0, 0, 10)
+            };
+            outer.Controls.Add(lblAuditorWarning, 0, 1);
 
             // === Pre-warm ===
             chkAuditorPrewarm = new CheckBox
@@ -3290,7 +3313,7 @@ Ostatnia rozmowa:
                 UISettingsManager.Settings.AuditorPrewarmEnabled = chkAuditorPrewarm.Checked;
                 UISettingsManager.Save();
             };
-            outer.Controls.Add(chkAuditorPrewarm, 0, 1);
+            outer.Controls.Add(chkAuditorPrewarm, 0, 2);
 
             // === Chain of Evidence ===
             chkAuditorEvidence = new CheckBox
@@ -3308,7 +3331,7 @@ Ostatnia rozmowa:
                 UISettingsManager.Settings.AuditorEvidenceEnabled = chkAuditorEvidence.Checked;
                 UISettingsManager.Save();
             };
-            outer.Controls.Add(chkAuditorEvidence, 0, 2);
+            outer.Controls.Add(chkAuditorEvidence, 0, 3);
 
             // === Circuit Breaker ON/OFF ===
             chkCircuitBreaker = new CheckBox
@@ -3327,7 +3350,7 @@ Ostatnia rozmowa:
                 numCircuitBreakerThreshold.Enabled = chkCircuitBreaker.Checked;
                 UpdateCircuitBreakerLabel();
             };
-            outer.Controls.Add(chkCircuitBreaker, 0, 3);
+            outer.Controls.Add(chkCircuitBreaker, 0, 4);
 
             // === Filar 5: Auto-Inject Properties ===
             chkAutoInjectProperties = new CheckBox
@@ -3345,7 +3368,7 @@ Ostatnia rozmowa:
                 UISettingsManager.Save();
                 numSamplePercent.Enabled = chkAutoInjectProperties.Checked;
             };
-            outer.Controls.Add(chkAutoInjectProperties, 0, 4);
+            outer.Controls.Add(chkAutoInjectProperties, 0, 6);
 
             // === Sample % row ===
             var sampleRow = new TableLayoutPanel
@@ -3380,7 +3403,7 @@ Ostatnia rozmowa:
             sampleRow.Controls.Add(lblSamplePercent, 0, 0);
             sampleRow.Controls.Add(numSamplePercent, 1, 0);
             sampleRow.Controls.Add(new Label { Text = "  (cap 20 obiektow, reszta deterministycznie)", AutoSize = true, ForeColor = Color.DarkGray, Margin = new Padding(6, 6, 0, 0) }, 2, 0);
-            outer.Controls.Add(sampleRow, 0, 5);
+            outer.Controls.Add(sampleRow, 0, 7);
 
             // === Próg CB + Label stanu ===
             var cbRow = new TableLayoutPanel
@@ -3423,7 +3446,7 @@ Ostatnia rozmowa:
             cbRow.Controls.Add(lblCbThreshold, 0, 0);
             cbRow.Controls.Add(numCircuitBreakerThreshold, 1, 0);
             cbRow.Controls.Add(lblCircuitBreakerState, 2, 0);
-            outer.Controls.Add(cbRow, 0, 4);
+            outer.Controls.Add(cbRow, 0, 5);
 
             // === Przycisk Force Reset ===
             var btnForceReset = new Button
@@ -3445,7 +3468,7 @@ Ostatnia rozmowa:
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Information);
             };
-            outer.Controls.Add(btnForceReset, 0, 5);
+            outer.Controls.Add(btnForceReset, 0, 8);
 
             tab.Controls.Add(outer);
             return tab;
