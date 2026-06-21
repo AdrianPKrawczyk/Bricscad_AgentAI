@@ -137,7 +137,11 @@ namespace Bricscad_AgentAI_V2.Core
                 report.Reason = "Wariant A (heurystyczny) zaakceptowal - Wariant B (LLM) wylaczony w ustawieniach.";
                 return report;
             }
-            if (newMutations == 0) return report; // brak mutacji do walidacji
+            if (newMutations == 0)
+            {
+                report.Reason = "Wariant A potwierdzil brak mutacji - Wariant B (LLM) pominiety.";
+                return report;
+            } // brak mutacji do walidacji
 
             try
             {
@@ -163,6 +167,7 @@ namespace Bricscad_AgentAI_V2.Core
                     // Auditor zwrocil tekst, ale nie JSON - traktujemy jako decyzje pozytywna
                     // (brak danych do odrzucenia). Bedzie zalogowane.
                     BielikLogger.LogInfo("[AUDITOR] Brak JSON w odpowiedzi - przepuszczam WorkerResult.");
+                    report.Reason = "Wariant B (LLM) zwrocil tekst bez JSON - przepuszczam WorkerResult.";
                     return report;
                 }
 
@@ -189,6 +194,7 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 // Auditor zglosil wyjatek - przepuszczamy, logujemy
                 BielikLogger.LogWarn($"[AUDITOR] Wyjatek podczas audytu: {ex.Message}");
+                report.Reason = $"Wariant B (LLM) zwrocil wyjatek, przepuszczam WorkerResult: {ex.Message}";
                 return report;
             }
         }
