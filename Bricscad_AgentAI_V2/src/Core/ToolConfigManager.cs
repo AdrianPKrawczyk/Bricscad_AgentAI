@@ -70,6 +70,7 @@ namespace Bricscad_AgentAI_V2.Core
         private const string MathPromptFile = @"prompts\system_prompt_math.txt";
         private const string NotesPromptFile = @"prompts\system_prompt_notes.txt";
         private const string AuditorPromptFile = @"prompts\system_prompt_auditor.txt";
+        private const string RewidentPromptFile = @"prompts\system_prompt_rewident.txt";
         private const string LayoutPromptFile = @"prompts\system_prompt_layout.txt";
         private const string Modeler3DPromptFile = @"prompts\system_prompt_modeler3d.txt";
 
@@ -106,6 +107,7 @@ namespace Bricscad_AgentAI_V2.Core
 EnsureMathPromptFile();
             EnsureNotesPromptFile();
             EnsureAuditorPromptFile();
+            EnsureRewidentPromptFile();
             EnsureLayoutPromptFile();
             EnsureModeler3DPromptFile();
 
@@ -180,6 +182,7 @@ EnsureMathPromptFile();
                 case "CadMathProfile": return MathPromptFile;
                 case "NotesProfile": return NotesPromptFile;
                 case "AuditorProfile": return AuditorPromptFile;
+                case "RewidentProfile": return RewidentPromptFile;
                 case "CadLayoutProfile": return LayoutPromptFile;
                 case "Modeler3DProfile": return Modeler3DPromptFile;
                 default: return CadPromptFile;
@@ -308,6 +311,8 @@ EnsureMathPromptFile();
         private static void EnsureNotesPromptFile() => EnsurePromptFile(NotesPromptFile, "Jestes profilem NotesProfile. Tworzysz czysta tresc notatek projektowych w Markdown i nie wykonujesz innych operacji.");
 
         private static void EnsureAuditorPromptFile() => EnsurePromptFile(AuditorPromptFile, "Jestes profilem AuditorProfile. Analizujesz, testujesz i raportujesz problemy w systemie Bielik V2, dbajac o bezpieczne testy i diagnostyke.");
+
+        private static void EnsureRewidentPromptFile() => EnsurePromptFile(RewidentPromptFile, "Jestes profilem RewidentProfile. Walidujesz mutacje wykonane przez inne profile (CadProfile, CadBlocksProfile, CadLayoutProfile) w rysunku DWG. Masz dostep tylko do narzedzi read-only CAD (InspectEntity, GetPropertiesTool, ReadFromBlackboard, itd.) - nie mozesz nic modyfikowac.");
 
         private static void EnsureLayoutPromptFile() => EnsurePromptFile(LayoutPromptFile, "Jestes profilem CadLayoutProfile systemu Bielik V2. Specjalizujesz sie w zarzadzaniu arkuszami wydruku, konfiguracji strony i publikacji.");
 
@@ -720,6 +725,36 @@ EnsureMathPromptFile();
             if (!auditorProf.IsReadOnly)
             {
                 auditorProf.IsReadOnly = true;
+                changed = true;
+            }
+
+            // 8b. Zabezpieczenie/Synchronizacja RewidentProfile (nowy v2.35.0 - subagent mutation audit)
+            if (!_config.Profiles.TryGetValue("RewidentProfile", out var rewidentProf))
+            {
+                rewidentProf = new AgentProfileConfig { SystemPromptFile = RewidentPromptFile };
+                _config.Profiles["RewidentProfile"] = rewidentProf;
+                changed = true;
+            }
+            if (rewidentProf.SystemPromptFile != RewidentPromptFile)
+            {
+                rewidentProf.SystemPromptFile = RewidentPromptFile;
+                changed = true;
+            }
+            var rewidentDefaults = new List<string>
+            {
+                "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool",
+                "ReadPropertyTool", "ReadXData", "FindXData", "ReadTextSampleTool",
+                "ListBlocks", "ReadSelectedBlockInfo", "ReadFromBlackboard"
+            };
+            if (rewidentProf.AllowedTools == null)
+            {
+                rewidentProf.AllowedTools = new List<string>();
+                changed = true;
+            }
+            if (EnsureAllowedTools(rewidentProf, rewidentDefaults)) changed = true;
+            if (!rewidentProf.IsReadOnly)
+            {
+                rewidentProf.IsReadOnly = true;
                 changed = true;
             }
 
