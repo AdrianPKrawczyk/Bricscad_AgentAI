@@ -120,11 +120,30 @@ namespace Bricscad_AgentAI_V2.Tools
                 AgentTelemetry.ReportLoopLog($"[Supervisor -> {targetProfile}]\n{taskDescription}");
                 AgentExecutionResult result = null;
                 WorkValidationReport validation = null;
-                const int maxValidationAttempts = 2;
+                AuditorReport auditReport = null;
+                const int maxValidationAttempts = 3;
+
+                // ============== AUDITOR PRE-WARM (Filar 3) ==============
+                // Rozgrzej KV cache Auditora W TLE jeszcze zanim Worker zacznie prace.
+                // max_tokens=1 (WarmupPromptAsync), wiec koszt jest minimalny.
+                // Wymaga AuditorEnabled=true. AuditorPrewarmEnabled steruje czy
+                // wykonujemy w ogole (domyslnie false - opt-in dla Multi-GPU).
+                Task prewarmTask = null;
+                if (AgentMemoryState.AuditorEnabled && AgentMemoryState.AuditorPrewarmEnabled)
+                {
+                    prewarmTask = Task.Run(async () =>
+                    {
+                        await AuditorAuditService.PrewarmAuditorAsync(client, targetProfile, taskDescription);
+                    });
+                }
+                // ========================================================
 
                 for (int attempt = 1; attempt <= maxValidationAttempts; attempt++)
                 {
-                    // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ăłwny wÄ…tek przed Deadlockiem
+                    // Snapshot licznika mutacji PRZED Workerem (do Wariantu A)
+                    int mutationsBeforeWorker = AgentMemoryState.MutationCount;
+
+                    // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ă³wny wÄ…tek przed Deadlockiem
                     result = Task.Run(async () => {
                         return await client.SendMessageReActAsync(
                             conversationHistory: localHistory,
@@ -134,6 +153,14 @@ namespace Bricscad_AgentAI_V2.Tools
                             maxIterations: 10,
                             profileName: targetProfile);
                     }).GetAwaiter().GetResult();
+
+                    // Jesli pre-warm jeszcze trwa (Worker byl bardzo szybki), poczekaj na niego
+                    // przed odpaleniem audytu - inaczej audyt wykonalby sie PRZED rozgrzaniem.
+                    if (prewarmTask != null && !prewarmTask.IsCompleted)
+                    {
+                        try { prewarmTask.Wait(TimeSpan.FromSeconds(2)); }
+                        catch { /* Timeout - warmup nie udal sie, jedziemy bez */ }
+                    }
 
                     // --- DATASET STUDIO INTEGRATION FOR WORKER ---
                     try
@@ -153,6 +180,41 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         break;
                     }
+
+                    // ============== AUDYT (Filar 3 - Wariant A + B) ==============
+                    // AuditChain uruchamia sie PO Workervalidator (Accept), ale PRZED
+                    // zwroceniem wyniku do Supervisora. Jesli Wariant A odrzuci
+                    // (np. Worker klamal o mutacji) - NIE trzeba budzic LLM Auditora.
+                    auditReport = Task.Run(async () =>
+                    {
+                        return await AuditorAuditService.AuditMutationAsync(
+                            client, targetProfile, taskDescription, result,
+                            mutationsBeforeWorker, attempt, maxValidationAttempts);
+                    }).GetAwaiter().GetResult();
+
+                    AgentTelemetry.ReportLoopLog(
+                        $"[AUDITOR -> {targetProfile}] Decision={auditReport.Decision} Severity={auditReport.Severity} Heuristic={auditReport.HeuristicOnly} Reason={auditReport.Reason}");
+
+                    if (auditReport.Decision == WorkValidationDecision.Reject)
+                    {
+                        // Auditor uznyl sie calkowicie - koniec prob
+                        break;
+                    }
+
+                    if (auditReport.Decision == WorkValidationDecision.Retry)
+                    {
+                        if (attempt < maxValidationAttempts)
+                        {
+                            string repair = auditReport.FeedbackForWorker;
+                            AgentTelemetry.ReportLoopLog($"[AUDITOR REPAIR -> {targetProfile}]\n{repair}");
+                            localHistory.Add(new ChatMessage { Role = "user", Content = repair });
+                            continue;
+                        }
+                        // Ostatnia proba - koniec, ale oznaczymy failure nizej
+                        break;
+                    }
+                    // Accept - sukces audytu, przejdz do standardowej walidacji WorkValidator
+                    // ===============================================================
 
                     validation = WorkValidator.Validate(targetProfile, taskDescription, localHistory, result.DisplayMessage);
                     AgentTelemetry.ReportLoopLog(validation.ToLoopLog());
@@ -182,17 +244,22 @@ namespace Bricscad_AgentAI_V2.Tools
                         return $"BŁĄD: '{targetProfile}' nie dostarczyl wystarczajacego dowodu wykonania zadania. {reason}";
                     }
 
+                    if (auditReport != null && auditReport.Decision == WorkValidationDecision.Reject)
+                    {
+                        return $"BŁĄD: Auditor odrzucil prace '{targetProfile}' po {maxValidationAttempts} probach. {auditReport.Reason}";
+                    }
+
                     if (IsLikelyUnfulfilledLayoutMutation(targetProfile, taskDescription, result.DisplayMessage))
                     {
                         return $"BŁĄD: '{targetProfile}' nie wykonał zleconej modyfikacji. Zwrócił tylko listę layoutów zamiast użyć PageSetupTool/Foreach do zmiany ustawień. Powtórz delegowanie z jawnym nakazem wykonania PageSetupTool dla każdego arkusza.";
                     }
                     AgentTelemetry.ReportLoopLog($"[{targetProfile} -> Supervisor]\n{result.DisplayMessage}");
-                    return $"Zadanie zakoĹ„czone przez '{targetProfile}'. ZwrĂłcony wynik: {result.DisplayMessage}";
+                    return $"Zadanie zakończone przez '{targetProfile}'. Zwrócony wynik: {result.DisplayMessage}";
                 }
                 else
                 {
                     AgentTelemetry.ReportLoopLog($"[{targetProfile} -> Supervisor]\nBLAD: {result.DisplayMessage}");
-                    return $"BĹÄ„D: '{targetProfile}' zgĹ‚osiĹ‚ awariÄ™: {result.DisplayMessage}";
+                    return $"BŁĄD: '{targetProfile}' zgłosił awarię: {result.DisplayMessage}";
                 }
             }
             catch (Exception ex)

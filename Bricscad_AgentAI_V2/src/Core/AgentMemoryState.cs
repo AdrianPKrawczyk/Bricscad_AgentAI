@@ -24,6 +24,16 @@ namespace Bricscad_AgentAI_V2.Core
         // lub z kodu przez Supervisor przed delegacja do ryzykownego zadania.
         public static bool EvidenceEnabled { get; set; } = false;
 
+        // Filar 3 (Auditor): czy w ogole uruchamiac audyt (Wariant A + B).
+        // Domyslnie false - opt-in. UI checkbox 'chkAuditorEnabled' w AgentControl.
+        public static bool AuditorEnabled { get; set; } = false;
+
+        // Filar 3 (Auditor): czy rozgrzewac KV cache Auditora w tle (Task.Run)
+        // PRZED wywolaniem Workera. Wymaga srodowiska Multi-GPU lub duzego VRAM,
+        // bo oznacza rownolegle trzymanie w pamieci modelu Workera i Auditora.
+        // Domyslnie false - dla pojedynczej karty lepiej sekwencyjnie.
+        public static bool AuditorPrewarmEnabled { get; set; } = false;
+
         // Twardy limit Handle'ow na sesje - zabezpiecza kontekst Rewidenta
         // przed eksplozja przy operacjach masowych (np. ManageLayers na 500 obiektach).
         public const int MaxEvidenceHandles = 64;
