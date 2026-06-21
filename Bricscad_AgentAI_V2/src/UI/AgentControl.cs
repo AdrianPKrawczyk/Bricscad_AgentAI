@@ -876,6 +876,10 @@ namespace Bricscad_AgentAI_V2.UI
             TabPage tabAgentChat = new TabPage("Agent-Czat");
             tabAgentChat.Controls.Add(new SubAgentChatControl());
 
+            // Zakladka Audytora (Filar 3) - reczne testowanie AuditorProfile
+            TabPage tabAuditor = new TabPage("Audytor");
+            tabAuditor.Controls.Add(new AuditorChatControl(_llmClient));
+
             // ==========================================
             // ZAKÄÄ… ADKA 5: AGENCI (PrzeglÄ‚â€žĂ˘â‚¬Â¦d, Prompt, Skille)
             // ==========================================
