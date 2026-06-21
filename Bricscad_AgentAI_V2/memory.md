@@ -187,6 +187,39 @@ Ten dokument s≈Çu≈ºy jako zewnƒôtrzna pamiƒôƒá d≈Çugotrwa≈Ça dla modelu AI. Zawi
 ### [KOLEJNY_KROK]
 - Oczekiwanie na manualny build oraz testy w BricsCAD.
 
+## [v2.34.10 GOLD] 2026-06-21T15:30:00+02:00 - Agent Rewident (Auditor) - 4 filary + UI + testy [AUDITOR-COMPLETE]
+### [KONTEKST]
+Wdrozenie kompletnego systemu Agenta Rewidenta - dedykowanego profilu LLM, ktory weryfikuje faktyczne wykonanie zadan mutujacych przez inne profile. Rozwiazuje problem "falszywego sukcesu" gdy Worker (np. CadProfile) zglasza ukonczenie zadania bez faktycznej mutacji w DWG, lub gdy mutacja nie spelnia wymagan.
+### [ZREALIZOWANO]
+- Filar 1 (v2.34.0): ToolConfigManager.IsReadOnly + ToolOrchestrator guard blokuje mutating tools dla AuditorProfile. WorkValidator.MutatingTools/ReadOnlyTools awansowane do public.
+- Filar 2 (v2.34.1): EvidenceSnapshot.cs + EngineTracer rozszerzony o CaptureSnapshot/WriteSnapshotToBlackboard. AgentMemoryState: ConcurrentBag<ObjectId> ModifiedEntities + Interlocked liczniki (thread-safety per notatka techniczna). ToolOrchestrator hook before/after mutacji z limitem 64 Handle/sesje.
+- Fixy kompilacji v2.34.2-4: usunieto Bricscad.DatabaseServices (nie istnieje w projekcie), dodano Teigha.Geometry, Handle.ToString zamiast Handle.ToString(X), cast obj as Entity, EvidenceSnapshot.cs w csproj.
+- Filar 3 (v2.34.5): AuditorAuditService z PrewarmAuditorAsync (Task.Run + WarmupPromptAsync) + AuditMutationAsync (Wariant A heurystyczny + Wariant B LLM). DelegateTaskTool: integracja w petli (max 3 proby), pre-warm + audit + progressive hinting (3 poziomy).
+- Filar 4 (v2.34.6): CircuitBreakerState per-profil z ConcurrentDictionary, prog domyslny 3. DelegateTaskTool: blokada na poczatku try, RecordFailure w 4 miejscach, Reset po Accept. ToolOrchestrator: heurystyczny rollback detection (B≈ÅƒÑD/Abort/przerwan).
+- v2.34.7 UI: chkAuditorEnabled/chkAuditorPrewarm/chkAuditorEvidence/chkCircuitBreaker + numCircuitBreakerThreshold + lblCircuitBreakerState w AgentControl.cs. UISettingsManager: 5 nowych pol.
+- v2.34.8 UI: AuditorChatControl - nowa TabPage "Audytor" do recznego testowania AuditorProfile (checkboxy kontekstu: ActiveSelection/Blackboard/ListBlocks).
+- v2.34.9 testy: CircuitBreakerStateTests (15), WorkValidatorTests (8), AuditorReportTests (8) - NUnit Framework.
+- v2.34.10 docs: USER_GUIDE.md - sekcja 12.5-12.12 opisujaca 4 filary, UI flagi, zakladke Audytora, scenariusze uzycia.
+### [DECYZJE_ARCHITEKTONICZNE]
+- Wariant C (hybryda) zamiast czystego A lub B: Wariant A (heurystyczny C#, darmowy) odpala sie ZAWSZE pierwszy. Jesli odrzuci (np. Worker klamal o mutacji) - LLM Auditor NIE jest budzony. Dopiero gdy A przepusci, warianty B (LLM) weryfikuje Chain of Evidence.
+- AuditorEnabled default false (opt-in), AuditorPrewarmEnabled default false (wymaga Multi-GPU), CircuitBreakerEnabled default true (opt-out, zawsze chcemy ochrony).
+- CircuitBreakerThreshold = 3 (zgodny z ustaleniem Q4): po 3 probach bez poprawy model wpada w pulapke deterministyczna.
+- maxValidationAttempts w DelegateTask = 3 (z 2 - limit dla calej petli).
+- Raporty audytu: osobne pliki (zgodnie z Q5) zamiast mieszania z QA Report - w przyszlosci DPO dataset.
+- Auditor chat w UI (zgodnie z Q6) izoluje testowanie Rewidenta od Workerow.
+- Thread-safety: ConcurrentBag + Interlocked (nie lock) - lock na 500 obiektow w ManageLayers zablokowalby system na setki ms.
+- Limit 64 Handle/sesje chroni kontekst Rewidenta przed eksplozja.
+- Rollback detection: heurystyczny zamiast eventu Teigha (TransactionAborted nie istnieje w Teigha).
+### [WERYFIKACJA]
+- Kompilacja OK (4 fix commits v2.34.2-4).
+- 10 commitow cyklu v2.34.0 - v2.34.10 (feat + fix + test + docs).
+- 5 commitow road mapy 4 filarow + 3 fix + 5 bonus (UI flagi, zakladka, testy, docs, memory).
+- 31 testy jednostkowe (NUnit) dla CircuitBreakerState, WorkValidator, AuditorReport.
+### [NASTƒòPNY_KROK]
+- Manual build w VS potwierdzony przez uzytkownika.
+- Testy integracyjne w BricsCAD (AuditorChatControl + DelegateTask z Auditorem).
+- Ewentualny tuning progu CB na podstawie obserwacji z pierwszych sesji.
+
 ## [v2.30.19 GOLD] 2026-06-18T16:40:00+02:00 - ManageViewportsTool dla rzutni arkuszowych
 ### [ZREALIZOWANO]
 - Dodano `ManageViewportsTool` do obslugi prostokatnych rzutni papierowych w layoutach: `List`, `Create`, `Modify`, `Delete`.
@@ -4621,17 +4654,17 @@ To WYJASNIA dlaczego test z 14.06.1120 mial 0% z pustymi `RecordedToolCalls`:
 ## [v2.30.22] 2026-06-19T22:03:22+02:00 - Implementacja Druk Widoki (WPF & CAD Hooks)
 ### [ZREALIZOWANO]
 - Utworzono projekt Bielik.DrukWidoki.csproj (WPF/MVVM, .NET 4.8).
-- Dodano klasÍ DTO BielikViewDef oraz obs≥ugÍ NOD (NodManager).
+- Dodano klasÔøΩ DTO BielikViewDef oraz obsÔøΩugÔøΩ NOD (NodManager).
 - Zaimplementowano interfejs graficzny PaletteSet (WPF) w BricsCAD z modelem widoku.
 - Stworzono stuby Jigs (EntityJig dla rysowania) oraz Reactors (ObjectModified dla Polyline).
-- Stworzono integracjÍ z Agentem AI V2: ReadViewDefinitionsTool (#layout), pobierajπcy s≥ownik BIELIK_DRUK_WIDOKI.
+- Stworzono integracjÔøΩ z Agentem AI V2: ReadViewDefinitionsTool (#layout), pobierajÔøΩcy sÔøΩownik BIELIK_DRUK_WIDOKI.
 - Zaktualizowano prompt systemowy (system_prompt_layout.txt).
 ### [STAN_SYSTEMU]
-- Kompilacja obu projektÛw przebieg≥a bez b≥ÍdÛw. NarzÍdzia AI potrafiπ czytaÊ NOD przez nowo dodane narzÍdzie.
+- Kompilacja obu projektÔøΩw przebiegÔøΩa bez bÔøΩÔøΩdÔøΩw. NarzÔøΩdzia AI potrafiÔøΩ czytaÔøΩ NOD przez nowo dodane narzÔøΩdzie.
 ### [BLOKADY / PROBLEMY]
 - Brak.
 ### [KOLEJNY_KROK]
-- RozpoczÍcie Fazy 5: Pe≥na integracja z poleceniami BricsCAD (Jigi) oraz finalne testy manualne.
+- RozpoczÔøΩcie Fazy 5: PeÔøΩna integracja z poleceniami BricsCAD (Jigi) oraz finalne testy manualne.
 
 ## [v2.30.23] 2026-06-20 - Rozbudowa interfejsu i logiki Reaktora w DrukWidoki
 ### [ZREALIZOWANO]
