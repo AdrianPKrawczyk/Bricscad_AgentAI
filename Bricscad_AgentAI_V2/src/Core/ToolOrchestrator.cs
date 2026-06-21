@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Bricscad.ApplicationServices;
+using Bricscad_AgentAI_V2.Core.Rewident;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json.Linq;
 using Teigha.DatabaseServices;
@@ -275,7 +276,7 @@ namespace Bricscad_AgentAI_V2.Core
                         {
                             // Fallback: pobierz Handle z ModelSpace (diff before/after)
                             int modelSpaceCountAfter2 = EngineTracer.CountObjectsInModelSpace();
-                            modified = AuditorAutoInjector.GetRecentHandlesFromModelSpacePublic(modelSpaceCountBefore, modelSpaceCountAfter2);
+                            modified = RewidentAutoInjector.GetRecentHandlesFromModelSpacePublic(modelSpaceCountBefore, modelSpaceCountAfter2);
                         }
                         int take = Math.Min(modified.Length, AgentMemoryState.MaxEvidenceHandles);
                         for (int i = 0; i < take; i++)
@@ -329,7 +330,7 @@ namespace Bricscad_AgentAI_V2.Core
                     && !AgentMemoryState.AuditorGloballyDisabled)
                 {
                     int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
-                    string injection = AuditorAutoInjector.BuildInjection(modelSpaceCountBefore, modelSpaceCountAfter);
+                    string injection = RewidentAutoInjector.BuildInjection(modelSpaceCountBefore, modelSpaceCountAfter);
                     if (!string.IsNullOrEmpty(injection))
                     {
                         result = result + "\n\n" + injection;

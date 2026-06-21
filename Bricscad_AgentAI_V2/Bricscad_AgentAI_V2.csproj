@@ -137,8 +137,8 @@
     <Compile Include="src\Core\EngineTracer.cs" />
     <Compile Include="src\Core\Rewident\EvidenceSnapshot.cs" />
     <Compile Include="src\Core\AuditorAuditService.cs" />
-    <Compile Include="src\Core\AuditorAutoInjector.cs" />
     <Compile Include="src\Core\Rewident\RewidentState.cs" />
+    <Compile Include="src\Core\Rewident\RewidentAutoInjector.cs" />
     <Compile Include="src\Core\CircuitBreakerState.cs" />
     <Compile Include="src\Core\BielikLogger.cs" />
     <Compile Include="src\Core\UISettingsManager.cs" />

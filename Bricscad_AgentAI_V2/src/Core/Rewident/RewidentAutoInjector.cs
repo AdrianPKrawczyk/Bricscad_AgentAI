@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Bricscad.ApplicationServices;
+using Bricscad_AgentAI_V2.Core; // BielikLogger
 using Teigha.DatabaseServices;
 
-namespace Bricscad_AgentAI_V2.Core
+namespace Bricscad_AgentAI_V2.Core.Rewident
 {
     /// <summary>
     /// Filar 5 Agenta Rewidenta: Auto-Inject Properties.
@@ -18,11 +19,13 @@ namespace Bricscad_AgentAI_V2.Core
     /// - 2-50 obiektow -> wszystkie (cap=20)
     /// - 50+ obiektow -> AutoInjectSamplePercent=2% z cap=20
     ///
-    /// Fix v2.34.16: nie polega na AgentMemoryState.ModifiedEntities (wymaga subskrypcji
+    /// Fix v2.34.16: nie polega na ModifiedEntities (wymaga subskrypcji
     /// EngineTracer). Zamiast tego uzywa roznicy ModelSpace count (before/after) i
     /// pobiera nowo pojawione Handle bezposrednio z BlockTableRecord.
+    ///
+    /// Przeniesiony do src/Core/Rewident/ w v2.35.0 (refaktor Auditor -> Rewident).
     /// </summary>
-    public static class AuditorAutoInjector
+    public static class RewidentAutoInjector
     {
         /// <summary>
         /// Glowna metoda - buduje tekst do wstrzykniecia do kontekstu modelu.
