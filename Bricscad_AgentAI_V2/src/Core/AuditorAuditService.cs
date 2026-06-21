@@ -80,6 +80,11 @@ namespace Bricscad_AgentAI_V2.Core
             var report = new AuditorReport();
             int mutationsAfterWorker = AgentMemoryState.MutationCount;
             int newMutations = mutationsAfterWorker - mutationsBeforeWorker;
+            // Deklaracja PRZED if-em zeby byla widoczna w Wariancie B (linia 143+).
+            // Bez EngineTracer (wylaczony) ModelSpace count jest jedynym zrodlem prawdy.
+            int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
+            int modelSpaceDelta = (modelSpaceCountBefore >= 0 && modelSpaceCountAfter >= 0)
+                ? modelSpaceCountAfter - modelSpaceCountBefore : 0;
 
             // === WARIANT A: heurystyczny (C# only, darmowy) ===
             // Fix v2.34.13: dwojaki detektor mutacji -
@@ -89,10 +94,6 @@ namespace Bricscad_AgentAI_V2.Core
             bool taskLooksMutating = LooksLikeMutatingTask(taskDescription);
             if (taskLooksMutating && workerResult.IsSuccess)
             {
-                int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
-                int modelSpaceDelta = (modelSpaceCountBefore >= 0 && modelSpaceCountAfter >= 0)
-                    ? modelSpaceCountAfter - modelSpaceCountBefore : 0;
-
                 // Heurystyka: brak mutacji gdy oba detektory mowia 0
                 bool noMutationDetected = (newMutations == 0 && modelSpaceDelta == 0);
 

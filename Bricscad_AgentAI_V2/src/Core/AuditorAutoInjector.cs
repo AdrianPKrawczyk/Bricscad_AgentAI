@@ -65,14 +65,8 @@ namespace Bricscad_AgentAI_V2.Core
                     BlockTableRecord modelSpace = tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead) as BlockTableRecord;
                     if (modelSpace == null) return result;
 
-                    int totalCount = 0;
-                    int cap = AgentMemoryState.AutoInjectMaxSamples;
-                    int targetCount = modelSpaceCountAfter;
-                    int startFrom = targetCount - cap;
-                    if (startFrom < 0) startFrom = 0;
-
-                    // Iteruj od konca - nowe obiekty sa na koncu ModelSpace
-                    int idx = 0;
+                    // Zbierz wszystkie Handle w ModelSpace (Handle nowo dodanych
+                    // obiektow sa na koncu, bo CreateObject dodaje na koniec).
                     var allIds = new List<ObjectId>();
                     foreach (var id in modelSpace)
                     {
