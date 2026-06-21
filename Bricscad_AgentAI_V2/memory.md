@@ -220,6 +220,28 @@ Wdrozenie kompletnego systemu Agenta Rewidenta - dedykowanego profilu LLM, ktory
 - Testy integracyjne w BricsCAD (AuditorChatControl + DelegateTask z Auditorem).
 - Ewentualny tuning progu CB na podstawie obserwacji z pierwszych sesji.
 
+## [v2.34.14] 2026-06-21T22:55:00+02:00 - Auditor UI w Ustawieniach + fallback detektor mutacji [AUDITOR-UI-FIX]
+### [KONTEKST]
+Po wdrozeniu v2.34.10 GOLD uzytkownik wykonal test 1 (narysuj okrag) w BricsCAD. Odkryl dwie kwestie:
+1. Panel Auditora z checkboxami (4 szt + NumericUpDown + Label) byl dodany do panInput (Height=80) i nie miescil sie - niewidoczny.
+2. Brak logow [AUDITOR] w UI - zakladka "Logi Narzedzi" (tabDev) byla ukryta w Ustawieniach, nie w glownym TabControl.
+3. KRYTYCZNY BUG: Wariant A heurystyczny raportowal BRAK MUTACJI W DWG mimo ze Worker faktycznie narysowal 2 okregi (Handle 14A, 14B). Przyczyna: EngineTracer.MutationCount==0 bo subskrypcja ObjectAppended/Modified wymaga wlaczenia checkboxa chkEnableTracer.
+### [ZREALIZOWANO]
+- v2.34.12: Przeniesc panel Auditor do nowej pod-zakladki "Rewident" w Ustawienia (obok Logi Narzedzi, Loop, Debug). Dodano CreateAuditorSettingsTab() z opisem + 4 checkboxami + progiem CB + Label stanu + przycisk Force Reset (odblokowuje wszystkie zablokowane profile).
+- v2.34.13 KRYTYCZNY FIX: Dualny detektor mutacji w AuditorAuditService - MutationCount (subskrypcja) + CountObjectsInModelSpace (polling). EngineTracer.CountObjectsInModelSpace() - nowa metoda iterujaca BlockTableRecord dla db.CurrentSpaceId. Dziala nawet gdy EngineTracer nie jest wlaczony.
+- v2.34.14: Reason pusty dla Accept - dodano komunikat "Wariant A (heurystyczny) zaakceptowal - Wariant B (LLM) wylaczony w ustawieniach." dla czytelnosci diagnostyki w Logi Narzedzi.
+### [WERYFIKACJA]
+- Kompilacja OK po kazdym z 3 commitow.
+- Test 1 po v2.34.13: 1 okrag narysowany, 1 iteracja, Accept natychmiastowy. Wczesniej (v2.34.12) - 2 okregi, 3 proby, BRAK MUTACJI false positive.
+### [DECYZJA_ARCHITEKTONICZNA]
+- Wariant A musi miec FALLBACK niezalezny od subskrypcji event - polling ModelSpace jest drozszy ale zawsze dziala.
+- Panel flag UI powinien byc w Ustawieniach (nie w glownym panelu) - tam gdzie user szuka konfiguracji.
+- Circuit Breaker Reset przycisk - szybkie odblokowanie bez restartu sesji.
+### [LEKCJA_DLA_PRZYSZLOSCI]
+- Nie polegac na subskrypcjach event dla mechanizmow bezpieczenstwa. Heurystyka fallback zawsze powinna istniec.
+- UI flagi dla zlozonych funkcji powinny byc w Ustawieniach zamiast w glownym panelu (zbyt ciasne).
+- Logi w "Logi Narzedzi" (Ustawienia -> zakladka) sa wazne dla diagnostyki - pokazujac w nich kluczowe informacje nawet w wariancie domyslnym.
+
 ## [v2.30.19 GOLD] 2026-06-18T16:40:00+02:00 - ManageViewportsTool dla rzutni arkuszowych
 ### [ZREALIZOWANO]
 - Dodano `ManageViewportsTool` do obslugi prostokatnych rzutni papierowych w layoutach: `List`, `Create`, `Modify`, `Delete`.
