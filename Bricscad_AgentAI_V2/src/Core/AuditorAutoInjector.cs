@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Bricscad.ApplicationServices;
 using Teigha.DatabaseServices;
 
 namespace Bricscad_AgentAI_V2.Core
@@ -16,127 +17,145 @@ namespace Bricscad_AgentAI_V2.Core
     /// - 1 obiekt -> 1 probka
     /// - 2-50 obiektow -> wszystkie (cap=20)
     /// - 50+ obiektow -> AutoInjectSamplePercent=2% z cap=20
+    ///
+    /// Fix v2.34.16: nie polega na AgentMemoryState.ModifiedEntities (wymaga subskrypcji
+    /// EngineTracer). Zamiast tego uzywa roznicy ModelSpace count (before/after) i
+    /// pobiera nowo pojawione Handle bezposrednio z BlockTableRecord.
     /// </summary>
     public static class AuditorAutoInjector
     {
         /// <summary>
-        /// Decyduje ktore Handle'a wziac do wstrzykniecia i zwraca ich wlasciwosci
-        /// sformatowane jako tekst do wstrzykniecia do kontekstu.
-        ///
-        /// Dla MODYFIKACJI (jesli mamy before snapshot) zwraca diff przed/po.
-        /// Dla TWORZENIA (brak before) zwraca tylko wlasciwosci "po".
+        /// Glowna metoda - buduje tekst do wstrzykniecia do kontekstu modelu.
+        /// Samodzielnie wykrywa ktore Handle'y sa nowe (diff ModelSpace count) i
+        /// pobiera ich wlasciwosci.
         /// </summary>
-        public static string BuildInjectionForHandles(IReadOnlyList<ObjectId> newHandles, int totalMutations)
+        /// <param name="modelSpaceCountBefore">Liczba obiektow PRZED mutacja (z hooka ToolOrchestrator)</param>
+        /// <param name="modelSpaceCountAfter">Liczba obiektow PO mutacji</param>
+        public static string BuildInjection(int modelSpaceCountBefore, int modelSpaceCountAfter)
         {
-            if (newHandles == null || newHandles.Count == 0) return null;
             if (!AgentMemoryState.AutoInjectPropertiesEnabled) return null;
             if (!EngineTracer.HasActiveDocument()) return null;
+            if (modelSpaceCountBefore < 0 || modelSpaceCountAfter < 0) return null;
+            int newCount = modelSpaceCountAfter - modelSpaceCountBefore;
+            if (newCount <= 0) return null;
 
-            // Strategia probkowania
-            var sampled = SampleHandles(newHandles, totalMutations);
+            // Pobierz nowo dodane Handle z ModelSpace (snapshot PRZED tego wywolania
+            // byl zapisywany przez EngineTracer w poprzednim wywolaniu hook'a).
+            // Dla uproszczenia - bierz ostatnie N Handle z ModelSpace.
+            var newHandles = GetRecentlyAddedHandles(modelSpaceCountBefore, modelSpaceCountAfter);
+            if (newHandles.Count == 0) return null;
+
+            return FormatHandlesForInjection(newHandles, newCount);
+        }
+
+        /// <summary>
+        /// Pobiera ostatnio dodane Handle z ModelSpace (od pozycji "before" do konca).
+        /// Nie wymaga subskrypcji EngineTracer - dziala nawet gdy jest wylaczony.
+        /// </summary>
+        private static List<ObjectId> GetRecentlyAddedHandles(int modelSpaceCountBefore, int modelSpaceCountAfter)
+        {
+            var result = new List<ObjectId>();
+            Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return result;
+            Database db = doc.Database;
+            try
+            {
+                using (var tr = db.TransactionManager.StartOpenCloseTransaction())
+                {
+                    BlockTableRecord modelSpace = tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead) as BlockTableRecord;
+                    if (modelSpace == null) return result;
+
+                    int totalCount = 0;
+                    int cap = AgentMemoryState.AutoInjectMaxSamples;
+                    int targetCount = modelSpaceCountAfter;
+                    int startFrom = targetCount - cap;
+                    if (startFrom < 0) startFrom = 0;
+
+                    // Iteruj od konca - nowe obiekty sa na koncu ModelSpace
+                    int idx = 0;
+                    var allIds = new List<ObjectId>();
+                    foreach (var id in modelSpace)
+                    {
+                        allIds.Add(id);
+                    }
+
+                    int actualCount = allIds.Count;
+                    int newCount = actualCount - modelSpaceCountBefore;
+                    if (newCount <= 0) return result;
+
+                    // Bierz ostatnie newCount Handle (od konca)
+                    var sampledIds = SampleTail(allIds, newCount);
+                    tr.Commit();
+                    return sampledIds;
+                }
+            }
+            catch (Exception ex)
+            {
+                BielikLogger.LogWarn($"[AUTO-INJECT] Blad pobierania Handle z ModelSpace: {ex.Message}");
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Bierz ostatnie N Handle z listy (od konca) z limitem cap.
+        /// </summary>
+        private static List<ObjectId> SampleTail(List<ObjectId> allIds, int newCount)
+        {
+            int cap = AgentMemoryState.AutoInjectMaxSamples;
+
+            if (newCount <= 50)
+            {
+                int take = Math.Min(newCount, cap);
+                return allIds.Skip(allIds.Count - take).ToList();
+            }
+
+            // 50+ - probkuj 2% z cap=20 (deterministyczne, co N-tego)
+            int percent = AgentMemoryState.AutoInjectSamplePercent > 0
+                ? AgentMemoryState.AutoInjectSamplePercent : 2;
+            int sampleCount = Math.Min(cap, Math.Max(1, (newCount * percent) / 100));
+            int step = Math.Max(1, newCount / sampleCount);
+
+            var sampled = new List<ObjectId>();
+            int startIdx = allIds.Count - newCount;
+            for (int i = startIdx; i < allIds.Count && sampled.Count < sampleCount; i += step)
+            {
+                sampled.Add(allIds[i]);
+            }
+            return sampled;
+        }
+
+        /// <summary>
+        /// Format Handle'ow jako tekst do wstrzykniecia. Dla kazdego Handle'a
+        /// pobiera wlasciwosci PRzez EngineTracer.CaptureSnapshot (czyste C#,
+        /// nie wymaga subskrypcji).
+        /// </summary>
+        private static string FormatHandlesForInjection(List<ObjectId> handles, int totalMutations)
+        {
+            if (handles == null || handles.Count == 0) return null;
 
             var sb = new StringBuilder();
             sb.AppendLine("[AUTO-INJECTED PROPERTIES - Auditor Filar 5]");
-            sb.AppendLine($"Profil wykonal {totalMutations} mutacji. Pokazuje {sampled.Count} probek (z {newHandles.Count} nowo dodanych/zmienionych):");
+            sb.AppendLine($"Profil wykonal {totalMutations} mutacji. Pokazuje {handles.Count} probek z ostatnio dodanych obiektow:");
             sb.AppendLine();
 
-            foreach (var id in sampled)
+            foreach (var id in handles)
             {
                 if (id.IsNull) continue;
-                string handleHex = id.Handle.ToString();
-                string afterJson = SharedMemoryState.Read(EvidenceSnapshot.BlackboardKey("after", handleHex));
-                string beforeJson = SharedMemoryState.Read(EvidenceSnapshot.BlackboardKey("before", handleHex));
+                // CaptureSnapshot dziala bez subskrypcji EngineTracer (otwiera wlasna transakcje)
+                var snap = EngineTracer.CaptureSnapshot(id, "after");
+                if (snap == null || snap.IsEmpty) continue;
 
-                var after = EvidenceSnapshot.FromJson(afterJson);
-                var before = EvidenceSnapshot.FromJson(beforeJson);
-
-                if (after == null) continue;
-
-                sb.AppendLine($"--- Handle 0x{handleHex} ({after.ObjectType}) ---");
-
-                if (before != null)
+                sb.AppendLine($"--- Handle 0x{snap.Handle} ({snap.ObjectType}) ---");
+                foreach (var kvp in snap.Properties)
                 {
-                    // MODYFIKACJA - diff przed/po
-                    var diffs = GetDiff(before.Properties, after.Properties);
-                    if (diffs.Count == 0)
-                    {
-                        sb.AppendLine("  (brak zmian wlasciwosci - prawdopodobnie mutacja geometryczna)");
-                    }
-                    else
-                    {
-                        foreach (var d in diffs)
-                        {
-                            sb.AppendLine($"  {d.Key}: {d.Value.before} -> {d.Value.after}");
-                        }
-                    }
-                }
-                else
-                {
-                    // TWORZENIE - tylko "po"
-                    foreach (var kvp in after.Properties)
-                    {
-                        if (kvp.Value.Length > 80) continue; // pomijaj dlugie (np. Contents MText)
-                        sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
-                    }
+                    if (kvp.Value.Length > 80) continue; // pomijaj dlugie (np. Contents MText)
+                    sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
                 }
                 sb.AppendLine();
             }
 
             sb.AppendLine("(Powyzsze wlasciwosci zostaly pobrane bezposrednio z bazy DWG - to jest dowod wykonania.)");
             return sb.ToString();
-        }
-
-        /// <summary>
-        /// Wybiera ktore Handle'a wziac do wstrzykniecia wg strategii z Q4.
-        /// </summary>
-        private static List<ObjectId> SampleHandles(IReadOnlyList<ObjectId> newHandles, int totalMutations)
-        {
-            int cap = AgentMemoryState.AutoInjectMaxSamples;
-
-            if (newHandles.Count == 1)
-            {
-                return new List<ObjectId> { newHandles[0] };
-            }
-
-            if (newHandles.Count <= 50)
-            {
-                return newHandles.Take(cap).ToList();
-            }
-
-            // 50+ - probkuj 2% z cap=20
-            int percent = AgentMemoryState.AutoInjectSamplePercent > 0
-                ? AgentMemoryState.AutoInjectSamplePercent : 2;
-            int sampleCount = Math.Min(cap, Math.Max(1, (newHandles.Count * percent) / 100));
-
-            // Deterministyczne probkowanie - bierz co N-tego Handle
-            // (lepsze niz losowe - powtarzalne, audytowalne)
-            int step = Math.Max(1, newHandles.Count / sampleCount);
-            var sampled = new List<ObjectId>();
-            for (int i = 0; i < newHandles.Count && sampled.Count < sampleCount; i += step)
-            {
-                sampled.Add(newHandles[i]);
-            }
-            return sampled;
-        }
-
-        /// <summary>
-        /// Zwraca liste roznic miedzy before/after - tylko te properties, ktore sie zmienily.
-        /// </summary>
-        private static List<KeyValuePair<string, (string before, string after)>> GetDiff(
-            Dictionary<string, string> before,
-            Dictionary<string, string> after)
-        {
-            var diffs = new List<KeyValuePair<string, (string, string)>>();
-            if (before == null || after == null) return diffs;
-
-            foreach (var kvp in after)
-            {
-                string beforeVal = before.TryGetValue(kvp.Key, out var b) ? b : null;
-                if (beforeVal == null) continue; // pomijaj nowe (np. nowe property)
-                if (beforeVal == kvp.Value) continue; // brak zmiany
-                diffs.Add(new KeyValuePair<string, (string, string)>(kvp.Key, (beforeVal, kvp.Value)));
-            }
-            return diffs;
         }
     }
 }

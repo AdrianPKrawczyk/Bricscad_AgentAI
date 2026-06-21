@@ -45,6 +45,10 @@ namespace Bricscad_AgentAI_V2.Core
         // Auditor (Agent Rewident) - Filar 4
         public bool CircuitBreakerEnabled { get; set; } = true;
         public int CircuitBreakerThreshold { get; set; } = 3;
+
+        // Auditor (Agent Rewident) - Filar 5 (Auto-Inject Properties)
+        public bool AutoInjectPropertiesEnabled { get; set; } = true;
+        public int AutoInjectSamplePercent { get; set; } = 2;
     }
 
     public class VisionOcrQualityPreset

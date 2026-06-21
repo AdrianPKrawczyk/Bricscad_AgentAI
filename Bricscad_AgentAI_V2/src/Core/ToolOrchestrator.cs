@@ -222,6 +222,9 @@ namespace Bricscad_AgentAI_V2.Core
                 bool isMutating = WorkValidator.MutatingTools.Contains(toolName);
                 var beforeTargets = new List<string>();
                 int mutationsBefore = AgentMemoryState.MutationCount;
+                // Snapshot ModelSpace count dla Auto-Inject (Filar 5). Dziala nawet gdy
+                // EngineTracer nie jest wlaczony (czyste C# bez subskrypcji).
+                int modelSpaceCountBefore = EngineTracer.CountObjectsInModelSpace();
                 if (isMutating && AgentMemoryState.EvidenceEnabled)
                 {
                     var currentSel = AgentMemoryState.ActiveSelection;
@@ -308,34 +311,20 @@ namespace Bricscad_AgentAI_V2.Core
                 // polegac na wlasnych deklaracjach ("narysowalem okrag" - a co naprawde
                 // narysowal? sprawdzmy: Type=Circle, Radius=50, Layer=0).
                 // Strategia z Q4: 1 obj=1, 2-50=all(cap20), 50+=2% z cap=20.
+                // Fix v2.34.16: nie polega na ModifiedEntities (wymaga subskrypcji EngineTracer).
+                // Zamiast tego - diff ModelSpace count (czyste C#).
                 if (isMutating && AgentMemoryState.AutoInjectPropertiesEnabled
                     && !string.IsNullOrEmpty(result)
                     && !result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
                     && !result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase))
                 {
-                    int mutationsAfter = AgentMemoryState.MutationCount;
-                    if (mutationsAfter > mutationsBefore)
+                    int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
+                    string injection = AuditorAutoInjector.BuildInjection(modelSpaceCountBefore, modelSpaceCountAfter);
+                    if (!string.IsNullOrEmpty(injection))
                     {
-                        // Handle nowo dodanych/zmienionych obiektow
-                        var modified = AgentMemoryState.GetModifiedEntitiesSnapshot();
-                        // Filtruj tylko te dodane PO mutationsBefore (nie starsze)
-                        // Dla uproszczenia - bierz ostatnie N Handle z modified
-                        int count = Math.Min(modified.Length, AgentMemoryState.MaxEvidenceHandles);
-                        var recent = new List<Teigha.DatabaseServices.ObjectId>();
-                        for (int i = modified.Length - count; i < modified.Length; i++)
-                        {
-                            if (i >= 0 && !modified[i].IsNull) recent.Add(modified[i]);
-                        }
-
-                        if (recent.Count > 0)
-                        {
-                            string injection = AuditorAutoInjector.BuildInjectionForHandles(recent, mutationsAfter - mutationsBefore);
-                            if (!string.IsNullOrEmpty(injection))
-                            {
-                                result = result + "\n\n" + injection;
-                                BielikLogger.LogInfo($"[AUTO-INJECT] Dodano wlasciwosci {recent.Count} obiekt(ow) do wyniku {toolName}");
-                            }
-                        }
+                        result = result + "\n\n" + injection;
+                        int injected = modelSpaceCountAfter - modelSpaceCountBefore;
+                        BielikLogger.LogInfo($"[AUTO-INJECT] Dodano wlasciwosci {injected} obiekt(ow) do wyniku {toolName}");
                     }
                 }
                 // =============================================================

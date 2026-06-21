@@ -35,6 +35,8 @@ namespace Bricscad_AgentAI_V2.UI
         private CheckBox chkCircuitBreaker;
         private NumericUpDown numCircuitBreakerThreshold;
         private Label lblCircuitBreakerState;
+        private CheckBox chkAutoInjectProperties;
+        private NumericUpDown numSamplePercent;
         private DatasetStudioControl datasetStudio;
         public DatasetStudioControl DatasetStudio => datasetStudio;
         private KnowledgeBaseControl knowledgeBaseControl;
@@ -1333,6 +1335,8 @@ namespace Bricscad_AgentAI_V2.UI
             AgentMemoryState.EvidenceEnabled = s.AuditorEvidenceEnabled;
             AgentMemoryState.CircuitBreakerEnabled = s.CircuitBreakerEnabled;
             AgentMemoryState.CircuitBreakerThreshold = s.CircuitBreakerThreshold;
+            AgentMemoryState.AutoInjectPropertiesEnabled = s.AutoInjectPropertiesEnabled;
+            AgentMemoryState.AutoInjectSamplePercent = s.AutoInjectSamplePercent;
         }
 
 
@@ -3287,6 +3291,59 @@ Ostatnia rozmowa:
                 UpdateCircuitBreakerLabel();
             };
             outer.Controls.Add(chkCircuitBreaker, 0, 3);
+
+            // === Filar 5: Auto-Inject Properties ===
+            chkAutoInjectProperties = new CheckBox
+            {
+                Text = "Auto-Inject Properties (wstrzykuj wlasciwosci obiektow do kontekstu modelu po mutacji)",
+                AutoSize = true,
+                ForeColor = Color.LightSkyBlue,
+                Margin = new Padding(0, 10, 0, 5)
+            };
+            chkAutoInjectProperties.Checked = UISettingsManager.Settings.AutoInjectPropertiesEnabled;
+            chkAutoInjectProperties.CheckedChanged += (s, e) =>
+            {
+                AgentMemoryState.AutoInjectPropertiesEnabled = chkAutoInjectProperties.Checked;
+                UISettingsManager.Settings.AutoInjectPropertiesEnabled = chkAutoInjectProperties.Checked;
+                UISettingsManager.Save();
+                numSamplePercent.Enabled = chkAutoInjectProperties.Checked;
+            };
+            outer.Controls.Add(chkAutoInjectProperties, 0, 4);
+
+            // === Sample % row ===
+            var sampleRow = new TableLayoutPanel
+            {
+                ColumnCount = 3,
+                RowCount = 1,
+                AutoSize = true,
+                Margin = new Padding(20, 0, 0, 5)
+            };
+            var lblSamplePercent = new Label
+            {
+                Text = "Procent probek (1-20, dla >50 obiektow):",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(0, 6, 6, 0)
+            };
+            numSamplePercent = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 20,
+                Value = UISettingsManager.Settings.AutoInjectSamplePercent,
+                Width = 60,
+                Enabled = UISettingsManager.Settings.AutoInjectPropertiesEnabled
+            };
+            numSamplePercent.ValueChanged += (s, e) =>
+            {
+                int v = (int)numSamplePercent.Value;
+                AgentMemoryState.AutoInjectSamplePercent = v;
+                UISettingsManager.Settings.AutoInjectSamplePercent = v;
+                UISettingsManager.Save();
+            };
+            sampleRow.Controls.Add(lblSamplePercent, 0, 0);
+            sampleRow.Controls.Add(numSamplePercent, 1, 0);
+            sampleRow.Controls.Add(new Label { Text = "  (cap 20 obiektow, reszta deterministycznie)", AutoSize = true, ForeColor = Color.DarkGray, Margin = new Padding(6, 6, 0, 0) }, 2, 0);
+            outer.Controls.Add(sampleRow, 0, 5);
 
             // === Próg CB + Label stanu ===
             var cbRow = new TableLayoutPanel
