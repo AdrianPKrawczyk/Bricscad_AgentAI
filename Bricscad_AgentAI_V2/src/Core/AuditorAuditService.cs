@@ -132,7 +132,11 @@ namespace Bricscad_AgentAI_V2.Core
             // === WARIANT B: LLM Auditor (tylko jesli Wariant A przepuscil) ===
             // Auditor przejrzy Chain of Evidence w Blackboard i oceni,
             // czy mutacje odpowiadaja intencji zadania.
-            if (!AgentMemoryState.AuditorEnabled) return report;
+            if (!AgentMemoryState.AuditorEnabled)
+            {
+                report.Reason = "Wariant A (heurystyczny) zaakceptowal - Wariant B (LLM) wylaczony w ustawieniach.";
+                return report;
+            }
             if (newMutations == 0) return report; // brak mutacji do walidacji
 
             try
