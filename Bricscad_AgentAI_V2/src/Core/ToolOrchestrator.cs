@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json.Linq;
+using Teigha.DatabaseServices;
 
 namespace Bricscad_AgentAI_V2.Core
 {
@@ -211,12 +213,38 @@ namespace Bricscad_AgentAI_V2.Core
                 var cadContext = context as CadExecutionContext;
                 string result = null;
 
+                // ============== CHAIN OF EVIDENCE (Auditor Filar 2) ==============
+                // Dla narzedzi mutujacych (z wyjatkiem AuditorProfile, ktory jest read-only
+                // i nie dojdzie do tego miejsca) zbieramy snapshot wlasciwosci PRZED wywolaniem
+                // dla kazdego Handle w ActiveSelection. Po wywolaniu zbieramy AFTER dla
+                // wszystkich Handle z ModifiedEntities (nowo dodane + zmodyfikowane).
+                // Cap 64 Handle/sesje - chroni kontekst Rewidenta przed eksplozja
+                // (np. ManageLayers modyfikujacy 500 obiektow - Twoja notatka techniczna).
+                bool isMutating = WorkValidator.MutatingTools.Contains(toolName);
+                var beforeTargets = new List<string>();
+                int mutationsBefore = AgentMemoryState.MutationCount;
+                if (isMutating && AgentMemoryState.EvidenceEnabled)
+                {
+                    var currentSel = AgentMemoryState.ActiveSelection;
+                    int cap = Math.Min(currentSel.Length, AgentMemoryState.MaxEvidenceHandles);
+                    for (int i = 0; i < cap; i++)
+                    {
+                        var id = currentSel[i];
+                        if (id.IsNull) continue;
+                        var snap = EngineTracer.CaptureSnapshot(id, "before");
+                        if (snap == null) continue;
+                        EngineTracer.WriteSnapshotToBlackboard(snap, "before");
+                        beforeTargets.Add(snap.Handle);
+                    }
+                }
+                // ================================================================
+
                 // WYMUSZENIE GŁÓWNEGO WĄTKU (Main Thread) dla operacji CAD/ACIS
                 if (System.Windows.Application.Current != null && System.Windows.Application.Current.Dispatcher != null)
                 {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() => 
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        try 
+                        try
                         {
                             result = tool.Execute(cadContext?.CadDocument, arguments);
                         }
@@ -230,6 +258,27 @@ namespace Bricscad_AgentAI_V2.Core
                 {
                     result = tool.Execute(cadContext?.CadDocument, arguments);
                 }
+
+                // ============== CHAIN OF EVIDENCE - AFTER ==============
+                if (isMutating && AgentMemoryState.EvidenceEnabled)
+                {
+                    int mutationsAfter = AgentMemoryState.MutationCount;
+                    if (mutationsAfter > mutationsBefore)
+                    {
+                        // Nowe lub zmodyfikowane obiekty od tego wywolania
+                        var modified = AgentMemoryState.GetModifiedEntitiesSnapshot();
+                        int take = Math.Min(modified.Length, AgentMemoryState.MaxEvidenceHandles);
+                        for (int i = 0; i < take; i++)
+                        {
+                            var id = modified[i];
+                            if (id.IsNull) continue;
+                            var snap = EngineTracer.CaptureSnapshot(id, "after");
+                            if (snap == null) continue;
+                            EngineTracer.WriteSnapshotToBlackboard(snap, "after");
+                        }
+                    }
+                }
+                // =======================================================
 
                 string resPreview = result;
                 if (resPreview != null && resPreview.Length > 150) resPreview = resPreview.Substring(0, 150) + "...";

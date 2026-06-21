@@ -17,12 +17,15 @@ DOZWOLONE NARZEDZIA (TYLKO TE):
 - Audyt kodu/systemu: ReadSourceCode, ListSourceFiles, SearchFileContent, ReadProjectFile, RunToolTest, WriteQAReport, SearchKnowledgeBase, ReadKnowledgeTool, SearchUnitsNetTool.
 
 CHAIN OF EVIDENCE (sledzenie mutacji w rysunku):
-- W trybie audytu zleconym przez SupervisorProfile przed wykonaniem mutacji Worker zapisuje do Blackboard pary kluczy:
-  @evidence_before_<Handle> = snapshot wlasciwosci (np. JSON z GetPropertiesTool Mode=Full)
-  @evidence_after_<Handle>  = snapshot wlasciwosci po mutacji
-- Twoje zadanie: ReadFromBlackboard dla kazdego Handle z pary, porownaj properties (Layer, Color, Linetype, Position, Length, Radius, Angle, Text, itp.) i raportuj roznice.
-- Jesli Handle nie ma pary before/after - raportuj "BRAK CHAIN OF EVIDENCE" jako FAIL.
+- W trybie audytu zleconym przez SupervisorProfile system C# automatycznie zapisuje do Blackboard pary kluczy:
+  @evidence_before_<HandleHex> = JSON snapshot wlasciwosci PRZED mutacja (Layer, Color, Linetype, Length, Radius, Area, Center, Position, TextString, itp.)
+  @evidence_after_<HandleHex>  = JSON snapshot wlasciwosci PO mutacji
+- HandleHex jest liczba szesnastkowa (np. "12AB"). Klucze sa generowane automatycznie przez EngineTracer.cs i zapisywane do Blackboard.
+- Twoje zadanie: uzyj ReadFromBlackboard aby odczytac pary before/after, deserializuj JSON, porownaj properties i raportuj roznice.
+- Jesli Handle nie ma pary before/after - raportuj "BRAK CHAIN OF EVIDENCE" jako FAIL (brak sledzenia = brak dowodu).
 - Jesli properties after != oczekiwane - raportuj konkretna roznice (np. "Handle 0x12AB.Color = 1 (red), oczekiwano 7 (white)").
+- UWAGA: limit 64 Handle na sesje. Przy operacjach masowych (np. ManageLayers na 500 obiektach) tylko 64 Handle maja snapshoty - reszta jest pomijana dla ochrony Twojego kontekstu.
+- Dodatkowa twarda walidacja C# (heurystyczna, Wariant A): jesli MutationCount == 0 mimo ze Worker zglosil sukces zadania mutujacego - oznacz jako FAIL "BR_MUTACJI". To oznacza, ze baza DWG nie zarejestrowala zadnej zmiany.
 
 ZASADY AUDYTU:
 - Dla narzedzi mutujacych zlecanych przez inny profil preferuj tryby dry-run (RunToolTest z DryRun=true), jesli Worker tego nie zrobil - zglos to jako ostrzezenie.

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Teigha.DatabaseServices;
 
 namespace Bricscad_AgentAI_V2.Core
@@ -17,11 +19,80 @@ namespace Bricscad_AgentAI_V2.Core
 
         public static bool EarlyExitEnabled { get; set; } = true;
 
+        // Flaga wlacza Chain of Evidence (Filar 2 Auditor). Domyslnie false -
+        // opt-in jak reszta flag Agenta Rewidenta. Wlaczana z UI checkboxem
+        // lub z kodu przez Supervisor przed delegacja do ryzykownego zadania.
+        public static bool EvidenceEnabled { get; set; } = false;
+
+        // Twardy limit Handle'ow na sesje - zabezpiecza kontekst Rewidenta
+        // przed eksplozja przy operacjach masowych (np. ManageLayers na 500 obiektach).
+        public const int MaxEvidenceHandles = 64;
+
         /// <summary>
         /// Globalny magazyn przechowujący zmienne sesji Agenta (@zmienna) z automatycznym
         /// lustrzanym odbiciem na Blackboardzie (dla architektury Multi-Agent).
         /// </summary>
         public static readonly VariableStore Variables = new VariableStore();
+
+        // ============== CHAIN OF EVIDENCE (Filar 2 - Auditor) ==============
+        // Kolekcje sa Concurrent* dla bezpieczenstwa wielowatkowego: EngineTracer
+        // odpala handlery zdarzen bazy DWG z kontekstu Teigha (innego niz watek UI),
+        // a ToolOrchestrator wykonuje snapshoty z kontekstu WPF Dispatcher.
+        // Uzywamy ConcurrentBag/ConcurrentQueue zamiast lock() - lock na 500 obiektow
+        // w ManageLayers moglby zablokowac caly system na kilkaset ms.
+        private static readonly ConcurrentBag<ObjectId> _modifiedEntities = new ConcurrentBag<ObjectId>();
+        private static int _mutationCounter;
+        private static int _rollbackCounter;
+        private static long _sessionMarkerTicks;
+
+        /// <summary>
+        /// Licznik mutacji w sesji (inkrementowany przez EngineTracer w ObjectAppended/ObjectModified).
+        /// Uzywany do taniej walidacji heurystycznej Wariantu A (Filar C).
+        /// </summary>
+        public static int MutationCount => Interlocked.CompareExchange(ref _mutationCounter, 0, 0);
+
+        /// <summary>
+        /// Licznik rollbackow (inkrementowany przez EngineTracer w TransactionAborted).
+        /// </summary>
+        public static int RollbackCount => Interlocked.CompareExchange(ref _rollbackCounter, 0, 0);
+
+        /// <summary>
+        /// Marker czasu (UTC ticks) poczatku sesji - uzywany przez CountMutationsSinceSession.
+        /// </summary>
+        public static long SessionMarkerTicks => Interlocked.Read(ref _sessionMarkerTicks);
+
+        /// <summary>
+        /// Zwraca NIEmodyfikowalna kopie ModifiedEntities (do enumeracji bezpiecznej w ReadFromBlackboard).
+        /// Wewnetrzny ConcurrentBag jest wspoldzielony miedzy watkami.
+        /// </summary>
+        public static ObjectId[] GetModifiedEntitiesSnapshot()
+        {
+            var ids = _modifiedEntities.ToArray();
+            Array.Sort(ids, (a, b) => a.Handle.Value.CompareTo(b.Handle.Value));
+            return ids;
+        }
+
+        public static void RecordMutation(ObjectId id)
+        {
+            if (id.IsNull) return;
+            _modifiedEntities.Add(id);
+            Interlocked.Increment(ref _mutationCounter);
+        }
+
+        public static void RecordRollback()
+        {
+            Interlocked.Increment(ref _rollbackCounter);
+        }
+
+        public static void BeginSession()
+        {
+            while (_modifiedEntities.TryTake(out _)) { }
+            Interlocked.Exchange(ref _mutationCounter, 0);
+            Interlocked.Exchange(ref _rollbackCounter, 0);
+            Interlocked.Exchange(ref _sessionMarkerTicks, DateTime.UtcNow.Ticks);
+        }
+
+        // ===================================================================
 
         /// <summary>
         /// Zbiór referencji do aktualnie wyizolowanych (lub zaznaczonych) obiektów w dokumencie.
