@@ -137,11 +137,14 @@ namespace Bricscad_AgentAI_V2.Core
                 report.Reason = "Wariant A (heurystyczny) zaakceptowal - Wariant B (LLM) wylaczony w ustawieniach.";
                 return report;
             }
-            if (newMutations == 0)
+            // Wariant B (LLM) potrzebny tylko jesli sa mutacje do walidacji.
+            // Sprawdzamy OBA detektory (EngineTracer subscription + ModelSpace polling) -
+            // bo EngineTracer moze nie byc wlaczony i wowczas newMutations==0 mimo realnej mutacji.
+            if (newMutations == 0 && modelSpaceDelta == 0)
             {
                 report.Reason = "Wariant A potwierdzil brak mutacji - Wariant B (LLM) pominiety.";
                 return report;
-            } // brak mutacji do walidacji
+            }
 
             try
             {
