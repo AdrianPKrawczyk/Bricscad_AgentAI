@@ -302,6 +302,44 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 // ==========================================================
 
+                // ============== AUTO-INJECT PROPERTIES (Filar 5) ==============
+                // Po udanej mutacji automatycznie dolacz wlasciwosci nowo dodanych/zmienionych
+                // obiektow do wyniku narzedzia. Model widzi EFEKTY swojej pracy zamiast
+                // polegac na wlasnych deklaracjach ("narysowalem okrag" - a co naprawde
+                // narysowal? sprawdzmy: Type=Circle, Radius=50, Layer=0).
+                // Strategia z Q4: 1 obj=1, 2-50=all(cap20), 50+=2% z cap=20.
+                if (isMutating && AgentMemoryState.AutoInjectPropertiesEnabled
+                    && !string.IsNullOrEmpty(result)
+                    && !result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
+                    && !result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    int mutationsAfter = AgentMemoryState.MutationCount;
+                    if (mutationsAfter > mutationsBefore)
+                    {
+                        // Handle nowo dodanych/zmienionych obiektow
+                        var modified = AgentMemoryState.GetModifiedEntitiesSnapshot();
+                        // Filtruj tylko te dodane PO mutationsBefore (nie starsze)
+                        // Dla uproszczenia - bierz ostatnie N Handle z modified
+                        int count = Math.Min(modified.Length, AgentMemoryState.MaxEvidenceHandles);
+                        var recent = new List<Teigha.DatabaseServices.ObjectId>();
+                        for (int i = modified.Length - count; i < modified.Length; i++)
+                        {
+                            if (i >= 0 && !modified[i].IsNull) recent.Add(modified[i]);
+                        }
+
+                        if (recent.Count > 0)
+                        {
+                            string injection = AuditorAutoInjector.BuildInjectionForHandles(recent, mutationsAfter - mutationsBefore);
+                            if (!string.IsNullOrEmpty(injection))
+                            {
+                                result = result + "\n\n" + injection;
+                                BielikLogger.LogInfo($"[AUTO-INJECT] Dodano wlasciwosci {recent.Count} obiekt(ow) do wyniku {toolName}");
+                            }
+                        }
+                    }
+                }
+                // =============================================================
+
                 string resPreview = result;
                 if (resPreview != null && resPreview.Length > 150) resPreview = resPreview.Substring(0, 150) + "...";
                 BielikLogger.LogInfo($"[TOOL END] Sukces: {toolName}, Wynik: {resPreview}");

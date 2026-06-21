@@ -24,6 +24,16 @@ namespace Bricscad_AgentAI_V2.Core
         // lub z kodu przez Supervisor przed delegacja do ryzykownego zadania.
         public static bool EvidenceEnabled { get; set; } = false;
 
+        // Filar 5 (Auditor Auto-Inject): czy automatycznie wstrzykiwac wlasciwosci
+        // obiektow do kontekstu modelu po kazdym mutujacym narzedziu.
+        // Domyślnie ON - tanie (reuzywa EngineTracer), transparentne, nie przeszkadza.
+        public static bool AutoInjectPropertiesEnabled { get; set; } = true;
+
+        // Filar 5: procent probek z mutacji do wstrzykniecia (2% z cap=20).
+        // 1 obiekt -> 1, 2-50 -> wszystkie, 50+ -> 2% z cap=20.
+        public static int AutoInjectSamplePercent { get; set; } = 2;
+        public const int AutoInjectMaxSamples = 20;
+
         // Filar 3 (Auditor): czy w ogole uruchamiac audyt (Wariant A + B).
         // Domyslnie false - opt-in. UI checkbox 'chkAuditorEnabled' w AgentControl.
         public static bool AuditorEnabled { get; set; } = false;
