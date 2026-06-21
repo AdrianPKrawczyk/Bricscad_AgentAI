@@ -135,7 +135,7 @@
     <Compile Include="src\Core\BenchmarkLabWorker.cs" />
     <Compile Include="src\Core\ToolConfigManager.cs" />
     <Compile Include="src\Core\EngineTracer.cs" />
-    <Compile Include="src\Core\EvidenceSnapshot.cs" />
+    <Compile Include="src\Core\Rewident\EvidenceSnapshot.cs" />
     <Compile Include="src\Core\AuditorAuditService.cs" />
     <Compile Include="src\Core\AuditorAutoInjector.cs" />
     <Compile Include="src\Core\Rewident\RewidentState.cs" />

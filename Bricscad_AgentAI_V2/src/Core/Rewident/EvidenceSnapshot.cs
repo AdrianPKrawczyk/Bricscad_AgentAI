@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Teigha.DatabaseServices;
 
-namespace Bricscad_AgentAI_V2.Core
+namespace Bricscad_AgentAI_V2.Core.Rewident
 {
     /// <summary>
     /// Para snapshot-ow wlasciwosci obiektu CAD wykonanych PRZED i PO mutacji.
     /// Uzywane przez Agenta Rewidenta do Chain of Evidence - porownania stanu obiektu
     /// przed wywolaniem narzedzia mutujacego i po nim, bez polegania na deklaracjach LLMa.
+    /// Przeniesiony do src/Core/Rewident/ w v2.35.0.
     /// </summary>
     public class EvidenceSnapshot
     {

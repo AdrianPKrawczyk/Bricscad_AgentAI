@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Bricscad.ApplicationServices;
+using Bricscad_AgentAI_V2.Core.Rewident;
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
 
