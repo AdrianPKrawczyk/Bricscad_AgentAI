@@ -225,5 +225,47 @@ namespace Bricscad_AgentAI_V2.Core
         {
             return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:F4},{1:F4},{2:F4}", p.X, p.Y, p.Z);
         }
+
+        /// <summary>
+        /// FALLBACK DETEKTOR MUTACJI (uzywany przez AuditorAuditService gdy subskrypcja EngineTracer
+        /// nie zarejestrowala zadnej mutacji). Liczy obiekty w ModelSpace PRZED i PO wywolaniu
+        /// narzedzia mutujacego. Roznica > 0 = faktyczna mutacja.
+        ///
+        /// Wazne: nie wymaga subskrypcji zdarzen bazy DWG - dziala nawet jesli EngineTracer
+        /// nie jest włączony (checkbox chkEnableTracer w UI). To jest FIX dla v2.34.13.
+        /// </summary>
+        public static int CountObjectsInModelSpace()
+        {
+            Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return -1;
+            Database db = doc.Database;
+            try
+            {
+                using (var tr = db.TransactionManager.StartOpenCloseTransaction())
+                {
+                    BlockTableRecord modelSpace = tr.GetObject(db.CurrentSpaceId, OpenMode.ForRead) as BlockTableRecord;
+                    if (modelSpace == null) return -1;
+                    int count = 0;
+                    foreach (var id in modelSpace)
+                    {
+                        count++;
+                    }
+                    tr.Commit();
+                    return count;
+                }
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// Czy ModelSpace ma otwarty rysunek (do walidacji w AuditorAuditService).
+        /// </summary>
+        public static bool HasActiveDocument()
+        {
+            return Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument != null;
+        }
     }
 }

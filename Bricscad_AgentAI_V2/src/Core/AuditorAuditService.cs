@@ -72,6 +72,7 @@ namespace Bricscad_AgentAI_V2.Core
             string taskDescription,
             AgentExecutionResult workerResult,
             int mutationsBeforeWorker,
+            int modelSpaceCountBefore,
             int attempt,
             int maxAttempts,
             CancellationToken ct = default)
@@ -81,21 +82,36 @@ namespace Bricscad_AgentAI_V2.Core
             int newMutations = mutationsAfterWorker - mutationsBeforeWorker;
 
             // === WARIANT A: heurystyczny (C# only, darmowy) ===
-            // Worker zglosil sukces zadania mutujacego, ale EngineTracer
-            // nie zarejestrowal ani jednej mutacji w DWG = klamstwo.
+            // Fix v2.34.13: dwojaki detektor mutacji -
+            //   1. EngineTracer.MutationCount (z subskrypcji ObjectAppended/Modified - dziala TYLKO jesli EngineTracer wlaczony)
+            //   2. CountObjectsInModelSpace PRZED i PO (czyste C#, dziala ZAWSZE - nie wymaga subskrypcji)
+            // Worker klamie = oba detektory == 0.
             bool taskLooksMutating = LooksLikeMutatingTask(taskDescription);
-            if (taskLooksMutating && workerResult.IsSuccess && newMutations == 0)
+            if (taskLooksMutating && workerResult.IsSuccess)
             {
-                report.Decision = WorkValidationDecision.Retry;
-                report.Severity = "error";
-                report.HeuristicOnly = true;
-                report.Reason = "BRAK MUTACJI W DWG: Worker zglosil sukces zadania mutujacego, ale EngineTracer nie zarejestrowal zadnej operacji w bazie danych.";
-                report.FeedbackForWorker =
-                    "[AUDIT HEURYSTYCZNY] " + report.Reason + " " +
-                    "Sprawdz, czy Twoje wywolanie narzedzia mutujacego (CreateObject, ModifyProperties, ManageLayers, EditBlock, itp.) rzeczywiscie zostalo wykonane. " +
-                    "Jesli nie mozesz wykonac mutacji w tym zadaniu - zglos Failure zamiast Success.";
-                report.Issues.Add("MutationCount delta = 0 mimo IsSuccess=true i mutujacego intent zadania.");
-                return report;
+                int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
+                int modelSpaceDelta = (modelSpaceCountBefore >= 0 && modelSpaceCountAfter >= 0)
+                    ? modelSpaceCountAfter - modelSpaceCountBefore : 0;
+
+                // Heurystyka: brak mutacji gdy oba detektory mowia 0
+                bool noMutationDetected = (newMutations == 0 && modelSpaceDelta == 0);
+
+                if (noMutationDetected)
+                {
+                    report.Decision = WorkValidationDecision.Retry;
+                    report.Severity = "error";
+                    report.HeuristicOnly = true;
+                    report.Reason = $"BRAK MUTACJI W DWG: Worker zglosil sukces zadania mutujacego, ale baza danych nie zawiera nowych obiektow " +
+                                     $"(EngineTracer delta={newMutations}, ModelSpace delta={modelSpaceDelta}, " +
+                                     $"przed={modelSpaceCountBefore}, po={modelSpaceCountAfter}).";
+                    report.FeedbackForWorker =
+                        "[AUDIT HEURYSTYCZNY] " + report.Reason + " " +
+                        "Sprawdz, czy Twoje wywolanie narzedzia mutujacego (CreateObject, ModifyProperties, ManageLayers, EditBlock, itp.) rzeczywiscie zostalo wykonane. " +
+                        "Jesli to modyfikacja (np. zmiana warstwy istniejacego obiektu), Worker powinien zwrocic informacje o zmienionym Handle. " +
+                        "Jesli nie mozesz wykonac mutacji w tym zadaniu - zglos Failure zamiast Success.";
+                    report.Issues.Add($"MutationCount delta = {newMutations}, ModelSpace delta = {modelSpaceDelta} mimo IsSuccess=true i mutujacego intent zadania.");
+                    return report;
+                }
             }
 
             // === WARIANT A2: rollback detected ===

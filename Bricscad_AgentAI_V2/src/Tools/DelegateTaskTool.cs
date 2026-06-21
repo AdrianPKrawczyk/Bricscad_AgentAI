@@ -160,6 +160,11 @@ namespace Bricscad_AgentAI_V2.Tools
                 {
                     // Snapshot licznika mutacji PRZED Workerem (do Wariantu A)
                     int mutationsBeforeWorker = AgentMemoryState.MutationCount;
+                    // Fallback: snapshot liczby obiektow w ModelSpace (niezalezny od subskrypcji EngineTracer).
+                    // Fix v2.34.13: EngineTracer subskrybuje ObjectAppended/Modified TYLKO gdy jest wlaczony
+                    // (checkbox chkEnableTracer w UI). Gdy wylaczony - MutationCount==0 mimo realnej mutacji
+                    // i Wariant A falszywie odrzucal prace. CountObjectsInModelSpace dziala zawsze.
+                    int modelSpaceCountBefore = EngineTracer.CountObjectsInModelSpace();
 
                     // Musimy zablokowaÄ‡ wÄ…tek i poczekaÄ‡ na wynik z eksperta, chroniÄ…c gĹ‚Ă³wny wÄ…tek przed Deadlockiem
                     result = Task.Run(async () => {
@@ -210,7 +215,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         return await AuditorAuditService.AuditMutationAsync(
                             client, targetProfile, taskDescription, result,
-                            mutationsBeforeWorker, attempt, maxValidationAttempts);
+                            mutationsBeforeWorker, modelSpaceCountBefore, attempt, maxValidationAttempts);
                     }).GetAwaiter().GetResult();
 
                     AgentTelemetry.ReportLoopLog(
