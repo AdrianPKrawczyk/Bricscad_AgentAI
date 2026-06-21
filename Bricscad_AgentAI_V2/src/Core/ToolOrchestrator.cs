@@ -267,8 +267,16 @@ namespace Bricscad_AgentAI_V2.Core
                     int mutationsAfter = AgentMemoryState.MutationCount;
                     if (mutationsAfter > mutationsBefore)
                     {
-                        // Nowe lub zmodyfikowane obiekty od tego wywolania
-                        var modified = AgentMemoryState.GetModifiedEntitiesSnapshot();
+                        // Fix v2.34.23: bez EngineTracer subskrypcji (EngineTracer wylaczony
+                        // przez checkbox w UI) ModifiedEntities jest puste. Musimy uzyc
+                        // ModelSpace count diff (czyste C#, dziala bez subskrypcji).
+                        Teigha.DatabaseServices.ObjectId[] modified = AgentMemoryState.GetModifiedEntitiesSnapshot();
+                        if (modified.Length == 0)
+                        {
+                            // Fallback: pobierz Handle z ModelSpace (diff before/after)
+                            int modelSpaceCountAfter2 = EngineTracer.CountObjectsInModelSpace();
+                            modified = AuditorAutoInjector.GetRecentHandlesFromModelSpacePublic(modelSpaceCountBefore, modelSpaceCountAfter2);
+                        }
                         int take = Math.Min(modified.Length, AgentMemoryState.MaxEvidenceHandles);
                         for (int i = 0; i < take; i++)
                         {

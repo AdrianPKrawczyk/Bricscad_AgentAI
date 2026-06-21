@@ -162,5 +162,15 @@ namespace Bricscad_AgentAI_V2.Core
             sb.AppendLine("(Wlasciwosci pobrane bezposrednio z bazy DWG - dowod wykonania.)");
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Publiczny wrapper dla GetRecentlyAddedHandles - zwraca ObjectId[]
+        /// (zamiast List) dla kompatybilnosci z AgentMemoryState.GetModifiedEntitiesSnapshot().
+        /// Uzywane przez ToolOrchestrator jako fallback gdy EngineTracer wylaczony.
+        /// </summary>
+        public static ObjectId[] GetRecentHandlesFromModelSpacePublic(int modelSpaceCountBefore, int modelSpaceCountAfter)
+        {
+            return GetRecentlyAddedHandles(modelSpaceCountBefore, modelSpaceCountAfter).ToArray();
+        }
     }
 }
