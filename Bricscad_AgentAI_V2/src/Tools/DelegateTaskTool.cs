@@ -117,6 +117,24 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
+                // ============== CIRCUIT BREAKER (Filar 4) ==============
+                // Blokada delegacji do profilu, ktory zbyt wiele razy z rzędu
+                // zglosil awarie/odrzucona prace. Chroni przed Agent Death Loop.
+                if (CircuitBreakerState.IsTripped(targetProfile))
+                {
+                    var snap = CircuitBreakerState.GetSnapshot(targetProfile);
+                    AgentTelemetry.ReportLoopLog(
+                        $"[CIRCUIT BREAKER] BLOKADA delegacji do '{targetProfile}'. " +
+                        $"Awarie={snap.Failures}/{snap.Threshold}. " +
+                        $"Ostatnia awaria: {snap.LastFailureUtc:yyyy-MM-dd HH:mm:ss} UTC. " +
+                        $"Precyzuj prompt, zmien model LLM, lub wywolaj CircuitBreakerState.ForceReset('{targetProfile}').");
+                    return $"BŁĄD: Circuit Breaker zablokowal profil '{targetProfile}' po {snap.Failures} kolejnych awariach (prog={snap.Threshold}). " +
+                           $"Ostatnia awaria: {snap.LastFailureUtc:yyyy-MM-dd HH:mm:ss} UTC. " +
+                           $"Aby odblokowac: (a) precyzyj polecenie, (b) zmien model LLM, lub (c) wywolaj reczny reset. " +
+                           $"Prawdopodobna przyczyna: Worker wpada w pulapke deterministyczna mimo progresywnego naprowadzania.";
+                }
+                // ========================================================
+
                 AgentTelemetry.ReportLoopLog($"[Supervisor -> {targetProfile}]\n{taskDescription}");
                 AgentExecutionResult result = null;
                 WorkValidationReport validation = null;
@@ -178,6 +196,9 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     if (!result.IsSuccess)
                     {
+                        // Filar 4: Worker zglosil awarie (np. wyjatek, max iteracji)
+                        CircuitBreakerState.RecordFailure(targetProfile,
+                            $"Worker nie zwrocil sukcesu: {result.DisplayMessage?.Substring(0, System.Math.Min(120, result.DisplayMessage?.Length ?? 0))}");
                         break;
                     }
 
@@ -197,7 +218,9 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     if (auditReport.Decision == WorkValidationDecision.Reject)
                     {
-                        // Auditor uznyl sie calkowicie - koniec prob
+                        // Filar 4: Auditor odrzucil kategorycznie
+                        CircuitBreakerState.RecordFailure(targetProfile,
+                            $"Auditor REJECT: {auditReport.Reason}");
                         break;
                     }
 
@@ -210,7 +233,9 @@ namespace Bricscad_AgentAI_V2.Tools
                             localHistory.Add(new ChatMessage { Role = "user", Content = repair });
                             continue;
                         }
-                        // Ostatnia proba - koniec, ale oznaczymy failure nizej
+                        // Filar 4: Ostatnia proba - Auditor odrzucil, nie ma wiecej szans
+                        CircuitBreakerState.RecordFailure(targetProfile,
+                            $"Auditor odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
                         break;
                     }
                     // Accept - sukces audytu, przejdz do standardowej walidacji WorkValidator
@@ -221,6 +246,8 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     if (validation.Decision == WorkValidationDecision.Accept)
                     {
+                        // Filar 4: Sukces calkowity (Auditor Accept + Validator Accept) - reset CB
+                        CircuitBreakerState.Reset(targetProfile);
                         break;
                     }
 
@@ -230,6 +257,13 @@ namespace Bricscad_AgentAI_V2.Tools
                         AgentTelemetry.ReportLoopLog($"[WORK VALIDATION -> {targetProfile}]\n{repairPrompt}");
                         localHistory.Add(new ChatMessage { Role = "user", Content = repairPrompt });
                         continue;
+                    }
+
+                    // Filar 4: Validator Retry na ostatniej probie = awaria
+                    if (validation.Decision == WorkValidationDecision.Retry)
+                    {
+                        CircuitBreakerState.RecordFailure(targetProfile,
+                            $"WorkValidator RETRY po {attempt}/{maxValidationAttempts} probach: {validation.Reason}");
                     }
 
                     break;

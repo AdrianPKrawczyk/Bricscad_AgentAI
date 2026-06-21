@@ -279,6 +279,29 @@ namespace Bricscad_AgentAI_V2.Core
                 }
                 // =======================================================
 
+                // ============== ROLLBACK DETECTION (Filar 4) ==============
+                // Adresuje notatke z v2.34.4: Teigha nie ma eventu TransactionAborted,
+                // wiec sledzimy rollbacki heurystycznie - jesli narzedzie mutujace
+                // zwraca blad ALBO wynik zawiera "Abort" / "przerwan", raportujemy
+                // rollback do AgentMemoryState. Auditor w Wariancie A to wykryje.
+                if (isMutating && !string.IsNullOrEmpty(result))
+                {
+                    bool looksLikeRollback = result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
+                        || result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase)
+                        || result.StartsWith("Błąd wykonania", StringComparison.OrdinalIgnoreCase)
+                        || result.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
+                        || result.IndexOf("Abort", StringComparison.OrdinalIgnoreCase) >= 0
+                        || result.IndexOf("przerwan", StringComparison.OrdinalIgnoreCase) >= 0
+                        || result.IndexOf("rollback", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    if (looksLikeRollback)
+                    {
+                        AgentMemoryState.RecordRollback();
+                        BielikLogger.LogWarn($"[ROLLBACK DETECTED] {toolName} zwrocil blad - prawdopodobny tr.Abort(). Wynik: {result.Substring(0, System.Math.Min(150, result.Length))}");
+                    }
+                }
+                // ==========================================================
+
                 string resPreview = result;
                 if (resPreview != null && resPreview.Length > 150) resPreview = resPreview.Substring(0, 150) + "...";
                 BielikLogger.LogInfo($"[TOOL END] Sukces: {toolName}, Wynik: {resPreview}");

@@ -34,6 +34,15 @@ namespace Bricscad_AgentAI_V2.Core
         // Domyslnie false - dla pojedynczej karty lepiej sekwencyjnie.
         public static bool AuditorPrewarmEnabled { get; set; } = false;
 
+        // Filar 4 (Auditor Circuit Breaker): czy w ogole blokowac profile.
+        // Domyslnie true - zawsze chcemy chronic sie przed Agent Death Loop.
+        // UI checkbox 'chkCircuitBreaker' w AgentControl.
+        public static bool CircuitBreakerEnabled { get; set; } = true;
+
+        // Filar 4: prog awarii (zgodny z ustaleniem Q4 - 3 proby). Mozna zwiekszyc
+        // dla upartych modeli lub zmniejszyc dla szybszego failover.
+        public static int CircuitBreakerThreshold { get; set; } = 3;
+
         // Twardy limit Handle'ow na sesje - zabezpiecza kontekst Rewidenta
         // przed eksplozja przy operacjach masowych (np. ManageLayers na 500 obiektach).
         public const int MaxEvidenceHandles = 64;
