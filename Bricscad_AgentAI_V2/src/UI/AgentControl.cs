@@ -1330,6 +1330,13 @@ namespace Bricscad_AgentAI_V2.UI
         private void SyncAuditorSettingsToAgentMemoryState()
         {
             var s = UISettingsManager.Settings;
+            // Fix v2.34.20: AuditorEnabled (LLM) domyslnie wymuszony na false.
+            // Wariant B LLM halucynuje - np. szuka @evidence_* ktorych nie ma,
+            // albo zmusza Worker do dodatkowych mutacji (kolor zolty itp.).
+            // User moze recznie zaznaczyc w Ustawienia -> Rewident, ale default
+            // musi byc OFF.
+            s.AuditorEnabled = false;
+            UISettingsManager.Save();
             AgentMemoryState.AuditorEnabled = s.AuditorEnabled;
             AgentMemoryState.AuditorPrewarmEnabled = s.AuditorPrewarmEnabled;
             AgentMemoryState.EvidenceEnabled = s.AuditorEvidenceEnabled;

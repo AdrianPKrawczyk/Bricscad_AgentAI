@@ -487,6 +487,8 @@ namespace Bricscad_AgentAI_V2.Core
                         earlyExitMessage = "Operacja wykonana pomyślnie (Tryb Szybki).";
                     }
 
+                    // Fix v2.34.20: wycinaj Auto-Inject z preview (taki sam filtr jak w LogLoop).
+                    earlyExitMessage = SanitizeForLoopLog(earlyExitMessage);
                     string earlyExitPreview = earlyExitMessage;
                     if (earlyExitPreview.Length > 600)
                     {
@@ -1715,7 +1717,25 @@ namespace Bricscad_AgentAI_V2.Core
         private void LogLoop(string profileName, string message)
         {
             string profile = string.IsNullOrWhiteSpace(profileName) ? "(default)" : profileName;
-            OnLoopLogged?.Invoke($"[{profile}] {message}");
+            // Fix v2.34.20: wycinaj bloki [AUTO-INJECTED PROPERTIES ...] z logow Loop.
+            // Auto-Inject jest wstrzykiwany do kontekstu modelu (result), ale propagowany
+            // przez pipeline do [EARLY EXIT], [CadProfile -> Supervisor] itp.
+            // Powoduje ogromny rozrost logow (4 kopie tego samego ~250-znakowego bloku).
+            string sanitized = SanitizeForLoopLog(message);
+            OnLoopLogged?.Invoke($"[{profile}] {sanitized}");
+        }
+
+        private static string SanitizeForLoopLog(string message)
+        {
+            if (string.IsNullOrEmpty(message)) return message;
+            const string startMarker = "[AUTO-INJECTED PROPERTIES";
+            int startIdx = message.IndexOf(startMarker, StringComparison.Ordinal);
+            if (startIdx < 0) return message;
+            // Znajdz koniec bloku - "\n\n" po linii "(...)" lub koniec tekstu
+            int endIdx = message.IndexOf("\n\n", startIdx, StringComparison.Ordinal);
+            if (endIdx < 0) endIdx = message.Length;
+            else endIdx += 2; // zachowaj \n\n separator
+            return message.Substring(0, startIdx) + message.Substring(endIdx);
         }
 
         private static string TruncateForLoopLog(string text, int maxLength)

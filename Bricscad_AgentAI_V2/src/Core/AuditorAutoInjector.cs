@@ -139,16 +139,27 @@ namespace Bricscad_AgentAI_V2.Core
                 var snap = EngineTracer.CaptureSnapshot(id, "after");
                 if (snap == null || snap.IsEmpty) continue;
 
+                // Whitelist kluczowych wlasciwosci (max 6) - zmniejsza rozmiar
+                // wstrzykniecia do kontekstu modelu (ktory jest propagowany przez
+                // LogLoop jako [EARLY EXIT] itp. - patrz v2.34.20).
+                var priority = new[] { "Layer", "ColorIndex", "Linetype", "Radius", "Area",
+                                       "Length", "Center", "TextString", "Contents",
+                                       "Position", "Height", "NumberOfVertices" };
+                int shown = 0;
                 sb.AppendLine($"--- Handle 0x{snap.Handle} ({snap.ObjectType}) ---");
-                foreach (var kvp in snap.Properties)
+                foreach (var key in priority)
                 {
-                    if (kvp.Value.Length > 80) continue; // pomijaj dlugie (np. Contents MText)
-                    sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
+                    if (shown >= 6) break;
+                    if (snap.Properties.TryGetValue(key, out var val) && val.Length <= 80)
+                    {
+                        sb.AppendLine($"  {key}: {val}");
+                        shown++;
+                    }
                 }
                 sb.AppendLine();
             }
 
-            sb.AppendLine("(Powyzsze wlasciwosci zostaly pobrane bezposrednio z bazy DWG - to jest dowod wykonania.)");
+            sb.AppendLine("(Wlasciwosci pobrane bezposrednio z bazy DWG - dowod wykonania.)");
             return sb.ToString();
         }
     }
