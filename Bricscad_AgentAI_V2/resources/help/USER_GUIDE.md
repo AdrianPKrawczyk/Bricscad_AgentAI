@@ -511,6 +511,99 @@ Następujące narzędzia wspierają flagi bezpieczne i nie wykonają faktycznych
 
 ---
 
+## 🛡️ 12.5. Agent Rewident v2.34.x - audyt mutacji w rysunku (NOWOŚĆ v2.34.0)
+
+W v2.34.x profil Rewidenta został rozszerzony o **4 filary ochrony** dedykowane dla zadań mutujących rysunek DWG. Dotychczas Rewident testował tylko kod źródłowy C# - teraz może też walidować **faktyczne wykonanie** pracy przez inne profile (CadProfile, CadBlocksProfile, CadLayoutProfile).
+
+### 12.6. Filar 1: Tryb Read-Only (izolacja)
+
+AuditorProfile ma włączoną flagę `IsReadOnly=true` na poziomie C#. **Każda próba wywołania narzędzia mutującego** (CreateObject, ModifyProperties, ManageLayers, EditBlock, InsertBlock, EditAttributes, TextEditTool, DimensionEditTool, ManageAnnoScales, PageSetupTool, PlotStyleTool, ManageLayoutTool, PlotLayoutTool, ManageViewportsTool, ManageSheetSetTool, SheetSetSheetTool, WriteXData, BatchWriteXData, WriteToBlackboard, SaveMacro, ExecuteMacro, itd.) zwraca natychmiast:
+
+```
+BŁĄD KRYTYCZNY (ZABEZPIECZENIE AUDYTORA): Profil 'AuditorProfile' ma tryb read-only
+i nie może wywoływać mutującego narzędzia 'CreateObject'. Użyj wyłącznie narzędzi
+odczytowych (InspectEntity, GetPropertiesTool, AnalyzeSelectionTool, ReadPropertyTool,
+ReadFromBlackboard, ListBlocks, ReadXData, FindXData, ReadTextSampleTool, ReadSelectedBlockInfo).
+```
+
+Zabezpieczenie działa **zanim** narzędzie zostanie w ogóle wyszukane w rejestrze, więc nawet jeśli model LLM się pomyli lub zhaluucynuje, rysunek DWG nie zostanie naruszony.
+
+### 12.7. Filar 2: Chain of Evidence (śledzenie mutacji)
+
+Gdy Worker (np. CadProfile) wykonuje mutujące narzędzie, system automatycznie zapisuje do Blackboard **pary snapshotów właściwości obiektu** PRZED i PO mutacji:
+
+- `@evidence_before_<HandleHex>` = JSON z właściwościami (Layer, Color, Linetype, Length, Radius, Area, Center, Position, TextString, itp.)
+- `@evidence_after_<HandleHex>` = JSON z właściwościami po mutacji
+
+Limit: **maks 64 Handle'ów na sesję** - chroni kontekst przed eksplozją przy operacjach masowych (np. ManageLayers na 500 obiektach).
+
+Walidacja heurystyczna C# (Wariant A, darmowa): jeśli Worker zgłosił sukces zadania mutującego, ale `EngineTracer` nie zarejestrował **żadnej nowej mutacji** w bazie DWG → automatyczne odrzucenie. Nie trzeba budzić LLM-a Rewidenta.
+
+### 12.8. Filar 3: Reflexion Loop + Pre-warm (LLM Auditor)
+
+Po zakończeniu pracy Worker'a, Supervisor automatycznie odpala sesję z AuditorProfile, który:
+1. Czyta `@evidence_before_*` i `@evidence_after_*` z Blackboard dla każdego Handle.
+2. Porównuje właściwości (Layer, Color, Length, itp.).
+3. Zwraca JSON: `{ "isSuccess": bool, "feedback": string, "evidence": dict, "severity": "info|warn|error|critical" }`.
+
+Jeśli Auditor odrzuci, system **próbuje naprawić** zadanie automatycznie, przekazując Workerowi szczegółowy feedback + **progresywną reprymendę** (3 poziomy):
+- Próba 1: czysty feedback od Auditora.
+- Próba 2: ostrzeżenie + nakaz sprawdzenia argumentów.
+- Próba 3 (ostatnia): antypulapka deterministyczna + ostatnia szansa.
+
+**Pre-warm KV cache (opcja Multi-GPU)**: Jeśli włączone, system rozgrzewa kontekst Auditora w tle (Task.Run) jeszcze zanim Worker skończy. Dzięki temu audyt trwa ułamek sekundy zamiast czekać na pełne przeliczenie promptu. Wymaga środowiska wielokartowego.
+
+### 12.9. Filar 4: Circuit Breaker (ochrona przed zapętleniem)
+
+Jeśli Worker lub Auditor odrzuci zadanie **3 razy z rzędu** (domyślny próg, konfigurowalny 1-20), profil jest **automatycznie blokowany**. Kolejna próba delegacji zwraca:
+
+```
+BŁĄD: Circuit Breaker zablokowal profil 'CadProfile' po 3 kolejnych awariach (prog=3).
+Ostatnia awaria: 2026-06-21 14:23:11 UTC. Aby odblokowac: (a) precyzyj polecenie,
+(b) zmien model LLM, lub (c) wywolaj reczny reset.
+Prawdopodobna przyczyna: Worker wpada w pulapke deterministyczna mimo progresywnego naprowadzania.
+```
+
+**Blokada jest per-profil** - CadProfile może być zablokowany, a CadBlocksProfile nie. Każdy `Accept` (sukces) resetuje licznik.
+
+### 12.10. Jak włączyć Audytora z poziomu UI?
+
+W panelu głównym agenta (pod polem tekstowym) znajdziesz sekcję z checkboxami:
+
+- **Audytor (Auditor)** - główny przełącznik (domyślnie OFF - opt-in).
+- **Pre-warm KV cache (Multi-GPU)** - rozgrzewanie kontekstu w tle (domyślnie OFF).
+- **Chain of Evidence (snapshot before/after)** - czy zbierać dowody mutacji (domyślnie OFF).
+- **Circuit Breaker (blokuj po N awariach)** - ochrona przed zapętleniem (domyślnie ON, próg=3).
+- **Próg:** - liczba awarii przed zablokowaniem (domyślnie 3, zakres 1-20).
+
+Po prawej stronie widoczny jest **stan Circuit Breaker**: jeśli jakikolwiek profil jest zablokowany, wyświetli się na czerwono z listą (`BLOKADA: CadProfile, CadBlocksProfile`).
+
+### 12.11. Zakładka Audytora (ręczne testowanie)
+
+Nowa zakładka **Audytor** w panelu głównym pozwala **ręcznie testować AuditorProfile** bez angażowania Workerów:
+
+1. Zaznacz obiekty w BricsCAD.
+2. Wpisz cel audytu (np. *"Sprawdź czy warstwa to INST_WODA"*).
+3. Wybierz kontekst: aktywna selekcja, Blackboard (Chain of Evidence), lista bloków.
+4. Naciśnij **AUDYTUJ (Ctrl+Enter)**.
+
+Auditor przejrzy wybrany kontekst i zwróci werdykt jako JSON lub tekst. To izoluje testowanie Rewidenta od konieczności testowania Agenta Wykonawczego.
+
+### 12.12. Kiedy włączyć Audytora?
+
+| Scenariusz | Konfiguracja |
+|---|---|
+| Proste rysunki, mało modyfikacji | OFF (domyślnie) |
+| Skomplikowane transformacje w dużych plikach DWG | ON, Evidence=ON |
+| Multi-GPU (klaster obliczeniowy) | ON + Pre-warm=ON |
+| Praca z nowym modelem LLM (ryzyko halucynacji) | ON, Circuit Breaker=ON (domyślnie) |
+| Sesja treningowa / budowanie DPO dataset | ON + wszystkie flagi, własne raporty per-audyt |
+
+> [!WARNING]
+> Audyt zawsze wydłuża czas odpowiedzi (minimum jedna pętla inferencyjna LLM). Nie włączaj go do prostych zadań, gdzie Worker rzadko się myli. Używaj celowo przy ryzykownych transformacjach.
+
+---
+
 ## 13. Zestawy arkuszy - wlasciwosci uzytkownika
 
 Agent potrafi dodawac i odczytywac etykiety z okna **Wlasciwosci Uzytkownika** w Sheet Set Managerze.
