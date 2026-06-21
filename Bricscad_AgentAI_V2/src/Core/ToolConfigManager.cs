@@ -70,6 +70,7 @@ namespace Bricscad_AgentAI_V2.Core
         private const string NotesPromptFile = @"prompts\system_prompt_notes.txt";
         private const string AuditorPromptFile = @"prompts\system_prompt_auditor.txt";
         private const string LayoutPromptFile = @"prompts\system_prompt_layout.txt";
+        private const string Modeler3DPromptFile = @"prompts\system_prompt_modeler3d.txt";
 
         public static HashSet<string> SessionDynamicTags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -105,6 +106,7 @@ EnsureMathPromptFile();
             EnsureNotesPromptFile();
             EnsureAuditorPromptFile();
             EnsureLayoutPromptFile();
+            EnsureModeler3DPromptFile();
 
             MigrateLegacyConfigIfNeeded();
 
@@ -178,6 +180,7 @@ EnsureMathPromptFile();
                 case "NotesProfile": return NotesPromptFile;
                 case "AuditorProfile": return AuditorPromptFile;
                 case "CadLayoutProfile": return LayoutPromptFile;
+                case "Modeler3DProfile": return Modeler3DPromptFile;
                 default: return CadPromptFile;
             }
         }
@@ -306,6 +309,8 @@ EnsureMathPromptFile();
         private static void EnsureAuditorPromptFile() => EnsurePromptFile(AuditorPromptFile, "Jestes profilem AuditorProfile. Analizujesz, testujesz i raportujesz problemy w systemie Bielik V2, dbajac o bezpieczne testy i diagnostyke.");
 
         private static void EnsureLayoutPromptFile() => EnsurePromptFile(LayoutPromptFile, "Jestes profilem CadLayoutProfile systemu Bielik V2. Specjalizujesz sie w zarzadzaniu arkuszami wydruku, konfiguracji strony i publikacji.");
+
+        private static void EnsureModeler3DPromptFile() => EnsurePromptFile(Modeler3DPromptFile, "Jestes profilem Modeler3D systemu Bielik V2. Specjalizujesz sie w modelowaniu brylowym, tworzeniu prymitywow 3D oraz analizie geometrii 3D.");
 
         private static bool EnsureAllowedTools(AgentProfileConfig profile, IEnumerable<string> defaults)
         {
@@ -607,6 +612,25 @@ EnsureMathPromptFile();
                 changed = true;
             }
             if (EnsureAllowedTools(blocksProf, new[] { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps", "ReadFields", "ManageFields" })) changed = true;
+
+            // 10. Zabezpieczenie/Synchronizacja Modeler3DProfile
+            if (!_config.Profiles.TryGetValue("Modeler3DProfile", out var modelerProf))
+            {
+                modelerProf = new AgentProfileConfig 
+                { 
+                    SystemPromptFile = Modeler3DPromptFile, 
+                    AllowedTools = new List<string> { "CreateSolid", "SelectEntities", "ModifyProperties", "ManageLayers", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" },
+                    AllowedTags = new List<string> { "#3dmodeler", "#solid" }
+                };
+                _config.Profiles["Modeler3DProfile"] = modelerProf;
+                changed = true;
+            }
+            if (modelerProf.SystemPromptFile != Modeler3DPromptFile)
+            {
+                modelerProf.SystemPromptFile = Modeler3DPromptFile;
+                changed = true;
+            }
+            if (EnsureAllowedTools(modelerProf, new[] { "CreateSolid", "SelectEntities", "ModifyProperties", "ManageLayers", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice" })) changed = true;
 
             // 5. Zabezpieczenie/Synchronizacja CadMetadataProfile
             if (!_config.Profiles.TryGetValue("CadMetadataProfile", out var metadataProf))

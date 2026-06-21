@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Bricscad.ApplicationServices;
 using System.Collections.Generic;
 using System.Drawing;
@@ -128,12 +128,13 @@ namespace Bricscad_AgentAI_V2.UI
             cbProfiles.Items.Add("CadBlocksProfile");
             cbProfiles.Items.Add("CadMetadataProfile");
             cbProfiles.Items.Add("CadMathProfile");
+            cbProfiles.Items.Add("Modeler3DProfile");
             cbProfiles.SelectedIndex = 1; // CadProfile domyĹ›lnie
             panProfile.Controls.Add(cbProfiles);
             panProfile.Controls.Add(lblProfile);
             panRight.Controls.Add(panProfile);
             
-            btnTest = new Button { Text = "đźš€ TESTUJ INTENCJÄ I WYKONAJ (V2)", Dock = DockStyle.Top, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 10, 0, 10) };
+            btnTest = new Button { Text = "đźš€ TESTUJ INTENCJÄ˜ I WYKONAJ (V2)", Dock = DockStyle.Top, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(0, 122, 204), Font = new Font(this.Font, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0, 10, 0, 10) };
             btnTest.Click += BtnTest_Click;
             panRight.Controls.Add(btnTest);
 

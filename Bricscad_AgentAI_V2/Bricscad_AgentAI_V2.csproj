@@ -139,6 +139,7 @@
     <Compile Include="src\Core\MetricVisionRenderer.cs" />
     <Compile Include="src\Tools\SelectEntitiesTool.cs" />
     <Compile Include="src\Tools\CreateObjectTool.cs" />
+    <Compile Include="src\Tools\CreateSolidTool.cs" />
     <Compile Include="src\Tools\ModifyPropertiesTool.cs" />
     <Compile Include="src\Tools\ManageLayersTool.cs" />
     <Compile Include="src\Tools\WriteToBlackboardTool.cs" />

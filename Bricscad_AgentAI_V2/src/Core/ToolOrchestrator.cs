@@ -193,7 +193,27 @@ namespace Bricscad_AgentAI_V2.Core
                 BielikLogger.LogInfo($"[TOOL START] Wywołanie: {toolName}, Argumenty: {argsStr}");
 
                 var cadContext = context as CadExecutionContext;
-                string result = tool.Execute(cadContext?.CadDocument, arguments);
+                string result = null;
+
+                // WYMUSZENIE GŁÓWNEGO WĄTKU (Main Thread) dla operacji CAD/ACIS
+                if (System.Windows.Application.Current != null && System.Windows.Application.Current.Dispatcher != null)
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() => 
+                    {
+                        try 
+                        {
+                            result = tool.Execute(cadContext?.CadDocument, arguments);
+                        }
+                        catch (Exception ex)
+                        {
+                            result = $"Błąd wykonania (wątek UI): {ex.Message}";
+                        }
+                    });
+                }
+                else
+                {
+                    result = tool.Execute(cadContext?.CadDocument, arguments);
+                }
 
                 string resPreview = result;
                 if (resPreview != null && resPreview.Length > 150) resPreview = resPreview.Substring(0, 150) + "...";
