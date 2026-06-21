@@ -36,6 +36,15 @@ namespace Bricscad_AgentAI_V2.Core
         // Workflow Settings
         public int AIStartupBehavior { get; set; } = 0; // 0 = Ładuj poprzednią, 1 = Twórz nową, 2 = Wybór manualny
         public int BricsCADStartupBehavior { get; set; } = 1; // 0 = Automatycznie uruchom agenta, 1 = Uruchomienie manualne
+
+        // Auditor (Agent Rewident) - Filar 3
+        public bool AuditorEnabled { get; set; } = false;
+        public bool AuditorPrewarmEnabled { get; set; } = false;
+        public bool AuditorEvidenceEnabled { get; set; } = false;
+
+        // Auditor (Agent Rewident) - Filar 4
+        public bool CircuitBreakerEnabled { get; set; } = true;
+        public int CircuitBreakerThreshold { get; set; } = 3;
     }
 
     public class VisionOcrQualityPreset
