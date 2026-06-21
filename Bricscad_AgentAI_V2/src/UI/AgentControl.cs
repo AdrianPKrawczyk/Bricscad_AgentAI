@@ -583,123 +583,7 @@ namespace Bricscad_AgentAI_V2.UI
                 Padding = new Padding(10, 0, 0, 0)
             };
 
-            // ============== AUDITOR PANEL (Agent Rewident - Filar 3 + 4) ==============
-            Panel panAuditor = new Panel
-            {
-                Dock = DockStyle.Left,
-                AutoSize = true,
-                Padding = new Padding(10, 0, 0, 0)
-            };
-
-            chkAuditorEnabled = new CheckBox
-            {
-                Text = "Audytor (Auditor)",
-                AutoSize = true,
-                ForeColor = Color.LightGreen,
-                Dock = DockStyle.Top
-            };
-            chkAuditorEnabled.Checked = UISettingsManager.Settings.AuditorEnabled;
-            chkAuditorEnabled.CheckedChanged += (s, e) =>
-            {
-                AgentMemoryState.AuditorEnabled = chkAuditorEnabled.Checked;
-                UISettingsManager.Settings.AuditorEnabled = chkAuditorEnabled.Checked;
-                UISettingsManager.Save();
-                chkAuditorPrewarm.Enabled = chkAuditorEnabled.Checked;
-                chkAuditorEvidence.Enabled = chkAuditorEnabled.Checked;
-                UpdateCircuitBreakerLabel();
-            };
-            panAuditor.Controls.Add(chkAuditorEnabled);
-
-            chkAuditorPrewarm = new CheckBox
-            {
-                Text = "Pre-warm KV cache (Multi-GPU)",
-                AutoSize = true,
-                ForeColor = Color.LightGray,
-                Dock = DockStyle.Top,
-                Enabled = UISettingsManager.Settings.AuditorEnabled
-            };
-            chkAuditorPrewarm.Checked = UISettingsManager.Settings.AuditorPrewarmEnabled;
-            chkAuditorPrewarm.CheckedChanged += (s, e) =>
-            {
-                AgentMemoryState.AuditorPrewarmEnabled = chkAuditorPrewarm.Checked;
-                UISettingsManager.Settings.AuditorPrewarmEnabled = chkAuditorPrewarm.Checked;
-                UISettingsManager.Save();
-            };
-            panAuditor.Controls.Add(chkAuditorPrewarm);
-
-            chkAuditorEvidence = new CheckBox
-            {
-                Text = "Chain of Evidence (snapshot before/after)",
-                AutoSize = true,
-                ForeColor = Color.LightGray,
-                Dock = DockStyle.Top,
-                Enabled = UISettingsManager.Settings.AuditorEnabled
-            };
-            chkAuditorEvidence.Checked = UISettingsManager.Settings.AuditorEvidenceEnabled;
-            chkAuditorEvidence.CheckedChanged += (s, e) =>
-            {
-                AgentMemoryState.EvidenceEnabled = chkAuditorEvidence.Checked;
-                UISettingsManager.Settings.AuditorEvidenceEnabled = chkAuditorEvidence.Checked;
-                UISettingsManager.Save();
-            };
-            panAuditor.Controls.Add(chkAuditorEvidence);
-
-            chkCircuitBreaker = new CheckBox
-            {
-                Text = "Circuit Breaker (blokuj po N awariach)",
-                AutoSize = true,
-                ForeColor = Color.LightSalmon,
-                Dock = DockStyle.Top
-            };
-            chkCircuitBreaker.Checked = UISettingsManager.Settings.CircuitBreakerEnabled;
-            chkCircuitBreaker.CheckedChanged += (s, e) =>
-            {
-                AgentMemoryState.CircuitBreakerEnabled = chkCircuitBreaker.Checked;
-                UISettingsManager.Settings.CircuitBreakerEnabled = chkCircuitBreaker.Checked;
-                UISettingsManager.Save();
-                numCircuitBreakerThreshold.Enabled = chkCircuitBreaker.Checked;
-                UpdateCircuitBreakerLabel();
-            };
-            panAuditor.Controls.Add(chkCircuitBreaker);
-
-            Panel panCbRow = new Panel { Dock = DockStyle.Top, AutoSize = true };
-            Label lblCbThreshold = new Label
-            {
-                Text = "Prog:",
-                AutoSize = true,
-                ForeColor = Color.LightGray,
-                Location = new System.Drawing.Point(0, 4)
-            };
-            numCircuitBreakerThreshold = new NumericUpDown
-            {
-                Minimum = 1,
-                Maximum = 20,
-                Value = UISettingsManager.Settings.CircuitBreakerThreshold,
-                Width = 50,
-                Left = 40,
-                Top = 0,
-                Enabled = UISettingsManager.Settings.CircuitBreakerEnabled
-            };
-            numCircuitBreakerThreshold.ValueChanged += (s, e) =>
-            {
-                int v = (int)numCircuitBreakerThreshold.Value;
-                AgentMemoryState.CircuitBreakerThreshold = v;
-                UISettingsManager.Settings.CircuitBreakerThreshold = v;
-                UISettingsManager.Save();
-                UpdateCircuitBreakerLabel();
-            };
-            lblCircuitBreakerState = new Label
-            {
-                Text = "",
-                AutoSize = true,
-                ForeColor = Color.Gold,
-                Location = new System.Drawing.Point(100, 4)
-            };
-            panCbRow.Controls.Add(lblCbThreshold);
-            panCbRow.Controls.Add(numCircuitBreakerThreshold);
-            panCbRow.Controls.Add(lblCircuitBreakerState);
-            panAuditor.Controls.Add(panCbRow);
-            // =========================================================================
+            // (Panel Auditora przeniesiony do zakladki Ustawienia - patrz CreateAuditorSettingsTab)
 
             Button btnSettings = new Button
             {
@@ -743,7 +627,6 @@ namespace Bricscad_AgentAI_V2.UI
 
             panInput.Controls.Add(lblAttachedFile);
             panInput.Controls.Add(btnAttachFile);
-            panInput.Controls.Add(panAuditor);
             panInput.Controls.Add(chkEarlyExit);
             panInput.Controls.Add(new Panel { Dock = DockStyle.Right, Width = 5 });
             panInput.Controls.Add(btnSettings);
@@ -1263,6 +1146,7 @@ namespace Bricscad_AgentAI_V2.UI
             tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
             
             tabSettingsSub.TabPages.Add(tabDev);
+            tabSettingsSub.TabPages.Add(CreateAuditorSettingsTab());
             tabSettingsSub.TabPages.Add(tabLoop);
             tabSettingsSub.TabPages.Add(tabDebug);
 
@@ -3296,6 +3180,181 @@ Ostatnia rozmowa:
 
             group.Controls.Add(outer);
             return group;
+        }
+
+        /// <summary>
+        /// Tworzy pod-zakladke "Rewident" w Ustawieniach - konfiguracja Agenta Rewidenta (Filar 1-4).
+        /// Panele z checkboxami + NumericUpDown dla progu Circuit Breaker + Label stanu.
+        /// </summary>
+        private TabPage CreateAuditorSettingsTab()
+        {
+            var tab = new TabPage("Rewident") { Padding = new Padding(12) };
+
+            // Opis na gorze
+            var info = new Label
+            {
+                Text = "Agent Rewident (Auditor) waliduje mutacje wykonane przez inne profile (CadProfile, CadBlocksProfile, CadLayoutProfile). " +
+                       "Dziala w dwoch warstwach: Wariant A (heurystyczny C#, darmowy) + Wariant B (LLM AuditorProfile, kosztowny). " +
+                       "Dodatkowo Circuit Breaker chroni przed Agent Death Loop (powtarzajacymi sie awariami).",
+                Dock = DockStyle.Top,
+                Height = 80,
+                ForeColor = Color.LightGray,
+                AutoSize = false
+            };
+            tab.Controls.Add(info);
+
+            // Panel z checkboxami
+            var outer = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                ColumnCount = 1,
+                RowCount = 6,
+                AutoSize = true,
+                Padding = new Padding(0, 10, 0, 0)
+            };
+
+            // === Auditor ON/OFF ===
+            chkAuditorEnabled = new CheckBox
+            {
+                Text = "Audytor (Auditor) - waliduj mutacje w rysunku DWG",
+                AutoSize = true,
+                ForeColor = Color.LightGreen,
+                Margin = new Padding(0, 5, 0, 5)
+            };
+            chkAuditorEnabled.Checked = UISettingsManager.Settings.AuditorEnabled;
+            chkAuditorEnabled.CheckedChanged += (s, e) =>
+            {
+                AgentMemoryState.AuditorEnabled = chkAuditorEnabled.Checked;
+                UISettingsManager.Settings.AuditorEnabled = chkAuditorEnabled.Checked;
+                UISettingsManager.Save();
+                chkAuditorPrewarm.Enabled = chkAuditorEnabled.Checked;
+                chkAuditorEvidence.Enabled = chkAuditorEnabled.Checked;
+                UpdateCircuitBreakerLabel();
+            };
+            outer.Controls.Add(chkAuditorEnabled, 0, 0);
+
+            // === Pre-warm ===
+            chkAuditorPrewarm = new CheckBox
+            {
+                Text = "Pre-warm KV cache (rozgrzewaj kontekst Auditora w tle - wymaga Multi-GPU)",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(20, 0, 0, 5),
+                Enabled = UISettingsManager.Settings.AuditorEnabled
+            };
+            chkAuditorPrewarm.Checked = UISettingsManager.Settings.AuditorPrewarmEnabled;
+            chkAuditorPrewarm.CheckedChanged += (s, e) =>
+            {
+                AgentMemoryState.AuditorPrewarmEnabled = chkAuditorPrewarm.Checked;
+                UISettingsManager.Settings.AuditorPrewarmEnabled = chkAuditorPrewarm.Checked;
+                UISettingsManager.Save();
+            };
+            outer.Controls.Add(chkAuditorPrewarm, 0, 1);
+
+            // === Chain of Evidence ===
+            chkAuditorEvidence = new CheckBox
+            {
+                Text = "Chain of Evidence (zbieraj snapshot wlasciwosci obiektow before/after mutacji)",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(20, 0, 0, 5),
+                Enabled = UISettingsManager.Settings.AuditorEnabled
+            };
+            chkAuditorEvidence.Checked = UISettingsManager.Settings.AuditorEvidenceEnabled;
+            chkAuditorEvidence.CheckedChanged += (s, e) =>
+            {
+                AgentMemoryState.EvidenceEnabled = chkAuditorEvidence.Checked;
+                UISettingsManager.Settings.AuditorEvidenceEnabled = chkAuditorEvidence.Checked;
+                UISettingsManager.Save();
+            };
+            outer.Controls.Add(chkAuditorEvidence, 0, 2);
+
+            // === Circuit Breaker ON/OFF ===
+            chkCircuitBreaker = new CheckBox
+            {
+                Text = "Circuit Breaker (blokuj profil po N kolejnych awariach)",
+                AutoSize = true,
+                ForeColor = Color.LightSalmon,
+                Margin = new Padding(0, 10, 0, 5)
+            };
+            chkCircuitBreaker.Checked = UISettingsManager.Settings.CircuitBreakerEnabled;
+            chkCircuitBreaker.CheckedChanged += (s, e) =>
+            {
+                AgentMemoryState.CircuitBreakerEnabled = chkCircuitBreaker.Checked;
+                UISettingsManager.Settings.CircuitBreakerEnabled = chkCircuitBreaker.Checked;
+                UISettingsManager.Save();
+                numCircuitBreakerThreshold.Enabled = chkCircuitBreaker.Checked;
+                UpdateCircuitBreakerLabel();
+            };
+            outer.Controls.Add(chkCircuitBreaker, 0, 3);
+
+            // === Próg CB + Label stanu ===
+            var cbRow = new TableLayoutPanel
+            {
+                ColumnCount = 3,
+                RowCount = 1,
+                AutoSize = true,
+                Margin = new Padding(20, 0, 0, 5)
+            };
+            var lblCbThreshold = new Label
+            {
+                Text = "Prog awarii (1-20):",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(0, 6, 6, 0)
+            };
+            numCircuitBreakerThreshold = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 20,
+                Value = UISettingsManager.Settings.CircuitBreakerThreshold,
+                Width = 60,
+                Enabled = UISettingsManager.Settings.CircuitBreakerEnabled
+            };
+            numCircuitBreakerThreshold.ValueChanged += (s, e) =>
+            {
+                int v = (int)numCircuitBreakerThreshold.Value;
+                AgentMemoryState.CircuitBreakerThreshold = v;
+                UISettingsManager.Settings.CircuitBreakerThreshold = v;
+                UISettingsManager.Save();
+                UpdateCircuitBreakerLabel();
+            };
+            lblCircuitBreakerState = new Label
+            {
+                Text = "",
+                AutoSize = true,
+                ForeColor = Color.Gold,
+                Margin = new Padding(10, 6, 0, 0)
+            };
+            cbRow.Controls.Add(lblCbThreshold, 0, 0);
+            cbRow.Controls.Add(numCircuitBreakerThreshold, 1, 0);
+            cbRow.Controls.Add(lblCircuitBreakerState, 2, 0);
+            outer.Controls.Add(cbRow, 0, 4);
+
+            // === Przycisk Force Reset ===
+            var btnForceReset = new Button
+            {
+                Text = "RESET wszystkich Circuit Breaker (odblokuj profile)",
+                AutoSize = true,
+                BackColor = Color.FromArgb(140, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 15, 0, 0)
+            };
+            btnForceReset.Click += (s, e) =>
+            {
+                CircuitBreakerState.ResetAll();
+                UpdateCircuitBreakerLabel();
+                System.Windows.Forms.MessageBox.Show(
+                    "Wszystkie profile zostaly odblokowane.",
+                    "Circuit Breaker Reset",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Information);
+            };
+            outer.Controls.Add(btnForceReset, 0, 5);
+
+            tab.Controls.Add(outer);
+            return tab;
         }
 
         private TabPage CreateVisionOcrSettingsTab()
