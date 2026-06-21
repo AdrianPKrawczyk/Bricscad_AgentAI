@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Bricscad_AgentAI_V2.Core; // BielikLogger
 
-namespace Bricscad_AgentAI_V2.Core
+namespace Bricscad_AgentAI_V2.Core.Rewident
 {
     /// <summary>
     /// Circuit Breaker (Filar 4 Agenta Rewidenta) - zabezpiecza system przed
@@ -16,8 +17,10 @@ namespace Bricscad_AgentAI_V2.Core
     /// Reset: kazdy Accept (sukces Workera zaakceptowany przez Auditora/Validator)
     /// zeruje licznik bledow. Circuit Breaker per-profil (np. CadProfile ma swoj,
     /// CadBlocksProfile ma swoj - moga wpasc w petle niezaleznie).
+    ///
+    /// Przeniesiony do src/Core/Rewident/ w v2.35.0 (refaktor Auditor -> Rewident).
     /// </summary>
-    public static class CircuitBreakerState
+    public static class RewidentCircuitBreaker
     {
         private static readonly ConcurrentDictionary<string, int> _failuresPerProfile
             = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -49,14 +52,14 @@ namespace Bricscad_AgentAI_V2.Core
         /// <summary>
         /// Zwraca aktualny stan (do UI/diagnostyki).
         /// </summary>
-        public static CircuitBreakerSnapshot GetSnapshot(string profileName)
+        public static RewidentCircuitBreakerSnapshot GetSnapshot(string profileName)
         {
             int failures = _failuresPerProfile.TryGetValue(profileName, out var f) ? f : 0;
             long lastTicks = _lastFailureTicks.TryGetValue(profileName, out var t) ? t : 0;
             int threshold = AgentMemoryState.CircuitBreakerThreshold > 0
                 ? AgentMemoryState.CircuitBreakerThreshold
                 : DefaultThreshold;
-            return new CircuitBreakerSnapshot
+            return new RewidentCircuitBreakerSnapshot
             {
                 ProfileName = profileName,
                 Failures = failures,
@@ -128,9 +131,9 @@ namespace Bricscad_AgentAI_V2.Core
         /// <summary>
         /// Zwraca raport wszystkich sledzonych profilow (do UI / diagnostyki).
         /// </summary>
-        public static System.Collections.Generic.List<CircuitBreakerSnapshot> GetAllSnapshots()
+        public static System.Collections.Generic.List<RewidentCircuitBreakerSnapshot> GetAllSnapshots()
         {
-            var result = new System.Collections.Generic.List<CircuitBreakerSnapshot>();
+            var result = new System.Collections.Generic.List<RewidentCircuitBreakerSnapshot>();
             foreach (var kvp in _failuresPerProfile)
             {
                 result.Add(GetSnapshot(kvp.Key));
@@ -142,7 +145,7 @@ namespace Bricscad_AgentAI_V2.Core
     /// <summary>
     /// Snapshot stanu Circuit Breaker dla jednego profilu.
     /// </summary>
-    public class CircuitBreakerSnapshot
+    public class RewidentCircuitBreakerSnapshot
     {
         public string ProfileName { get; set; }
         public int Failures { get; set; }
