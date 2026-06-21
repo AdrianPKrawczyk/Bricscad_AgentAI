@@ -106,7 +106,7 @@ namespace Bricscad_AgentAI_V2.Core
 
     public static class WorkValidator
     {
-        private static readonly HashSet<string> MutatingTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public static readonly HashSet<string> MutatingTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "CreateObject", "ModifyProperties", "ManageLayers", "InsertBlock", "CreateBlock",
             "EditBlock", "EditAttributes", "TextEditTool", "DimensionEditTool", "ManageAnnoScales",
@@ -119,7 +119,7 @@ namespace Bricscad_AgentAI_V2.Core
             "ExecuteMacro", "ExecuteFormula"
         };
 
-        private static readonly HashSet<string> ReadOnlyTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public static readonly HashSet<string> ReadOnlyTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ListLayoutsTool", "ListPlotDevicesTool", "ListBlocks", "GetPropertiesTool", "AnalyzeSelectionTool",
             "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "FindXData", "InspectEntity",

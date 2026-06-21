@@ -144,12 +144,28 @@ namespace Bricscad_AgentAI_V2.Core
         public string ExecuteTool(string toolName, JObject arguments, IExecutionContext context, string callerProfile = "SupervisorProfile")
         {
             // OCHRONA PRZED INFINITE LOOP (Agent Inception)
-            if (toolName.Equals("DelegateTask", StringComparison.OrdinalIgnoreCase) && 
+            if (toolName.Equals("DelegateTask", StringComparison.OrdinalIgnoreCase) &&
                 !callerProfile.Equals("SupervisorProfile", StringComparison.OrdinalIgnoreCase))
             {
                 BielikLogger.LogWarn($"[TOOL WARN] Próba uruchomienia DelegateTask przez profil '{callerProfile}'.");
                 return "BŁĄD KRYTYCZNY (ZABEZPIECZENIE ARCHITEKTONICZNE): Tylko główny profil 'SupervisorProfile' ma uprawnienia do delegowania zadań. Nie możesz używać tego narzędzia.";
             }
+
+            // ---- OCHRONA AUDITOR PROFILE (READ-ONLY) ----
+            // Profil z IsReadOnly=true (np. AuditorProfile) nie może wywoływać narzędzi mutujących.
+            // Sprawdzenie wykonywane jest ZANIM narzędzie zostanie w ogóle zlookupowane,
+            // więc chroni to też przed pomyłkowym dopuszczeniem do AllowedTools.
+            if (!string.IsNullOrEmpty(callerProfile))
+            {
+                var callerConfig = ToolConfigManager.GetProfiles() != null
+                    && ToolConfigManager.GetProfiles().TryGetValue(callerProfile, out var pc) ? pc : null;
+                if (callerConfig != null && callerConfig.IsReadOnly && WorkValidator.MutatingTools.Contains(toolName))
+                {
+                    BielikLogger.LogWarn($"[TOOL WARN] Profil '{callerProfile}' (IsReadOnly=true) próbował wywołać mutujące narzędzie '{toolName}'.");
+                    return $"BŁĄD KRYTYCZNY (ZABEZPIECZENIE AUDYTORA): Profil '{callerProfile}' ma tryb read-only i nie może wywoływać mutującego narzędzia '{toolName}'. Użyj wyłącznie narzędzi odczytowych (InspectEntity, GetPropertiesTool, AnalyzeSelectionTool, ReadPropertyTool, ReadFromBlackboard, ListBlocks, ReadXData, FindXData, ReadTextSampleTool, ReadSelectedBlockInfo).";
+                }
+            }
+            // -------------------------------------------
 
             // ---- NOWY KOD BŁOKADY ZAZNACZENIA ----
             if (toolName.Equals("SelectEntities", StringComparison.OrdinalIgnoreCase) && AgentMemoryState.IsSelectionScopeLocked)

@@ -20,6 +20,7 @@ namespace Bricscad_AgentAI_V2.Core
         public List<string> AllowedTools { get; set; } = new List<string>();
         public List<string> AllowedTags { get; set; } = new List<string>();
         public AgentLlmBinding LlmBinding { get; set; }
+        public bool IsReadOnly { get; set; } = false;
     }
 
     public class AgentLlmBinding
@@ -700,13 +701,27 @@ EnsureMathPromptFile();
                 auditorProf.SystemPromptFile = AuditorPromptFile;
                 changed = true;
             }
-            var auditorDefaults = new List<string> { "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice", "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills", "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport", "DelegateTaskToAntigravity", "SearchFileContent", "manage_lisps" };
+            var auditorDefaults = new List<string>
+            {
+                "ReadProjectFile", "WriteProjectFile", "UserInput", "UserChoice",
+                "SaveMacro", "SavePermanentFormula", "ManageRecipes", "manage_skills",
+                "ListSourceFiles", "ReadSourceCode", "RunToolTest", "WriteQAReport",
+                "DelegateTaskToAntigravity", "SearchFileContent", "manage_lisps",
+                "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool",
+                "ReadPropertyTool", "ReadXData", "FindXData", "ReadTextSampleTool",
+                "ListBlocks", "ReadSelectedBlockInfo", "ReadFromBlackboard"
+            };
             if (auditorProf.AllowedTools == null)
             {
                 auditorProf.AllowedTools = new List<string>();
                 changed = true;
             }
             if (EnsureAllowedTools(auditorProf, auditorDefaults)) changed = true;
+            if (!auditorProf.IsReadOnly)
+            {
+                auditorProf.IsReadOnly = true;
+                changed = true;
+            }
 
             // 9. Zabezpieczenie/Synchronizacja CadLayoutProfile
             if (!_config.Profiles.TryGetValue("CadLayoutProfile", out var layoutProf))
