@@ -140,6 +140,7 @@
     <Compile Include="src\Core\Rewident\RewidentState.cs" />
     <Compile Include="src\Core\Rewident\RewidentAutoInjector.cs" />
     <Compile Include="src\Core\Rewident\RewidentCircuitBreaker.cs" />
+    <Compile Include="src\Core\Rewident\RewidentAuditService.cs" />
     <Compile Include="src\Core\BielikLogger.cs" />
     <Compile Include="src\Core\UISettingsManager.cs" />
     <Compile Include="src\Core\FileExtractor.cs" />
