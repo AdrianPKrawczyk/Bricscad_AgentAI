@@ -296,9 +296,10 @@ namespace Bricscad_AgentAI_V2.Core
             sb.AppendLine("INSTRUKCJA AUDYTU:");
             sb.AppendLine("1. Uzyj ReadFromBlackboard aby odczytac pary @evidence_before_<HandleHex> i @evidence_after_<HandleHex>.");
             sb.AppendLine("2. Porownaj properties (Layer, Color, Linetype, Length, Radius, Area, Center, TextString, itp.).");
-            sb.AppendLine("3. Jesli Handle nie ma pary before/after - raportuj BRAK CHAIN OF EVIDENCE jako FAIL.");
-            sb.AppendLine("4. Jesli properties after != oczekiwane - raportuj konkretna roznice.");
-            sb.AppendLine("5. Zastosuj narzedzia read-only TYLKO: InspectEntity, GetPropertiesTool, AnalyzeSelectionTool, ReadPropertyTool, ReadXData, FindXData, ReadTextSampleTool, ReadFromBlackboard, ListBlocks.");
+            sb.AppendLine("3. SPECIAL CASE - CreateObject: jesli @evidence_before ma ObjectExistedBefore=false i puste properties - to jest OCZEKIWANY stan 'before' dla nowo utworzonego obiektu. Para jest SPOJNA, to NIE jest blad.");
+            sb.AppendLine("4. Jesli Handle nie ma pary before/after (oba klucze null) - raportuj BRAK CHAIN OF EVIDENCE jako FAIL.");
+            sb.AppendLine("5. Jesli properties after != oczekiwane - raportuj konkretna roznice.");
+            sb.AppendLine("6. Zastosuj narzedzia read-only TYLKO: InspectEntity, GetPropertiesTool, AnalyzeSelectionTool, ReadPropertyTool, ReadXData, FindXData, ReadTextSampleTool, ReadFromBlackboard, ListBlocks.");
             sb.AppendLine();
             sb.AppendLine("Odpowiedz WYŁĄCZNIE jako JSON (bez Markdown): { \"isSuccess\": bool, \"feedback\": string, \"evidence\": dict, \"severity\": \"info|warn|error|critical\" }");
 

@@ -113,7 +113,7 @@ namespace Bricscad_AgentAI_V2.Core
             "PageSetupTool", "PlotStyleTool", "ManageLayoutTool", "ImportLayoutTemplateTool",
             "ExportLayoutTemplateTool", "PlotLayoutTool", "PublishToPdfTool", "ManageViewportsTool",
             "ManageSheetSetTool", "SheetSetSheetTool",
-            "WriteXData", "BatchWriteXData", "WriteToBlackboard", "WriteProjectFile",
+            "WriteXData", "BatchWriteXData", "WriteProjectFile",
             "WriteQAReport", "ImportCsvDataset", "SaveMacro", "SavePermanentFormula",
             "ManageDataset", "ManageRecipes", "ManageSkills", "manage_lisps",
             "ExecuteMacro", "ExecuteFormula"
@@ -125,7 +125,13 @@ namespace Bricscad_AgentAI_V2.Core
             "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "FindXData", "InspectEntity",
             "ReadFromBlackboard", "ReadProjectFile", "ReadKnowledgeTool", "SearchKnowledgeBase",
             "SearchUnitsNetTool", "QueryDataset", "SearchFileContent", "ListSourceFiles", "ReadSourceCode",
-            "RunToolTest", "ReadHelp", "DiagnoseMetricVisionGraphicsSystem", "QueryVisionScanIndex"
+            "RunToolTest", "ReadHelp", "DiagnoseMetricVisionGraphicsSystem", "QueryVisionScanIndex",
+            // Fix v2.35.1 (BUG #2): WriteToBlackboard to zapis do pamieci wspoldzielonej
+            // miedzy agentami (context/notes), NIE jest mutacja rysunku DWG. Wczesniej
+            // nieslusznie w MutatingTools powodowalo to, ze Wariant A (Auditor Rewident)
+            // liczyl WriteToBlackboard jako "mutacje", a EngineTracer (ktory subskrybuje
+            // zdarzenia bazy DWG) jej nie widzial - falszywy alarm "BRAK MUTACJI W DWG".
+            "WriteToBlackboard"
         };
 
         public static WorkValidationReport Validate(string targetProfile, string taskDescription, List<ChatMessage> history, string displayMessage)

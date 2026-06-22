@@ -266,7 +266,16 @@ namespace Bricscad_AgentAI_V2.Core
                 if (isMutating && RewidentState.EvidenceEnabled && !RewidentState.GloballyDisabled)
                 {
                     int mutationsAfter = RewidentState.MutationCount;
-                    if (mutationsAfter > mutationsBefore)
+                    // Fix v2.35.1 (BUD FIX): porownujemy EngineTracer delta ORAZ ModelSpace count
+                    // diff - bo EngineTracer moze nie byc wlaczony (subskrypcja w UI), a wtedy
+                    // mutationsAfter == mutationsBefore mimo realnej mutacji. Bez tego warunku
+                    // moj fix BUG #1 (syntetyczny 'before' dla CreateObject) nigdy sie nie
+                    // wykonywal w runtime, gdy user wylaczyl sledzenie w UI.
+                    int modelSpaceCountAfter2 = EngineTracer.CountObjectsInModelSpace();
+                    int modelSpaceDelta2 = (modelSpaceCountBefore >= 0 && modelSpaceCountAfter2 >= 0)
+                        ? modelSpaceCountAfter2 - modelSpaceCountBefore : 0;
+                    bool detectedMutation = (mutationsAfter > mutationsBefore) || (modelSpaceDelta2 > 0);
+                    if (detectedMutation)
                     {
                         // Fix v2.34.23: bez EngineTracer subskrypcji (EngineTracer wylaczony
                         // przez checkbox w UI) ModifiedEntities jest puste. Musimy uzyc
@@ -275,7 +284,6 @@ namespace Bricscad_AgentAI_V2.Core
                         if (modified.Length == 0)
                         {
                             // Fallback: pobierz Handle z ModelSpace (diff before/after)
-                            int modelSpaceCountAfter2 = EngineTracer.CountObjectsInModelSpace();
                             modified = RewidentAutoInjector.GetRecentHandlesFromModelSpacePublic(modelSpaceCountBefore, modelSpaceCountAfter2);
                         }
                         int take = Math.Min(modified.Length, AgentMemoryState.MaxEvidenceHandles);
@@ -286,6 +294,26 @@ namespace Bricscad_AgentAI_V2.Core
                             var snap = EngineTracer.CaptureSnapshot(id, "after");
                             if (snap == null) continue;
                             EngineTracer.WriteSnapshotToBlackboard(snap, "after");
+
+                            // Fix v2.35.1 (BUG #1): dla CreateObject przed mutacja nie bylo
+                            // zadnego Handle w ActiveSelection, wiec para 'before' sie nie
+                            // zapisala. Zapisujemy syntetyczny 'before' z flaga
+                            // ObjectExistedBefore=false, zeby Rewident widzial spojna pare
+                            // before/after (create-scenario), a nie "BRAK CHAIN OF EVIDENCE".
+                            //
+                            // Wazne: ten fragment wykonuje sie NIEZALEZNIE od tego czy
+                            // EngineTracer jest wlaczony, bo `detectedMutation` uwzglednia
+                            // rowniez ModelSpace count diff (czyste C#, dziala zawsze).
+                            if (string.Equals(toolName, "CreateObject", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string beforeKey = EvidenceSnapshot.BlackboardKey("before", id.Handle.ToString());
+                                if (!SharedMemoryState.ContainsKey(beforeKey))
+                                {
+                                    var syntheticBefore = EvidenceSnapshot.CreateNotExistedBefore(id, snap.ObjectType);
+                                    EngineTracer.WriteSnapshotToBlackboard(syntheticBefore, "before");
+                                    BielikLogger.LogInfo($"[CHAIN OF EVIDENCE] Syntetyczny 'before' dla CreateObject Handle=0x{id.Handle.ToString()}");
+                                }
+                            }
                         }
                     }
                 }

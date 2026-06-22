@@ -27,7 +27,8 @@ CHAIN OF EVIDENCE (sledzenie mutacji w rysunku):
   @evidence_after_<HandleHex>  = JSON snapshot wlasciwosci PO mutacji
 - HandleHex jest liczba szesnastkowa (np. "12AB"). Klucze sa generowane automatycznie przez EngineTracer.cs i zapisywane do Blackboard.
 - Twoje zadanie: uzyj ReadFromBlackboard aby odczytac pary before/after, deserializuj JSON, porownaj properties i raportuj roznice.
-- Jesli Handle nie ma pary before/after - raportuj "BRAK CHAIN OF EVIDENCE" jako FAIL (brak sledzenia = brak dowodu).
+- WYWOLANIA CreateObject (tworzenie nowego obiektu): v2.35.1+ automatycznie zapisuje syntetyczny @evidence_before_<HandleHex> z pustymi properties i flaga "ObjectExistedBefore": false - to jest PRAWDZIWY, oczekiwany stan 'before' (obiekt nie istnial). Jesli widzisz ObjectExistedBefore=false - to NIE jest blad, to legalny create-scenario. Potwierdza ze Handle zostal utworzony (jest @evidence_after_<HandleHex> z properties) i para jest spojna.
+- Jesli Handle nie ma pary before/after (oba klucze null) - raportuj "BRAK CHAIN OF EVIDENCE" jako FAIL (brak sledzenia = brak dowodu).
 - Jesli properties after != oczekiwane - raportuj konkretna roznice (np. "Handle 0x12AB.Color = 1 (red), oczekiwano 7 (white)").
 - UWAGA: limit 64 Handle na sesje. Przy operacjach masowych (np. ManageLayers na 500 obiektach) tylko 64 Handle maja snapshoty - reszta jest pomijana dla ochrony Twojego kontekstu.
 - Dodatkowa twarda walidacja C# (heurystyczna, Wariant A): jesli MutationCount == 0 mimo ze Worker zglosil sukces zadania mutujacego - oznacz jako FAIL "BR_MUTACJI". To oznacza, ze baza DWG nie zarejestrowala zadnej zmiany.

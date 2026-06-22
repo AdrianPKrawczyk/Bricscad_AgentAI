@@ -4,9 +4,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core; // BielikLogger
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json.Linq;
+using Teigha.DatabaseServices;
+using Teigha.Runtime;
 
 namespace Bricscad_AgentAI_V2.Core.Rewident
 {
@@ -61,7 +64,7 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
                 if (messages == null || messages.Count == 0) return;
                 await client.WarmupPromptAsync(messages, "RewidentProfile", ct);
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 BielikLogger.LogWarn($"[REWIDENT PREWARM] Blad: {ex.Message}");
             }
@@ -90,6 +93,18 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
             int modelSpaceDelta = (modelSpaceCountBefore >= 0 && modelSpaceCountAfter >= 0)
                 ? modelSpaceCountAfter - modelSpaceCountBefore : 0;
+
+            // Fix v2.35.1 (BUG #1 + BUG #3): Automatyczne zabezpieczenie Chain of Evidence.
+            // Jesli ToolOrchestrator nie zapisal pary before/after (np. EngineTracer wylaczony
+            // w UI - subskrypcja zdarzen DWG nieaktywna - LUB w ogole create-scenario dla
+            // CreateObject, gdzie 'before' nie istnieje fizycznie), sami uzupelniamy pary
+            // w Blackboard na podstawie DisplayMessage ("Handle: 14A") i EngineTracer.CaptureSnapshot.
+            // To jest LINIĄ OBRONY nawet gdy ToolOrchestrator ma blad - sanity check halucynacji
+            // (BUG #3) zalezy od poprawnej pary w Blackboard.
+            if (RewidentState.EvidenceEnabled && !RewidentState.GloballyDisabled && workerResult.IsSuccess)
+            {
+                EnsureChainOfEvidenceInBlackboard(workerResult, newMutations, modelSpaceDelta);
+            }
 
             // === WARIANT A: heurystyczny (C# only, darmowy) ===
             // Fix v2.34.13: dwojaki detektor mutacji -
@@ -209,6 +224,22 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
                 // Rewident odrzucil - budujemy raport + progressive hint
                 string feedback = parsed.Value<string>("feedback") ?? parsed.Value<string>("reason") ?? "Rewident odrzucil bez uzasadnienia.";
                 string severity = parsed.Value<string>("severity") ?? "warn";
+
+                // Fix v2.35.1 (BUG #3): SANITY CHECK - jesli Rewident mowi "BRAK CHAIN OF
+                // EVIDENCE" ale handle w rzeczywistosci MA pare before/after w Blackboard
+                // (zapisana przez EngineTracer lub syntetycznie dla CreateObject), to jest
+                // halucynacja LLM. Wczesniej prowadzilo to do wymuszenia dodatkowej mutacji
+                // (Worker "poprawial" cos, co nie bylo zepsute) - patrz v2.35.0 log: okrag
+                // z kolorem 2 (zolty) zamiast domyslnego, bo Worker dorzucil ModifyProperties.
+                if (IsChainOfEvidenceHallucination(feedback, workerResult))
+                {
+                    BielikLogger.LogWarn($"[REWIDENT] Sanity-check: halucynacja 'BRAK CHAIN OF EVIDENCE' odrzucona. Handle ma poprawna pare. Feedback: {feedback}");
+                    report.Decision = WorkValidationDecision.Accept;
+                    report.Severity = "warn";
+                    report.Reason = $"Rewident halucynowal BRAK CHAIN OF EVIDENCE (zignorowano - handle ma spojna pare before/after w Blackboard).";
+                    return report;
+                }
+
                 report.Decision = WorkValidationDecision.Retry;
                 report.Severity = severity;
                 report.Reason = $"Rewident odrzucil: {feedback}";
@@ -216,7 +247,7 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
                 report.Issues.Add(feedback);
                 return report;
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 // Rewident zglosil wyjatek - przepuszczamy, logujemy
                 BielikLogger.LogWarn($"[REWIDENT] Wyjatek podczas audytu: {ex.Message}");
@@ -301,9 +332,10 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             sb.AppendLine("INSTRUKCJA AUDYTU (REVIDENT - profil RewidentProfile):");
             sb.AppendLine("1. Uzyj ReadFromBlackboard aby odczytac pary @evidence_before_<HandleHex> i @evidence_after_<HandleHex>.");
             sb.AppendLine("2. Porownaj properties (Layer, Color, Linetype, Length, Radius, Area, Center, TextString, itp.).");
-            sb.AppendLine("3. Jesli Handle nie ma pary before/after - raportuj BRAK CHAIN OF EVIDENCE jako FAIL.");
-            sb.AppendLine("4. Jesli properties after != oczekiwane - raportuj konkretna roznice.");
-            sb.AppendLine("5. Zastosuj narzedzia read-only TYLKO: InspectEntity, GetPropertiesTool, AnalyzeSelectionTool, ReadPropertyTool, ReadXData, FindXData, ReadTextSampleTool, ReadFromBlackboard, ListBlocks.");
+            sb.AppendLine("3. SPECIAL CASE - CreateObject: jesli @evidence_before ma ObjectExistedBefore=false i puste properties - to jest OCZEKIWANY stan 'before' dla nowo utworzonego obiektu. Para jest SPOJNA, to NIE jest blad.");
+            sb.AppendLine("4. Jesli Handle nie ma pary before/after (oba klucze null) - raportuj BRAK CHAIN OF EVIDENCE jako FAIL.");
+            sb.AppendLine("5. Jesli properties after != oczekiwane - raportuj konkretna roznice.");
+            sb.AppendLine("6. Zastosuj narzedzia read-only TYLKO: InspectEntity, GetPropertiesTool, AnalyzeSelectionTool, ReadPropertyTool, ReadXData, FindXData, ReadTextSampleTool, ReadFromBlackboard, ListBlocks.");
             sb.AppendLine();
             sb.AppendLine("Odpowiedz WYŁĄCZNIE jako JSON (bez Markdown): { \"isSuccess\": bool, \"feedback\": string, \"evidence\": dict, \"severity\": \"info|warn|error|critical\" }");
 
@@ -339,6 +371,81 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             return null;
         }
 
+        /// <summary>
+        /// Fix v2.35.1 (BUG #3): Sanity-check dla halucynacji Rewidenta.
+        /// Jesli LLM odrzuca prace powolajac sie na "BRAK CHAIN OF EVIDENCE" (lub podobne
+        /// sformulowania), ale w Blackboard faktycznie istnieja OBIE wartosci
+        /// (@evidence_before_ i @evidence_after_) dla kazdego Handle z EvidenceHandles,
+        /// to halucynacja - ignorujemy odrzucenie i przepuszczamy prace Workera.
+        ///
+        /// Powod: w v2.35.0 obserwowano przypadek gdzie Worker poprawnie wykonal
+        /// CreateObject (zapisal pary w CoE), ale Rewident twierdzil "BRAK CHAIN OF
+        /// EVIDENCE" mimo ze Handle 0x14A mial @evidence_after_14A. W odpowiedzi na
+        /// repair prompt Worker wykonywal dodatkowe modyfikacje (zmiana koloru) aby
+        /// "spelnic wymogi" - patrz log: okrag z kolorem zoltym zamiast domyslnego.
+        ///
+        /// v2.35.1 FIX: Jesli workerResult.EvidenceHandles jest puste (np. ToolOrchestrator
+        /// nie ustawil go z powodu wylaczonego EngineTracer), skanujemy Blackboard w
+        /// poszukiwaniu kluczy @evidence_after_ zeby odtworzyc liste Handle do walidacji.
+        /// </summary>
+        private static bool IsChainOfEvidenceHallucination(string feedback, AgentExecutionResult workerResult)
+        {
+            if (string.IsNullOrWhiteSpace(feedback)) return false;
+            if (workerResult == null) return false;
+
+            // Tylko reaguj na slowa kluczowe zwiazane z Chain of Evidence
+            // (zeby nie tlumic innych waznych odrzucen, np. "Handle 0x14A.Layer = 1, oczekiwano 0").
+            string lower = feedback.ToLowerInvariant();
+            bool mentionsCoEIssue = lower.Contains("chain of evidence")
+                || lower.Contains("evidence_before")
+                || lower.Contains("evidence_after")
+                || (lower.Contains("brak") && (lower.Contains("before") || lower.Contains("after") || lower.Contains("pary")));
+            if (!mentionsCoEIssue) return false;
+
+            // Fix v2.35.1: jesli EvidenceHandles jest puste, odczytaj Handle z Blackboard.
+            // Format kluczy: @evidence_after_<HandleHex>. Filtrujemy klucze nalezace do biezacej
+            // sesji (ignorujemy @evidence_before_* - moga byc z poprzednich wywolan).
+            List<string> handles = workerResult.EvidenceHandles;
+            if (handles == null || handles.Count == 0)
+            {
+                handles = new List<string>();
+                var allKeys = SharedMemoryState.GetAll().Keys;
+                foreach (var key in allKeys)
+                {
+                    const string AfterPrefix = "@evidence_after_";
+                    if (key.StartsWith(AfterPrefix, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        string handleHex = key.Substring(AfterPrefix.Length);
+                        if (!string.IsNullOrEmpty(handleHex) && !handles.Contains(handleHex))
+                        {
+                            handles.Add(handleHex);
+                        }
+                    }
+                }
+            }
+
+            if (handles.Count == 0) return false;
+
+            // Sprawdz kazdy Handle - czy MA pare before/after w Blackboard.
+            int totalHandles = 0;
+            int handlesWithFullPair = 0;
+            foreach (var handleHex in handles)
+            {
+                if (string.IsNullOrWhiteSpace(handleHex)) continue;
+                totalHandles++;
+                var (beforeKey, afterKey) = EvidenceSnapshot.BlackboardPair(handleHex);
+                string beforeVal = SharedMemoryState.Read(beforeKey);
+                string afterVal = SharedMemoryState.Read(afterKey);
+                if (!string.IsNullOrEmpty(beforeVal) && !string.IsNullOrEmpty(afterVal))
+                {
+                    handlesWithFullPair++;
+                }
+            }
+
+            // Halucynacja: feedback mowi "brak pary" ale wszystkie Handle maja pelna pare.
+            return totalHandles > 0 && handlesWithFullPair == totalHandles;
+        }
+
         private static bool LooksLikeMutatingTask(string taskDescription)
         {
             if (string.IsNullOrWhiteSpace(taskDescription)) return false;
@@ -352,6 +459,159 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
                 if (lower.Contains(v)) return true;
             }
             return false;
+        }
+
+        // Fix v2.35.1 (BUG #1 + BUG #3): Automatyczne zabezpieczenie Chain of Evidence.
+        //
+        // Kontekst: ToolOrchestrator powinien zapisac pary @evidence_before_/<HandleHex> i
+        // @evidence_after_/<HandleHex> do Blackboard dla kazdej mutacji. W praktyce:
+        //   - EngineTracer moze byc wylaczony w UI (subskrypcja zdarzen DWG nieaktywna)
+        //     wtedy mutationsAfter == 0 i ToolOrchestrator pomija zapis.
+        //   - W create-scenario (CreateObject) Handle nie istnial PRZED mutacja - w
+        //     v2.35.0+ ToolOrchestrator zapisuje syntetyczny 'before' z ObjectExistedBefore=false,
+        //     ale to wymaga poprawnego przebudowania ToolOrchestrator.
+        //
+        // Ta metoda jest DRUGĄ LINIĄ OBRONY (defense-in-depth): parsuje Handle z
+        // DisplayMessage ("Handle: 14A" z CreateObject/ModifyProperties) i zapisuje
+        // pary before/after w Blackboard samodzielnie - nawet jesli ToolOrchestrator tego nie zrobil.
+        //
+        // Dzieki temu:
+        //   1. IsChainOfEvidenceHallucination (sanity check BUG #3) ma co czytac
+        //   2. LLM Rewident widzi spojna pare (nie halucynuje "BRAK CHAIN OF EVIDENCE")
+        //   3. Nawet jesli binarka ma stary ToolOrchestrator (build problem), audyt dziala.
+        //
+        // Format DisplayMessage parsowany:
+        //   - "SUKCES: Utworzono Circle (Handle: 14A). Center=..."
+        //   - "SUKCES: Zmodyfikowano obiektów: 1. Odrzucono atrybutów: 0."  (Handle brak w modyfikacji - pomijamy)
+        //   - inne - Handle nieobecny, pomijamy.
+        //
+        // BEZPIECZNE: nie wymaga subskrypcji EngineTracer, dziala na podstawie
+        // EngineTracer.CaptureSnapshot (czyste C# + transakcja).
+        private static readonly Regex HandleRegex = new Regex(
+            @"\(Handle:\s*([0-9A-Fa-f]+)\)",
+            RegexOptions.Compiled);
+
+        private static void EnsureChainOfEvidenceInBlackboard(
+            AgentExecutionResult workerResult, int engineTracerDelta, int modelSpaceDelta)
+        {
+            if (workerResult == null || string.IsNullOrEmpty(workerResult.DisplayMessage)) return;
+
+            // Nie zapisuj jesli Worker zaraportowal awarie - to nie jest mutacja.
+            if (!workerResult.IsSuccess) return;
+
+            // Wymagaj przynajmniej jednego detektora mutacji (EngineTracer LUB ModelSpace count).
+            // Bez tego bylby to falszywy "audit trail" dla nieistniejacych obiektow.
+            if (engineTracerDelta <= 0 && modelSpaceDelta <= 0) return;
+
+            // Parsuj Handle z DisplayMessage - moze byc wiele (np. multi-create).
+            var matches = HandleRegex.Matches(workerResult.DisplayMessage);
+            if (matches.Count == 0) return;
+
+            foreach (Match m in matches)
+            {
+                string handleHex = m.Groups[1].Value;
+                if (string.IsNullOrEmpty(handleHex)) continue;
+
+                string beforeKey = EvidenceSnapshot.BlackboardKey("before", handleHex);
+                string afterKey = EvidenceSnapshot.BlackboardKey("after", handleHex);
+
+                // Sprawdz czy para juz istnieje - nie nadpisuj (ToolOrchestrator mial pierwszenstwo).
+                string existingBefore = SharedMemoryState.Read(beforeKey);
+                string existingAfter = SharedMemoryState.Read(afterKey);
+                if (!string.IsNullOrEmpty(existingBefore) && !string.IsNullOrEmpty(existingAfter))
+                {
+                    continue;
+                }
+
+                // Sprobuj pobrac ObjectId z biezacego dokumentu.
+                ObjectId id = TryFindObjectIdByHandleHex(handleHex);
+                if (id.IsNull)
+                {
+                    // Handle nie istnieje w DWG - moze zostal usuniety. Pomijamy.
+                    BielikLogger.LogWarn($"[CHAIN OF EVIDENCE FALLBACK] Handle 0x{handleHex} nie znaleziony w DWG, pomijam.");
+                    continue;
+                }
+
+                // Zapisz 'after' z biezacego stanu DWG (czyste C#, dziala bez EngineTracer).
+                if (string.IsNullOrEmpty(existingAfter))
+                {
+                    var afterSnap = EngineTracer.CaptureSnapshot(id, "after");
+                    if (afterSnap != null)
+                    {
+                        EngineTracer.WriteSnapshotToBlackboard(afterSnap, "after");
+                        BielikLogger.LogInfo($"[CHAIN OF EVIDENCE FALLBACK] Zapisano 'after' dla Handle=0x{handleHex}");
+                    }
+                }
+
+                // Zapisz syntetyczny 'before' jesli brak.
+                // Nie mozemy rozroznic create vs modify bez dodatkowej wiedzy, ale
+                // ObjectExistedBefore=false jest bezpieczne dla obu - LLM zobaczy
+                // pusty properties (cos nie istnialo) i zaakceptuje to jako create-scenario.
+                // Dla modify, LLM powinien porownac properties before(=/null) vs after(real)
+                // i wykryc zmiane, ale w 99% przypadkow Handle w DisplayMessage
+                // pochodzi z CreateObject (bo tylko CreateObject zwraca "Handle: 14A"
+                // w swoim formacie - ModifyProperties zwraca "Zmodyfikowano obiektów: 1").
+                if (string.IsNullOrEmpty(existingBefore))
+                {
+                    string objectType = TryDetectObjectType(id);
+                    var beforeSnap = EvidenceSnapshot.CreateNotExistedBefore(id, objectType);
+                    EngineTracer.WriteSnapshotToBlackboard(beforeSnap, "before");
+                    BielikLogger.LogInfo($"[CHAIN OF EVIDENCE FALLBACK] Syntetyczny 'before' (ObjectExistedBefore=false) dla Handle=0x{handleHex}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Szuka ObjectId w biezacym dokumencie po Handle (hex string).
+        /// Dziala bez subskrypcji EngineTracer (czyste C# + transakcja).
+        /// Zwraca ObjectId.Null jesli nie znaleziono.
+        /// </summary>
+        private static ObjectId TryFindObjectIdByHandleHex(string handleHex)
+        {
+            if (string.IsNullOrEmpty(handleHex)) return ObjectId.Null;
+            Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return ObjectId.Null;
+            try
+            {
+                // Teigha.Handle nie ma statycznej metody TryParse (w odróżnieniu od .NET Core).
+                // Parsujemy recznie z hex stringa (HandleHex to liczba szesnastkowa bez "0x" prefix).
+                // Handle.Value to System.Int64, wiec max 8 bajtow = 16 znakow hex.
+                long handleValue;
+                if (!long.TryParse(handleHex, System.Globalization.NumberStyles.HexNumber,
+                    System.Globalization.CultureInfo.InvariantCulture, out handleValue))
+                {
+                    return ObjectId.Null;
+                }
+                Handle h = new Handle(handleValue);
+                return doc.Database.GetObjectId(false, h, 0);
+            }
+            catch
+            {
+                return ObjectId.Null;
+            }
+        }
+
+        /// <summary>
+        /// Zwraca typ obiektu CAD (np. "Circle", "Line") dla ObjectId, lub "(unknown)".
+        /// </summary>
+        private static string TryDetectObjectType(ObjectId id)
+        {
+            if (id.IsNull) return "(unknown)";
+            Document doc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return "(unknown)";
+            try
+            {
+                using (var tr = doc.Database.TransactionManager.StartOpenCloseTransaction())
+                {
+                    DBObject obj = tr.GetObject(id, OpenMode.ForRead, false);
+                    if (obj == null) return "(unknown)";
+                    return obj.GetType().Name;
+                }
+            }
+            catch
+            {
+                return "(unknown)";
+            }
         }
     }
 }
