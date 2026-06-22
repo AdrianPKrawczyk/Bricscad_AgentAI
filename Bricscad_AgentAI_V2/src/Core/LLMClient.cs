@@ -1996,6 +1996,8 @@ namespace Bricscad_AgentAI_V2.Core
         private static AntiLoopResult DetectToolCallLoop(List<ChatMessage> history)
         {
             var result = new AntiLoopResult();
+            try
+            {
 
             // Zbierz ostatnie 10 wywolan narzedzi (assistant ToolCalls)
             var recentCalls = new List<(string Name, string Args)>();
@@ -2077,6 +2079,15 @@ namespace Bricscad_AgentAI_V2.Core
             }
 
             return result;
+            }
+            catch (Exception ex)
+            {
+                // Anti-Loop NIE MOZE crashowac sesji. Jesli cos pojdzie nie tak
+                // w analizie historii (np. dziwne dane z LLM), logujemy i zwracamy
+                // pusty AntiLoopResult (IsLooping=false), zeby worker mogl kontynuowac.
+                BielikLogger.LogWarn($"[ANTI-LOOP] Wyjatek w DetectToolCallLoop (zignorowany): {ex.Message}");
+                return new AntiLoopResult();
+            }
         }
 
         private static int CountRepeatsAfter(
