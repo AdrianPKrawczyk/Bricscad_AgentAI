@@ -114,7 +114,7 @@ namespace Bricscad_AgentAI_V2.Core
             "ExportLayoutTemplateTool", "PlotLayoutTool", "PublishToPdfTool", "ManageViewportsTool",
             "ManageSheetSetTool", "SheetSetSheetTool",
             "WriteXData", "BatchWriteXData", "WriteProjectFile",
-            "WriteQAReport", "ImportCsvDataset", "SaveMacro", "SavePermanentFormula",
+            "WriteQAReport", "ImportCsvDataset", "ImportJsonFile", "SaveMacro", "SavePermanentFormula",
             "ManageDataset", "ManageRecipes", "ManageSkills", "manage_lisps",
             "ExecuteMacro", "ExecuteFormula"
         };

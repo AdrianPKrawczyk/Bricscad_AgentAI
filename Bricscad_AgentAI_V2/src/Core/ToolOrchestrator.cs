@@ -177,8 +177,24 @@ namespace Bricscad_AgentAI_V2.Core
 
                 if (scope.Equals("Model", StringComparison.OrdinalIgnoreCase))
                 {
-                    BielikLogger.LogWarn($"[TOOL WARN] Subagent próbuje nadpisać zaznaczenie, gdy SelectionScopeLock = true.");
-                    return "BŁĄD KRYTYCZNY: Modyfikacja zaznaczenia jest zablokowana przez Głównego Supervisora! Nie używaj narzędzia 'SelectEntities' do szukania w całym modelu. Używaj narzędzi operujących bezpośrednio na istniejącym zaznaczeniu (np. EditAttributes z Target='Selection').";
+                    // Fallback (v2.35+): Jesli Worker wywoluje Mode=New + Scope=Model w stanie Locked,
+                    // ale ActiveSelection jest PUSTE (Worker nie ma jeszcze nic do stracenia),
+                    // automatycznie przekierowuj na Mode=Add. Zapobiega to "Dead Lock Loop"
+                    // w ktorym LLM Supervisor blednie ustawia SelectionScopeLock=true dla zadan
+                    // wymagajacych globalnego wyszukiwania (np. "znajdz teksty na warstwie X").
+                    string mode = arguments?["Mode"]?.ToString() ?? "New";
+                    if (mode.Equals("New", StringComparison.OrdinalIgnoreCase) &&
+                        AgentMemoryState.ActiveSelection.Length == 0)
+                    {
+                        BielikLogger.LogWarn(
+                            $"[TOOL WARN] SelectionScopeLock=true + ActiveSelection puste + Mode=New/Scope=Model → automatyczny fallback na Mode=Add.");
+                        arguments["Mode"] = "Add";
+                    }
+                    else
+                    {
+                        BielikLogger.LogWarn($"[TOOL WARN] Subagent próbuje nadpisać zaznaczenie, gdy SelectionScopeLock = true.");
+                        return "BŁĄD KRYTYCZNY: Modyfikacja zaznaczenia jest zablokowana przez Głównego Supervisora! Nie używaj narzędzia 'SelectEntities' do szukania w całym modelu. Używaj narzędzi operujących bezpośrednio na istniejącym zaznaczeniu (np. EditAttributes z Target='Selection').";
+                    }
                 }
             }
             // --------------------------------------

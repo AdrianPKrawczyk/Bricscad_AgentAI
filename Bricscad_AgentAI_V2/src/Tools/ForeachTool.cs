@@ -23,7 +23,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 Function = new FunctionSchema
                 {
                     Name = "Foreach",
-                    Description = "Potężne narzędzie do pętli. Służy do masowego wywoływania INNEGO narzędzia (np. CreateObject, ManageLayers) na podstawie listy, szyku lub prostego licznika. Zastępuje tagi {item} (wartość z listy) i {index} (numer iteracji: 1, 2, 3...) wewnątrz szablonu Action.",
+                    Description = "Potężne narzędzie do pętli. Służy do masowego wywoływania INNEGO narzędzia (np. CreateObject, ManageLayers, TextEditTool) na podstawie listy, szyku lub prostego licznika. Zastępuje tagi {item} (wartość z listy) i {index} (numer iteracji: 1, 2, 3...) wewnątrz szablonu Action.\n\nUWAGA v2.35.3: Jesli masz juz selekcje obiektow w AgentMemoryState.ActiveSelection (np. po SelectEntities) i chcesz wykonac mutujace narzedzie (np. TextEditTool) na KAZDYM z nich - ustaw IterateSelection=true. Nie musisz podawac Items ani TargetVariable.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -34,6 +34,13 @@ namespace Bricscad_AgentAI_V2.Tools
                                 {
                                     Type = "string",
                                     Description = "Nazwa zmiennej w pamięci Agenta (@Variables), z której pobierana jest lista (opcjonalne)."
+                                }
+                            },
+                            {
+                                "IterateSelection", new ToolParameter
+                                {
+                                    Type = "boolean",
+                                    Description = "Jesli true, iteruje po AgentMemoryState.ActiveSelection. Kazda iteracja ustawia {item} na Handle obiektu (hex) i wywoluje Action jako mutujace narzedzie (np. TextEditTool) na tym konkretnym obiekcie. Uzywaj tego do masowej edycji tekstow/warstw bez koniecznosci podawania Items."
                                 }
                             },
                             {
@@ -68,7 +75,7 @@ namespace Bricscad_AgentAI_V2.Tools
                                 "Action", new ToolParameter
                                 {
                                     Type = "string",
-                                    Description = "Szablon JSON wywołania narzędzia. Domyślnie wywołuje CreateObject. Aby wywołać inne narzędzie, dodaj 'ToolName'. Możesz łączyć tagi {index}/{item} z ewaluacją matematyki używając {MATH: wyrażenie}!\nPRZYKŁAD 1 (Teksty i Math): '{\"EntityType\": \"DBText\", \"Position\": \"{item}\", \"Text\": \"Poziom: {MATH: {index} * 50}\"}'\nPRZYKŁAD 2 (Tworzenie wielu warstw): '{\"ToolName\": \"ManageLayers\", \"Action\": \"Create\", \"LayerName\": \"KONDYGNACJA_{index}\", \"ColorIndex\": \"{MATH: {index} * 10}\"}'"
+                                    Description = "Szablon JSON wywołania narzędzia. Domyślnie wywołuje CreateObject. Aby wywołać inne narzędzie, dodaj 'ToolName'. Możesz łączyć tagi {index}/{item} z ewaluacją matematyki używając {MATH: wyrażenie}!\nPRZYKŁAD 1 (Teksty i Math): '{\"EntityType\": \"DBText\", \"Position\": \"{item}\", \"Text\": \"Poziom: {MATH: {index} * 50}\"}'\nPRZYKŁAD 2 (Tworzenie wielu warstw): '{\"ToolName\": \"ManageLayers\", \"Action\": \"Create\", \"LayerName\": \"KONDYGNACJA_{index}\", \"ColorIndex\": \"{MATH: {index} * 10}\"}'\nPRZYKŁAD 3 (Edycja tekstu na kazdym obiekcie z selekcji): '{\"ToolName\": \"TextEditTool\", \"Mode\": \"Replace\", \"FindText\": \"DN15\", \"ReplaceWith\": \"PP-stabi PN20 %%C25\"}' + ustaw IterateSelection=true."
                                 }
                             }
                         }
@@ -81,8 +88,24 @@ namespace Bricscad_AgentAI_V2.Tools
         {
             List<string> finalItems = new List<string>();
 
+            // 0. Iteruj po AgentMemoryState.ActiveSelection (v2.35.3 / BUG #6)
+            // Kazdy element to Handle ObjectId (hex string) - Action moze uzyc {item}.
+            // Specjalny tryb dla masowej edycji tekstu/warstwy bez podawania Items.
+            if (args["IterateSelection"] != null && args["IterateSelection"].Value<bool>())
+            {
+                var selection = AgentMemoryState.ActiveSelection;
+                if (selection == null || selection.Length == 0)
+                {
+                    return "WYNIK: Brak zaznaczonych obiektów w AgentMemoryState.ActiveSelection. Użyj najpierw SelectEntities.";
+                }
+                foreach (var id in selection)
+                {
+                    if (id.IsNull) continue;
+                    finalItems.Add(id.Handle.Value.ToString("X"));
+                }
+            }
             // 1. Sprawdź Generator Sequence
-            if (args["GenerateSequence"] != null && args["GenerateSequence"].HasValues)
+            else if (args["GenerateSequence"] != null && args["GenerateSequence"].HasValues)
             {
                 var seq = args["GenerateSequence"];
                 string startStr = seq["StartVector"]?.ToString() ?? "0,0,0";
@@ -136,6 +159,16 @@ namespace Bricscad_AgentAI_V2.Tools
                 List<string> errors = new List<string>();
                 int loopIndex = 1;
 
+                // Fix v2.35.3 (BUG #6): Cap na liczbe iteracji zeby nie wpadnac w kolejna petle.
+                // 200 wystarczy dla typowych rysunkow. Dla wiekszych - user musi podawac dane porcjami.
+                const int maxIterations = 200;
+                bool truncated = false;
+                if (finalItems.Count > maxIterations)
+                {
+                    truncated = true;
+                    finalItems = finalItems.Take(maxIterations).ToList();
+                }
+
                 foreach (var item in finalItems)
                 {
                     // ZMIANA: Podmieniamy zarówno {item} jak i {index}
@@ -144,7 +177,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     try
                     {
                         JObject toolArgs = JObject.Parse(expandedAction);
-                        
+
                         // [NOWY BLOK] Przechwytywanie i pre-ewaluacja RPN
                         foreach (var property in toolArgs.Properties().ToList())
                         {
@@ -152,7 +185,7 @@ namespace Bricscad_AgentAI_V2.Tools
                             {
                                 string valStr = property.Value.ToString();
                                 string evaluated = RpnCalculator.ProcessMathTemplates(valStr);
-                                
+
                                 if (evaluated != valStr)
                                 {
                                     if (!evaluated.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase))
@@ -180,8 +213,17 @@ namespace Bricscad_AgentAI_V2.Tools
                             toolArgs.Remove("ToolName");
                         }
 
+                        // Fix v2.35.3 (BUG #6): Jesli iterujemy po selekcji, przekaz Handle
+                        // jako TargetHandle, zeby narzedzie mutujace (np. TextEditTool)
+                        // moglo odniesc sie do konkretnego obiektu zamiast do calego ActiveSelection.
+                        if (args["IterateSelection"] != null && args["IterateSelection"].Value<bool>() &&
+                            !toolArgs.ContainsKey("TargetHandle"))
+                        {
+                            toolArgs["TargetHandle"] = item;
+                        }
+
                         string res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, new CadExecutionContext(doc));
-                        
+
                         if (res.StartsWith("SUKCES"))
                         {
                             successCount++;
@@ -216,9 +258,10 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 if (handles.Count > 0) summary.Append($" Uchwyty: {string.Join(", ", handles.Take(10))}{(handles.Count > 10 ? "..." : "")}");
                 if (errors.Count > 0) summary.Append($" Błędy: {errors.Count} (ostatni: {errors.Last()})");
+                if (truncated) summary.Append($" UWAGA: Iteracja zostala ograniczona do {maxIterations} elementow. Uzyj SelectEntities z mniejszym filtrem dla pozostalych.");
                 // [NOWE] Pojedyncze odświeżenie interfejsu po zakończeniu wszystkich iteracji w pętli
                 doc.SendStringToExecute("(princ) \n", true, false, false);
-                
+
                 return summary.ToString();
             }
 

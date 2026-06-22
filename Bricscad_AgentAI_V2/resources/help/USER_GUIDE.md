@@ -14,6 +14,13 @@ W przeciwieństwie do standardowych poleceń CAD, Agent posiada **pamięć selek
 - **Wydajność**: Dzięki temu możesz wydać polecenie "Narysuj okrąg", a w następnym kroku napisać po prostu "Zmień jego kolor na czerwony" – Agent wie dokładnie, o który obiekt chodzi, bez konieczności ponownego wskazywania go na ekranie.
 - **Zarządzanie**: Pamięcią sterują narzędzia `SelectEntities` (dodawanie/odejmowanie) oraz polecenie głosowe/tekstowe "Odznacz wszystko" (czyści stan).
 
+### 1.1.1. Blokada Zakresu Selekcji (`SelectionScopeLock`) — v2.35+
+Supervisor może przekazać do sub-agenta flagę `SelectionScopeLock=true`. Gdy jest aktywna:
+- sub-agent **nie może zastąpić** istniejącej selekcji nowym wyszukiwaniem w Modelu,
+- ma obowiązek operować wyłącznie na `AgentMemoryState.ActiveSelection`,
+- **wyjątek (auto-fallback)**: gdy Locked + `Mode=New` + `Scope=Model` + pusta selekcja, Agent automatycznie przekierowuje wywołanie na `Mode=Add` — dzięki temu zadania typu *"znajdź teksty na warstwie X"* nie wpadają w martwą pętlę, gdy Supervisor przez pomyłkę włączy Lock.
+- **Kiedy Supervisor włącza Lock**: tylko gdy wprost odwołujesz się do aktualnie zaznaczonych obiektów (*"zaznaczone"*, *"wybrane"*, *"to co zaznaczyłem"*). Gdy opisujesz kryteria (warstwa, nazwa, tekst, typ), Lock pozostaje wyłączony.
+
 ### 1.2. Zmienne Sesji (@Variables)
 Agent może wyekstrahować dane z rysunku i zapisać je w nazwanych "szufladkach".
 - **Zapisywanie**: Narzędzia takie jak `ReadProperty` lub `AnalyzeSelection` pozwalają zapisać wynik pod aliasem (np. `@SumaPowierzchni`).

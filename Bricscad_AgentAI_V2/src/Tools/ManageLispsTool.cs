@@ -24,11 +24,16 @@ namespace Bricscad_AgentAI_V2.Tools
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "Action", new ToolParameter { Type = "string", Enum = new List<string> { "save_lisp", "read_lisp", "execute_lisp", "delete_lisp", "list_lisps" }, Description = "Akcja do wykonania." } },
+                            { "Action", new ToolParameter { Type = "string", Enum = new List<string> { "save_lisp", "read_lisp", "execute_lisp", "delete_lisp", "list_lisps", "generate_lisp" }, Description = "Akcja do wykonania. 'generate_lisp' to AWARYJNE narzedzie (v2.35.3 / BUG #7): gdy SelectEntities/Foreach nie wystarczaja (np. setki obiektow), wygeneruj LISP z odpowiednim szablonem i wykonaj go." } },
                             { "LispId", new ToolParameter { Type = "string", Description = "Unikalny identyfikator skryptu (np. 'c:prostokat' lub 'moj_test'). Bez spacji, z użyciem podkreśleń. Opcjonalne tylko dla list_lisps." } },
                             { "Category", new ToolParameter { Type = "string", Description = "Kategoria skryptu LISP. Wymagane przy zapisie. Przykłady: 'Geometria', 'Narzędzia', 'Testy'." } },
                             { "Description", new ToolParameter { Type = "string", Description = "Krótki opis co robi skrypt. Wymagane przy zapisie." } },
-                            { "LispCode", new ToolParameter { Type = "string", Description = "Kod źródłowy LISP. Wymagane przy zapisie." } }
+                            { "LispCode", new ToolParameter { Type = "string", Description = "Kod źródłowy LISP. Wymagane przy zapisie." } },
+                            { "Template", new ToolParameter { Type = "string", Enum = new List<string> { "replace_text_in_layers" }, Description = "Szablon LISP dla generate_lisp. 'replace_text_in_layers' - zamienia tekst w obiektach TEXT/MTEXT na podanych warstwach." } },
+                            { "Layers", new ToolParameter { Type = "string", Description = "Lista warstw oddzielonych przecinkami (wymagane dla Template=replace_text_in_layers)." } },
+                            { "FindText", new ToolParameter { Type = "string", Description = "Tekst do znalezienia (wymagane dla Template=replace_text_in_layers)." } },
+                            { "ReplaceWith", new ToolParameter { Type = "string", Description = "Nowy tekst (wymagane dla Template=replace_text_in_layers)." } },
+                            { "MatchMode", new ToolParameter { Type = "string", Enum = new List<string> { "exact", "contains" }, Description = "Tryb dopasowania: 'exact' = cale wyrazenie, 'contains' = tekst zawiera FindText (v2.35.3)." } }
                         },
                         Required = new List<string> { "Action" }
                     }
@@ -107,6 +112,62 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     return $"[SUKCES] Polecenie uruchomienia skryptu '{lispId}' w BricsCAD zostało przekazane i jest wykonywane.";
                 }
+                else if (action == "generate_lisp")
+                {
+                    // Fix v2.35.3 (BUG #7): AWARYJNY LISP FALLBACK.
+                    // Gdy SelectEntities + ForeachTool nie wystarczaja (np. 1000+ obiektow,
+                    // LLM wpadl w petle wywolan), generujemy LISP-a z odpowiednim szablonem
+                    // i wykonujemy go inline. LISP wykonuje sie JEDNYM wywolaniem - nie ma
+                    // limitu iteracji.
+                    string template = args["Template"]?.ToString();
+                    if (string.IsNullOrEmpty(template))
+                        return "[BŁĄD] Brak parametru Template dla generate_lisp. Dostępne: replace_text_in_layers";
+
+                    if (template == "replace_text_in_layers")
+                    {
+                        string layers = args["Layers"]?.ToString();
+                        string findText = args["FindText"]?.ToString();
+                        string replaceWith = args["ReplaceWith"]?.ToString();
+                        string matchMode = args["MatchMode"]?.ToString() ?? "contains";
+
+                        // Fix v2.35.4: Precyzyjny komunikat brakujacych pol (pomaga LLM
+                        // poprawic wywolanie w nastepnej iteracji zamiast zgadywac).
+                        if (string.IsNullOrEmpty(layers) || string.IsNullOrEmpty(findText) || string.IsNullOrEmpty(replaceWith))
+                        {
+                            var missing = new List<string>();
+                            if (string.IsNullOrEmpty(layers)) missing.Add("Layers");
+                            if (string.IsNullOrEmpty(findText)) missing.Add("FindText");
+                            if (string.IsNullOrEmpty(replaceWith)) missing.Add("ReplaceWith");
+                            return $"[BŁĄD] Brak wymaganych parametrow dla Template=replace_text_in_layers: " +
+                                   $"{string.Join(", ", missing)}. " +
+                                   $"Musisz podac WSZYSTKIE trzy parametry w nastepnej iteracji. " +
+                                   $"PAMIĘTAJ: FindText to tekst DO ZNALEZIENIA w obiektach (np. 'Stal oc. DN15'), " +
+                                   $"ReplaceWith to tekst DOCELOWY (np. 'PP-stabi PN20 %%C25').";
+                        }
+
+                        string lispCode = GenerateReplaceTextInLayersLisp(layers, findText, replaceWith, matchMode);
+                        // Fix v2.35.4 (BUG #8): tmpLispId MUSI miec dwukropek (notacja LISP),
+                        // ale plik na dysku zamieni ':' na '_' (Windows). To dziala poprawnie
+                        // dzieki poprawce w LispManager.SaveLisp.
+                        string tmpLispId = $"c:agent_replace_{DateTime.Now:HHmmssfff}";
+
+                        // Zapisz i wykonaj
+                        LispManager.SaveLisp(
+                            new LispMetadata { LispId = tmpLispId, Category = "AgentGenerated", Description = $"Auto-gen: replace '{findText}' in {layers}", CreatedAt = DateTime.Now },
+                            lispCode);
+                        LispManager.TriggerLispExecution(tmpLispId, lispCode);
+
+                        return $"[SUKCES] Wygenerowano i uruchomiono LISP '{tmpLispId}'.\n" +
+                               $"Szablon: {template}\n" +
+                               $"Warstwy: {layers}\n" +
+                               $"Znajdz: {findText}\n" +
+                               $"Zamien na: {replaceWith}\n" +
+                               $"Tryb dopasowania: {matchMode}\n" +
+                               $"LISP wykonuje sie bezposrednio w BricsCAD (jeden krok, bez limitu iteracji).\n\n" +
+                               $"Kod LISP:\n{lispCode}";
+                    }
+                    return $"[BŁĄD] Nieznany Template '{template}'. Dostępne: replace_text_in_layers";
+                }
                 else if (action == "delete_lisp")
                 {
                     LispManager.DeleteLisp(lispId);
@@ -121,6 +182,84 @@ namespace Bricscad_AgentAI_V2.Tools
             {
                 return $"[BŁĄD] Podczas obsługi skryptu LISP wystąpił wyjątek: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// Fix v2.35.3 (BUG #7): Generuje LISP, ktory zamienia tekst w obiektach TEXT/MTEXT
+        /// na podanych warstwach. Dziala w jednym wywolaniu SendCommand - bez limitu iteracji.
+        /// Uzywany jako AWARYJNY FALLBACK gdy SelectEntities/ForeachTool nie wystarczaja.
+        ///
+        /// Wymagania:
+        /// - findText/replaceWith: zamieniane 1:1 (bez regex). Znaki specjalne LISP
+        ///   (backslash, cudzyslow) sa automatycznie escapowane.
+        /// - matchMode=exact: cale wyrazenie musi sie zgadzac (vl-string-mismatch = 0).
+        /// - matchMode=contains: wyrazenie musi zawierac FindText (vl-string-search).
+        ///
+        /// Warstwy sa przekazywane jako lista rozdzielana przecinkami. LISP iteruje po
+        /// wszystkich obiektach w Model Space i przetwarza tylko te, ktore:
+        /// 1) naleza do jednej z podanych warstw,
+        /// 2) sa typu TEXT lub MTEXT,
+        /// 3) spelniaja kryterium matchMode.
+        /// </summary>
+        private static string GenerateReplaceTextInLayersLisp(
+            string layers, string findText, string replaceWith, string matchMode)
+        {
+            // Escapowanie znakow specjalnych LISP
+            string escFind = findText.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            string escReplace = replaceWith.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+            // Lista warstw jako warunek LISP (porownanie z (assoc 8 ...))
+            string[] layerArr = layers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var layerConds = new List<string>();
+            foreach (var l in layerArr)
+            {
+                string el = l.Trim();
+                if (string.IsNullOrEmpty(el)) continue;
+                // BricsCAD LISP: porownanie nazwy warstwy
+                layerConds.Add($"(= (cdr (assoc 8 entdata)) \"{EscapeLisp(el)}\")");
+            }
+            string layerOr = string.Join(" ", layerConds);
+
+            // Tryb dopasowania
+            string matchCond;
+            if (matchMode.Equals("exact", StringComparison.OrdinalIgnoreCase))
+            {
+                // Exact match: (vl-string-mismatch "find" text) = 0 oznacza identycznosc
+                matchCond = $"(zerop (vl-string-mismatch \"{escFind}\" textstr))";
+            }
+            else
+            {
+                // Contains: (vl-string-search "find" text) != nil
+                matchCond = $"(vl-string-search \"{escFind}\" textstr)";
+            }
+
+            return $@"(defun c:agent_replace_{DateTime.Now:HHmmssfff} (/ ss i ent entdata obj textstr layercond result)
+  (setq ss (ssget ""X"" '((0 . ""TEXT,MTEXT""))))
+  (if ss
+    (progn
+      (setq i 0 result 0)
+      (repeat (sslength ss)
+        (setq ent (ssname ss i))
+        (setq entdata (entget ent))
+        (setq obj (vlax-ename->vla-object ent))
+        (if (and (or {layerOr})
+                 (vlax-property-available-p obj 'TextString))
+          (progn
+            (setq textstr (vlax-get-property obj 'TextString))
+            (if {matchCond}
+              (progn
+                (vlax-put-property obj 'TextString ""{escReplace}"")
+                (setq result (1+ result)))))))
+        (setq i (1+ i)))
+      (princ (strcat ""\nZamieniono tekst w "" (itoa result) "" obiektach na warstwach: "" ""{EscapeLisp(layers)}""))
+      result)
+    (princ ""\nNie znaleziono obiektow TEXT/MTEXT.""))
+  (princ))";
+        }
+
+        private static string EscapeLisp(string s)
+        {
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
     }
 }

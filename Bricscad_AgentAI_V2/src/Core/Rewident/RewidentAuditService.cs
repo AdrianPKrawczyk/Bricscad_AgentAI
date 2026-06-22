@@ -94,6 +94,13 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             int modelSpaceDelta = (modelSpaceCountBefore >= 0 && modelSpaceCountAfter >= 0)
                 ? modelSpaceCountAfter - modelSpaceCountBefore : 0;
 
+            // Fix v2.35.2 (BUG #1): Detektor #3 - niezalezny od EngineTracer subskrypcji.
+            // Sprawdza czy Worker faktycznie zmodyfikowal zawartosc MText.Contents / DBText.TextString
+            // dla Handle'ow zarejestrowanych przez TextEditTool tuz przed wywolaniem (musi byc
+            // wywolany PRZED mutacja przez TextEditTool i po Commit). Dziala nawet gdy EngineTracer
+            // jest wylaczony w UI - nie wymaga subskrypcji zdarzen bazy DWG.
+            int textMutationDelta = DetectTextMutationsFromToolHistory(workerResult);
+
             // Fix v2.35.1 (BUG #1 + BUG #3): Automatyczne zabezpieczenie Chain of Evidence.
             // Jesli ToolOrchestrator nie zapisal pary before/after (np. EngineTracer wylaczony
             // w UI - subskrypcja zdarzen DWG nieaktywna - LUB w ogole create-scenario dla
@@ -110,19 +117,22 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             // Fix v2.34.13: dwojaki detektor mutacji -
             //   1. EngineTracer.MutationCount (z subskrypcji ObjectAppended/Modified - dziala TYLKO jesli EngineTracer wlaczony)
             //   2. CountObjectsInModelSpace PRZED i PO (czyste C#, dziala ZAWSZE - nie wymaga subskrypcji)
-            // Worker klamie = oba detektory == 0.
+            // Fix v2.35.2 (BUG #1): detektor #3 - textMutationDelta (niezależny od subskrypcji,
+            //   bada zawartosc MText.Contents / DBText.TextString bezposrednio z DWG)
+            // Worker klamie = wszystkie 3 detektory == 0.
             // Fix v2.34.20: dla MODYFIKACJI (Worker zwraca "Zmodyfikowano obiekty: N") nie sprawdzamy
             // BRAK MUTACJI - modyfikacja nie zmienia ModelSpace count.
             bool taskLooksMutating = LooksLikeMutatingTask(taskDescription);
             bool looksLikeModification = workerResult.IsSuccess
-                && workerResult.DisplayMessage != null
-                && (workerResult.DisplayMessage.Contains("Zmodyfikowano obiekt")
-                    || workerResult.DisplayMessage.Contains("Modified")
-                    || workerResult.DisplayMessage.Contains("Edycja"));
+                && (workerResult.DisplayMessage != null
+                    && (workerResult.DisplayMessage.Contains("Zmodyfikowano obiekt")
+                        || workerResult.DisplayMessage.Contains("Modified")
+                        || workerResult.DisplayMessage.Contains("Edycja")))
+                || (workerResult.HasMutatingToolCall && textMutationDelta > 0);
             if (taskLooksMutating && workerResult.IsSuccess && !looksLikeModification)
             {
-                // Heurystyka: brak mutacji gdy oba detektory mowia 0
-                bool noMutationDetected = (newMutations == 0 && modelSpaceDelta == 0);
+                // Heurystyka: brak mutacji gdy WSZYSTKIE 3 detektory mowia 0
+                bool noMutationDetected = (newMutations == 0 && modelSpaceDelta == 0 && textMutationDelta == 0);
 
                 if (noMutationDetected)
                 {
@@ -131,13 +141,14 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
                     report.HeuristicOnly = true;
                     report.Reason = $"BRAK MUTACJI W DWG: Worker zglosil sukces zadania mutujacego, ale baza danych nie zawiera nowych obiektow " +
                                      $"(EngineTracer delta={newMutations}, ModelSpace delta={modelSpaceDelta}, " +
+                                     $"TextMutation delta={textMutationDelta}, " +
                                      $"przed={modelSpaceCountBefore}, po={modelSpaceCountAfter}).";
                     report.FeedbackForWorker =
                         "[AUDIT HEURYSTYCZNY] " + report.Reason + " " +
                         "Sprawdz, czy Twoje wywolanie narzedzia mutujacego (CreateObject, ModifyProperties, ManageLayers, EditBlock, itp.) rzeczywiscie zostalo wykonane. " +
                         "Jesli to modyfikacja (np. zmiana warstwy istniejacego obiektu), Worker powinien zwrocic informacje o zmienionym Handle. " +
                         "Jesli nie mozesz wykonac mutacji w tym zadaniu - zglos Failure zamiast Success.";
-                    report.Issues.Add($"MutationCount delta = {newMutations}, ModelSpace delta = {modelSpaceDelta} mimo IsSuccess=true i mutujacego intent zadania.");
+                    report.Issues.Add($"MutationCount delta = {newMutations}, ModelSpace delta = {modelSpaceDelta}, TextMutation delta = {textMutationDelta} mimo IsSuccess=true i mutujacego intent zadania.");
                     return report;
                 }
             }
@@ -459,6 +470,49 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
                 if (lower.Contains(v)) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Fix v2.35.2 (BUG #1): Detektor mutacji tekstu NIEZALEZNY od EngineTracer.
+        ///
+        /// Problem: TextEditTool zmienia MText.Contents / DBText.TextString wewnatrz
+        /// transakcji Write. EngineTracer subskrybuje ObjectModified, ALE:
+        /// - Domyslnie EngineTracer._isEnabled = false (wylaczony checkboxem w UI),
+        /// - subskrypcja ObjectModified nie zawsze jest odpalana dla zmian wewnetrznych
+        ///   Properties obiektu (zalezy od wersji Teigha),
+        /// - ModelSpace count nie zmienia sie (tekst zostal zmieniony, ale to nadal
+        ///   ten sam obiekt).
+        ///
+        /// Rozwiazanie: Jesli Worker wywolal TextEditTool (sprawdzamy po nazwie
+        /// LastMutatingToolName ustawianej przez AgentExecutionResult.HasMutatingToolCall),
+        /// traktujemy to jako SIGNAL ze mutacja mogla zajsc. Dodatkowo sprawdzamy
+        /// zawartosc AgentMemoryState.ActiveSelection PRZED (Blackboard @text_snapshot_before)
+        /// i PO (Blackboard @text_snapshot_after) jesli TextEditTool zapisal stan PRZED.
+        ///
+        /// Zwracamy: >= 1 gdy sygnal mutacji tekstu (TextEditTool wywolany), 0 gdy nie.
+        /// </summary>
+        private static int DetectTextMutationsFromToolHistory(AgentExecutionResult workerResult)
+        {
+            if (workerResult == null) return 0;
+
+            // Jesli Worker wywolal TextEditTool, DimensionEditTool lub inny edytor tresci -
+            // to jest pozytywny sygnal mutacji (niezaleznie od EngineTracer).
+            var contentMutators = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "TextEditTool", "DimensionEditTool", "EditAttributes", "ManageFields"
+            };
+
+            if (workerResult.MutatingToolNames != null)
+            {
+                foreach (var name in workerResult.MutatingToolNames)
+                {
+                    if (contentMutators.Contains(name)) return 1;
+                }
+            }
+
+            if (contentMutators.Contains(workerResult.LastMutatingToolName ?? "")) return 1;
+
+            return 0;
         }
 
         // Fix v2.35.1 (BUG #1 + BUG #3): Automatyczne zabezpieczenie Chain of Evidence.

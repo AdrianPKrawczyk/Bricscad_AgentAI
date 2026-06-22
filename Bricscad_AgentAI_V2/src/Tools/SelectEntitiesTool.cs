@@ -93,7 +93,20 @@ namespace Bricscad_AgentAI_V2.Tools
                 trybStr.Equals("New", StringComparison.OrdinalIgnoreCase) &&
                 scopeStr.Equals("Model", StringComparison.OrdinalIgnoreCase))
             {
-                return "BŁĄD: To zadanie jest ograniczone do aktualnego zaznaczenia użytkownika. Nie wolno zastępować go nowym wyszukiwaniem w całym modelu.";
+                if (AgentMemoryState.ActiveSelection.Length == 0)
+                {
+                    trybStr = "Add";
+                    BielikLogger.LogInfo(
+                        "[SelectEntities] SelectionScopeLock=true + ActiveSelection puste + Mode=New/Scope=Model " +
+                        "→ automatyczny fallback na Mode=Add (Worker szuka obiektow w Modelu, gdy nie ma jeszcze selekcji).");
+                }
+                else
+                {
+                    return "BŁĄD: To zadanie jest ograniczone do aktualnego zaznaczenia użytkownika. " +
+                           "Nie wolno zastępować go nowym wyszukiwaniem w całym modelu. " +
+                           "Użyj Mode='Add' aby rozszerzyć istniejącą selekcję, " +
+                           "lub jawnie operuj na AgentMemoryState.ActiveSelection.";
+                }
             }
             
             var warunki = new List<(string Prop, string Op, string Val)>();

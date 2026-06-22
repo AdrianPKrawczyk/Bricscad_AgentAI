@@ -182,6 +182,34 @@ namespace Bricscad_AgentAI_V2.Core
                 var assistantMessage = messageNode.ToObject<ChatMessage>();
                 conversationHistory.Add(assistantMessage);
 
+                // Fix v2.35.3 (BUG #5): ANTI-LOOP DETEKTOR.
+                // Wykrywa powtarzajace sie wywolania tych samych narzedzi z identycznymi
+                // argumentami (klasyczna LLM-halucynacja: model "zapomina" co juz zrobil
+                // i generuje identyczne tool_call w kolko). Zamiast czekac na przekroczenie
+                // max_iterations (co generuje "Failure" i psuje doswiadczenie), przerywamy
+                // petle wczesniej z czytelnym komunikatem i podpowiedzia co zrobic.
+                // Szczegolny przypadek: ten sam SelectEntities z Mode=New (Layer in [...])
+                // powtarzany > 3x bez zadnego tekst_edit miedzy wywolaniami = wykryj.
+                if (assistantMessage.ToolCalls != null && assistantMessage.ToolCalls.Any())
+                {
+                    var loopResult = DetectToolCallLoop(conversationHistory);
+                    if (loopResult.IsLooping)
+                    {
+                        BielikLogger.LogWarn(
+                            $"[ANTI-LOOP] Wykryto petle wywolan narzedzi w profilu '{profileName}'. " +
+                            $"Wzor: {loopResult.Pattern}. Iteracji: {loopResult.RepeatCount}. " +
+                            $"Przerywam z informacja zwrotna.");
+                        AgentTelemetry.ReportLoopLog(
+                            $"[ANTI-LOOP] Petla wykryta w {profileName}: {loopResult.Pattern} " +
+                            $"powtorzone {loopResult.RepeatCount}x. Przerywam.");
+
+                        string hint = BuildAntiLoopHint(loopResult);
+                        return AgentExecutionResult.FailureWithHint(
+                            $"[ANTI-LOOP] Wykryto petle wywolan ({loopResult.Pattern} x{loopResult.RepeatCount}). " +
+                            hint);
+                    }
+                }
+
                 if (assistantMessage.ToolCalls != null && assistantMessage.ToolCalls.Any())
                 {
                     var loopTools = new List<string>();
@@ -233,7 +261,7 @@ namespace Bricscad_AgentAI_V2.Core
                         CompletionTokens = currentCompletionTokens
                     });
 
-                    return AgentExecutionResult.Success(assistantMessage.Content?.ToString() ?? "(Model nie zwrócił tekstu)");
+                    return AgentExecutionResult.SuccessWithHistory(assistantMessage.Content?.ToString() ?? "(Model nie zwrócił tekstu)", conversationHistory);
                 }
 
                 // 4. Mamy tool_calls! Realizujemy ich logikę na lokalnej maszynie C#
@@ -506,7 +534,7 @@ namespace Bricscad_AgentAI_V2.Core
                         }, Newtonsoft.Json.Formatting.Indented));
                     LogLoop(profileName, "[EARLY EXIT] Zakonczono petle bez kolejnego kroku modelu.\n" + TruncateForLoopLog(earlyExitMessage, 1200));
 
-                    return AgentExecutionResult.Success(earlyExitMessage);
+                    return AgentExecutionResult.SuccessWithHistory(earlyExitMessage, conversationHistory);
                 }
 
                 // Po obsłużeniu WSZYSTKICH narzedzi w tej paczce, pętla 'while' wróci na samą górę 
@@ -1944,6 +1972,175 @@ namespace Bricscad_AgentAI_V2.Core
                           "ActionTemplate='PageSetupTool LayoutName=\"{item}\" ...'). " +
                           "PO wykonaniu akcji na wszystkich layoutach (lub gdy już nie ma nic do zrobienia) - wtedy możesz zakończyć odpowiedź.";
             return hint;
+        }
+
+        // ===== ANTI-LOOP DETEKTOR (v2.35.3 / BUG #5) =====
+
+        /// <summary>
+        /// Wynik analizy anty-petlowej. Gdy IsLooping=true, system przerywa sesje.
+        /// </summary>
+        private class AntiLoopResult
+        {
+            public bool IsLooping { get; set; }
+            public string Pattern { get; set; } = "";
+            public int RepeatCount { get; set; }
+            public List<string> RecentTools { get; set; } = new List<string>();
+        }
+
+        /// <summary>
+        /// Wykrywa powtarzajace sie wywolania tych samych narzedzi z identycznymi argumentami.
+        /// Wzor 1: ten sam tool z identycznym args powtorzony 3x pod rzad.
+        /// Wzor 2: cykl 2-3 narzedzi powtarzany 3x (np. Select + Read + Select + Read...).
+        /// Wzor 3: SelectEntities(Layer in [...]) powtarzany > 3x bez zadnego mutujacego toola.
+        /// </summary>
+        private static AntiLoopResult DetectToolCallLoop(List<ChatMessage> history)
+        {
+            var result = new AntiLoopResult();
+
+            // Zbierz ostatnie 10 wywolan narzedzi (assistant ToolCalls)
+            var recentCalls = new List<(string Name, string Args)>();
+            for (int i = history.Count - 1; i >= 0 && recentCalls.Count < 10; i--)
+            {
+                var msg = history[i];
+                if (msg?.ToolCalls == null) continue;
+                foreach (var tc in msg.ToolCalls)
+                {
+                    string name = tc.Function?.Name;
+                    string args = tc.Function?.Arguments ?? "";
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        recentCalls.Insert(0, (name, args));
+                    }
+                }
+            }
+
+            if (recentCalls.Count < 3) return result;
+
+            result.RecentTools = recentCalls.Select(c => c.Name).ToList();
+
+            // Wzor 1: ten sam tool+args powtorzony 3x
+            for (int i = 0; i <= recentCalls.Count - 3; i++)
+            {
+                var c0 = recentCalls[i];
+                var c1 = recentCalls[i + 1];
+                var c2 = recentCalls[i + 2];
+                if (c0.Name == c1.Name && c1.Name == c2.Name &&
+                    string.Equals(c0.Args, c1.Args, StringComparison.Ordinal) &&
+                    string.Equals(c1.Args, c2.Args, StringComparison.Ordinal))
+                {
+                    result.IsLooping = true;
+                    result.Pattern = $"{c0.Name}(identyczne args)";
+                    result.RepeatCount = CountRepeatsAfter(recentCalls, i, c0.Name, c0.Args);
+                    return result;
+                }
+            }
+
+            // Wzor 2: cykl 2-3 narzedzi powtarzany 2x (4 wywolania minimum)
+            if (recentCalls.Count >= 4)
+            {
+                for (int cycleLen = 2; cycleLen <= 3; cycleLen++)
+                {
+                    bool isCycle = true;
+                    for (int offset = 0; offset < cycleLen; offset++)
+                    {
+                        var c0 = recentCalls[recentCalls.Count - cycleLen * 2 + offset];
+                        var c1 = recentCalls[recentCalls.Count - cycleLen + offset];
+                        if (c0.Name != c1.Name ||
+                            !string.Equals(c0.Args, c1.Args, StringComparison.Ordinal))
+                        {
+                            isCycle = false;
+                            break;
+                        }
+                    }
+                    if (isCycle)
+                    {
+                        result.IsLooping = true;
+                        result.Pattern = $"cykl {cycleLen}-elementowy: {string.Join(", ", recentCalls.Skip(recentCalls.Count - cycleLen * 2).Take(cycleLen).Select(c => c.Name))}";
+                        result.RepeatCount = 2;
+                        return result;
+                    }
+                }
+            }
+
+            // Wzor 3: SelectEntities powtarzany > 3x bez mutujacego narzedzia
+            int selectCount = recentCalls.Count(c =>
+                c.Name.Equals("SelectEntities", StringComparison.OrdinalIgnoreCase));
+            int mutatingAfterSelect = recentCalls
+                .SkipWhile(c => !c.Name.Equals("SelectEntities", StringComparison.OrdinalIgnoreCase))
+                .Count(c => IsMutatingTool(c.Name));
+            if (selectCount >= 4 && mutatingAfterSelect == 0)
+            {
+                result.IsLooping = true;
+                result.Pattern = $"{selectCount}x SelectEntities bez zadnego narzedzia mutujacego";
+                result.RepeatCount = selectCount;
+                return result;
+            }
+
+            return result;
+        }
+
+        private static int CountRepeatsAfter(
+            List<(string Name, string Args)> calls, int startIdx, string name, string args)
+        {
+            int count = 0;
+            for (int i = startIdx; i < calls.Count; i++)
+            {
+                if (calls[i].Name == name && string.Equals(calls[i].Args, args, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static bool IsMutatingTool(string toolName)
+        {
+            var mutating = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "CreateObject", "ModifyProperties", "ManageLayers", "TextEditTool",
+                "DimensionEditTool", "EditBlock", "EditAttributes", "InsertBlock",
+                "CreateBlock", "ManageFields", "WriteXData", "BatchWriteXData",
+                "ManageAnnoScales"
+            };
+            return mutating.Contains(toolName);
+        }
+
+        /// <summary>
+        /// Generuje czytelna podpowiedz dla Workera/Supervisora gdy anty-petla przerwie sesje.
+        /// Kazdy wzor ma swoja strategie wyjscia.
+        /// </summary>
+        private static string BuildAntiLoopHint(AntiLoopResult result)
+        {
+            string baseHint = "Aby wyjsc z tej sytuacji: ";
+
+            if (result.Pattern.Contains("cykl"))
+            {
+                return baseHint +
+                       "wykryto cykliczne powtarzanie sekwencji narzedzi. " +
+                       "ZBADAJ wyniki poprzednich wywolan (ReadFromBlackboard lub InspectEntity) " +
+                       "i uzyj INNEGO narzedzia (np. ForeachTool, LISP) niz te, ktore juz probowales. " +
+                       "Jesli dane sa juz na Blackboard - uzyj ich bezposrednio.";
+            }
+            if (result.Pattern.EndsWith("(identyczne args)"))
+            {
+                return baseHint +
+                       "wykryto powtarzanie TEGO SAMEGO wywolania. " +
+                       "NIE WOLNO powtarzac identycznego wywolania - to nie przyniesie innego wyniku. " +
+                       "Uzyj ForeachTool do iteracji lub LISP/manage_lisps dla operacji masowych, " +
+                       "albo ReadTextSampleTool zeby ZOBACZYC rzeczywista tresc tekstu przed edycja.";
+            }
+            if (result.Pattern.Contains("SelectEntities"))
+            {
+                return baseHint +
+                       "wykryto powtarzanie SelectEntities bez wywolania zadnego narzedzia mutujacego. " +
+                       "SelectEntities nie zmienia danych - po wybraniu obiektow MUSISZ wywolac " +
+                       "TextEditTool/ModifyProperties (lub ForeachTool + mutujace narzedzie). " +
+                       "Jesli selekcja jest pusta, OBIEKTY NIE SPELNIAJA KRYTERIOW - po prostu odpowiedz " +
+                       "Failure z informacja 'nie znaleziono obiektow spelniajacych kryteria'.";
+            }
+            return baseHint +
+                   "wykryto powtarzajace sie wywolania narzedzi. " +
+                   "Uzyj ForeachTool do masowych operacji, albo zglos Failure z konkretnym powodem.";
         }
     }
 }

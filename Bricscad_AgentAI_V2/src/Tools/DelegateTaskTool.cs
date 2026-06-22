@@ -214,10 +214,28 @@ namespace Bricscad_AgentAI_V2.Tools
                         // Filar 4: Worker zglosil awarie (np. wyjatek, max iteracji)
                         // Filar 6: pomin CB gdy auditor wylaczony.
                         // v2.35.0: migracja CircuitBreakerState.RecordFailure -> RewidentCircuitBreaker.RecordFailure
+                        // Fix v2.35.2 (BUG #4): Worker zglosil failure ALE mogl wykonac mutujace
+                        // narzedzie (np. TextEditTool zwrocil "Zmodyfikowano 3" ale Worker z jakiegos
+                        // powodu zglosil Failure - timeout, halucynacja, blad parsowania).
+                        // Nie blokuj profilu - mutacja mogla zajsc.
                         if (auditorActive)
                         {
-                            RewidentCircuitBreaker.RecordFailure(targetProfile,
-                                $"Worker nie zwrocil sukcesu: {result.DisplayMessage?.Substring(0, System.Math.Min(120, result.DisplayMessage?.Length ?? 0))}");
+                            if (result.HasMutatingToolCall)
+                            {
+                                BielikLogger.LogWarn(
+                                    $"[DELEGATE TASK] v2.35.2: Worker zglosil Failure ALE wykonal mutujace " +
+                                    $"narzedzie ({result.LastMutatingToolName ?? "?"}). " +
+                                    $"Resetuje CB zamiast blokowac profil.");
+                                RewidentCircuitBreaker.Reset(targetProfile);
+                                AgentTelemetry.ReportLoopLog(
+                                    $"[CB OVERRIDE] Profil '{targetProfile}' nie zostal zablokowany - " +
+                                    $"Worker wykonal mutujace narzedzie.");
+                            }
+                            else
+                            {
+                                RewidentCircuitBreaker.RecordFailure(targetProfile,
+                                    $"Worker nie zwrocil sukcesu: {result.DisplayMessage?.Substring(0, System.Math.Min(120, result.DisplayMessage?.Length ?? 0))}");
+                            }
                         }
                         break;
                     }
@@ -259,8 +277,25 @@ namespace Bricscad_AgentAI_V2.Tools
                                 continue;
                             }
                             // Filar 4: Ostatnia proba - Rewident odrzucil, nie ma wiecej szans
-                            RewidentCircuitBreaker.RecordFailure(targetProfile,
-                                $"Rewident odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
+                            // Fix v2.35.2 (BUG #4): Jesli Worker faktycznie wykonal mutujace
+                            // narzedzie (HasMutatingToolCall=true) - mutacja mogla zajsc nawet
+                            // jesli Rewident ja odrzucil. NIE blokuj profilu.
+                            if (result.HasMutatingToolCall)
+                            {
+                                BielikLogger.LogWarn(
+                                    $"[DELEGATE TASK] v2.35.2: Rewident Retry na ostatniej probie ale Worker " +
+                                    $"wykonal mutujace narzedzie ({result.LastMutatingToolName ?? "?"}). " +
+                                    $"Resetuje CB zamiast blokowac profil.");
+                                RewidentCircuitBreaker.Reset(targetProfile);
+                                AgentTelemetry.ReportLoopLog(
+                                    $"[CB OVERRIDE] Profil '{targetProfile}' nie zostal zablokowany - " +
+                                    $"Worker wykonal mutujace narzedzie, mutacja mogla zajsc.");
+                            }
+                            else
+                            {
+                                RewidentCircuitBreaker.RecordFailure(targetProfile,
+                                    $"Rewident odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
+                            }
                             break;
                         }
                     }
@@ -292,10 +327,28 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     // Filar 4: Validator Retry na ostatniej probie = awaria
                     // v2.35.0: migracja CircuitBreakerState.RecordFailure -> RewidentCircuitBreaker.RecordFailure
+                    // Fix v2.35.2 (BUG #4): NIE blokuj profilu jesli Worker faktycznie wykonal
+                    // narzedzie mutujace (HasMutatingToolCall=true). To oznacza ze mutacja mogla
+                    // zajsc, nawet jesli Rewident nie byl w stanie tego zwalidowac (np. EngineTracer
+                    // wylaczony w UI). Traktujemy to jako "sukces z warn" zamiast blokady profilu.
                     if (auditorActive && validation.Decision == WorkValidationDecision.Retry)
                     {
-                        RewidentCircuitBreaker.RecordFailure(targetProfile,
-                            $"WorkValidator RETRY po {attempt}/{maxValidationAttempts} probach: {validation.Reason}");
+                        if (result.HasMutatingToolCall)
+                        {
+                            BielikLogger.LogWarn(
+                                $"[DELEGATE TASK] v2.35.2: Walidator odrzucil ale Worker wykonal mutujace narzedzie " +
+                                $"({result.LastMutatingToolName ?? "?"}). Mutacja mogla zajsc - " +
+                                $"resetuje CB zamiast blokowac profil. Reason: {validation.Reason}");
+                            RewidentCircuitBreaker.Reset(targetProfile);
+                            AgentTelemetry.ReportLoopLog(
+                                $"[CB OVERRIDE] Profil '{targetProfile}' nie zostal zablokowany - " +
+                                $"Worker wykonal mutujace narzedzie, mutacja mogla zajsc.");
+                        }
+                        else
+                        {
+                            RewidentCircuitBreaker.RecordFailure(targetProfile,
+                                $"WorkValidator RETRY po {attempt}/{maxValidationAttempts} probach: {validation.Reason}");
+                        }
                     }
 
                     break;
