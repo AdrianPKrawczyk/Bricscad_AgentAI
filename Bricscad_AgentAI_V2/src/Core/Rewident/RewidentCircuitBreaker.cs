@@ -39,10 +39,10 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
         public static bool IsTripped(string profileName)
         {
             if (string.IsNullOrEmpty(profileName)) return false;
-            if (!AgentMemoryState.CircuitBreakerEnabled) return false;
+            if (!RewidentState.CircuitBreakerEnabled) return false;
 
-            int threshold = AgentMemoryState.CircuitBreakerThreshold > 0
-                ? AgentMemoryState.CircuitBreakerThreshold
+            int threshold = RewidentState.CircuitBreakerThreshold > 0
+                ? RewidentState.CircuitBreakerThreshold
                 : DefaultThreshold;
 
             int failures = _failuresPerProfile.TryGetValue(profileName, out var f) ? f : 0;
@@ -56,8 +56,8 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
         {
             int failures = _failuresPerProfile.TryGetValue(profileName, out var f) ? f : 0;
             long lastTicks = _lastFailureTicks.TryGetValue(profileName, out var t) ? t : 0;
-            int threshold = AgentMemoryState.CircuitBreakerThreshold > 0
-                ? AgentMemoryState.CircuitBreakerThreshold
+            int threshold = RewidentState.CircuitBreakerThreshold > 0
+                ? RewidentState.CircuitBreakerThreshold
                 : DefaultThreshold;
             return new RewidentCircuitBreakerSnapshot
             {
@@ -79,8 +79,8 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             int newCount = _failuresPerProfile.AddOrUpdate(profileName, 1, (k, old) => old + 1);
             _lastFailureTicks[profileName] = DateTime.UtcNow.Ticks;
 
-            if (newCount >= (AgentMemoryState.CircuitBreakerThreshold > 0
-                ? AgentMemoryState.CircuitBreakerThreshold
+            if (newCount >= (RewidentState.CircuitBreakerThreshold > 0
+                ? RewidentState.CircuitBreakerThreshold
                 : DefaultThreshold))
             {
                 BielikLogger.LogWarn(

@@ -36,7 +36,7 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
         /// <param name="modelSpaceCountAfter">Liczba obiektow PO mutacji</param>
         public static string BuildInjection(int modelSpaceCountBefore, int modelSpaceCountAfter)
         {
-            if (!AgentMemoryState.AutoInjectPropertiesEnabled) return null;
+            if (!RewidentState.AutoInjectPropertiesEnabled) return null;
             if (!EngineTracer.HasActiveDocument()) return null;
             if (modelSpaceCountBefore < 0 || modelSpaceCountAfter < 0) return null;
             int newCount = modelSpaceCountAfter - modelSpaceCountBefore;
@@ -98,7 +98,7 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
         /// </summary>
         private static List<ObjectId> SampleTail(List<ObjectId> allIds, int newCount)
         {
-            int cap = AgentMemoryState.AutoInjectMaxSamples;
+            int cap = RewidentState.AutoInjectMaxSamples;
 
             if (newCount <= 50)
             {
@@ -107,8 +107,8 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             }
 
             // 50+ - probkuj 2% z cap=20 (deterministyczne, co N-tego)
-            int percent = AgentMemoryState.AutoInjectSamplePercent > 0
-                ? AgentMemoryState.AutoInjectSamplePercent : 2;
+            int percent = RewidentState.AutoInjectSamplePercent > 0
+                ? RewidentState.AutoInjectSamplePercent : 2;
             int sampleCount = Math.Min(cap, Math.Max(1, (newCount * percent) / 100));
             int step = Math.Max(1, newCount / sampleCount);
 

@@ -222,11 +222,11 @@ namespace Bricscad_AgentAI_V2.Core
                 // (np. ManageLayers modyfikujacy 500 obiektow - Twoja notatka techniczna).
                 bool isMutating = WorkValidator.MutatingTools.Contains(toolName);
                 var beforeTargets = new List<string>();
-                int mutationsBefore = AgentMemoryState.MutationCount;
+                int mutationsBefore = RewidentState.MutationCount;
                 // Snapshot ModelSpace count dla Auto-Inject (Filar 5). Dziala nawet gdy
                 // EngineTracer nie jest wlaczony (czyste C# bez subskrypcji).
                 int modelSpaceCountBefore = EngineTracer.CountObjectsInModelSpace();
-                if (isMutating && AgentMemoryState.EvidenceEnabled && !AgentMemoryState.AuditorGloballyDisabled)
+                if (isMutating && RewidentState.EvidenceEnabled && !RewidentState.GloballyDisabled)
                 {
                     var currentSel = AgentMemoryState.ActiveSelection;
                     int cap = Math.Min(currentSel.Length, AgentMemoryState.MaxEvidenceHandles);
@@ -263,9 +263,9 @@ namespace Bricscad_AgentAI_V2.Core
                 }
 
                 // ============== CHAIN OF EVIDENCE - AFTER ==============
-                if (isMutating && AgentMemoryState.EvidenceEnabled && !AgentMemoryState.AuditorGloballyDisabled)
+                if (isMutating && RewidentState.EvidenceEnabled && !RewidentState.GloballyDisabled)
                 {
-                    int mutationsAfter = AgentMemoryState.MutationCount;
+                    int mutationsAfter = RewidentState.MutationCount;
                     if (mutationsAfter > mutationsBefore)
                     {
                         // Fix v2.34.23: bez EngineTracer subskrypcji (EngineTracer wylaczony
@@ -297,7 +297,7 @@ namespace Bricscad_AgentAI_V2.Core
                 // zwraca blad ALBO wynik zawiera "Abort" / "przerwan", raportujemy
                 // rollback do AgentMemoryState. Auditor w Wariancie A to wykryje.
                 // Filar 6: pomin gdy AuditorGloballyDisabled.
-                if (isMutating && !string.IsNullOrEmpty(result) && !AgentMemoryState.AuditorGloballyDisabled)
+                if (isMutating && !string.IsNullOrEmpty(result) && !RewidentState.GloballyDisabled)
                 {
                     bool looksLikeRollback = result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
                         || result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase)
@@ -323,11 +323,11 @@ namespace Bricscad_AgentAI_V2.Core
                 // Strategia z Q4: 1 obj=1, 2-50=all(cap20), 50+=2% z cap=20.
                 // Fix v2.34.16: nie polega na ModifiedEntities (wymaga subskrypcji EngineTracer).
                 // Zamiast tego - diff ModelSpace count (czyste C#).
-                if (isMutating && AgentMemoryState.AutoInjectPropertiesEnabled
+                if (isMutating && RewidentState.AutoInjectPropertiesEnabled
                     && !string.IsNullOrEmpty(result)
                     && !result.StartsWith("BŁĄD", StringComparison.OrdinalIgnoreCase)
                     && !result.StartsWith("BLAD", StringComparison.OrdinalIgnoreCase)
-                    && !AgentMemoryState.AuditorGloballyDisabled)
+                    && !RewidentState.GloballyDisabled)
                 {
                     int modelSpaceCountAfter = EngineTracer.CountObjectsInModelSpace();
                     string injection = RewidentAutoInjector.BuildInjection(modelSpaceCountBefore, modelSpaceCountAfter);

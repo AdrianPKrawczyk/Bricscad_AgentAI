@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Bricscad.ApplicationServices;
 using Bricscad_AgentAI_V2.Core;
+using Bricscad_AgentAI_V2.Core.Rewident;
 using Bricscad_AgentAI_V2.Models;
 using Newtonsoft.Json.Linq;
 
@@ -117,17 +118,19 @@ namespace Bricscad_AgentAI_V2.Tools
 
             try
             {
-                // Filar 6: Master kill switch. Gdy AuditorGloballyDisabled=true,
+                // Filar 6: Master kill switch. Gdy RewidentGloballyDisabled=true,
                 // Worker dziala jak w v2.28.x (bez audytu, bez CB, bez Auto-Inject).
                 // Uzyteczne do szybkich testow i dla userow ktorzy nie chca audytu.
-                bool auditorActive = !AgentMemoryState.AuditorGloballyDisabled;
+                // v2.35.0: migracja AgentMemoryState.AuditorGloballyDisabled -> RewidentState.GloballyDisabled
+                bool auditorActive = !RewidentState.GloballyDisabled;
 
                 // ============== CIRCUIT BREAKER (Filar 4) ==============
                 // Blokada delegacji do profilu, ktory zbyt wiele razy z rzędu
                 // zglosil awarie/odrzucona prace. Chroni przed Agent Death Loop.
-                if (auditorActive && CircuitBreakerState.IsTripped(targetProfile))
+                // v2.35.0: migracja CircuitBreakerState -> RewidentCircuitBreaker
+                if (auditorActive && RewidentCircuitBreaker.IsTripped(targetProfile))
                 {
-                    var snap = CircuitBreakerState.GetSnapshot(targetProfile);
+                    var snap = RewidentCircuitBreaker.GetSnapshot(targetProfile);
                     AgentTelemetry.ReportLoopLog(
                         $"[CIRCUIT BREAKER] BLOKADA delegacji do '{targetProfile}'. " +
                         $"Awarie={snap.Failures}/{snap.Threshold}. " +
@@ -152,11 +155,13 @@ namespace Bricscad_AgentAI_V2.Tools
                 // Wymaga AuditorEnabled=true. AuditorPrewarmEnabled steruje czy
                 // wykonujemy w ogole (domyslnie false - opt-in dla Multi-GPU).
                 Task prewarmTask = null;
-                if (auditorActive && AgentMemoryState.AuditorEnabled && AgentMemoryState.AuditorPrewarmEnabled)
+                // v2.35.0: migracja AgentMemoryState.AuditorEnabled/AuditorPrewarmEnabled -> RewidentState.AuditorEnabled/AuditorPrewarmEnabled
+                // v2.35.0: migracja AuditorAuditService.PrewarmAuditorAsync -> RewidentAuditService.PrewarmRewidentAsync
+                if (auditorActive && RewidentState.AuditorEnabled && RewidentState.AuditorPrewarmEnabled)
                 {
                     prewarmTask = Task.Run(async () =>
                     {
-                        await AuditorAuditService.PrewarmAuditorAsync(client, targetProfile, taskDescription);
+                        await RewidentAuditService.PrewarmRewidentAsync(client, targetProfile, taskDescription);
                     });
                 }
                 // ========================================================
@@ -164,7 +169,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 for (int attempt = 1; attempt <= maxValidationAttempts; attempt++)
                 {
                     // Snapshot licznika mutacji PRZED Workerem (do Wariantu A)
-                    int mutationsBeforeWorker = AgentMemoryState.MutationCount;
+                    int mutationsBeforeWorker = RewidentState.MutationCount;
                     // Fallback: snapshot liczby obiektow w ModelSpace (niezalezny od subskrypcji EngineTracer).
                     // Fix v2.34.13: EngineTracer subskrybuje ObjectAppended/Modified TYLKO gdy jest wlaczony
                     // (checkbox chkEnableTracer w UI). Gdy wylaczony - MutationCount==0 mimo realnej mutacji
@@ -208,9 +213,10 @@ namespace Bricscad_AgentAI_V2.Tools
                     {
                         // Filar 4: Worker zglosil awarie (np. wyjatek, max iteracji)
                         // Filar 6: pomin CB gdy auditor wylaczony.
+                        // v2.35.0: migracja CircuitBreakerState.RecordFailure -> RewidentCircuitBreaker.RecordFailure
                         if (auditorActive)
                         {
-                            CircuitBreakerState.RecordFailure(targetProfile,
+                            RewidentCircuitBreaker.RecordFailure(targetProfile,
                                 $"Worker nie zwrocil sukcesu: {result.DisplayMessage?.Substring(0, System.Math.Min(120, result.DisplayMessage?.Length ?? 0))}");
                         }
                         break;
@@ -219,25 +225,27 @@ namespace Bricscad_AgentAI_V2.Tools
                     // ============== AUDYT (Filar 3 - Wariant A + B) ==============
                     // AuditChain uruchamia sie PO Workervalidator (Accept), ale PRZED
                     // zwroceniem wyniku do Supervisora. Jesli Wariant A odrzuci
-                    // (np. Worker klamal o mutacji) - NIE trzeba budzic LLM Auditora.
-                    // Filar 6: pomin caly blok gdy AuditorGloballyDisabled.
+                    // (np. Worker klamal o mutacji) - NIE trzeba budzic LLM Rewident.
+                    // Filar 6: pomin caly blok gdy GloballyDisabled.
+                    // v2.35.0: migracja AuditorAuditService.AuditMutationAsync -> RewidentAuditService.AuditMutationAsync
                     if (auditorActive)
                     {
                         auditReport = Task.Run(async () =>
                         {
-                            return await AuditorAuditService.AuditMutationAsync(
+                            return await RewidentAuditService.AuditMutationAsync(
                                 client, targetProfile, taskDescription, result,
                                 mutationsBeforeWorker, modelSpaceCountBefore, attempt, maxValidationAttempts);
                         }).GetAwaiter().GetResult();
 
                         AgentTelemetry.ReportLoopLog(
-                            $"[AUDITOR -> {targetProfile}] Decision={auditReport.Decision} Severity={auditReport.Severity} Heuristic={auditReport.HeuristicOnly} Reason={auditReport.Reason}");
+                            $"[REWIDENT -> {targetProfile}] Decision={auditReport.Decision} Severity={auditReport.Severity} Heuristic={auditReport.HeuristicOnly} Reason={auditReport.Reason}");
 
                         if (auditReport.Decision == WorkValidationDecision.Reject)
                         {
-                            // Filar 4: Auditor odrzucil kategorycznie
-                            CircuitBreakerState.RecordFailure(targetProfile,
-                                $"Auditor REJECT: {auditReport.Reason}");
+                            // Filar 4: Rewident odrzucil kategorycznie
+                            // v2.35.0: migracja CircuitBreakerState -> RewidentCircuitBreaker
+                            RewidentCircuitBreaker.RecordFailure(targetProfile,
+                                $"Rewident REJECT: {auditReport.Reason}");
                             break;
                         }
 
@@ -246,13 +254,13 @@ namespace Bricscad_AgentAI_V2.Tools
                             if (attempt < maxValidationAttempts)
                             {
                                 string repair = auditReport.FeedbackForWorker;
-                                AgentTelemetry.ReportLoopLog($"[AUDITOR REPAIR -> {targetProfile}]\n{repair}");
+                                AgentTelemetry.ReportLoopLog($"[REWIDENT REPAIR -> {targetProfile}]\n{repair}");
                                 localHistory.Add(new ChatMessage { Role = "user", Content = repair });
                                 continue;
                             }
-                            // Filar 4: Ostatnia proba - Auditor odrzucil, nie ma wiecej szans
-                            CircuitBreakerState.RecordFailure(targetProfile,
-                                $"Auditor odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
+                            // Filar 4: Ostatnia proba - Rewident odrzucil, nie ma wiecej szans
+                            RewidentCircuitBreaker.RecordFailure(targetProfile,
+                                $"Rewident odrzucil po {attempt}/{maxValidationAttempts} probach: {auditReport.Reason}");
                             break;
                         }
                     }
@@ -264,11 +272,12 @@ namespace Bricscad_AgentAI_V2.Tools
 
                     if (validation.Decision == WorkValidationDecision.Accept)
                     {
-                        // Filar 4: Sukces calkowity (Auditor Accept + Validator Accept) - reset CB
+                        // Filar 4: Sukces calkowity (Rewident Accept + Validator Accept) - reset CB
                         // Filar 6: pomin CB gdy auditor wylaczony.
+                        // v2.35.0: migracja CircuitBreakerState.Reset -> RewidentCircuitBreaker.Reset
                         if (auditorActive)
                         {
-                            CircuitBreakerState.Reset(targetProfile);
+                            RewidentCircuitBreaker.Reset(targetProfile);
                         }
                         break;
                     }
@@ -282,9 +291,10 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
 
                     // Filar 4: Validator Retry na ostatniej probie = awaria
+                    // v2.35.0: migracja CircuitBreakerState.RecordFailure -> RewidentCircuitBreaker.RecordFailure
                     if (auditorActive && validation.Decision == WorkValidationDecision.Retry)
                     {
-                        CircuitBreakerState.RecordFailure(targetProfile,
+                        RewidentCircuitBreaker.RecordFailure(targetProfile,
                             $"WorkValidator RETRY po {attempt}/{maxValidationAttempts} probach: {validation.Reason}");
                     }
 
