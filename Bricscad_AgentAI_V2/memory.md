@@ -5,6 +5,7 @@ Ten dokument służy jako zewnętrzna pamięć długotrwała dla modelu AI. Zawi
 
 ## Historia Wersji (Log Zmian)
 - v2.36.2 GOLD [BATCH IMPORT LAYOUTS] - Dodano `BatchImportLayoutsTool` do bezpiecznego importu wielu layoutow z DWG/DWT bez `Foreach`. Narzedzie samo listuje layouty zrodla, dopasowuje nazwy exact/contains/fuzzy, usuwa duplikaty, importuje sekwencyjnie z `StopOnError=true` i wymusza wykonanie na watku UI przez `AgentControl`. Zaktualizowano profile, walidatory mutacji, prompt `CadLayoutProfile`, USER_GUIDE i TOOLS_REFERENCE; `ImportLayoutTemplateTool` opisano jako narzedzie tylko do jednego dokladnie wskazanego layoutu.
+- v2.36.1 GOLD [FOREACH UI THREAD SAFETY] - `ForeachTool` rozpoznaje narzedzia wymagajace glownego watku UI (`ImportLayoutTemplateTool`, `ExportLayoutTemplateTool`, `PlotLayoutTool`, `PublishToPdfTool`) i dispatchuje je przez `AgentControl.Invoke`, aby unikac crashy Teigha/BricsCAD przy pracy z layoutami z watku worker. Dodano `StopOnError=true` jako domyslne przerwanie petli po pierwszym bledzie oraz stub `LightChatControlWpf.g.cs` dla bezposredniej kompilacji bez pelnego WPF MSBuild pipeline.
 - v2.0.0: Inicjalna migracja do Function Calling (IToolV2).
 - v2.1.0: Dodanie mechanizmu ReAct w LLMClient.
 - v2.5.0: Implementacja `ForeachTool` i `RpnCalculator`.

@@ -16,6 +16,68 @@ namespace Bricscad_AgentAI_V2.Tools
     /// </summary>
     public class ForeachTool : IToolV2
     {
+        // v2.36.1 (BEX64 FIX): Narzędzia ktore wymagaja glownego watku UI BricsCAD.
+        // Wywolanie ich z Worker Thread (ThreadPool) powoduje race condition
+        // w Teigha → STATUS_STACK_BUFFER_OVERRUN (0xC0000409) → natychmiastowy crash
+        // bricscad.exe bez szansy na try/catch. ImportLayoutTemplateTool uzywa
+        // LockDocument() + LayoutManager.Current.DeleteLayout(), ktore w V22
+        // nie sa thread-safe.
+        // Rozwiazanie: przed wywolaniem sprawdz InvokeRequired na AgentControl.Instance
+        // (WinForms Control, UI thread CAD). Jesli narzedzie jest na tej liscie
+        // i jestesmy na Worker Thread - wymus Control.Invoke() do watku UI.
+        private static readonly HashSet<string> MainThreadOnlyTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ImportLayoutTemplateTool",
+            "ExportLayoutTemplateTool",
+            "PlotLayoutTool",
+            "PublishToPdfTool"
+        };
+
+        private static bool IsMainThread()
+        {
+            try
+            {
+                var agentUi = Bricscad_AgentAI_V2.UI.AgentControl.Instance;
+                if (agentUi != null && agentUi.IsHandleCreated)
+                {
+                    // Control.InvokeRequired == true oznacza ze jestesmy na Worker Thread.
+                    return !agentUi.InvokeRequired;
+                }
+            }
+            catch { }
+            // Brak AgentControl.Instance (np. panel nie zostal jeszcze otwarty)
+            // = nie mozna zweryfikowac. WYMUS dispatching zeby nie ryzykowac
+            // race condition w Teigha.
+            return false;
+        }
+
+        private static string ExecuteOnMainThread(string toolName, JObject toolArgs, Document doc)
+        {
+            var agentUi = Bricscad_AgentAI_V2.UI.AgentControl.Instance;
+            if (agentUi == null || !agentUi.IsHandleCreated)
+            {
+                return $"BLAD: Nie mozna zdispatchowac {toolName} - AgentControl (UI) nie jest jeszcze zainicjalizowany. Otworz panel agenta komenda 'AI' i sprobuj ponownie.";
+            }
+
+            try
+            {
+                return (string)agentUi.Invoke((Func<string>)(() =>
+                {
+                    try
+                    {
+                        return ToolOrchestrator.Instance.ExecuteTool(toolName, toolArgs, new CadExecutionContext(doc));
+                    }
+                    catch (Exception ex)
+                    {
+                        return $"BLAD: {toolName} na glownym watku rzucil wyjatek: {ex.Message}";
+                    }
+                }));
+            }
+            catch (Exception ex)
+            {
+                return $"BLAD: Nie udalo sie zdispatchowac {toolName} na glowny watek UI: {ex.Message}";
+            }
+        }
         public ToolDefinition GetToolSchema()
         {
             return new ToolDefinition
@@ -77,6 +139,13 @@ namespace Bricscad_AgentAI_V2.Tools
                                 {
                                     Type = "string",
                                     Description = "Szablon JSON wywołania narzędzia. Domyślnie wywołuje CreateObject. Aby wywołać inne narzędzie, dodaj 'ToolName'. Możesz łączyć tagi {index}/{item} z ewaluacją matematyki używając {MATH: wyrażenie}!\nPRZYKŁAD 1 (Teksty i Math): '{\"EntityType\": \"DBText\", \"Position\": \"{item}\", \"Text\": \"Poziom: {MATH: {index} * 50}\"}'\nPRZYKŁAD 2 (Tworzenie wielu warstw): '{\"ToolName\": \"ManageLayers\", \"Action\": \"Create\", \"LayerName\": \"KONDYGNACJA_{index}\", \"ColorIndex\": \"{MATH: {index} * 10}\"}'\nPRZYKŁAD 3 (Edycja tekstu na kazdym obiekcie z selekcji): '{\"ToolName\": \"TextEditTool\", \"Mode\": \"Replace\", \"FindText\": \"DN15\", \"ReplaceWith\": \"PP-stabi PN20 %%C25\"}' + ustaw IterateSelection=true."
+                                }
+                            },
+                            {
+                                "StopOnError", new ToolParameter
+                                {
+                                    Type = "boolean",
+                                    Description = "Jesli true (domyslnie), natychmiast przerwij petle gdy jakas iteracja zwroci blad (np. eNotOpenForRead, eLockViolation). Zapobiega kaskadowym awariom przy importach/edycji layoutow. Ustaw false tylko gdy chcesz zeby Foreach probowal wszystkie elementy mimo bledow."
                                 }
                             }
                         }
@@ -152,6 +221,12 @@ namespace Bricscad_AgentAI_V2.Tools
 
             string action = args["Action"]?.ToString() ?? "List";
 
+            bool stopOnError = true;
+            if (args["StopOnError"] != null)
+            {
+                try { stopOnError = args["StopOnError"].Value<bool>(); } catch { }
+            }
+
             // WYKONANIE REKURENCYJNE (Action as JSON Template)
             if (action.Contains("{") && action.Contains("}"))
             {
@@ -171,6 +246,7 @@ namespace Bricscad_AgentAI_V2.Tools
                     finalItems = finalItems.Take(maxIterations).ToList();
                 }
 
+                StringBuilder summary = new StringBuilder();
                 foreach (var item in finalItems)
                 {
                     // ZMIANA: Podmieniamy zarówno {item} jak i {index}
@@ -264,7 +340,15 @@ namespace Bricscad_AgentAI_V2.Tools
                         string res;
                         try
                         {
-                            res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, new CadExecutionContext(doc));
+                            if (MainThreadOnlyTools.Contains(targetTool) && !IsMainThread())
+                            {
+                                BielikLogger.LogInfo($"[ForeachTool] {targetTool} wymaga glownego watku UI (Worker Thread={System.Threading.Thread.CurrentThread.ManagedThreadId}). Dispatcher.Invoke.");
+                                res = ExecuteOnMainThread(targetTool, toolArgs, doc);
+                            }
+                            else
+                            {
+                                res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, new CadExecutionContext(doc));
+                            }
                         }
                         finally
                         {
@@ -305,11 +389,21 @@ namespace Bricscad_AgentAI_V2.Tools
                         else
                         {
                             errors.Add(res);
+                            if (stopOnError)
+                            {
+                                summary.Insert(0, $"PRZERWANO po iteracji {loopIndex}/{finalItems.Count} (StopOnError=true). ");
+                                break;
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
                         errors.Add($"Błąd parsowania JSON dla elementu '{item}': {ex.Message}");
+                        if (stopOnError)
+                        {
+                            summary.Insert(0, $"PRZERWANO po iteracji {loopIndex}/{finalItems.Count} (StopOnError=true, blad parsowania JSON). ");
+                            break;
+                        }
                     }
                     loopIndex++;
                 }
@@ -317,7 +411,6 @@ namespace Bricscad_AgentAI_V2.Tools
                 // Wymuszamy odświeżenie ekranu na końcu masowej operacji
                 doc.Editor.UpdateScreen();
 
-                StringBuilder summary = new StringBuilder();
                 if (errors.Count > 0)
                 {
                     string prefix = successCount == 0 ? "BLAD FOREACH" : "BLAD CZESCIOWY FOREACH";
