@@ -29,7 +29,7 @@ ForeachToolTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.GpdParserTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.UserMediaResolverTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.WorkValidatorTests.RunTests();
-                Bricscad_AgentAI_V2.Tests.Core.CircuitBreakerStateTests.RunTests();
+                Bricscad_AgentAI_V2.Tests.Core.RewidentCircuitBreakerTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.AuditorReportTests.RunTests();
                 Console.WriteLine("WSZYSTKIE TESTY ZAKOŃCZONE SUKCESEM.");
             }
