@@ -73,6 +73,7 @@ namespace Bricscad_AgentAI_V2.Core
         private const string RewidentPromptFile = @"prompts\system_prompt_rewident.txt";
         private const string LayoutPromptFile = @"prompts\system_prompt_layout.txt";
         private const string Modeler3DPromptFile = @"prompts\system_prompt_modeler3d.txt";
+        private const string TextPromptFile = @"prompts\system_prompt_text.txt";
 
         public static HashSet<string> SessionDynamicTags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -110,6 +111,7 @@ EnsureMathPromptFile();
             EnsureRewidentPromptFile();
             EnsureLayoutPromptFile();
             EnsureModeler3DPromptFile();
+            EnsureTextPromptFile();
 
             MigrateLegacyConfigIfNeeded();
 
@@ -185,6 +187,7 @@ EnsureMathPromptFile();
                 case "RewidentProfile": return RewidentPromptFile;
                 case "CadLayoutProfile": return LayoutPromptFile;
                 case "Modeler3DProfile": return Modeler3DPromptFile;
+                case "CadTextProfile": return TextPromptFile;
                 default: return CadPromptFile;
             }
         }
@@ -317,6 +320,8 @@ EnsureMathPromptFile();
         private static void EnsureLayoutPromptFile() => EnsurePromptFile(LayoutPromptFile, "Jestes profilem CadLayoutProfile systemu Bielik V2. Specjalizujesz sie w zarzadzaniu arkuszami wydruku, konfiguracji strony i publikacji.");
 
         private static void EnsureModeler3DPromptFile() => EnsurePromptFile(Modeler3DPromptFile, "Jestes profilem Modeler3D systemu Bielik V2. Specjalizujesz sie w modelowaniu brylowym, tworzeniu prymitywow 3D oraz analizie geometrii 3D.");
+
+        private static void EnsureTextPromptFile() => EnsurePromptFile(TextPromptFile, "Jestes profilem CadTextProfile systemu Bielik V2. Specjalizujesz sie w edycji tresci i formatowania (RTF) wolnych obiektow DBText i MText oraz w zarzadzaniu polami CAD w tekstach.");
 
         private static bool EnsureAllowedTools(AgentProfileConfig profile, IEnumerable<string> defaults)
         {
@@ -506,23 +511,54 @@ EnsureMathPromptFile();
                     }
                 }
 
-                // Tagi dla narzedzi obslugujacych pola CAD (Field codes)
-                if (name.Equals("ReadFields", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("ManageFields", StringComparison.OrdinalIgnoreCase))
+            // Tagi dla narzedzi obslugujacych pola CAD (Field codes)
+            if (name.Equals("ReadFields", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("ManageFields", StringComparison.OrdinalIgnoreCase))
+            {
+                var settings = _config.Tools[name];
+                if (string.IsNullOrWhiteSpace(settings.Tags) ||
+                    settings.Tags.IndexOf("#fields", StringComparison.OrdinalIgnoreCase) < 0)
                 {
-                    var settings = _config.Tools[name];
-                    if (string.IsNullOrWhiteSpace(settings.Tags) ||
-                        settings.Tags.IndexOf("#fields", StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        settings.Tags = "#fields, #metadata";
-                        changed = true;
-                    }
-                    if (settings.SupportsEarlyExit)
-                    {
-                        settings.SupportsEarlyExit = false;
-                        changed = true;
-                    }
+                    settings.Tags = "#fields, #metadata, #text";
+                    changed = true;
                 }
+                if (settings.SupportsEarlyExit)
+                {
+                    settings.SupportsEarlyExit = false;
+                    changed = true;
+                }
+            }
+
+            // Tagi dla narzedzi edycji tekstu (DBText/MText) - profil CadTextProfile
+            if (name.Equals("TextEditTool", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("ReadTextSampleTool", StringComparison.OrdinalIgnoreCase))
+            {
+                var settings = _config.Tools[name];
+                if (string.IsNullOrWhiteSpace(settings.Tags) ||
+                    settings.Tags.IndexOf("#text", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? "#text" : settings.Tags + ", #text";
+                    changed = true;
+                }
+                if (settings.SupportsEarlyExit)
+                {
+                    settings.SupportsEarlyExit = false;
+                    changed = true;
+                }
+            }
+
+            // Tagi dla ReadXData/FindXData w kontekscie tekstu (kontekst, nie zapis)
+            if (name.Equals("ReadXData", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("FindXData", StringComparison.OrdinalIgnoreCase))
+            {
+                var settings = _config.Tools[name];
+                if (string.IsNullOrWhiteSpace(settings.Tags) ||
+                    settings.Tags.IndexOf("#text", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? "#xdata, #text" : settings.Tags + ", #xdata, #text";
+                    changed = true;
+                }
+            }
             }
 
             if (_config.Profiles == null)
@@ -626,6 +662,41 @@ EnsureMathPromptFile();
                 changed = true;
             }
             if (EnsureAllowedTools(blocksProf, new[] { "ListBlocks", "InsertBlock", "CreateBlock", "EditBlock", "EditAttributes", "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps", "ReadFields", "ManageFields" })) changed = true;
+
+            // 4b. Zabezpieczenie/Synchronizacja CadTextProfile (edycja DBText/MText + pola CAD w tekstach)
+            if (!_config.Profiles.TryGetValue("CadTextProfile", out var textProf))
+            {
+                textProf = new AgentProfileConfig
+                {
+                    SystemPromptFile = TextPromptFile,
+                    AllowedTags = new List<string> { "#text", "#fields" }
+                };
+                _config.Profiles["CadTextProfile"] = textProf;
+                changed = true;
+            }
+            if (textProf.SystemPromptFile != TextPromptFile)
+            {
+                textProf.SystemPromptFile = TextPromptFile;
+                changed = true;
+            }
+            if (!textProf.AllowedTags.Contains("#text"))
+            {
+                textProf.AllowedTags.Add("#text");
+                changed = true;
+            }
+            if (!textProf.AllowedTags.Contains("#fields"))
+            {
+                textProf.AllowedTags.Add("#fields");
+                changed = true;
+            }
+            if (EnsureAllowedTools(textProf, new[] {
+                "TextEditTool", "ReadTextSampleTool",
+                "ReadFields", "ManageFields",
+                "ReadXData", "FindXData",
+                "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
+                "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard",
+                "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+            })) changed = true;
 
             // 10. Zabezpieczenie/Synchronizacja Modeler3DProfile
             if (!_config.Profiles.TryGetValue("Modeler3DProfile", out var modelerProf))
@@ -910,7 +981,7 @@ EnsureMathPromptFile();
                 AllowedTools = new List<string>
                 {
                     "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
-                    "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool",
+                    "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
                     "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
                     "ManageSheetSetTool", "SheetSetSheetTool",
                     "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
@@ -918,6 +989,21 @@ EnsureMathPromptFile();
                     "Foreach"
                 },
                 AllowedTags = new List<string> { "#layout", "#wydruk", "#plotstyle", "#sheetset" }
+            };
+
+            _config.Profiles["CadTextProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = TextPromptFile,
+                AllowedTools = new List<string>
+                {
+                    "TextEditTool", "ReadTextSampleTool",
+                    "ReadFields", "ManageFields",
+                    "ReadXData", "FindXData",
+                    "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
+                    "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard",
+                    "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+                },
+                AllowedTags = new List<string> { "#text", "#fields" }
             };
 
             // BEZWZGLÄDNY ZAPIS PO WYGENEROWANIU

@@ -27,7 +27,7 @@ namespace Bricscad_AgentAI_V2.Tools
                         Type = "object",
                         Properties = new Dictionary<string, ToolParameter>
                         {
-                            { "TargetProfile", new ToolParameter { Type = "string", Description = "Nazwa profilu docelowego eksperta. DostÄ™pne profile: 'CadProfile' (ogĂłlny), 'CadGeometryProfile' (geometria 2D), 'CadBlocksProfile' (bloki), 'CadMetadataProfile' (wĹ‚aĹ›ciwoĹ›ci, metadane), 'CadMathProfile' (obliczenia), 'CadLayoutProfile' (arkusze wydruku), 'NotesProfile' (notatki), 'AuditorProfile' (audyt), 'Modeler3DProfile' (modelowanie bryĹ‚ 3D)." } },
+                            { "TargetProfile", new ToolParameter { Type = "string", Description = "Nazwa profilu docelowego eksperta. Dostępne profile: 'CadProfile' (ogólny), 'CadGeometryProfile' (geometria 2D), 'CadBlocksProfile' (bloki), 'CadTextProfile' (edycja tekstów DBText/MText, RTF, pola CAD w tekstach), 'CadMetadataProfile' (właściwości, metadane), 'CadMathProfile' (obliczenia), 'CadLayoutProfile' (arkusze wydruku), 'NotesProfile' (notatki), 'AuditorProfile' (audyt), 'Modeler3DProfile' (modelowanie brył 3D)." } },
                             { "SelectionScopeLock", new ToolParameter { Type = "boolean", Description = "Ustaw true, gdy zadanie ma operowac wylacznie na aktualnie zaznaczonych/wybranych obiektach uzytkownika. Blokuje Workerowi zastapienie selekcji globalnym wyszukiwaniem po modelu." } },
                             { "TaskDescription", new ToolParameter { Type = "string", Description = "SzczegÄ‚Ĺ‚Äąâ€šowa instrukcja dla eksperta." } }
                         },

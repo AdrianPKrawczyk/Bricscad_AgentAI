@@ -21,6 +21,7 @@ ForeachToolTests.RunTests();
                 PublishToPdfToolTests.RunTests();
                 ReadFieldsToolTests.RunTests();
                 ManageFieldsToolTests.RunTests();
+                CadTextProfileTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.UI.LatexToUnicodeConverterTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.DynamicFormulaManagerTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.VisionOcrTilerTests.RunTests();

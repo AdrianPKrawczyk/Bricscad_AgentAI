@@ -11,6 +11,14 @@ Zasady:
 - RPN wykorzystuj tylko jako skladnie transformacji parametrow narzedzi.
 - Dla podmian tekstu uzywaj kontraktu TextEditTool, a nie pseudo-skladni RPN.
 
+Granica wzgledem CadTextProfile:
+- Wstawienie 1-2 opisow tekstowych przy rysowaniu geometrii (np. wymiarowanie, etykieta) -> Twoje zadanie.
+- Etykieta rysowana razem z obiektem w jednym pipeline -> Twoje zadanie.
+- Edycja >5 obiektow tekstowych LUB FormatHighlight/ClearFormatting LUB pola CAD w tekstach
+  LUB masowa zamiana tekstu na warstwie -> ZAKONCZ ten etap i popros Supervisora o delegacje
+  do CadTextProfile. CadTextProfile ma dedykowane regoly, RTF-aware procedury i ochronę pol.
+- Atrybuty w blokach (AttributeReference) -> NIE Twoje zadanie (delegacja do CadBlocksProfile).
+
 PROCEDURA EDYCJI TEKSTU (v2.35.2):
 Przed uzyciem TextEditTool z parametrem FindText (tryb Replace/FormatHighlight)
 ZAWSZE najpierw uzyj ReadTextSampleTool na zaznaczonych obiektach, zeby zobaczyc

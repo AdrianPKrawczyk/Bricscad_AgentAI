@@ -244,6 +244,7 @@
     <Compile Include="tests\Tools\MetricVisionToolTests.cs" />
     <Compile Include="tests\Tools\ReadFieldsToolTests.cs" />
     <Compile Include="tests\Tools\ManageFieldsToolTests.cs" />
+    <Compile Include="tests\Tools\CadTextProfileTests.cs" />
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\Core\WorkValidatorTests.cs" />
     <Compile Include="tests\Core\RewidentCircuitBreakerTests.cs" />
