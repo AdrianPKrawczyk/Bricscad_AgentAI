@@ -220,7 +220,7 @@
 
 ;;; --- ASERCJE DLA XDATA KONTEKSTU -----------------------------------
 
-(defun vtt:assert-xdata-on-special-text (/ found)
+(defun vtt:assert-xdata-on-special-text (/ found data xdata-group)
   ; Sprawdza ze MText "Specjalny opis" ma XData "Bielik_Test" / "Etykieta_36"
   (princ "\n[ReadXData] Czy MText 'Specjalny opis' ma XData Bielik_Test?")
   (setq found nil)
@@ -228,14 +228,22 @@
     (if (= (vla-get-ObjectName o) "AcDbMText")
       (if (wcmatch (vla-get-TextString o) "Specjalny opis*")
         (progn
-          ; Sprawdz XData - uproszczone, bo XData w LISP wymaga rozwinietej biblioteki
-          ; Zamiast tego asercja sprawdza ze obiekt istnieje w rysunku
-          (setq found T)
+          (setq data (entget (vlax-vla-object->ename o)))
+          ; Szukaj grupy -3 (XData) zawierajacej 'Bielik_Test'
+          (foreach pair data
+            (if (and (= (car pair) -3)
+                     (member "Bielik_Test" (cadr pair)))
+              (progn
+                (setq xdata-group pair)
+                (setq found T)
+              )
+            )
+          )
         )
       )
     )
   )
-  (vtt:assert found "MText 'Specjalny opis' istnieje w modelu (XData obecne w strukturze)")
+  (vtt:assert found "MText 'Specjalny opis' ma XData aplikacji Bielik_Test")
 )
 
 ;;; --- GLOWNA PROCEDURA WERYFIKACJI -----------------------------------

@@ -63,31 +63,47 @@
     (setq i (+ i 1))
   )
 
-  ;--- 8. MText z XData (test FindXDataTool w kontekscie) ------------
-  (princ "\n- MText #36: z XData 'Bielik_Test' (kontekst identyfikacji)...")
-  (command "_.MTEXT" "450,0" "_H" "2.5" "_W" "50"
-           "Specjalny opis" "")
-  (command "_.REGEN")
-
-  ; Dodaj XData do ostatniego MText (po jego utworzeniu)
-  (vla-put-XData
-    (car (vlax-ename->vla-object (entlast)))
-    (vlax-make-safearray
-      2
-      (vlax-make-variant (vlax-make-safearray 2 '(1 . 2) '(1 . 3)))
-    )
-    "Bielik_Test"
-    "Kontekst"
-    "Etykieta_36"
-  )
-
-  ;--- 9. 5 DBText z literowka w znaczniku (test ReadTextSampleTool) -
+  ;--- 8. 5 DBText z literowka w znaczniku (test ReadTextSampleTool) -
+  ; Wykonane PRZED sekcja z XData, zeby ewentualny blad XData
+  ; nie przerwal dalszych sekcji (vla-put-XData moze nie zadzialac
+  ; w niektorych wersjach BricsCADa i przerwac wykonanie).
   (princ "\n- DBText #37 do #41: ze znacznikiem [STARy] (mala/mala litera)...")
   (command "_.TEXT" "500,0"   "_H" "2.0" "0" "[STARy] Notatka 1")
   (command "_.TEXT" "500,-5"  "_H" "2.0" "0" "[STARy] Notatka 2")
   (command "_.TEXT" "500,-10" "_H" "2.0" "0" "[STARy] Notatka 3")
   (command "_.TEXT" "500,-15" "_H" "2.0" "0" "[STARy] Notatka 4")
   (command "_.TEXT" "500,-20" "_H" "2.0" "0" "[STARy] Notatka 5")
+
+  ;--- 9. MText z XData (test FindXDataTool w kontekscie) ------------
+  ; Wzor: regapp + entmod z lista asocjacyjna DXF (jak w generate_test_objects.lsp).
+  ; Dzieki temu XData dziala stabilnie niezaleznie od wersji BricsCADa.
+  (princ "\n- MText #36: z XData 'Bielik_Test' (kontekst identyfikacji)...")
+  (command "_.MTEXT" "450,0" "_H" "2.5" "_W" "50"
+           "Specjalny opis" "")
+  (command "_.REGEN")
+
+  ; Zarejestruj aplikacje XData i dodaj ja do ostatniego MText.
+  (princ "\n- Dodawanie XData 'Bielik_Test' do MText 'Specjalny opis'...")
+  (vl-load-com)
+  (regapp "Bielik_Test")
+  (if (setq mtext36 (entlast))
+    (progn
+      (setq xdata-list
+        (list
+          -3
+          (list
+            "Bielik_Test"
+            '(1000 . "Kontekst")
+            '(1000 . "Etykieta_36")
+          )
+        )
+      )
+      (setq elist (entget mtext36))
+      (setq newlist (append elist (list xdata-list)))
+      (entmod newlist)
+    )
+    (princ "\n  [OSTRZEZENIE] Nie udalo sie pobrac MText 'Specjalny opis' dla XData.")
+  )
 
   ;--- 10. Selekcja wszystkich -----------------------------------------
   (command "_.ZOOM" "_E")
