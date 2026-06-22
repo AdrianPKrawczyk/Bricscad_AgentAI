@@ -103,10 +103,18 @@ namespace Bricscad_AgentAI_V2.Tools
                 using (doc.LockDocument())
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                 {
+                    BielikLogger.LogInfo($"[TextEditTool] Start: Mode={mode}, FindText='{findText}', ReplaceWith='{replaceWith}', Ids={ids.Length}, TargetHandle={args["TargetHandle"]?.ToString() ?? "(null)"}");
                     foreach (ObjectId id in ids)
                     {
                         Entity ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
                         if (ent == null) continue;
+
+                        string currentText = "";
+                        if (ent is DBText dbText2) currentText = dbText2.TextString;
+                        else if (ent is MText mText2) currentText = mText2.Contents;
+                        bool willMatch = !string.IsNullOrEmpty(findText) && currentText.Contains(findText);
+                        string truncText = currentText.Length > 60 ? currentText.Substring(0, 60) + "..." : currentText;
+                        BielikLogger.LogInfo($"[TextEditTool] Handle={id.Handle:X}, Type={ent.GetType().Name}, Text='{truncText}', WillMatch={willMatch}");
 
                         if (ent is DBText dbText)
                         {

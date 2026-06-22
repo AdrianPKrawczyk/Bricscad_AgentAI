@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Teigha.DatabaseServices;
 
 namespace Bricscad_AgentAI_V2.Tools
 {
@@ -213,16 +214,64 @@ namespace Bricscad_AgentAI_V2.Tools
                             toolArgs.Remove("ToolName");
                         }
 
-                        // Fix v2.35.3 (BUG #6): Jesli iterujemy po selekcji, przekaz Handle
-                        // jako TargetHandle, zeby narzedzie mutujace (np. TextEditTool)
-                        // moglo odniesc sie do konkretnego obiektu zamiast do calego ActiveSelection.
-                        if (args["IterateSelection"] != null && args["IterateSelection"].Value<bool>() &&
-                            !toolArgs.ContainsKey("TargetHandle"))
+                        // Fix v2.35.4 (BUG D): Jesli iterujemy po selekcji, przekaz Handle
+                        // przez TargetHandle (hint dla narzedzi ktore go obsluguja) ORAZ
+                        // zapisz+przywroc selekcje na pojedynczy obiekt - bo TextEditTool
+                        // obecnie operuje na CALEJ ActiveSelection, ignorujac TargetHandle.
+                        // Dzieki tempowej selekcji per-obiekt kazde wywolanie TextEditTool
+                        // zadziala tylko na jednym obiekcie (tym wlasciwym).
+                        ObjectId[] savedSelection = null;
+                        bool needRestoreSelection = false;
+                        if (args["IterateSelection"] != null && args["IterateSelection"].Value<bool>())
                         {
-                            toolArgs["TargetHandle"] = item;
+                            if (!toolArgs.ContainsKey("TargetHandle"))
+                            {
+                                toolArgs["TargetHandle"] = item;
+                            }
+                            // Tymczasowo ustawiamy ActiveSelection na pojedynczy Handle
+                            // aby TextEditTool zadzialal tylko na tym obiekcie.
+                            if (AgentMemoryState.ActiveSelection.Length > 1 && item.Length > 0)
+                            {
+                                try
+                                {
+                                    // Znajdz ObjectId po Handle hex
+                                    long handleValue;
+                                    if (long.TryParse(item, System.Globalization.NumberStyles.HexNumber,
+                                        System.Globalization.CultureInfo.InvariantCulture, out handleValue))
+                                    {
+                                        Handle targetHandle = new Handle(handleValue);
+                                        Document activeDoc = Bricscad.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                                        if (activeDoc != null)
+                                        {
+                                            ObjectId singleId = activeDoc.Database.GetObjectId(false, targetHandle, 0);
+                                            if (!singleId.IsNull)
+                                            {
+                                                savedSelection = AgentMemoryState.ActiveSelection;
+                                                AgentMemoryState.Update(new ObjectId[] { singleId });
+                                                needRestoreSelection = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    BielikLogger.LogWarn($"[ForeachTool] Nie udalo sie ustawic pojedynczej selekcji dla Handle={item}: {ex.Message}");
+                                }
+                            }
                         }
 
-                        string res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, new CadExecutionContext(doc));
+                        string res;
+                        try
+                        {
+                            res = ToolOrchestrator.Instance.ExecuteTool(targetTool, toolArgs, new CadExecutionContext(doc));
+                        }
+                        finally
+                        {
+                            if (needRestoreSelection && savedSelection != null)
+                            {
+                                AgentMemoryState.Update(savedSelection);
+                            }
+                        }
 
                         if (res.StartsWith("SUKCES"))
                         {
