@@ -360,9 +360,11 @@ Layout `Model` jest chroniony - nie mozna go usunac ani przenazwac.
 ### 13.4. Import i eksport szablonow arkuszy
 Agent potrafi:
 - **Importowac** layout z pliku DWT/DWG: *"Zaimportuj layout A4-PION z C:/templates/standard.dwt."*
+- **Importowac wiele arkuszy naraz** z pliku DWG/DWT: *"Zaimportuj z C:/projekt/wydruk.dwg arkusze PW.IS.W.01, PW.IS.W.02 i PW.IS.W.03."*
+- **Dopasowac arkusze po fragmencie nazwy**: *"Zaimportuj z C:/projekt/wydruk.dwg wszystkie arkusze zawierajace IS.W."*
 - **Eksportowac** layout do pliku DWT: *"Wyeksportuj layout A4-PION do C:/Users/Adrian/Desktop/a4-template.dwt."*
 
-Przy imporcie mozna wybrac, czy przenosimy tylko Page Setup (bez geometrii), czy caly arkusz z zawartoscia.
+Przy imporcie mozna wybrac, czy przenosimy tylko Page Setup (bez geometrii), czy caly arkusz z zawartoscia. Jesli nazwa arkusza jest podana niedokladnie, Agent najpierw sprawdza arkusze w pliku zrodlowym i dobiera najblizsze pasujace nazwy.
 
 ### 13.5. Drukowanie do PDF
 - Pojedynczy arkusz: *"Wydrukuj layout A4-PION do PDF w C:/export/projekt.pdf."*

@@ -2191,7 +2191,9 @@ namespace Bricscad_AgentAI_V2.Core
                 "CreateObject", "ModifyProperties", "ManageLayers", "TextEditTool",
                 "DimensionEditTool", "EditBlock", "EditAttributes", "InsertBlock",
                 "CreateBlock", "ManageFields", "WriteXData", "BatchWriteXData",
-                "ManageAnnoScales",
+                "ManageAnnoScales", "PageSetupTool", "PlotStyleTool", "ManageLayoutTool",
+                "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool",
+                "PlotLayoutTool", "PublishToPdfTool", "ManageViewportsTool",
                 // Fix v2.36.0 (BUG agent_bug_01): Foreach i manage_lisps wywoluja
                 // narzedzia mutujace (TextEditTool/LISP z mutacjami) - musza byc liczone
                 // jako mutujace przez anti-loop detektor, w przeciwnym razie wzor #3

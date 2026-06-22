@@ -138,21 +138,24 @@ Konfiguracja Page Setup wybranego layoutu: format papieru (np. ISO A4), urządze
 ### 27. `ImportLayoutTemplateTool` **[TAG: #layout, #template, #wydruk]**
 Importuje layout (z Page Setup i/lub zawartością geometryczną) z zewnętrznego pliku DWG/DWT. Obsługuje opcje: tylko Page Setup, tylko entities, nadpisywanie istniejącego layoutu.
 
-### 28. `ExportLayoutTemplateTool` **[TAG: #layout, #template, #wydruk]**
+### 28. `BatchImportLayoutsTool` **[TAG: #layout, #template, #wydruk]**
+Importuje wiele layoutow z zewnetrznego pliku DWG/DWT bez petli Foreach. Najpierw odczytuje arkusze w pliku zrodlowym, dopasowuje nazwy po dokladnej nazwie, fragmencie albo fuzzy, usuwa duplikaty i wykonuje kontrolowany import sekwencyjny.
+
+### 29. `ExportLayoutTemplateTool` **[TAG: #layout, #template, #wydruk]**
 Eksportuje wybrany layout do osobnego pliku DWT (szablon arkusza). Opcjonalnie kopiuje powiązane definicje bloków.
 
-### 29. `PlotLayoutTool` **[TAG: #wydruk, #plot]**
+### 30. `PlotLayoutTool` **[TAG: #wydruk, #plot]**
 Drukuje pojedynczy layout do PDF/DWF/PNG. Konfiguruje urządzenie wyjściowe (np. DWG To PDF.pc3), parametry skalowania, centrowania, shade plot. Generuje plik w tle przez komendę `-PLOT`.
 
-### 30. `PublishToPdfTool` **[TAG: #wydruk, #publish, #pdf]**
+### 31. `PublishToPdfTool` **[TAG: #wydruk, #publish, #pdf]**
 Batch publish wielu layoutów. Tryb `MultiSheet` = jeden PDF z wszystkimi arkuszami. Tryb `SingleFiles` = osobny PDF per layout. Limit 50 layoutów w trybie MultiSheet. W `SingleFiles` parametr `OutputPdfPath` powinien wskazywac katalog docelowy, a opcjonalny `FileNamePrefix` dodaje prefiks do nazw plikow, np. `FileNamePrefix="VPT-TEST-"` tworzy `VPT-TEST-Arkusz1.pdf`.
 
-### 31. `ManageViewportsTool` **[TAG: #layout, #viewport, #rzutnie, #wydruk]**
+### 32. `ManageViewportsTool` **[TAG: #layout, #viewport, #rzutnie, #wydruk]**
 Zarzadzanie rzutniami papierowymi na layoutach: `List`, `Create`, `Modify`, `Delete`. Narzedzie uzywa natywnego API `Viewport`, bez komend CAD i bez dialogow. Obsluguje pozycje i rozmiar rzutni na arkuszu, zakres modelu Window XY (`ModelMinX/Y`, `ModelMaxX/Y`), widoki nazwane (`NamedView`), skale rzutni (`1:50`, `1_50`, `1/50`, `0.02`), skale opisowa, blokade, widocznosc, warstwe ramki i ukrywanie linii. Domyslnie nowe rzutnie trafiaja na warstwe `_rzutnie`; jesli jej brakuje, jest tworzona automatycznie z kolorem 200 i wylaczonym drukiem. Parametr `Layer` pozwala wskazac inna warstwe.
 
 Opcje zaawansowane: `FreezeLayers`, `ThawLayers` i `ThawAllLayers` steruja zamrozeniem warstw tylko w konkretnej rzutni. `ClipBoundaryHandle` ustawia nieprostokatny clipping z istniejacej granicy papierowej, a `ClipBoundaryPaperPoints` tworzy nowa zamknieta polilinie clippingu z punktow arkusza. `RemoveNonRectClip=true` wylacza clipping nieprostokatny.
 
-### 32. `PlotStyleTool` **[TAG: #wydruk, #plotstyle, #ctb] [Early Exit: Tak]**
+### 33. `PlotStyleTool` **[TAG: #wydruk, #plotstyle, #ctb] [Early Exit: Tak]**
 Zarządzanie stylami wydruku (CTB/STB): listowanie dostępnych stylów, ładowanie z pliku (przez `_.PSETUPIN`), informacje o stylu, przypisywanie do layoutu (bieżącego, wszystkich lub wg nazwy). Bezpieczne blokady dla layoutu `Model`.
 
 ---

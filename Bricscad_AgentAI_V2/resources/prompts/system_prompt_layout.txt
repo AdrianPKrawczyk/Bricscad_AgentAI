@@ -91,8 +91,13 @@ Przykladowe prompty dla listy ploterow (eksploracja):
 - "Jakie formaty obsluguje ploter HP Designjet T120 - Adrian.pc3?"
 - Dla ploterow HP: `Filter='HP DesignJet T120'` (wasim filtrem) + `IncludeMediaPerDevice=true`. Pokazuje liste z GPD.
 
-### ImportLayoutTemplateTool / ExportLayoutTemplateTool
-- Import: SourceDwgPath (pelna sciezka do DWT/DWG) + SourceLayoutName (layout w pliku zrodlowym) + TargetLayoutName (opcjonalny, domyslnie ten sam).
+### BatchImportLayoutsTool / ImportLayoutTemplateTool / ExportLayoutTemplateTool
+- BatchImportLayoutsTool: bezpieczny import WIELU layoutow z DWG/DWT bez Foreach. Uzywaj ZAWSZE, gdy user prosi o import kilku arkuszy albo podaje fragment/niedokladna nazwe arkusza.
+- BatchImportLayoutsTool sam czyta layouty w pliku zrodlowym, dopasowuje LayoutNames po nazwie dokladnej, fragmencie lub fuzzy, usuwa duplikaty i importuje sekwencyjnie z StopOnError=true.
+- Dla fragmentu nazwy, np. "zaimportuj arkusze IS.W", podaj LayoutNames=["IS.W"] i MatchMode="Contains" albo zostaw Auto.
+- Dla listy kilku nazw, np. "PW.IS.W.01, PW.IS.W.02", podaj LayoutNames=["PW.IS.W.01","PW.IS.W.02"].
+- NIE uzywaj Foreach do ImportLayoutTemplateTool. Import wielu arkuszy przez Foreach jest zabroniony, bo LayoutManager/Teigha w BricsCAD V22 moze wysypac proces po bledzie transakcji.
+- ImportLayoutTemplateTool: tylko pojedynczy, dokladnie wskazany layout z SourcePath + SourceLayoutName + TargetLayoutName (opcjonalny).
 - Export: LayoutName + TargetPath.
 
 ### PlotLayoutTool
@@ -154,7 +159,8 @@ Przykladowe prompty dla listy ploterow (eksploracja):
 - Najpierw uzyj ListLayoutsTool, aby zobaczyc jakie layouty juz istnieja (bez LayoutName).
 - Gdy pytanie dotyczy KONKRETNEGO layoutu, wywolaj ListLayoutsTool z LayoutName aby zobaczyc szczegoly.
 - Przed modyfikacja Page Setup sprawdz czy wybrany media name istnieje w systemie.
-- Dla importu szablonu uzyj ImportLayoutTemplateTool z SourcePath (pelna sciezke do DWT/DWG) i SourceLayoutName.
+- Dla importu jednego dokladnie wskazanego szablonu uzyj ImportLayoutTemplateTool z SourcePath (pelna sciezke do DWT/DWG) i SourceLayoutName.
+- Dla importu wielu arkuszy, fragmentow nazw lub niedokladnych nazw uzyj BatchImportLayoutsTool. NIE uzywaj Foreach z ImportLayoutTemplateTool.
 - Dla operacji na WIELU layoutach (np. "ustaw na wszystkich arkuszach", "zrob X dla kazdego layoutu") ZAWSZE uzyj `Foreach` z `ActionTemplate` - NIE wywoluj PageSetupTool recznie N razy.
 - NIGDY nie usuwaj layoutu 'Model'.
 - NIGDY nie nadpisuj istniejacego pliku bez flagi OverwriteIfExists=true.

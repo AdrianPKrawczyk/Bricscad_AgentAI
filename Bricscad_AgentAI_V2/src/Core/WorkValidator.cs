@@ -117,6 +117,7 @@ namespace Bricscad_AgentAI_V2.Core
             "CreateObject", "ModifyProperties", "ManageLayers", "InsertBlock", "CreateBlock",
             "EditBlock", "EditAttributes", "TextEditTool", "DimensionEditTool", "ManageAnnoScales",
             "PageSetupTool", "PlotStyleTool", "ManageLayoutTool", "ImportLayoutTemplateTool",
+            "BatchImportLayoutsTool",
             "ExportLayoutTemplateTool", "PlotLayoutTool", "PublishToPdfTool", "ManageViewportsTool",
             "ManageSheetSetTool", "SheetSetSheetTool",
             "WriteXData", "BatchWriteXData", "WriteProjectFile",

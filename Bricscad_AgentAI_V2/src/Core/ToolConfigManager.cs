@@ -434,6 +434,7 @@ EnsureMathPromptFile();
                 }
 
                 if (name.Equals("ImportLayoutTemplateTool", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("BatchImportLayoutsTool", StringComparison.OrdinalIgnoreCase) ||
                     name.Equals("ExportLayoutTemplateTool", StringComparison.OrdinalIgnoreCase))
                 {
                     var settings = _config.Tools[name];
@@ -578,7 +579,7 @@ EnsureMathPromptFile();
                 "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
                 "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes", "manage_lisps",
                 "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
-                "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool",
                 "ListPlotDevicesTool", "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool"
             };
             if (cadProf.AllowedTools == null)
@@ -790,7 +791,7 @@ EnsureMathPromptFile();
             var layoutDefaults = new List<string>
             {
                 "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
-                "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool",
                 "ListPlotDevicesTool", "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
                 "ManageSheetSetTool", "SheetSetSheetTool",
                 "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
@@ -855,7 +856,7 @@ EnsureMathPromptFile();
                     "EditAttributes", "ListBlocks", "InsertBlock", "CreateBlock", "ReadXData", "WriteXData",
                     "FindXData", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "SearchKnowledgeBase", "SaveMacro", "ExecuteFormula", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ManageRecipes",
                     "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
-                    "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                    "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool",
                     "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool"
                 },
                 AllowedTags = new List<string> { "#cad", "#wymiary", "#xdata", "#layout", "#wydruk" }
@@ -909,7 +910,7 @@ EnsureMathPromptFile();
                 AllowedTools = new List<string>
                 {
                     "ListLayoutsTool", "ManageLayoutTool", "PageSetupTool",
-                    "ImportLayoutTemplateTool", "ExportLayoutTemplateTool",
+                    "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool",
                     "PlotLayoutTool", "PublishToPdfTool", "PlotStyleTool",
                     "ManageSheetSetTool", "SheetSetSheetTool",
                     "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",

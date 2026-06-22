@@ -277,6 +277,7 @@
     <Compile Include="src\Tools\Layout\PageSetupTool.cs" />
     <Compile Include="src\Tools\Layout\PlotStyleTool.cs" />
     <Compile Include="src\Tools\Layout\ImportLayoutTemplateTool.cs" />
+    <Compile Include="src\Tools\Layout\BatchImportLayoutsTool.cs" />
     <Compile Include="src\Tools\Layout\ExportLayoutTemplateTool.cs" />
     <Compile Include="src\Tools\Layout\PlotLayoutTool.cs" />
     <Compile Include="src\Tools\Layout\PublishToPdfTool.cs" />

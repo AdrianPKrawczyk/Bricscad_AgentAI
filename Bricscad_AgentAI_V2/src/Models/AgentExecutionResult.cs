@@ -83,7 +83,7 @@ namespace Bricscad_AgentAI_V2.Models
                 "CreateObject", "ModifyProperties", "ManageLayers", "InsertBlock", "CreateBlock",
                 "EditBlock", "EditAttributes", "TextEditTool", "DimensionEditTool", "ManageAnnoScales",
                 "WriteXData", "BatchWriteXData", "PageSetupTool", "PlotStyleTool", "ManageLayoutTool",
-                "ImportLayoutTemplateTool", "ExportLayoutTemplateTool", "PlotLayoutTool", "PublishToPdfTool",
+                "ImportLayoutTemplateTool", "BatchImportLayoutsTool", "ExportLayoutTemplateTool", "PlotLayoutTool", "PublishToPdfTool",
                 "ManageViewportsTool", "ManageSheetSetTool", "SheetSetSheetTool",
                 "Foreach", "manage_lisps"
             };

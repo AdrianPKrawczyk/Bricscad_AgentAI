@@ -20,7 +20,7 @@ namespace Bricscad_AgentAI_V2.Tools.Layout
                 Function = new FunctionSchema
                 {
                     Name = "ImportLayoutTemplateTool",
-                    Description = "Importuje layout (z Page Setup i zawartoscia geometryczna) z innego pliku DWG lub DWT. Uzywane do ladowania szablonow arkuszy.",
+                    Description = "Importuje JEDEN dokladnie wskazany layout (z Page Setup i zawartoscia geometryczna) z innego pliku DWG lub DWT. Dla wielu arkuszy, fragmentow nazw albo niedokladnych nazw uzyj BatchImportLayoutsTool zamiast Foreach.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
