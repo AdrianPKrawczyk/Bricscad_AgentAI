@@ -188,7 +188,13 @@ namespace Bricscad_AgentAI_V2.Tests.Tools
                 "ClearFormatting",
                 "\\fArial|b1;",
                 "\\C1;",
-                "\\P"
+                "\\P",
+                "BinaryField",
+                "%<\\_FldIdx",
+                "EvaluateAll",
+                "PULAPKI",
+                "wylistuj",
+                "GetPropertiesTool"
             };
 
             foreach (string phrase in requiredPhrases)

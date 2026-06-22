@@ -26,10 +26,17 @@ Rozroznienie DBText vs MText:
 PROCEDURA EDYCJI TEKSTU (krok po kroku):
 1. SelectEntities z filtrem (Scope=Model, EntityType="DBText"|"MText", Layer, Name, Conditions z ContainsText).
 2. ReadTextSampleTool BEZ SaveAs - zobacz rzeczywista tresc (bez kodow RTF).
-   NIGDY nie pomijaj tego kroku dla trybow Replace/FormatHighlight.
+   NIGDY nie pomominaj tego kroku dla trybow Replace/FormatHighlight.
+   WYJATEK: gdy user mowi "wylistuj wszystkie" / "pokaz wszystkie" / "lista" -
+   wtedy NIE uzywaj ReadTextSampleTool (zwraca tylko probe 3-6 obiektow),
+   tylko GetPropertiesTool(Mode=Full) lub AnalyzeSelectionTool.
 3. Dopasuj FindText do RZECZYWISTEJ tresci (uwzglednij wielkosc liter, spacje, myslniki, \\P).
-4. TextEditTool z odpowiednim Mode (Replace/Append/Prepend/FormatHighlight/ClearFormatting).
-5. Opcjonalnie: ponowny ReadTextSampleTool aby potwierdzic zmiane.
+4. PRZED edycja tekstu z polem CAD wywolaj ReadFieldsTool i sprawdz:
+   a) Czy pole jest w formie czytelnej (%<\\AcVar "DWGNAME">) - mozna wykonac Replace z zachowaniem struktury.
+   b) Czy pole jest w formie binarnej (%<\\_FldIdx 0>) - najpierw ManageFieldsTool(EvaluateAll)
+      i ponowny odczyt. Dopiero potem edycja.
+5. TextEditTool z odpowiednim Mode (Replace/Append/Prepend/FormatHighlight/ClearFormatting).
+6. Opcjonalnie: ponowny ReadTextSampleTool aby potwierdzic zmiane.
 
 Nie modyfikuj tekstu "na slepo". Strzelanie FindText bez odczytu probki to najczestsza
 przyczyna nieudanych edycji.
@@ -88,6 +95,31 @@ TextEditTool a pola CAD - tryb AllowFieldOverride:
 - TextEditTool.ClearFormatting na obiekcie z polem: ZABLOKOWANY, bo usunalby kody pol.
 - Parametr AllowFieldOverride=true pozwala nadpisac tekst nawet z polami - UZYWAJ TYLKO gdy
   user swiadomie chce zniszczyc istniejace pola inline.
+
+PULAPKI POL CAD (z obserwacji rzeczywistych testow - 2026-06-22):
+- Gdy ReadFieldsTool zwraca kategorie="BinaryField" i kod="%<\\_FldIdx 0>",
+  pole jest w formie BINARNEJ. W tej formie:
+  * Znajdywanie przez AdvancedFilters TextOverride z trescia "%<\\AcVar..."
+    NIE ZADZIALA - obiekt zawiera "%<\\_FldIdx", nie czytelny kod.
+  * NIE PROBUJ TextEditTool.Replace z "Projekt: %<\\AcVar \"DWGNAME\">"
+    - to findText nie wystapi w tresci binarnej.
+  * Poprawna sekwencja: ManageFieldsTool(EvaluateAll) -> ponowny ReadFields
+    -> jesli pole nadal binarne, uzyj ManageFieldsTool.ConvertToText
+    (zamienia na obliczona wartosc, np. "Projekt: Rysunek1").
+- Gdy user chce zachowac pole i tylko zmienic tekst WOKOL niego
+  (np. "Projekt: " na "Zlecenie: " w "Projekt: %<\\AcVar \"DWGNAME\">"):
+  * NIE uzywaj ManageFieldsTool.ReplaceFieldCode z MatchText
+    - MatchText jest FILTREM selekcji, nie pozycja wstawienia.
+    - To wywolanie NIE zmieni tekstu, a zwroci falszywy sukces.
+  * Poprawna sekwencja: odczytaj BIEZACY Contents (z %<\\_FldIdx),
+    ustal ze chcesz zachowac "polozenie pola", i albo:
+    a) Uzyj ManageFieldsTool.ConvertToText (pole -> wartosc, potem TextEditTool.Replace)
+    b) Uzyj ManageFieldsTool.RemoveField + InsertField (z nowym tekstem przed wstawieniem)
+    c) Zaakceptuj ze kombinacja "tekst + pole" wymaga dwoch krokow,
+       nie jednego wywolania TextEditTool.
+- AllowFieldOverride=true ZAWSZE niszczy pole (nieodwracalnie).
+  Po jego uzyciu MText traci dynamiczny kod, zostaje tylko statyczny tekst.
+  NIE PROBUJ AllowFieldOverride=true jako "pierwszej opcji" - to ostatecznosc.
 
 RTF w MText - konstrukcje kodu:
 - Zmiana fontu: \\fArial|b1; - Arial bold, \\fVerdana|i0; - Verdana regular.

@@ -74,6 +74,9 @@ Wybierz wszystkie DBText ze znacznikiem [STARy] i wylistuj ich tresc.
 **Oczekiwany rezultat:**
 - W raporcie powinny pojawić się 5 DBText: `[STARy] Notatka 1`...`[STARy] Notatka 5`.
 - Agent powinien zauważyć, że `FindText="[STARY]"` NIE zadziała (wielkość liter).
+- Poniewaz user uzywa slowa "wylistuj" / "pokaz wszystkie", agent powinien wywolac
+  `GetPropertiesTool(Mode=Full)` lub `AnalyzeSelectionTool` (zwracaja PEŁNA liste),
+  a NIE `ReadTextSampleTool` (zwraca tylko probe 3-6 obiektow z 5).
 
 ---
 
@@ -99,10 +102,15 @@ Zamień tekst "Projekt: " w MText "Projekt: %<\AcVar "DWGNAME">" na "Zlecenie: "
 
 **Oczekiwany rezultat:**
 - W raporcie powinno pojawić się `[BLOKADA POLA] MText (ID: ...) zawiera pole CAD. Tryb 'Replace' nie zostanie wykonany.`
-- Treść MText powinna pozostać `Projekt: %<\AcVar "DWGNAME">`.
+- Treść MText powinna pozostać `Projekt: %<\AcVar "DWGNAME">` (lub forma binarna `%<\_FldIdx 0>` po BricsCAD).
 - Liczba zmodyfikowanych obiektów = 0.
-- Agent powinien zaproponować użycie `ManageFieldsTool.ConvertToText` lub
-  `TextEditTool` z `AllowFieldOverride=true`.
+- Agent NIE powinien probowac `ManageFieldsTool.ReplaceFieldCode` z `MatchText="Projekt: "` -
+  ten wzorzec jest bledny (MatchText to filtr selekcji, nie pozycja wstawienia).
+- Agent powinien zaproponowac jedna z opcji:
+  a) `ManageFieldsTool.ConvertToText` (zamienia pole na obliczona wartosc) + potem
+     `TextEditTool.Replace` (teraz juz bez blokady).
+  b) `ManageFieldsTool.RemoveField` + `ManageFieldsTool.InsertField` z nowym tekstem.
+  c) `TextEditTool` z `AllowFieldOverride=true` - ostatecznosc, niszczy pole.
 
 ### 2.3. Replace z `AllowFieldOverride=true`
 
