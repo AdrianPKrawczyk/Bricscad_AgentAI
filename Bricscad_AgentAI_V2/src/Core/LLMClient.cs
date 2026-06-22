@@ -2264,9 +2264,27 @@ namespace Bricscad_AgentAI_V2.Core
             try
             {
 
-            // Zbierz ostatnie 10 wywolan narzedzi (assistant ToolCalls)
+            // [HOTFIX KROK-CadTextProfile.5] Anti-loop musi byc SCOPED do biezacego polecenia
+            // uzytkownika. Wczesniej recentCalls zbieral ostatnie 10 wywolan z CALEGO conversationHistory,
+            // co powodowalo ze po zakonczeniu polecenia 1 z 3x SelectEntities, polecenie 2
+            // (np. z DWGNAME) startowalo z recentCalls.Count=3 i wystarczaly 2 dodatkowe SelectEntities
+            // aby przerywac sesje po wzorze "Nx SelectEntities bez mutujacego".
+            //
+            // Rozwiazanie: zbieraj wywolania TYLKO od ostatniej wiadomosci "user" w history.
+            // (Assistant moze wstawiac rozne role: assistant/tool/system - my szukamy ostatniego user.)
             var recentCalls = new List<(string Name, string Args)>();
-            for (int i = history.Count - 1; i >= 0 && recentCalls.Count < 10; i--)
+            int userBoundary = -1;
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                if (history[i]?.Role == "user")
+                {
+                    userBoundary = i;
+                    break;
+                }
+            }
+
+            int startIdx = (userBoundary >= 0) ? userBoundary : 0;
+            for (int i = startIdx; i < history.Count && recentCalls.Count < 10; i++)
             {
                 var msg = history[i];
                 if (msg?.ToolCalls == null) continue;
@@ -2276,7 +2294,7 @@ namespace Bricscad_AgentAI_V2.Core
                     string args = tc.Function?.Arguments ?? "";
                     if (!string.IsNullOrEmpty(name))
                     {
-                        recentCalls.Insert(0, (name, args));
+                        recentCalls.Add((name, args));
                     }
                 }
             }

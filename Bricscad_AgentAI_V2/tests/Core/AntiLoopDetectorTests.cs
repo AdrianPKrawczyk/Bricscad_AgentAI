@@ -17,6 +17,8 @@ namespace Bricscad_AgentAI_V2.Tests.Core
             TestWzor1_IdenticalArgsRepeated();
             TestWzor3_SelectEntitiesWithoutMutating();
             TestDoesNotThrow_OnAnyInput();
+            TestScopedToCurrentUserMessage_DoesNotCarryOver();
+            TestStillDetectsLoop_WithinSingleCommand();
             System.Console.WriteLine("Pomyślnie zakończono testy AntiLoopDetector.");
         }
 
@@ -181,6 +183,67 @@ namespace Bricscad_AgentAI_V2.Tests.Core
             Debug.Assert(throws == 0,
                 $"DetectToolCallLoop rzucil wyjatek {throws}/{totalCalls} razy (powinno byc 0)");
             Console.WriteLine($"TestDoesNotThrow_OnAnyInput: OK - {totalCalls} scenariuszy, 0 wyjatkow.");
+        }
+
+        // [KROK-CadTextProfile.5] Glowny bug: recentCalls musi byc SCOPED do biezacego polecenia.
+        // Poprzednio recentCalls bral ostatnie 10 wywolan z CALEGO conversationHistory,
+        // co powodowalo ze po poleceniu 1 z 3x SelectEntities, polecenie 2 startowalo z
+        // recentCalls.Count=3 i 2 dodatkowe SelectEntities powodowaly natychmiastowe
+        // przerwanie sesji po wzorze "Nx SelectEntities bez mutujacego".
+        //
+        // Ten test odtwarza scenariusz z logow (2026-06-22 23:51-23:53):
+        // Polecenie 1: STARy (3x SelectEntities + 1 ReadTextSampleTool + 1 GetPropertiesTool)
+        // Polecenie 2: DWGNAME (2x SelectEntities) - POWINNO BYC DOZWOLONE bo NIE jest petla
+        //   w obrebie jednego polecenia.
+        private static void TestScopedToCurrentUserMessage_DoesNotCarryOver()
+        {
+            // Symulacja CALEGO conversationHistory (dwa polecenia uzytkownika):
+            // Polecenie 1: 3x SelectEntities + ReadTextSampleTool + GetPropertiesTool
+            // user "STARy" -> assistant[SelectEntities, ReadTextSampleTool, GetPropertiesTool]
+            // tool results...
+            // Polecenie 2: 2x SelectEntities (DWGNAME) -> powinno przejsc bez blokady
+            // user "DWGNAME" -> assistant[SelectEntities, SelectEntities]
+            var history = new List<ChatMessage>();
+
+            // Polecenie 1: STARy
+            history.Add(new ChatMessage { Role = "user", Content = "Wybierz wszystkie DBText ze znacznikiem [STARy]" });
+            history.Add(MakeToolCallMessage("SelectEntities", "{\"Prop\":\"TextOverride\",\"Val\":\"[STARy]\"}", 1));
+            history.Add(MakeToolCallMessage("ReadTextSampleTool", "{\"SaveAs\":\"stare_teksty\"}", 2));
+            history.Add(MakeToolCallMessage("GetPropertiesTool", "{\"Mode\":\"Full\"}", 3));
+
+            // Polecenie 2: DWGNAME
+            history.Add(new ChatMessage { Role = "user", Content = "Zamien tekst 'Projekt: ' w MText ... DWGNAME ... na Zlecenie" });
+            history.Add(MakeToolCallMessage("SelectEntities", "{\"Prop\":\"TextOverride\",\"Val\":\"Projekt: %<AcVar DWGNAME>\"}", 4));
+            history.Add(MakeToolCallMessage("SelectEntities", "{\"Prop\":\"TextOverride\",\"Val\":\"Projekt:\"}", 5));
+
+            // Wywolaj - NIE powinno wykrywac petli, bo recentCalls jest scoped od ostatniego user.
+            // W obrebie polecenia 2 sa tylko 2 SelectEntities, wzorzec 3 (Nx SelectEntities) wymaga 4.
+            var result = InvokeDetectLoop(history);
+            bool isLooping = (bool)GetProperty(result, "IsLooping");
+            Debug.Assert(!isLooping,
+                "Anti-loop NIE powinien wykrywac petli po 2 SelectEntities w biezacym poleceniu, " +
+                "nawet jesli wczesniejsze polecenie mialo 3 SelectEntities (granica polecenia powinna byc respektowana).");
+            Console.WriteLine("TestScopedToCurrentUserMessage_DoesNotCarryOver: OK - 2 SelectEntities w poleceniu 2 nie wykrywaja petli mimo 3 w poleceniu 1.");
+        }
+
+        // [KROK-CadTextProfile.5] W obrebie jednego polecenia 4+ SelectEntities bez mutujacego MUSI wykrywac petle
+        // (zachowanie oryginalnego Wzoru 3 po naprawie scope'u).
+        private static void TestStillDetectsLoop_WithinSingleCommand()
+        {
+            var history = new List<ChatMessage>
+            {
+                new ChatMessage { Role = "user", Content = "Zamien tekst w MText" },
+                MakeToolCallMessage("SelectEntities", "{\"a\":1}", 1),
+                MakeToolCallMessage("SelectEntities", "{\"a\":2}", 2),
+                MakeToolCallMessage("SelectEntities", "{\"a\":3}", 3),
+                MakeToolCallMessage("SelectEntities", "{\"a\":4}", 4)
+            };
+
+            var result = InvokeDetectLoop(history);
+            bool isLooping = (bool)GetProperty(result, "IsLooping");
+            Debug.Assert(isLooping,
+                "4x SelectEntities bez mutujacego w obrebie jednego polecenia MUSI wykrywac petle (Wzor 3)");
+            Console.WriteLine("TestStillDetectsLoop_WithinSingleCommand: OK - Wzor 3 nadal dziala po naprawie scope.");
         }
     }
 }
