@@ -34,6 +34,7 @@ ForeachToolTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.RewidentRegressionTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.AuditorReportTests.RunTests();
                 Bricscad_AgentAI_V2.Tests.Core.AntiLoopDetectorTests.RunTests();
+                Bricscad_AgentAI_V2.Tests.Core.LLMClientTests.RunTests();
                 Console.WriteLine("WSZYSTKIE TESTY ZAKOŃCZONE SUKCESEM.");
             }
             catch (Exception ex)

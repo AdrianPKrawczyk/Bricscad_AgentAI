@@ -83,7 +83,7 @@ namespace Bricscad_AgentAI_V2.Core
                 var requestPayload = new Dictionary<string, object>
                 {
                     { "model", config.ModelName },
-                    { "messages", conversationHistory },
+                    { "messages", SanitizeMessagesForLlamaCppToolBreaker(conversationHistory) },
                     { "tools", staticToolsPayload },
                     { "tool_choice", "auto" },
                     { "temperature", config.Temperature },
@@ -607,7 +607,7 @@ namespace Bricscad_AgentAI_V2.Core
             var requestPayload = new Dictionary<string, object>
             {
                 { "model", config.ModelName },
-                { "messages", warmupMessages },
+                { "messages", SanitizeMessagesForLlamaCppToolBreaker(warmupMessages) },
                 { "temperature", 0.0 },
                 { "max_tokens", 1 }
             };
@@ -741,7 +741,7 @@ namespace Bricscad_AgentAI_V2.Core
             var requestPayload = new Dictionary<string, object>
             {
                 { "model", config.ModelName },
-                { "messages", messages },
+                { "messages", SanitizeMessagesForLlamaCppToolBreaker(messages) },
                 { "temperature", config.Temperature },
                 { "max_tokens", config.MaxTokens }
             };
@@ -1196,7 +1196,7 @@ namespace Bricscad_AgentAI_V2.Core
                 var requestPayload = new Dictionary<string, object>
                 {
                     { "model", config.ModelName },
-                    { "messages", history },
+                    { "messages", SanitizeMessagesForLlamaCppToolBreaker(history) },
                     { "tools", toolsPayload },
                     { "tool_choice", "auto" },
                     { "temperature", config.Temperature },
@@ -1900,6 +1900,82 @@ namespace Bricscad_AgentAI_V2.Core
                 return string.Join("\n", results);
             }
             return null;
+        }
+
+        /// <summary>
+        /// Llamacpp z chat-format 'peg-gemma4' ma buga w warstwie parsowania tool_call outputu modelu:
+        /// jesli wygenerowany Arguments JSON zawiera w stringu sekwencje %&lt; (skladnia field codes BricsCAD),
+        /// parser traktuje to jako nieprawidlowy znak i zwraca HTTP 500 zanim klient C# dostanie odpowiedz.
+        /// Zrodlo buga: llamacpp/ggml-org/llama.cpp (chat-format peg-gemma4).
+        /// Obejscie po stronie klienta: tuz przed serializacja messages do request payload zamieniamy
+        /// '%' (U+0025) + '&lt;' (U+003C) w stringach content na JSON unicode escape '\u0025\u003C'.
+        /// Efekt:
+        /// - llamacpp widzi w surowym JSON '\u0025\u003C' zamiast '%&lt;' - parser tool_call nie wybucha.
+        /// - Po deserializacji po stronie llamacpp model dalej widzi oryginalne '%&lt;' - logika modelu nie zmienia sie.
+        /// - Historia sesji i UI nadal trzymaja oryginalny tekst (modyfikacja dziala na KLONIE).
+        /// </summary>
+        internal static List<ChatMessage> SanitizeMessagesForLlamaCppToolBreaker(List<ChatMessage> source)
+        {
+            if (source == null || source.Count == 0) return source;
+            var clone = new List<ChatMessage>(source.Count);
+            for (int i = 0; i < source.Count; i++)
+            {
+                var orig = source[i];
+                var copy = new ChatMessage
+                {
+                    Role = orig.Role,
+                    ActiveDocumentPath = orig.ActiveDocumentPath,
+                    ToolCallId = orig.ToolCallId
+                };
+                if (orig.ToolCalls != null)
+                {
+                    copy.ToolCalls = new List<ToolCall>(orig.ToolCalls);
+                }
+                copy.Content = SanitizeContentForLlamaCppToolBreaker(orig.Content);
+                clone.Add(copy);
+            }
+            return clone;
+        }
+
+        internal static object SanitizeContentForLlamaCppToolBreaker(object content)
+        {
+            if (content == null) return null;
+            if (content is string s)
+            {
+                return EscapePercentLessThan(s);
+            }
+            if (content is List<VisionContentPart> parts)
+            {
+                var cloneParts = new List<VisionContentPart>(parts.Count);
+                foreach (var part in parts)
+                {
+                    cloneParts.Add(new VisionContentPart
+                    {
+                        Type = part.Type,
+                        Text = part.Text != null ? EscapePercentLessThan(part.Text) : null,
+                        ImageUrl = part.ImageUrl
+                    });
+                }
+                return cloneParts;
+            }
+            if (content is IEnumerable<object> enumerable)
+            {
+                var cloneEnum = new List<object>();
+                foreach (var item in enumerable)
+                {
+                    cloneEnum.Add(SanitizeContentForLlamaCppToolBreaker(item));
+                }
+                return cloneEnum;
+            }
+            return content;
+        }
+
+        internal static string EscapePercentLessThan(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            int idx = text.IndexOf("%<", StringComparison.Ordinal);
+            if (idx < 0) return text;
+            return text.Replace("%<", "\\u0025\\u003C");
         }
 
         private static bool TryParseToolArgumentsRobust(string raw, out JObject parsed, out string repairNote)
