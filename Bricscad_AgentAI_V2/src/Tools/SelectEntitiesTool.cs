@@ -230,6 +230,26 @@ namespace Bricscad_AgentAI_V2.Tools
                                     if (ent is DBText) rzeczywistaWlasciwosc = "TextString";
                                     else if (ent is MText) rzeczywistaWlasciwosc = "Text";
                                 }
+                                // [HOTFIX KROK-CadTextProfile.3]: Aliasy tekstowe dla DBText/MText/Dimension
+                                // w zwyklych Conditions (nie tylko AdvancedFilters).
+                                // Bez tego LLM wpisujacy "TextOverride" w Conditions dostawal null
+                                // w Reflection, bo DBText nie ma takiej wlasciwosci.
+                                else if (ent is DBText dbtextAlias && (rzeczywistaWlasciwosc.Equals("TextOverride", StringComparison.OrdinalIgnoreCase) ||
+                                                                       rzeczywistaWlasciwosc.Equals("TextString", StringComparison.OrdinalIgnoreCase) ||
+                                                                       rzeczywistaWlasciwosc.Equals("Contents", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    rzeczywistaWlasciwosc = "TextString";
+                                }
+                                else if (ent is MText mtextAlias && (rzeczywistaWlasciwosc.Equals("TextOverride", StringComparison.OrdinalIgnoreCase) ||
+                                                                     rzeczywistaWlasciwosc.Equals("Contents", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    rzeczywistaWlasciwosc = "Contents";
+                                }
+                                else if (ent is Dimension dimAlias && (rzeczywistaWlasciwosc.Equals("TextOverride", StringComparison.OrdinalIgnoreCase) ||
+                                                                       rzeczywistaWlasciwosc.Equals("DimensionText", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    rzeczywistaWlasciwosc = "DimensionText";
+                                }
 
                                 string[] zagniezdzenia = rzeczywistaWlasciwosc.Split('.');
                                 object wartoscObiektu = ent;

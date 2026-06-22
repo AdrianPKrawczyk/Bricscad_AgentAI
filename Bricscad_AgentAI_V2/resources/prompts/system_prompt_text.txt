@@ -35,6 +35,23 @@ PROCEDURA EDYCJI TEKSTU (krok po kroku):
    a) Czy pole jest w formie czytelnej (%<\\AcVar "DWGNAME">) - mozna wykonac Replace z zachowaniem struktury.
    b) Czy pole jest w formie binarnej (%<\\_FldIdx 0>) - najpierw ManageFieldsTool(EvaluateAll)
       i ponowny odczyt. Dopiero potem edycja.
+
+SelectEntities - Conditions vs AdvancedFilters (KRYTYCZNE):
+- `Conditions` to ZWYKLE filtry z klasowymi wlasciwosciami BricsCAD/Teigha (Layer, Color, Linetype, Name).
+  Aliasy tekstowe sa automatycznie rozpoznawane: Prop="TextOverride", "TextString", "Contents"
+  dzialaja tak samo dla DBText, MText, Dimension.
+- `AdvancedFilters` to ZAawansowane filtry (np. Transparency, EntityType, HatchObjectType).
+  OD v2.36.0 oba parametry akceptuja te same aliasy - mozna uzyc bardziej intuicyjnego `Conditions`
+  z `TextOverride` zamiast `AdvancedFilters`.
+- W obu parametrach `Op` moze byc: ==, !=, >, <, >=, <=, contains, notcontains, in.
+- Przyklad poprawnego wywolania:
+  `SelectEntities(EntityType="DBText", Conditions=[{Op:"Contains", Prop:"TextOverride", Val:"[STARy]"}])`
+  (dla DBText alias "TextOverride" zostanie zmapowany na TextString).
+- Wlasciwosci akceptowane w Conditions/AdvancedFilters:
+  * DBText: TextString, TextOverride, Contents, Layer, Color, Linetype, LineWeight, Handle
+  * MText: Contents, TextOverride, TextString (MText.Text), Layer, Color, Handle
+  * Dimension: DimensionText, TextOverride, Layer, Color
+  * Dowolny Entity: Transparency, EntityType (klasa .NET)
 5. TextEditTool z odpowiednim Mode (Replace/Append/Prepend/FormatHighlight/ClearFormatting).
 6. Opcjonalnie: ponowny ReadTextSampleTool aby potwierdzic zmiane.
 
