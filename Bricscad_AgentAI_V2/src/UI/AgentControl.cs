@@ -12,6 +12,7 @@ using Bricscad.ApplicationServices;
 using Bricscad.EditorInput;
 using Bricscad_AgentAI_V2.Core;
 using Bricscad_AgentAI_V2.Core.DynamicSystems;
+using Bricscad_AgentAI_V2.Core.Rewident;
 using Bricscad_AgentAI_V2.Models;
 using Teigha.DatabaseServices;
 using Newtonsoft.Json;
@@ -38,6 +39,16 @@ namespace Bricscad_AgentAI_V2.UI
         private CheckBox chkAutoInjectProperties;
         private NumericUpDown numSamplePercent;
         private CheckBox chkAuditorGloballyDisabled;
+        // Rewident (v2.35.0+) - Filar 3 + 4 dla nowego profilu RewidentProfile
+        private CheckBox chkRewidentEnabled;
+        private CheckBox chkRewidentPrewarm;
+        private CheckBox chkRewidentEvidence;
+        private CheckBox chkRewidentCircuitBreaker;
+        private NumericUpDown numRewidentCircuitBreakerThreshold;
+        private Label lblRewidentCircuitBreakerState;
+        private CheckBox chkRewidentAutoInject;
+        private NumericUpDown numRewidentSamplePercent;
+        private CheckBox chkRewidentGloballyDisabled;
         private DatasetStudioControl datasetStudio;
         public DatasetStudioControl DatasetStudio => datasetStudio;
         private KnowledgeBaseControl knowledgeBaseControl;
@@ -802,7 +813,7 @@ namespace Bricscad_AgentAI_V2.UI
             Panel panAgentPromptSelection = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(0, 10, 0, 0) };
             Label lblAgentPrompt = new Label { Text = "Plik promptu:", Dock = DockStyle.Left, ForeColor = Color.White, Width = 90, TextAlign = ContentAlignment.MiddleLeft };
             cbAgentPromptFile = new ComboBox { Dock = DockStyle.Left, Width = 280, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Enabled = false };
-            cbAgentPromptFile.Items.AddRange(new object[] { ToolConfigManager.GetDefaultSystemPromptFile("SupervisorProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadGeometryProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadBlocksProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadMetadataProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadMathProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadLayoutProfile"), ToolConfigManager.GetDefaultSystemPromptFile("NotesProfile"), ToolConfigManager.GetDefaultSystemPromptFile("AuditorProfile"), ToolConfigManager.GetDefaultSystemPromptFile("Modeler3DProfile") });
+            cbAgentPromptFile.Items.AddRange(new object[] { ToolConfigManager.GetDefaultSystemPromptFile("SupervisorProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadGeometryProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadBlocksProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadMetadataProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadMathProfile"), ToolConfigManager.GetDefaultSystemPromptFile("CadLayoutProfile"), ToolConfigManager.GetDefaultSystemPromptFile("NotesProfile"), ToolConfigManager.GetDefaultSystemPromptFile("AuditorProfile"), ToolConfigManager.GetDefaultSystemPromptFile("RewidentProfile"), ToolConfigManager.GetDefaultSystemPromptFile("Modeler3DProfile") });
             
             btnOpenAgentPromptInOverview = new Button { Text = "Prompt systemowy z repo", Dock = DockStyle.Left, AutoSize = true, Padding = new Padding(0, 0, 10, 0), Margin = new Padding(10, 0, 0, 0), BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Enabled = false };
 
@@ -1150,6 +1161,7 @@ namespace Bricscad_AgentAI_V2.UI
             
             tabSettingsSub.TabPages.Add(tabDev);
             tabSettingsSub.TabPages.Add(CreateAuditorSettingsTab());
+            tabSettingsSub.TabPages.Add(CreateRewidentSettingsTab());
             tabSettingsSub.TabPages.Add(tabLoop);
             tabSettingsSub.TabPages.Add(tabDebug);
 
@@ -3469,6 +3481,275 @@ Ostatnia rozmowa:
                     System.Windows.Forms.MessageBoxIcon.Information);
             };
             outer.Controls.Add(btnForceReset, 0, 8);
+
+            tab.Controls.Add(outer);
+            return tab;
+        }
+
+        private TabPage CreateRewidentSettingsTab()
+        {
+            var tab = new TabPage("Rewident (v2.35.0)") { Padding = new Padding(12) };
+
+            var outer = new TableLayoutPanel
+            {
+                ColumnCount = 1,
+                RowCount = 11,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Dock = DockStyle.Top
+            };
+
+            // === Info o nowym profilu Rewident ===
+            var lblInfo = new Label
+            {
+                Text = "RewidentProfile (v2.35.0+): Dedykowany profil LLM do audytu MUTACJI DWG (Chain of Evidence). " +
+                       "NIE sluzy do audytu kodu/QA - to nadal robi AuditorProfile. " +
+                       "Ten profil ma wlasny prompt (system_prompt_rewident.txt), 10 read-only narzedzi i wlasny stan (RewidentState).",
+                AutoSize = true,
+                ForeColor = Color.LightGreen,
+                Font = new System.Drawing.Font(this.Font, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 10)
+            };
+            outer.Controls.Add(lblInfo, 0, 0);
+
+            // === Filar 6: Master kill switch (caly Rewident) ===
+            chkRewidentGloballyDisabled = new CheckBox
+            {
+                Text = "WYLACZ calkowicie Rewidenta (Worker bez audytu, Auto-Inject, CB)",
+                AutoSize = true,
+                ForeColor = Color.OrangeRed,
+                Font = new System.Drawing.Font(this.Font, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 10)
+            };
+            chkRewidentGloballyDisabled.Checked = UISettingsManager.Settings.RewidentGloballyDisabled;
+            chkRewidentGloballyDisabled.CheckedChanged += (s, e) =>
+            {
+                bool disabled = chkRewidentGloballyDisabled.Checked;
+                RewidentState.GloballyDisabled = disabled;
+                UISettingsManager.Settings.RewidentGloballyDisabled = disabled;
+                UISettingsManager.Save();
+                chkRewidentEnabled.Enabled = !disabled;
+                chkRewidentPrewarm.Enabled = !disabled && UISettingsManager.Settings.RewidentEnabled;
+                chkRewidentEvidence.Enabled = !disabled && UISettingsManager.Settings.RewidentEnabled;
+                chkRewidentAutoInject.Enabled = !disabled;
+                numRewidentSamplePercent.Enabled = !disabled && UISettingsManager.Settings.RewidentAutoInjectPropertiesEnabled;
+                chkRewidentCircuitBreaker.Enabled = !disabled;
+                numRewidentCircuitBreakerThreshold.Enabled = !disabled && UISettingsManager.Settings.RewidentCircuitBreakerEnabled;
+            };
+            outer.Controls.Add(chkRewidentGloballyDisabled, 0, 1);
+
+            // === Rewident ON/OFF ===
+            chkRewidentEnabled = new CheckBox
+            {
+                Text = "Rewident (LLM RewidentProfile) - EKSPERYMENTALNE, moze pogorszyc wyniki",
+                AutoSize = true,
+                ForeColor = Color.Orange,
+                Font = new System.Drawing.Font(this.Font, FontStyle.Bold),
+                Margin = new Padding(0, 5, 0, 5)
+            };
+            chkRewidentEnabled.Checked = UISettingsManager.Settings.RewidentEnabled;
+            chkRewidentEnabled.CheckedChanged += (s, e) =>
+            {
+                bool enabled = chkRewidentEnabled.Checked;
+                RewidentState.AuditorEnabled = enabled;
+                UISettingsManager.Settings.RewidentEnabled = enabled;
+                UISettingsManager.Save();
+                chkRewidentPrewarm.Enabled = enabled;
+                chkRewidentEvidence.Enabled = enabled;
+                if (enabled && !chkRewidentEvidence.Checked)
+                {
+                    chkRewidentEvidence.Checked = true;
+                }
+                UpdateCircuitBreakerLabel();
+            };
+            outer.Controls.Add(chkRewidentEnabled, 0, 2);
+
+            // Ostrzezenie pod checkboxem Rewident
+            var lblRewidentWarning = new Label
+            {
+                Text = "UWAGA: LLM Rewident to funkcja eksperymentalna. W testach moze HALUCYNOWAC " +
+                       "i zmuszac Worker do dodatkowych mutacji. Wymaga Chain of Evidence - jest wlaczana " +
+                       "automatycznie. Dla zwyklego uzytku ZOSTAW WYLACZONY. " +
+                       "Audyt kodu/QA nadal wymaga AuditorProfile (osobna zakladka).",
+                AutoSize = true,
+                ForeColor = Color.DarkOrange,
+                MaximumSize = new System.Drawing.Size(700, 0),
+                Margin = new Padding(20, 0, 0, 10)
+            };
+            outer.Controls.Add(lblRewidentWarning, 0, 3);
+
+            // === Pre-warm ===
+            chkRewidentPrewarm = new CheckBox
+            {
+                Text = "Pre-warm KV cache (rozgrzewaj kontekst Rewidenta w tle - wymaga Multi-GPU)",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(20, 0, 0, 5),
+                Enabled = UISettingsManager.Settings.RewidentEnabled
+            };
+            chkRewidentPrewarm.Checked = UISettingsManager.Settings.RewidentPrewarmEnabled;
+            chkRewidentPrewarm.CheckedChanged += (s, e) =>
+            {
+                RewidentState.AuditorPrewarmEnabled = chkRewidentPrewarm.Checked;
+                UISettingsManager.Settings.RewidentPrewarmEnabled = chkRewidentPrewarm.Checked;
+                UISettingsManager.Save();
+            };
+            outer.Controls.Add(chkRewidentPrewarm, 0, 4);
+
+            // === Chain of Evidence ===
+            chkRewidentEvidence = new CheckBox
+            {
+                Text = "Chain of Evidence (zbieraj snapshot wlasciwosci obiektow before/after mutacji)",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(20, 0, 0, 5),
+                Enabled = UISettingsManager.Settings.RewidentEnabled
+            };
+            chkRewidentEvidence.Checked = UISettingsManager.Settings.RewidentEvidenceEnabled;
+            chkRewidentEvidence.CheckedChanged += (s, e) =>
+            {
+                RewidentState.EvidenceEnabled = chkRewidentEvidence.Checked;
+                UISettingsManager.Settings.RewidentEvidenceEnabled = chkRewidentEvidence.Checked;
+                UISettingsManager.Save();
+            };
+            outer.Controls.Add(chkRewidentEvidence, 0, 5);
+
+            // === Circuit Breaker ON/OFF ===
+            chkRewidentCircuitBreaker = new CheckBox
+            {
+                Text = "Circuit Breaker (blokuj profil po N kolejnych awariach)",
+                AutoSize = true,
+                ForeColor = Color.LightSalmon,
+                Margin = new Padding(0, 10, 0, 5)
+            };
+            chkRewidentCircuitBreaker.Checked = UISettingsManager.Settings.RewidentCircuitBreakerEnabled;
+            chkRewidentCircuitBreaker.CheckedChanged += (s, e) =>
+            {
+                RewidentState.CircuitBreakerEnabled = chkRewidentCircuitBreaker.Checked;
+                UISettingsManager.Settings.RewidentCircuitBreakerEnabled = chkRewidentCircuitBreaker.Checked;
+                UISettingsManager.Save();
+                numRewidentCircuitBreakerThreshold.Enabled = chkRewidentCircuitBreaker.Checked;
+                UpdateCircuitBreakerLabel();
+            };
+            outer.Controls.Add(chkRewidentCircuitBreaker, 0, 6);
+
+            // === Filar 5: Auto-Inject Properties ===
+            chkRewidentAutoInject = new CheckBox
+            {
+                Text = "Auto-Inject Properties (wstrzykuj wlasciwosci obiektow do kontekstu modelu po mutacji)",
+                AutoSize = true,
+                ForeColor = Color.LightSkyBlue,
+                Margin = new Padding(0, 10, 0, 5)
+            };
+            chkRewidentAutoInject.Checked = UISettingsManager.Settings.RewidentAutoInjectPropertiesEnabled;
+            chkRewidentAutoInject.CheckedChanged += (s, e) =>
+            {
+                RewidentState.AutoInjectPropertiesEnabled = chkRewidentAutoInject.Checked;
+                UISettingsManager.Settings.RewidentAutoInjectPropertiesEnabled = chkRewidentAutoInject.Checked;
+                UISettingsManager.Save();
+                numRewidentSamplePercent.Enabled = chkRewidentAutoInject.Checked;
+            };
+            outer.Controls.Add(chkRewidentAutoInject, 0, 7);
+
+            // === Sample % row ===
+            var sampleRow = new TableLayoutPanel
+            {
+                ColumnCount = 3,
+                RowCount = 1,
+                AutoSize = true,
+                Margin = new Padding(20, 0, 0, 5)
+            };
+            var lblSamplePercent = new Label
+            {
+                Text = "Procent probek (1-20, dla >50 obiektow):",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(0, 6, 6, 0)
+            };
+            numRewidentSamplePercent = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 20,
+                Value = UISettingsManager.Settings.RewidentAutoInjectSamplePercent,
+                Width = 60,
+                Enabled = UISettingsManager.Settings.RewidentAutoInjectPropertiesEnabled
+            };
+            numRewidentSamplePercent.ValueChanged += (s, e) =>
+            {
+                int v = (int)numRewidentSamplePercent.Value;
+                RewidentState.AutoInjectSamplePercent = v;
+                UISettingsManager.Settings.RewidentAutoInjectSamplePercent = v;
+                UISettingsManager.Save();
+            };
+            sampleRow.Controls.Add(lblSamplePercent, 0, 0);
+            sampleRow.Controls.Add(numRewidentSamplePercent, 1, 0);
+            sampleRow.Controls.Add(new Label { Text = "  (cap 20 obiektow, reszta deterministycznie)", AutoSize = true, ForeColor = Color.DarkGray, Margin = new Padding(6, 6, 0, 0) }, 2, 0);
+            outer.Controls.Add(sampleRow, 0, 8);
+
+            // === Próg CB + Label stanu ===
+            var cbRow = new TableLayoutPanel
+            {
+                ColumnCount = 3,
+                RowCount = 1,
+                AutoSize = true,
+                Margin = new Padding(20, 0, 0, 5)
+            };
+            var lblCbThreshold = new Label
+            {
+                Text = "Prog awarii (1-20):",
+                AutoSize = true,
+                ForeColor = Color.LightGray,
+                Margin = new Padding(0, 6, 6, 0)
+            };
+            numRewidentCircuitBreakerThreshold = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 20,
+                Value = UISettingsManager.Settings.RewidentCircuitBreakerThreshold,
+                Width = 60,
+                Enabled = UISettingsManager.Settings.RewidentCircuitBreakerEnabled
+            };
+            numRewidentCircuitBreakerThreshold.ValueChanged += (s, e) =>
+            {
+                int v = (int)numRewidentCircuitBreakerThreshold.Value;
+                RewidentState.CircuitBreakerThreshold = v;
+                UISettingsManager.Settings.RewidentCircuitBreakerThreshold = v;
+                UISettingsManager.Save();
+                UpdateCircuitBreakerLabel();
+            };
+            lblRewidentCircuitBreakerState = new Label
+            {
+                Text = "",
+                AutoSize = true,
+                ForeColor = Color.Gold,
+                Margin = new Padding(10, 6, 0, 0)
+            };
+            cbRow.Controls.Add(lblCbThreshold, 0, 0);
+            cbRow.Controls.Add(numRewidentCircuitBreakerThreshold, 1, 0);
+            cbRow.Controls.Add(lblRewidentCircuitBreakerState, 2, 0);
+            outer.Controls.Add(cbRow, 0, 9);
+
+            // === Przycisk Force Reset ===
+            var btnForceReset = new Button
+            {
+                Text = "RESET wszystkich Circuit Breaker (odblokuj profile)",
+                AutoSize = true,
+                BackColor = Color.FromArgb(140, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(0, 15, 0, 0)
+            };
+            btnForceReset.Click += (s, e) =>
+            {
+                RewidentCircuitBreaker.ResetAll();
+                UpdateCircuitBreakerLabel();
+                System.Windows.Forms.MessageBox.Show(
+                    "Wszystkie profile Rewident zostaly odblokowane.",
+                    "Circuit Breaker Reset (Rewident)",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Information);
+            };
+            outer.Controls.Add(btnForceReset, 0, 10);
 
             tab.Controls.Add(outer);
             return tab;

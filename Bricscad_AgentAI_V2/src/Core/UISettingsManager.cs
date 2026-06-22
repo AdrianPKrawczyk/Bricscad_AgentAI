@@ -54,6 +54,22 @@ namespace Bricscad_AgentAI_V2.Core
         // Gdy true - WSZYSTKIE mechanizmy Auditora sa wylaczone (Auto-Inject, CB,
         // rollback detection, Filar A i B). Worker dziala jak w v2.28.x.
         public bool AuditorGloballyDisabled { get; set; } = false;
+
+        // Rewident (v2.35.0+) - Filar 3 (LLM RewidentProfile - dedykowany do mutacji DWG)
+        public bool RewidentEnabled { get; set; } = false;
+        public bool RewidentPrewarmEnabled { get; set; } = false;
+        public bool RewidentEvidenceEnabled { get; set; } = false;
+
+        // Rewident (v2.35.0+) - Filar 4 (Circuit Breaker - niezalezny od starego CB Auditora)
+        public bool RewidentCircuitBreakerEnabled { get; set; } = true;
+        public int RewidentCircuitBreakerThreshold { get; set; } = 3;
+
+        // Rewident (v2.35.0+) - Filar 5 (Auto-Inject Properties - niezalezny od starego AutoInject)
+        public bool RewidentAutoInjectPropertiesEnabled { get; set; } = true;
+        public int RewidentAutoInjectSamplePercent { get; set; } = 2;
+
+        // Rewident (v2.35.0+) - Filar 6 (master kill switch - niezalezny od starego AuditorGloballyDisabled)
+        public bool RewidentGloballyDisabled { get; set; } = false;
     }
 
     public class VisionOcrQualityPreset
