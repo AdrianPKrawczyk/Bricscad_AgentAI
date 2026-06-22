@@ -1160,7 +1160,6 @@ namespace Bricscad_AgentAI_V2.UI
             tabSettingsSub = new TabControl { Dock = DockStyle.Fill };
             
             tabSettingsSub.TabPages.Add(tabDev);
-            tabSettingsSub.TabPages.Add(CreateAuditorSettingsTab());
             tabSettingsSub.TabPages.Add(CreateRewidentSettingsTab());
             tabSettingsSub.TabPages.Add(tabLoop);
             tabSettingsSub.TabPages.Add(tabDebug);
