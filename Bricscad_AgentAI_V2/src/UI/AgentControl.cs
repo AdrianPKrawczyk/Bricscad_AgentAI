@@ -1358,6 +1358,19 @@ namespace Bricscad_AgentAI_V2.UI
             AgentMemoryState.AutoInjectSamplePercent = s.AutoInjectSamplePercent;
             // Filar 6: master kill switch (domyslnie false).
             AgentMemoryState.AuditorGloballyDisabled = s.AuditorGloballyDisabled;
+
+            // v2.35.0: sync RewidentState.* z UISettingsManager (analogicznie do AgentMemoryState powyzej).
+            // Bez tego po starcie aplikacji RewidentState.AuditorEnabled=false mimo ze
+            // checkbox chkRewidentEnabled jest zaznaczony w UI.
+            RewidentState.AuditorEnabled = s.RewidentEnabled;
+            RewidentState.AuditorPrewarmEnabled = s.RewidentPrewarmEnabled;
+            RewidentState.EvidenceEnabled = s.RewidentEvidenceEnabled;
+            RewidentState.CircuitBreakerEnabled = s.RewidentCircuitBreakerEnabled;
+            RewidentState.CircuitBreakerThreshold = s.RewidentCircuitBreakerThreshold;
+            RewidentState.AutoInjectPropertiesEnabled = s.RewidentAutoInjectPropertiesEnabled;
+            RewidentState.AutoInjectSamplePercent = s.RewidentAutoInjectSamplePercent;
+            // Filar 6 (Rewident): master kill switch.
+            RewidentState.GloballyDisabled = s.RewidentGloballyDisabled;
         }
 
 
