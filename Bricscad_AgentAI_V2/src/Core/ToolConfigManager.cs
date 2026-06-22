@@ -549,6 +549,13 @@ EnsureMathPromptFile();
                 changed = true;
             }
             if (EnsureAllowedTools(supervisorProf, supervisorDefaults)) changed = true;
+            // Fix v2.36.0 (BUG agent_bug_01): Usun manage_lisps z AllowedTools
+            // Supervisora - musi delegowac do profilow Worker, nie wywolywac
+            // LISP bezposrednio. Wczesniej LLM Supervisor widzial manage_lisps w
+            // arsenale i sam generowal LISP, omijajac Foreach (PRIORYTET 1 dla
+            // masowej edycji w profilach Worker). Wykonujemy USUNIECIE aktywnie,
+            // bo EnsureAllowedTools tylko dodaje, nie usuwa.
+            if (supervisorProf.AllowedTools.Remove("manage_lisps")) changed = true;
 
             // 2. Zabezpieczenie/Synchronizacja CadProfile
             if (!_config.Profiles.TryGetValue("CadProfile", out var cadProf))
@@ -824,7 +831,15 @@ EnsureMathPromptFile();
             _config.Profiles["SupervisorProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = SupervisorPromptFile,
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps" },
+                // Fix v2.36.0 (BUG agent_bug_01): manage_lisps USUNIETY z AllowedTools
+                // Supervisora. Supervisor MA DELEGOWAC zadania do profilow Worker
+                // (CadGeometryProfile/CadProfile), a nie wywolywac LISP bezposrednio.
+                // Wczesniej LLM Supervisor widzial manage_lisps w arsenale i sam
+                // generowal LISP - to omijalo Foreach (PRIORYTET 1 dla masowej edycji)
+                // i Chain of Evidence (Rewident sledzi mutacje Foreach, nie LISP).
+                // Jesli user WPROST prosi o LISP - deleguj do CadGeometryProfile
+                // z instrukcja "uzyj manage_lisps w profilu Worker".
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent" },
                 AllowedTags = new List<string>()
             };
             

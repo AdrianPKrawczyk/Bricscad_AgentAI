@@ -43,6 +43,12 @@ namespace Bricscad_AgentAI_V2.Core
         public int? TotalCount { get; set; }
         public string CompositeTargetTool { get; set; }
         public ToolEffect CompositeTargetEffect { get; set; }
+        // Fix v2.36.0 (BUG agent_bug_01): Liczba PRAWDZIWYCH mutacji (nie iteracji).
+        // SuccessCount = iteracje (Wykonano X/Y), SuccessMutationCount = obiekty zmienione
+        // ("Zmieniono/Zmodyfikowano N"). Dla Foreach roznica moze byc duza (np. 69 iteracji
+        // ale 0 mutacji gdy findText nie pasowal). Dla prostych narzedzi (CreateObject,
+        // ModifyProperties) SuccessCount == SuccessMutationCount.
+        public int? SuccessMutationCount { get; set; }
     }
 
     public class WorkValidationReport
@@ -271,14 +277,21 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (fact == null || !fact.Success) return false;
 
+            // Fix v2.36.0 (BUG agent_bug_01): Uzyj SuccessMutationCount zamiast SuccessCount.
+            // Wczesniej dla Foreach bralismy "Wykonano 69/69" jako 69 mutacji, ale w rzeczywistosci
+            // mogly to byc iteracje z 0 mutacji (gdy findText nie pasowal). Teraz uzywamy
+            // SuccessMutationCount ktory jest parsowany z "Zmieniono/Zmodyfikowano N".
+            // Dla prostych narzedzi (CreateObject, ModifyProperties) SuccessMutationCount
+            // jest ustawiane na SuccessCount jako fallback.
+            int? count = fact.SuccessMutationCount ?? fact.SuccessCount;
             if (fact.Effect == ToolEffect.Mutating)
             {
-                return !fact.SuccessCount.HasValue || fact.SuccessCount.Value > 0;
+                return !count.HasValue || count.Value > 0;
             }
 
             if (fact.Effect == ToolEffect.Composite && fact.CompositeTargetEffect == ToolEffect.Mutating)
             {
-                return !fact.SuccessCount.HasValue || fact.SuccessCount.Value > 0;
+                return !count.HasValue || count.Value > 0;
             }
 
             return false;
@@ -331,12 +344,37 @@ namespace Bricscad_AgentAI_V2.Core
         {
             if (string.IsNullOrWhiteSpace(result) || fact == null) return;
 
+            // Fix v2.36.0 (BUG agent_bug_01): Rozroznij ITERACJE Foreach (Wykonano X/Y)
+            // od PRAWDZIWYCH MUTACJI (Zmieniono/Zmodyfikowano obiektow: N). Wczesniej
+            // ParseCounts bralo X z "Wykonano X/Y" jako SuccessCount - to byla
+            // FALSZYWA liczba mutacji (X = iteracji, w ktorych N=0 mogly nie trafic
+            // w zaden obiekt). Teraz:
+            //  - SuccessCount = iteracje (Wykonano X/Y) - dla spojnosci z fakt.Effect==Composite
+            //  - SuccessMutationCount = prawdziwe mutacje (Zmieniono/Zmodyfikowano N)
+            //  - HasMutatingEvidence uzywa SuccessMutationCount dla Composite (Foreach+mutator)
+            //  - Walidator rewizyjny widzi prawdziwa liczbe zmian, nie iteracji.
             var foreachMatch = Regex.Match(result, @"Wykonano\s+(?<ok>\d+)\s*/\s*(?<all>\d+)", RegexOptions.IgnoreCase);
             if (foreachMatch.Success)
             {
                 fact.SuccessCount = int.Parse(foreachMatch.Groups["ok"].Value);
                 fact.TotalCount = int.Parse(foreachMatch.Groups["all"].Value);
-                return;
+            }
+
+            // Prawdziwa liczba mutacji - "Zmieniono/Zmodyfikowano obiektow: N" lub "N obiektow"
+            var mutationMatch = Regex.Match(result,
+                @"(?:Zmieniono|Zmodyfikowano)\s+(?:obiekt(?:ow|y|ów)?|obiektów)\s*:?\s*(?<n>\d+)",
+                RegexOptions.IgnoreCase);
+            if (mutationMatch.Success)
+            {
+                fact.SuccessMutationCount = int.Parse(mutationMatch.Groups["n"].Value);
+            }
+            else
+            {
+                // Fallback: nie ma explicite "Zmieniono N" - uzyj SuccessCount jako przyblizenie.
+                // To dziala dla prostych narzedzi (CreateObject, ModifyProperties) - dla
+                // Foreach oznacza "wszystkie iteracje sie udaly" (ale NIE wszystkie musialy
+                // wyprodukowac mutacje).
+                fact.SuccessMutationCount = fact.SuccessCount;
             }
 
             var layoutMatch = Regex.Match(result, @"do\s+(?<ok>\d+)\s+layout", RegexOptions.IgnoreCase);
@@ -344,6 +382,7 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 fact.SuccessCount = int.Parse(layoutMatch.Groups["ok"].Value);
                 fact.TotalCount = fact.SuccessCount;
+                if (!fact.SuccessMutationCount.HasValue) fact.SuccessMutationCount = fact.SuccessCount;
             }
         }
 

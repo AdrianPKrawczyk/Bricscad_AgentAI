@@ -151,11 +151,72 @@ namespace Bricscad_AgentAI_V2.Tools
                         // dzieki poprawce w LispManager.SaveLisp.
                         string tmpLispId = $"c:agent_replace_{DateTime.Now:HHmmssfff}";
 
+                        // Fix v2.36.0 (BUG agent_bug_01): Snapshot licznika mutacji PRZED
+                        // uruchomieniem LISP, zeby po nim odczytac DELTE (EngineTracer
+                        // subskrybuje ObjectModified - jesli EngineTracer wlaczony).
+                        int mutationsBeforeLisp = AgentMemoryState.MutationCount;
+                        int modelSpaceBeforeLisp = EngineTracer.CountObjectsInModelSpace();
+
                         // Zapisz i wykonaj
                         LispManager.SaveLisp(
                             new LispMetadata { LispId = tmpLispId, Category = "AgentGenerated", Description = $"Auto-gen: replace '{findText}' in {layers}", CreatedAt = DateTime.Now },
                             lispCode);
                         LispManager.TriggerLispExecution(tmpLispId, lispCode);
+
+                        // Fix v2.36.0 (BUG agent_bug_01): SendStringToExecute jest
+                        // ASYNCHRONICZNY w Teigha - LISP wykonuje sie dopiero PO zakonczeniu
+                        // naszego watku, wiec EngineTracer.MutationCount przy zwrocie z
+                        // manage_lisps == 0 (falszywy alarm "BRAK MUTACJI").
+                        // Czekamy na stabilizacje licznika (brak zmian przez 300ms) lub
+                        // na timeout 8s - w zaleznosci co nastapi wczesniej.
+                        int observedMutationsDelta = 0;
+                        int observedModelSpaceDelta = 0;
+                        try
+                        {
+                            const int maxWaitMs = 8000;
+                            const int stableWindowMs = 300;
+                            const int pollIntervalMs = 50;
+                            int elapsed = 0;
+                            int prevMutations = mutationsBeforeLisp;
+                            int prevModelSpace = modelSpaceBeforeLisp;
+                            int stableSince = 0;
+                            bool stabilized = false;
+                            while (elapsed < maxWaitMs)
+                            {
+                                System.Threading.Thread.Sleep(pollIntervalMs);
+                                elapsed += pollIntervalMs;
+                                int curMutations = AgentMemoryState.MutationCount;
+                                int curModelSpace = EngineTracer.CountObjectsInModelSpace();
+                                if (curMutations == prevMutations && curModelSpace == prevModelSpace)
+                                {
+                                    stableSince += pollIntervalMs;
+                                    if (stableSince >= stableWindowMs)
+                                    {
+                                        stabilized = true;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    stableSince = 0;
+                                    prevMutations = curMutations;
+                                    prevModelSpace = curModelSpace;
+                                }
+                            }
+                            observedMutationsDelta = AgentMemoryState.MutationCount - mutationsBeforeLisp;
+                            observedModelSpaceDelta = EngineTracer.CountObjectsInModelSpace() - modelSpaceBeforeLisp;
+                            // Wymusz refresh ekranu po LISP - niektore mutacje moga byc
+                            // widoczne dopiero po regen (np. zmiana TextString nie zawsze
+                            // triggeruje ObjectModified bezposrednio, dopiero po REDRAW).
+                            try { doc.SendStringToExecute("_.REGEN\n", true, false, false); } catch { }
+                            System.Threading.Thread.Sleep(200);
+                        }
+                        catch (Exception waitEx)
+                        {
+                            // Nie blokuj sesji jesli polling sie nie uda - LLM moze
+                            // kontynuowac. Logujemy ostrzezenie.
+                            System.Diagnostics.Debug.WriteLine($"[ManageLispsTool] Polling mutacji nie udany: {waitEx.Message}");
+                        }
 
                         return $"[SUKCES] Wygenerowano i uruchomiono LISP '{tmpLispId}'.\n" +
                                $"Szablon: {template}\n" +
@@ -163,7 +224,8 @@ namespace Bricscad_AgentAI_V2.Tools
                                $"Znajdz: {findText}\n" +
                                $"Zamien na: {replaceWith}\n" +
                                $"Tryb dopasowania: {matchMode}\n" +
-                               $"LISP wykonuje sie bezposrednio w BricsCAD (jeden krok, bez limitu iteracji).\n\n" +
+                               $"LISP wykonuje sie bezposrednio w BricsCAD (jeden krok, bez limitu iteracji).\n" +
+                               $"Zaobserwowane mutacje: {observedMutationsDelta} (EngineTracer), ModelSpace delta: {observedModelSpaceDelta}.\n\n" +
                                $"Kod LISP:\n{lispCode}";
                     }
                     return $"[BŁĄD] Nieznany Template '{template}'. Dostępne: replace_text_in_layers";

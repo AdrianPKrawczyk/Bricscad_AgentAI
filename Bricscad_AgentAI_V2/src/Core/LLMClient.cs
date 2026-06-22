@@ -993,7 +993,44 @@ namespace Bricscad_AgentAI_V2.Core
         }
 
         /// <summary>
-        /// Skanuje historię w poszukiwaniu znaczników LISP (%lisp_id lub %lisp_id%) i instruuje agenta do ich uruchomienia.
+        /// Skanuje historię w poszukiwaniu znaczników LISP (§lispId§ lub !lispId!) i
+        /// instruuje agenta do ich uruchomienia.
+        ///
+        /// v2.36.0 (BUG agent_bug_01): Dwa alternatywne separatory + filtr false-positive.
+        ///
+        /// Separator A: §lispId§ (Unicode U+00A7, Alt+0167) - preferowany, bo:
+        ///   - NIE koliduje z % (kody DWG: %%C, %%P, %%D = srednica, plus/minus, stopien)
+        ///   - NIE koliduje z # (zajety przez RequestAdditionalTools Skills)
+        ///   - NIE koliduje z $ (zajety przez Recipe triggery)
+        ///   - NIE koliduje z {} (uzywane przez Foreach templates {item}, {index})
+        ///   - Rzadko wystepuje w stringach DWG / nazwach warstw / atrybutach
+        ///
+        /// Separator B: !lispId! (alternatywa dla wygody, Shift+1) - wymaga filtra bo:
+        ///   - Latwiejszy do wpisania ale bardziej kolizyjny (wiele zdan konczy sie "!")
+        ///   - BLACKLIST: kody DWG (C, D, P, U, %%C, %%D, %%P), polskie koncowki
+        ///     zdan (ok, no, tak, nie, to, zrob, spoko itp.)
+        ///   - MINIMALNA dlugosc 3 znaki (lispId krotszy to literowka/wykrzyknik)
+        ///   - Wykluczenie koncowek zdan: "zrob to!" (to! otoczone bialymi znakami)
+        ///
+        /// PRZYKLAD:
+        ///   "uruchom §moj_test§" -> system wstrzykuje instrukcje uruchomienia LISP moj_test
+        ///   "wywolaj !moj_test!" -> to samo (wygodniejsze w wpisywaniu)
+        ///   "zamien na 'PP-Stabi %%C25 PN20'" -> BRAK match (regex nie lapie %%C25)
+        ///   "zrob to szybko!" -> BRAK match (!szybko! nie istnieje jako para)
+        /// </summary>
+        /// Format znacznika: §lispId§ (para §...§). Separator § (Unicode U+00A7) wybrany
+        /// celowo, bo:
+        /// - NIE koliduje z % (kody DWG: %%C, %%P, %%D = średnica, plus/minus, stopień)
+        /// - NIE koliduje z # (już zajęty przez RequestAdditionalTools Skills)
+        /// - NIE koliduje z $ (już zajęty przez Recipe triggery)
+        /// - Rzadko występuje w stringach DWG/nazwach warstw/atrybutach
+        /// PRZYKŁAD: user pisze "uruchom §moj_test§" → system wstrzykuje LLM-owi
+        /// instrukcję uruchomienia manage_lisps z LispId=moj_test.
+        ///
+        /// v2.36.0 (BUG agent_bug_01): Zmiana z %lispId% na §lispId§.
+        /// Poprzedni regex @%([a-zA-Z0-9_:]+)%? łapał %%C25 (string DWG z symbolem
+        /// średnicy) jako lispId=C25, co powodowało fałszywe uruchomienie LISP-a
+        /// i mylło agenta w zadaniach typu "zamień tekst na %%C25 PN20".
         /// </summary>
         private void PreProcessLisps(List<ChatMessage> history)
         {
@@ -1001,26 +1038,69 @@ namespace Bricscad_AgentAI_V2.Core
             if (!userMsgs.Any()) return;
 
             var discoveredLisps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Blacklista czestych stringow DWG/polish - NIE traktowane jako lispId
+            var falsePositives = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Kody DWG (bez %)
+                "C", "D", "P", "U", "UU", "NN",
+                // Kody DWG (z %)
+                "%C", "%D", "%P", "%U", "%NN",
+                "%%C", "%%D", "%%P", "%%U", "%%NN",
+                // Typowe wykrzykniki w zdaniach (skroty mowy)
+                "ok", "aha", "no", "tak", "nie", "to", "ju", "wio",
+                // Typowe ogonki zdan
+                "zrob", "ok", "rozwiaz", "zrobione", "spoko", "git", "dobra"
+            };
+
+            // Minimalna dlugosc lispId (krotszy to prawdopodobnie literowka/wykrzyknik)
+            const int minLispIdLength = 3;
+
             foreach (var msg in userMsgs)
             {
                 if (msg.Content is string textContent)
                 {
-                    var matches = Regex.Matches(textContent, @"%([a-zA-Z0-9_:]+)%?");
-                    foreach (Match m in matches) discoveredLisps.Add(m.Groups[1].Value);
+                    // Separator A: §lispId§ (rzadki znak, akceptuj bez filtra)
+                    foreach (Match m in Regex.Matches(textContent, @"§([a-zA-Z0-9_:\-]+)§"))
+                    {
+                        string id = m.Groups[1].Value;
+                        if (!falsePositives.Contains(id) && id.Length >= minLispIdLength)
+                            discoveredLisps.Add(id);
+                    }
+
+                    // Separator B: !lispId! (czestszy, wymaga filtra)
+                    foreach (Match m in Regex.Matches(textContent, @"!([a-zA-Z0-9_:\-]+)!"))
+                    {
+                        string id = m.Groups[1].Value;
+                        // ! jest kolizyjny: tylko akceptuj jesli:
+                        // - lispId ma >=3 znaki
+                        // - NIE jest w blacklist
+                        // - NIE jest typu "to!", "ok!", "tak!" (koniec zdania)
+                        if (id.Length >= minLispIdLength
+                            && !falsePositives.Contains(id)
+                            // Wyklucz "!" otoczone bialymi znakami (koniec zdania: "zrob to!")
+                            && !Regex.IsMatch(textContent, $@"\b{Regex.Escape(id)}!\s*[.!?]"))
+                        {
+                            discoveredLisps.Add(id);
+                        }
+                    }
                 }
             }
 
             if (!discoveredLisps.Any()) return;
+
+            // Fix v2.36.0: loguj wykryte LISP-y dla diagnostyki (LISP marker trigger).
+            BielikLogger.LogInfo($"[PreProcessLisps] Wykryto {discoveredLisps.Count} marker(ow) LISP: {string.Join(", ", discoveredLisps)}");
 
             int injectionIdx = history.FindIndex(m => m.Role == "system") + 1;
             if (injectionIdx <= 0) injectionIdx = 0;
 
             foreach (var lispId in discoveredLisps)
             {
-                history.Insert(injectionIdx++, new ChatMessage 
-                { 
-                    Role = "system", 
-                    Content = $"UŻYTKOWNIK UŻYŁ ZNACZNIKA %{lispId}. Oznacza to jawne żądanie uruchomienia tego skryptu LISP. Natychmiast użyj narzędzia manage_lisps z Action='execute_lisp' i LispId='{lispId}'." 
+                history.Insert(injectionIdx++, new ChatMessage
+                {
+                    Role = "system",
+                    Content = $"UŻYTKOWNIK UŻYŁ ZNACZNIKA §{lispId}§ lub !{lispId}!. Oznacza to jawne żądanie uruchomienia tego skryptu LISP. Natychmiast użyj narzędzia manage_lisps z Action='execute_lisp' i LispId='{lispId}'."
                 });
             }
         }
@@ -2111,7 +2191,13 @@ namespace Bricscad_AgentAI_V2.Core
                 "CreateObject", "ModifyProperties", "ManageLayers", "TextEditTool",
                 "DimensionEditTool", "EditBlock", "EditAttributes", "InsertBlock",
                 "CreateBlock", "ManageFields", "WriteXData", "BatchWriteXData",
-                "ManageAnnoScales"
+                "ManageAnnoScales",
+                // Fix v2.36.0 (BUG agent_bug_01): Foreach i manage_lisps wywoluja
+                // narzedzia mutujace (TextEditTool/LISP z mutacjami) - musza byc liczone
+                // jako mutujace przez anti-loop detektor, w przeciwnym razie wzor #3
+                // (4x SelectEntities bez mutujacego narzedzia) przerywa sesje
+                // pomimo poprawnej iteracji.
+                "Foreach", "manage_lisps"
             };
             return mutating.Contains(toolName);
         }

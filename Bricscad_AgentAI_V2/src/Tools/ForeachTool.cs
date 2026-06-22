@@ -156,6 +156,7 @@ namespace Bricscad_AgentAI_V2.Tools
             if (action.Contains("{") && action.Contains("}"))
             {
                 int successCount = 0;
+                int actualMutationCount = 0;
                 List<string> handles = new List<string>();
                 List<string> errors = new List<string>();
                 int loopIndex = 1;
@@ -279,6 +280,27 @@ namespace Bricscad_AgentAI_V2.Tools
                             // Próba wyciągnięcia Handle z logu (np. "Handle: 1A2B")
                             var match = System.Text.RegularExpressions.Regex.Match(res, @"Handle: ([A-Fa-f0-9]+)");
                             if (match.Success) handles.Add(match.Groups[1].Value);
+
+                            // Fix v2.36.0 (BUG agent_bug_01): Parsuj faktyczna liczbe zmian
+                            // z odpowiedzi TextEditTool ("SUKCES: Zmodyfikowano N obiektow")
+                            // zeby Foreach raportowal rzeczywiste mutacje, a nie tylko
+                            // "wykonano 65/65 iteracji" (ktore moga byc wszystkie puste -
+                            // findText nie pasowal do zadnego obiektu).
+                            var zmodyfikowanoMatch = System.Text.RegularExpressions.Regex.Match(
+                                res, @"Zmodyfikowano (\d+) obiekt");
+                            if (zmodyfikowanoMatch.Success)
+                            {
+                                if (int.TryParse(zmodyfikowanoMatch.Groups[1].Value, out int n))
+                                {
+                                    actualMutationCount += n;
+                                }
+                            }
+                            else
+                            {
+                                // Narzedzie nie raportuje liczby zmian - zakladamy 1 mutacje
+                                // (np. CreateObject zwraca "Handle: X" ale tez zmienia DWG)
+                                actualMutationCount++;
+                            }
                         }
                         else
                         {
@@ -304,6 +326,20 @@ namespace Bricscad_AgentAI_V2.Tools
                 else
                 {
                     summary.Append($"SUKCES: Wykonano {successCount}/{finalItems.Count} operacji.");
+                }
+                // Fix v2.36.0 (BUG agent_bug_01): Raportuj faktyczna liczbe mutacji
+                // (z TextEditTool "Zmodyfikowano N") - kluczowe dla Rewidenta, ktory
+                // waliduje EngineTracer.MutationCount. Jesli Foreach wykonal 65 iteracji
+                // ale 0 obiektow mialo pasujacy tekst, Rewident musi to widziec.
+                if (actualMutationCount > 0)
+                {
+                    summary.Append($" Zmieniono obiektow: {actualMutationCount}.");
+                }
+                else if (successCount > 0)
+                {
+                    // Iteracje sie powiodly ale zadna nie wyprodukowala mutacji -
+                    // prawdopodobnie findText nie pasowal do zadnego obiektu.
+                    summary.Append(" UWAGA: Zadna iteracja nie wyprodukowala mutacji - findText prawdopodobnie nie pasowal do obiektow.");
                 }
                 if (handles.Count > 0) summary.Append($" Uchwyty: {string.Join(", ", handles.Take(10))}{(handles.Count > 10 ? "..." : "")}");
                 if (errors.Count > 0) summary.Append($" Błędy: {errors.Count} (ostatni: {errors.Last()})");

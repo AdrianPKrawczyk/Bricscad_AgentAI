@@ -91,12 +91,15 @@ namespace Bricscad_AgentAI_V2.Core
             //   1. EngineTracer.MutationCount (z subskrypcji ObjectAppended/Modified - dziala TYLKO jesli EngineTracer wlaczony)
             //   2. CountObjectsInModelSpace PRZED i PO (czyste C#, dziala ZAWSZE - nie wymaga subskrypcji)
             // Worker klamie = oba detektory == 0.
-            // Fix v2.34.20: dla MODYFIKACJI (Worker zwraca "Zmodyfikowano obiekty: N") nie sprawdzamy
+            // Fix v2.34.20: dla MODYFIKACJI (Worker zwraca "Zmodyfikowano/Zmieniono obiekty: N") nie sprawdzamy
             // BRAK MUTACJI - modyfikacja nie zmienia ModelSpace count.
+            // Fix v2.36.0 (BUG agent_bug_01): Akceptuj "Zmieniono" (ForeachTool) i "Zmodyfikowano"
+            // (TextEditTool/DimensionEditTool) - oba oznaczaja modyfikacje tresci.
             bool taskLooksMutating = LooksLikeMutatingTask(taskDescription);
             bool looksLikeModification = workerResult.IsSuccess
                 && workerResult.DisplayMessage != null
                 && (workerResult.DisplayMessage.Contains("Zmodyfikowano obiekt")
+                    || workerResult.DisplayMessage.Contains("Zmieniono obiekt")
                     || workerResult.DisplayMessage.Contains("Modified")
                     || workerResult.DisplayMessage.Contains("Edycja"));
             if (taskLooksMutating && workerResult.IsSuccess && !looksLikeModification)

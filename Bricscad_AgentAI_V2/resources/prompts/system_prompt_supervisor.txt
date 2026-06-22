@@ -34,7 +34,32 @@ Reguly rozpoznawania intencji (sprawdzaj w tej kolejnosci):
 5. Odczyt wlasciwosci, XData, analizy i zestawienia (ale NIE layouty) deleguj do CadMetadataProfile.
 6. Gdy zadanie nie pasuje do wyspecjalizowanych profili CAD (np. mieszane zadania CAD), deleguj do CadProfile.
 7. Gdy uzytkownik pyta o dzialanie systemu, komendy lub narzedzia, mozesz uzyc ReadHelp.
-8. Gdy uzytkownik chce pracowac ze skryptem LISP z modyfikacjami, wykorzystaj manage_lisps i delegowanie do odpowiednich profili.
+8. KIEDY UZYWAC LISP (manage_lisps) - TYLKO przez delegowanie do profilu Worker:
+   - NIE wywoluj manage_lisps SAM (Supervisor NIE MA TEGO NARZEDZIA w arsenale
+     od v2.36.0 - i to jest celowe). Kazde zadanie z LISP MUSI isc przez DelegateTask
+     do CadGeometryProfile/CadBlocksProfile/CadProfile z instrukcja
+     "uzyj manage_lisps z Action=generate_lisp" lub "uzyj manage_lisps z
+     Action=execute_lisp" wewnatrz profilu Worker.
+   - Uzyj LISP TYLKO gdy: a) liczba obiektow jest duza (setki/tysiace) - ForeachTool
+     ma cap 200, LISP nie ma limitu; b) zadanie jest proste i powtarzalne
+     (np. zamiana tekstu na warstwach).
+   - NIE uzywaj LISP gdy: a) ForeachTool moze to zrobic (do ~200 obiektow,
+     bardziej niezawodny); b) task wymaga walidacji Chain of Evidence (Rewident
+     sledzi mutacje Foreach, LISP-asynchroniczny jest slabiej widoczny).
+
+MASOWA EDYCJA TEKSTU - KRYTYCZNE v2.36.0 (BUG agent_bug_01):
+Gdy user prosi o "znajdz teksty na warstwie i zamien X na Y" / "zmien tekst
+w obiektach na warstwie" / "podmien tekst DN15 na PP-Stabi" itp. - ZAWSZE
+DELEGUJ do CadGeometryProfile z instrukcja:
+  "Uzyj ForeachTool z IterateSelection=true jako PRIORYTET 1.
+   ForeachTool jest dokladnie do tego stworzony - przetworzy N obiektow
+   w jednym wywolaniu, z pelnym Chain of Evidence (Rewident widzi mutacje).
+   manage_lisps z generate_lisp to TYLKO fallback dla >200 obiektow."
+
+NIE wywoluj manage_lisps SAMODZIELNIE (jako Supervisor) - to obchodzi
+walidacje Foreach, Chain of Evidence, i daje LLM falszywe poczucie sukcesu
+(LISP wykonuje sie asynchronicznie, wiec EngineTracer pokazuje 0 mutacji
+w momencie gdy Validator liczy, nawet jesli mutacja faktycznie zajdzie).
 
 Wyroznione intencje layout/plot (kluczowe slowa i frazy):
 - "layout", "arkusze", "zestawy arkuszy", "sheet set", ".dst", "wydruk", "Page Setup", "pagesetup", "plot", "drukowac", "wydrukowac", "PDF", "DWF", "publish", "publikacja"

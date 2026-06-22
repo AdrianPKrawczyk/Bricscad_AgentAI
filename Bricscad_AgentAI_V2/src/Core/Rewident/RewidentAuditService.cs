@@ -120,15 +120,19 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
             // Fix v2.35.2 (BUG #1): detektor #3 - textMutationDelta (niezależny od subskrypcji,
             //   bada zawartosc MText.Contents / DBText.TextString bezposrednio z DWG)
             // Worker klamie = wszystkie 3 detektory == 0.
-            // Fix v2.34.20: dla MODYFIKACJI (Worker zwraca "Zmodyfikowano obiekty: N") nie sprawdzamy
+            // Fix v2.34.20: dla MODYFIKACJI (Worker zwraca "Zmodyfikowano/Zmieniono obiekty: N") nie sprawdzamy
             // BRAK MUTACJI - modyfikacja nie zmienia ModelSpace count.
+            // Fix v2.36.0 (BUG agent_bug_01): Akceptuj "Zmieniono" (skrocona forma z ForeachTool
+            // "Zmieniono obiektow: N") ORAZ "Zmodyfikowano" (pelna forma z TextEditTool/DimensionEditTool).
             bool taskLooksMutating = LooksLikeMutatingTask(taskDescription);
             bool looksLikeModification = workerResult.IsSuccess
-                && (workerResult.DisplayMessage != null
-                    && (workerResult.DisplayMessage.Contains("Zmodyfikowano obiekt")
-                        || workerResult.DisplayMessage.Contains("Modified")
-                        || workerResult.DisplayMessage.Contains("Edycja")))
-                || (workerResult.HasMutatingToolCall && textMutationDelta > 0);
+                && ((workerResult.DisplayMessage != null
+                        && (workerResult.DisplayMessage.Contains("Zmodyfikowano obiekt")
+                            || workerResult.DisplayMessage.Contains("Zmieniono obiekt")
+                            || workerResult.DisplayMessage.Contains("Zmieniono obiekt")
+                            || workerResult.DisplayMessage.Contains("Modified")
+                            || workerResult.DisplayMessage.Contains("Edycja")))
+                    || (workerResult.HasMutatingToolCall && textMutationDelta > 0));
             if (taskLooksMutating && workerResult.IsSuccess && !looksLikeModification)
             {
                 // Heurystyka: brak mutacji gdy WSZYSTKIE 3 detektory mowia 0
@@ -497,9 +501,14 @@ namespace Bricscad_AgentAI_V2.Core.Rewident
 
             // Jesli Worker wywolal TextEditTool, DimensionEditTool lub inny edytor tresci -
             // to jest pozytywny sygnal mutacji (niezaleznie od EngineTracer).
+            // Fix v2.36.0 (BUG agent_bug_01): Dodaj Foreach do contentMutators - ForeachTool
+            // re-kurencyjnie wywoluje TextEditTool ale te wewnetrzne wywolania NIE pojawiaja
+            // sie w msg.ToolCalls (LLM widzi tylko "Foreach"). Bez tego textMutationDelta=0
+            // i Walidator mylnie raportowal "BRAK MUTACJI" mimo ze mutacje zaszly.
             var contentMutators = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "TextEditTool", "DimensionEditTool", "EditAttributes", "ManageFields"
+                "TextEditTool", "DimensionEditTool", "EditAttributes", "ManageFields",
+                "Foreach", "manage_lisps"
             };
 
             if (workerResult.MutatingToolNames != null)

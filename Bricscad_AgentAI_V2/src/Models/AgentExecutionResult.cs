@@ -73,13 +73,19 @@ namespace Bricscad_AgentAI_V2.Models
             if (conversationHistory == null) return;
 
             // Mutujace narzedzia - zrodlo prawdy niezalezne od LLM
+            // Fix v2.36.0 (BUG agent_bug_01): Dodaj Foreach i manage_lisps - te narzedzia
+            // re-kurencyjnie wywoluja TextEditTool/LISP ale ich wewnetrzne wywolania
+            // NIE pojawiaja sie w msg.ToolCalls (LLM widzi tylko "Foreach"/"manage_lisps").
+            // Bez tego MutatingToolNames bylo puste dla tych narzedzi i Walidator
+            // mylnie raportowal "BRAK MUTACJI" mimo ze mutacje zaszly.
             var mutatingTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "CreateObject", "ModifyProperties", "ManageLayers", "InsertBlock", "CreateBlock",
                 "EditBlock", "EditAttributes", "TextEditTool", "DimensionEditTool", "ManageAnnoScales",
                 "WriteXData", "BatchWriteXData", "PageSetupTool", "PlotStyleTool", "ManageLayoutTool",
                 "ImportLayoutTemplateTool", "ExportLayoutTemplateTool", "PlotLayoutTool", "PublishToPdfTool",
-                "ManageViewportsTool", "ManageSheetSetTool", "SheetSetSheetTool"
+                "ManageViewportsTool", "ManageSheetSetTool", "SheetSetSheetTool",
+                "Foreach", "manage_lisps"
             };
 
             foreach (var msg in conversationHistory)

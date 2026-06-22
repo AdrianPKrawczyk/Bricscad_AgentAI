@@ -56,6 +56,8 @@ namespace Bricscad_AgentAI_V2.UI
         // --- UI Czat ---
         private RichTextBox txtHistory;
         private RichTextBox txtInput;
+        private RichTextBox txtLiveLogs;
+        private SplitContainer splitContainerChat;
         private Button btnSend;
         private Button btnReset;
         private Button btnAttachFile;
@@ -688,7 +690,27 @@ namespace Bricscad_AgentAI_V2.UI
 
             tabChat.Controls.Add(panStats);
             tabChat.Controls.Add(panContextBar);
-            tabChat.Controls.Add(txtHistory);
+            splitContainerChat = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterDistance = (int)(this.Height * 0.75)
+            };
+
+            txtLiveLogs = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = isDarkMode ? Color.FromArgb(40, 40, 40) : Color.WhiteSmoke,
+                ForeColor = isDarkMode ? Color.LightGray : Color.Black,
+                Font = new Font("Consolas", 9f),
+                BorderStyle = BorderStyle.None
+            };
+
+            splitContainerChat.Panel1.Controls.Add(txtHistory);
+            splitContainerChat.Panel2.Controls.Add(txtLiveLogs);
+
+            tabChat.Controls.Add(splitContainerChat);
             tabChat.Controls.Add(panInput);
             txtHistory.BringToFront();
 
@@ -2211,6 +2233,17 @@ namespace Bricscad_AgentAI_V2.UI
             txtLoopLogs.AppendText(message + "\n");
             txtLoopLogs.SelectionStart = txtLoopLogs.Text.Length;
             txtLoopLogs.ScrollToCaret();
+
+            if (txtLiveLogs != null && !txtLiveLogs.IsDisposed)
+            {
+                txtLiveLogs.SelectionStart = txtLiveLogs.TextLength;
+                txtLiveLogs.SelectionLength = 0;
+                txtLiveLogs.SelectionColor = color;
+                txtLiveLogs.AppendText($"\n--- PETLA [{DateTime.Now:HH:mm:ss}] ---\n");
+                txtLiveLogs.AppendText(message + "\n");
+                txtLiveLogs.SelectionStart = txtLiveLogs.Text.Length;
+                txtLiveLogs.ScrollToCaret();
+            }
         }
 
         private void ExecuteLispFromExternal(string lispId, string code)
@@ -2482,6 +2515,10 @@ namespace Bricscad_AgentAI_V2.UI
             string userMsg = txtInput.Text.Trim();
             if (string.IsNullOrWhiteSpace(userMsg)) return;
             txtInput.Clear();
+            if (txtLiveLogs != null && !txtLiveLogs.IsDisposed)
+            {
+                txtLiveLogs.Clear();
+            }
             await HandleUserInputAsync(userMsg);
         }
 
