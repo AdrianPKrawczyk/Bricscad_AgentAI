@@ -332,6 +332,14 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <TargetPath>prompts\system_prompt_layout.txt</TargetPath>
     </Content>
+    <Content Include="resources\prompts\system_prompt_rewident.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_rewident.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_text.txt</TargetPath>
+    </Content>
     <Content Include="resources\help\USER_GUIDE.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

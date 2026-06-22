@@ -205,6 +205,42 @@ EnsureMathPromptFile();
             );
         }
 
+        /// <summary>
+        /// Zwraca sciezke zrodlowa (developerska) pliku promptu w katalogu projektu.
+        /// bin/Debug\prompts\x.txt -> cofamy sie 3 katalogi w gore i wchodzimy do resources\prompts\x.txt.
+        /// Zwraca null jesli assembly nie znajduje sie w oczekiwanej lokalizacji dev (np. release install).
+        /// </summary>
+        public static string GetSourcePromptPath(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return null;
+            }
+
+            try
+            {
+                string assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                if (string.IsNullOrEmpty(assemblyDir))
+                {
+                    return null;
+                }
+
+                // bin/Debug\ -> project\resources\prompts\
+                DirectoryInfo dir = new DirectoryInfo(assemblyDir);
+                DirectoryInfo projectRoot = dir.Parent?.Parent?.Parent;
+                if (projectRoot == null)
+                {
+                    return null;
+                }
+
+                return Path.Combine(projectRoot.FullName, "resources", "prompts", Path.GetFileName(fileName));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static string LoadSystemPromptText(string fileName)
         {
             string path = GetRuntimePromptPath(fileName);
@@ -283,8 +319,37 @@ EnsureMathPromptFile();
                     Directory.CreateDirectory(directory);
                 }
 
-                if (!File.Exists(path))
+                string sourcePath = GetSourcePromptPath(fileName);
+                bool sourceExists = !string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath);
+
+                if (sourceExists)
                 {
+                    // Source-of-truth: resources/prompts/<plik>. Nadpisujemy runtime gdy:
+                    // 1) runtime nie istnieje, lub
+                    // 2) runtime jest starszy od source (np. po git pull bez clean build).
+                    bool needsCopy = !File.Exists(path);
+                    if (!needsCopy)
+                    {
+                        try
+                        {
+                            DateTime sourceStamp = File.GetLastWriteTimeUtc(sourcePath);
+                            DateTime runtimeStamp = File.GetLastWriteTimeUtc(path);
+                            needsCopy = sourceStamp > runtimeStamp;
+                        }
+                        catch
+                        {
+                            needsCopy = true;
+                        }
+                    }
+
+                    if (needsCopy)
+                    {
+                        File.Copy(sourcePath, path, true);
+                    }
+                }
+                else if (!File.Exists(path))
+                {
+                    // Brak zrodla developerskiego i brak runtime - ostateczny fallback z kodu.
                     File.WriteAllText(path, fallbackContent, System.Text.Encoding.UTF8);
                 }
             }
