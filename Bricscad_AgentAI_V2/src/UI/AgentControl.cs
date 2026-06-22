@@ -1496,7 +1496,7 @@ namespace Bricscad_AgentAI_V2.UI
         private void UpdateCircuitBreakerLabel()
         {
             if (lblCircuitBreakerState == null) return;
-            var snapshots = CircuitBreakerState.GetAllSnapshots();
+            var snapshots = RewidentCircuitBreaker.GetAllSnapshots();
             if (snapshots.Count == 0)
             {
                 lblCircuitBreakerState.Text = "";
@@ -3472,7 +3472,7 @@ Ostatnia rozmowa:
             };
             btnForceReset.Click += (s, e) =>
             {
-                CircuitBreakerState.ResetAll();
+                RewidentCircuitBreaker.ResetAll();
                 UpdateCircuitBreakerLabel();
                 System.Windows.Forms.MessageBox.Show(
                     "Wszystkie profile zostaly odblokowane.",

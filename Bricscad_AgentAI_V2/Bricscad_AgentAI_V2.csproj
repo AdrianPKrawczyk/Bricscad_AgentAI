@@ -246,7 +246,7 @@
     <Compile Include="tests\Tools\ManageFieldsToolTests.cs" />
     <Compile Include="tests\Core\LLMClientTests.cs" />
     <Compile Include="tests\Core\WorkValidatorTests.cs" />
-    <Compile Include="tests\Core\CircuitBreakerStateTests.cs" />
+    <Compile Include="tests\Core\RewidentCircuitBreakerTests.cs" />
     <Compile Include="tests\Core\AuditorReportTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />

@@ -146,7 +146,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 AgentTelemetry.ReportLoopLog($"[Supervisor -> {targetProfile}]\n{taskDescription}");
                 AgentExecutionResult result = null;
                 WorkValidationReport validation = null;
-                AuditorReport auditReport = null;
+                RewidentReport auditReport = null;
                 const int maxValidationAttempts = 3;
 
                 // ============== AUDITOR PRE-WARM (Filar 3) ==============
