@@ -287,12 +287,24 @@ namespace Bricscad_AgentAI_V2.Core
 
                     JObject argumentsParsed;
                     string toolExecutionResult;
+                    string argumentRepairNote = null;
                     try
                     {
-                        argumentsParsed = string.IsNullOrWhiteSpace(argumentsString) 
-                            ? new JObject() 
-                            : JObject.Parse(argumentsString);
-                        
+                        if (string.IsNullOrWhiteSpace(argumentsString))
+                        {
+                            argumentsParsed = new JObject();
+                        }
+                        else if (!TryParseToolArgumentsRobust(argumentsString, out argumentsParsed, out argumentRepairNote))
+                        {
+                            throw new Newtonsoft.Json.JsonReaderException(
+                                $"Nie udało się sparsować argumentów nawet po naprawie. Surowe wejście (pierwsze 240 znaków): " +
+                                $"{(argumentsString.Length > 240 ? argumentsString.Substring(0, 240) + "..." : argumentsString)}");
+                        }
+                        else if (!string.IsNullOrEmpty(argumentRepairNote))
+                        {
+                            BielikLogger.LogInfo($"[LLMClient] Odzyskano zepsute argumenty tool call: {argumentRepairNote}");
+                        }
+
                         // Sprawdź właściwości narzędzia przed wykonaniem dla Early Exit
                         var toolSettings = ToolConfigManager.GetSettings(functionName);
                         if (toolSettings == null || !toolSettings.SupportsEarlyExit)
@@ -318,6 +330,13 @@ namespace Bricscad_AgentAI_V2.Core
                     catch (Exception ex)
                     {
                         toolExecutionResult = $"Błąd podczas parsowania argumentów lub wywołania '{functionName}': {ex.Message}";
+
+                        canEarlyExitThisTurn = false;
+                        earlyExitBlockers.Add($"{functionName}: wyjątek parsowania/wykonania: {ex.GetType().Name}.");
+
+                        string argSnippet = argumentsString ?? string.Empty;
+                        if (argSnippet.Length > 240) argSnippet = argSnippet.Substring(0, 240) + "...";
+                        earlyExitBlockers.Add($"{functionName}: fragment zepsutego argumentu: {argSnippet}");
                     }
 
                     // 5. Dodaj odpowiedź z roli zastrzeżonej "tool"
@@ -1883,6 +1902,172 @@ namespace Bricscad_AgentAI_V2.Core
             return null;
         }
 
+        private static bool TryParseToolArgumentsRobust(string raw, out JObject parsed, out string repairNote)
+        {
+            parsed = null;
+            repairNote = null;
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                parsed = new JObject();
+                return true;
+            }
+
+            try
+            {
+                parsed = JObject.Parse(raw);
+                return true;
+            }
+            catch
+            {
+            }
+
+            string escaped = TryEscapeUnescapedQuotesInsideStrings(raw);
+            if (escaped != null)
+            {
+                try
+                {
+                    parsed = JObject.Parse(escaped);
+                    repairNote = "naprawiono nierawidłowe cudzysłowy w wartościach string (heurystyczny escape).";
+                    return true;
+                }
+                catch
+                {
+                }
+            }
+
+            string trimmed = TryTruncateLargestStringValue(raw, 4000);
+            if (trimmed != null)
+            {
+                try
+                {
+                    parsed = JObject.Parse(trimmed);
+                    repairNote = "przycięto największą wartość string do 4000 znaków, aby zachować resztę argumentów.";
+                    return true;
+                }
+                catch
+                {
+                }
+            }
+
+            return false;
+        }
+
+        private static string TryEscapeUnescapedQuotesInsideStrings(string raw)
+        {
+            if (string.IsNullOrEmpty(raw) || raw.Length < 2) return null;
+            if (raw[0] != '{' || raw[raw.Length - 1] != '}') return null;
+
+            var sb = new System.Text.StringBuilder(raw.Length + 32);
+            bool inString = false;
+            bool escape = false;
+            int suspiciousInsideString = 0;
+
+            for (int i = 0; i < raw.Length; i++)
+            {
+                char c = raw[i];
+
+                if (escape)
+                {
+                    sb.Append(c);
+                    escape = false;
+                    continue;
+                }
+
+                if (c == '\\' && inString)
+                {
+                    sb.Append(c);
+                    escape = true;
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    if (!inString)
+                    {
+                        sb.Append(c);
+                        inString = true;
+                        continue;
+                    }
+
+                    char next = i + 1 < raw.Length ? raw[i + 1] : '\0';
+                    bool validTerminator = next == ',' || next == ':' || next == '}' || next == ']' ||
+                                           next == '\n' || next == '\r' || next == ' ' || next == '\t' || next == '\0';
+
+                    if (validTerminator)
+                    {
+                        sb.Append(c);
+                        inString = false;
+                        continue;
+                    }
+
+                    sb.Append('\\').Append('"');
+                    suspiciousInsideString++;
+                    continue;
+                }
+
+                sb.Append(c);
+            }
+
+            if (suspiciousInsideString == 0) return null;
+            if (inString) return null;
+            return sb.ToString();
+        }
+
+        private static string TryTruncateLargestStringValue(string raw, int maxValueChars)
+        {
+            try
+            {
+                var token = JToken.Parse(raw);
+                return TruncateLargestStringInToken(token, maxValueChars);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string TruncateLargestStringInToken(JToken token, int maxValueChars)
+        {
+            string biggestPath = null;
+            int biggestLen = -1;
+
+            void Visit(JToken t, string path)
+            {
+                if (t is JValue v && v.Type == JTokenType.String)
+                {
+                    int len = v.Value<string>()?.Length ?? 0;
+                    if (len > biggestLen)
+                    {
+                        biggestLen = len;
+                        biggestPath = path;
+                    }
+                }
+                else if (t is JObject o)
+                {
+                    foreach (var p in o.Properties()) Visit(p.Value, path + "." + p.Name);
+                }
+                else if (t is JArray a)
+                {
+                    for (int i = 0; i < a.Count; i++) Visit(a[i], path + "[" + i + "]");
+                }
+            }
+
+            Visit(token, "$");
+
+            if (biggestPath == null || biggestLen <= maxValueChars) return null;
+
+            JToken rootCopy = token.DeepClone();
+            JToken target = rootCopy.SelectToken(biggestPath);
+            if (target is JValue jv && jv.Type == JTokenType.String)
+            {
+                string original = jv.Value<string>();
+                jv.Value = original.Substring(0, maxValueChars) + "...[przycięte]";
+                return rootCopy.ToString(Newtonsoft.Json.Formatting.None);
+            }
+            return null;
+        }
+
         private static bool LooksLikeToolFailure(string toolExecutionResult)
         {
             if (string.IsNullOrWhiteSpace(toolExecutionResult)) return false;
@@ -2122,6 +2307,11 @@ namespace Bricscad_AgentAI_V2.Core
             {
                 for (int cycleLen = 2; cycleLen <= 3; cycleLen++)
                 {
+                    // [HOTFIX KROK-CadTextProfile.4] Dodatkowy warunek: cycleLen=3 wymaga
+                    // minimum 6 elementow (2 cykle po 3 wywolania). Bez tego Indeks
+                    // w recentCalls wychodzil poza zakres i AntiLoopResult byl pusty.
+                    if (recentCalls.Count < cycleLen * 2) continue;
+
                     bool isCycle = true;
                     for (int offset = 0; offset < cycleLen; offset++)
                     {

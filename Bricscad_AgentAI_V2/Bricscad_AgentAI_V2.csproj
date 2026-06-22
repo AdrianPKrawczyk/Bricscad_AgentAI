@@ -250,6 +250,7 @@
     <Compile Include="tests\Core\RewidentCircuitBreakerTests.cs" />
     <Compile Include="tests\Core\RewidentRegressionTests.cs" />
     <Compile Include="tests\Core\AuditorReportTests.cs" />
+    <Compile Include="tests\Core\AntiLoopDetectorTests.cs" />
     <Compile Include="tests\TestRunner.cs" />
     <Compile Include="tests\Core\DynamicFormulaManagerTests.cs" />
     <Compile Include="tests\Core\VisionOcrTilerTests.cs" />
