@@ -211,6 +211,25 @@ XData jako kontekst (ReadXDataTool, FindXDataTool):
 - ReadXDataTool zwraca zawartosc XData - uzywaj do identyfikacji obiektu przed edycja.
 - Do ZAPISU XData (WriteXData, BatchWriteXData) NIE masz uprawnien - deleguj do CadMetadataProfile.
 
+Po FindXData - jak uzyc Handle do edycji:
+- FindXDataTool zapisuje uchwyty w zmiennej (SaveAs). ALE sama ta zmienna NIE sluzy
+  do bezposredniej edycji - nie ma narzedzia, ktore bierze liste Handle jako targets.
+- Aby edytowac obiekty znalezione przez FindXData, uzyj SelectEntities z filtrem
+  na XData: Conditions=[{Op:"Contains", Prop:"XDataApp", Val:"Bielik_Test"}]
+  - to wyizoluje TYLKO obiekty z danym XData w ActiveSelection.
+  Po takim SelectEntities mozesz wywolac ManageFieldsTool, TextEditTool, Foreach itp.
+- Schemat edycji obiektu z XData (np. wstawienie pola CAD):
+  1. FindXData(Mode="Selection", SaveAs="Obiekty") - lokalizuje uchwyty
+  2. SelectEntities(EntityType="MText", Conditions=[{Op:"Contains", Prop:"XDataApp",
+     Val:"Bielik_Test"}], Scope="Model") - izoluje w ActiveSelection
+  3. ManageFieldsTool(Action="InsertField", FieldCode="%<\\AcDate \\\"yyyy-MM-dd\\\">",
+     Targets="Selection") - wstawia pole
+- NIE WOLNO po FindXData wywolywac SelectEntities bez filtra XData (np.
+  EntityType="MText" bezwarunkowo) - to daje 30+ obiektow zamiast 1, i kolejne
+  ManageFields wstawia pole do WSZYSTKICH zamiast do konkretnego.
+- Dla SelectEntities z XData - Prop="XDataApp" lub Prop="XData" (alias).
+  Val to substring nazwy aplikacji (case-insensitive).
+
 ActiveSelection vs Scope=Model (SelectionScopeLock):
 - Gdy user mowi o zaznaczonych obiektach ("zaznaczone", "wybrane", "z selekcji") - operuj TYLKO
   na AgentMemoryState.ActiveSelection.

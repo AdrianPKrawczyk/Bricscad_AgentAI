@@ -235,6 +235,23 @@ namespace Bricscad_AgentAI_V2.Tools
                                     if (ent is DBText) rzeczywistaWlasciwosc = "TextString";
                                     else if (ent is MText) rzeczywistaWlasciwosc = "Text";
                                 }
+                                // [HOTFIX KROK-CadTextProfile.13]: Filtrowanie po XData.
+                                // Prop="XDataApp" + Val="Bielik_Test" wybiera obiekty posiadajace
+                                // XData dla aplikacji "Bielik_Test". Umozliwia izolowanie obiektow
+                                // znalezionych przez FindXDataTool do dalszej edycji (ManageFields,
+                                // TextEditTool) bez koniecznosci proby SelectEntities z Layer/Name.
+                                // Val moze byc sama nazwa aplikacji (substring match case-insensitive).
+                                else if (rzeczywistaWlasciwosc.Equals("XDataApp", StringComparison.OrdinalIgnoreCase) ||
+                                         rzeczywistaWlasciwosc.Equals("XData", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (!EntityHasXDataApp(ent, warunek.Val))
+                                    {
+                                        spelniaWszystkie = false;
+                                        break;
+                                    }
+                                    // Match - pomijamy standardowe pobieranie wartosci reflection.
+                                    continue;
+                                }
                                 // [HOTFIX KROK-CadTextProfile.3]: Aliasy tekstowe dla DBText/MText/Dimension
                                 // w zwyklych Conditions (nie tylko AdvancedFilters).
                                 // Bez tego LLM wpisujacy "TextOverride" w Conditions dostawal null
@@ -516,6 +533,41 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
         
+        /// <summary>
+        /// Sprawdza czy obiekt posiada XData dla aplikacji o nazwie pasujacej do appName.
+        /// Iteruje po ResultBuffer i porownuje pierwszy TypedValue (string z nazwa aplikacji).
+        /// </summary>
+        private static bool EntityHasXDataApp(Teigha.DatabaseServices.Entity ent, string appName)
+        {
+            if (ent == null || string.IsNullOrEmpty(appName)) return false;
+            try
+            {
+                using (Teigha.DatabaseServices.ResultBuffer rb = ent.XData)
+                {
+                    if (rb == null) return false;
+                    foreach (Teigha.DatabaseServices.TypedValue tv in rb)
+                    {
+                        // Pierwszy TypedValue w kazdym bloku aplikacji to string z nazwa RegApp.
+                        // Dluzsze XData maja wzorzec: [RegAppName, Dane1, Dane2, ...].
+                        if (tv.TypeCode == 1000 || tv.TypeCode == 1005) // 1000 = tekst, 1005 = handle-encoded string
+                        {
+                            string tvValue = tv.Value?.ToString();
+                            if (!string.IsNullOrEmpty(tvValue) &&
+                                tvValue.IndexOf(appName, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Brak XData lub blad dostepu - traktuj jako brak aplikacji.
+            }
+            return false;
+        }
+
         private static bool IsWildcardMatch(string text, string pattern)
         {
             if (text == null || pattern == null) return false;
