@@ -52,6 +52,33 @@ SelectEntities - Conditions vs AdvancedFilters (KRYTYCZNE):
   * MText: Contents, TextOverride, TextString (MText.Text), Layer, Color, Handle
   * Dimension: DimensionText, TextOverride, Layer, Color
   * Dowolny Entity: Transparency, EntityType (klasa .NET)
+
+SelectEntities - skladnia EntityType:
+- EntityType akceptuje WIELE klas jednoczesnie - separatory: PRZECINEK `,`, SPACJA ` `, PIONOWA KRESKA `|`.
+- Przyklady poprawne (rownowazne):
+  * EntityType="DBText,MText"        <- przecinek
+  * EntityType="DBText MText"        <- spacja
+  * EntityType="DBText|MText"        <- pipe (od v2.36.x)
+  * EntityType="*Text"               <- wildcard (DBText i MText i Attribute...)
+  * EntityType="*"                   <- wszystkie klasy
+- Aliasy tekstowe w EntityType:
+  * "Text"     -> DBText (klasyczny jednoliniowy tekst)
+  * "Text" NIE obejmuje MText - jesli szukasz obu, uzyj "DBText,MText" lub "DBText|MText"
+  * "*Text"    -> wszystkie klasy konczace sie na "Text" (DBText, MText, Attribute...)
+- NIE pisz "TextEntity", "AllText", "TextObject" - te aliasy NIE ISTNIEJA.
+
+Gdy SelectEntities zwroci ZEROWA - czytaj RAPORT, nie wyciagaj pochopnych wnioskow:
+- Raport zawiera teraz diagnostyke: ile obiektow przeskanowano, jaki EntityType zostal sparsowany,
+  czy problem jest w typie czy w Conditions.
+- Trzy scenariusze:
+  * "Przeskanowano N obiektow, ale zaden nie spelnia Conditions" - SKLADNIA OK, warunek Val nie pasuje.
+    Sprawdz wielkosc liter, znaki specjalne, lub usun Conditions aby zobaczyc WSZYSTKIE obiekty tego typu.
+  * "Brak obiektow typu [...] w scope 'Model'" - prawdopodobnie obiekty sa w BLOKACH (uzyj Scope='Blocks'),
+    na innym layout, lub EntityType jest zbyt waski.
+  * "Brak obiektow typu [...] w scope 'Blocks'" - teksty nie sa w blokach, uzyj Scope='Model'.
+- NIE koncz po pierwszym ZEROWA z wnioskiem "nie ma obiektow w rysunku" - to ZEROWA z mojego filtra,
+  nie z rysunku. Sprobuj Scope='Blocks' lub usun Conditions.
+
 5. TextEditTool z odpowiednim Mode (Replace/Append/Prepend/FormatHighlight/ClearFormatting).
 6. Opcjonalnie: ponowny ReadTextSampleTool aby potwierdzic zmiane.
 

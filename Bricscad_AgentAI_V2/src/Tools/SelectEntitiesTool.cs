@@ -150,7 +150,7 @@ namespace Bricscad_AgentAI_V2.Tools
                 return "SUKCES: Odznaczono wszystkie obiekty, wyczyszczono pamięć Agenta.";
             }
 
-            string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] typyDoSzukania = entityTypeStr.Split(new char[] { ',', ' ', '|' }, StringSplitOptions.RemoveEmptyEntries);
             List<ObjectId> znalezioneObiekty = new List<ObjectId>();
             
             try
@@ -158,6 +158,10 @@ namespace Bricscad_AgentAI_V2.Tools
                 using (Transaction tr = doc.TransactionManager.StartTransaction())
                 {
                     List<ObjectId> blokiDoPrzeszukania = new List<ObjectId>();
+
+                    // Licznik kandydatow po filtrze typu (przed warunkami Conditions) -
+                    // uzywany do diagnostyki gdy selekcja zwroci ZEROWA.
+                    int candidatesAfterTypeFilter = 0;
                     
                     if (scopeStr.Equals("Blocks", StringComparison.OrdinalIgnoreCase) && AgentMemoryState.ActiveSelection.Length > 0)
                     {
@@ -209,6 +213,7 @@ namespace Bricscad_AgentAI_V2.Tools
                             
                             if (!typPasuje) continue;
 
+                            candidatesAfterTypeFilter++;
                             bool spelniaWszystkie = true;
                             foreach (var warunek in warunki)
                             {
@@ -478,7 +483,30 @@ namespace Bricscad_AgentAI_V2.Tools
                         ed.SetImpliedSelection(new ObjectId[0]);
                         AgentMemoryState.Clear();
                         tr.Commit();
-                        return "WYNIK: Niczego po tej modyfikacji nie ma w pamięci dla tej maski. Operacja bezskuteczna, pamięć ZEROWA.";
+                        // Diagnostyka - pomoc agentowi zrozumiec DLACZEGO nic nie znaleziono.
+                        // Trzy mozliwe przyczyny:
+                        //  1) EntityType zbyt waski / bledna skladnia
+                        //  2) Conditions zbyt restrykcyjne (substring nie wystepuje)
+                        //  3) Brak obiektow w scope (np. teksty sa w blokach lub na innym layout)
+                        var parsedTypes = string.Join(", ", typyDoSzukania);
+                        string extraHint = "";
+                        if (candidatesAfterTypeFilter > 0 && warunki.Count > 0)
+                        {
+                            // Znaleziono kandydatow po typie, ale zaden nie przeszedl Conditions.
+                            extraHint = $" Przeskanowano {candidatesAfterTypeFilter} obiekt(ow) typu [{parsedTypes}], ale zaden nie spelnia Conditions. " +
+                                        $"Sprawdz wielkosc liter, spacje i znaki specjalne w Val, lub usun Conditions aby zobaczyc wszystkie kandydatow.";
+                        }
+                        else if (warunki.Count == 0)
+                        {
+                            extraHint = $" Brak obiektow typu [{parsedTypes}] w scope '{scopeStr}'. " +
+                                        $"Sprobuj EntityType='*' (wszystkie klasy), Scope='Blocks' (jesli w blokach), lub sprawdz czy rysunek ma warstwe z obiektami tekstowymi.";
+                        }
+                        else
+                        {
+                            extraHint = $" Brak obiektow typu [{parsedTypes}] w scope '{scopeStr}'. " +
+                                        $"Mozliwe przyczyny: (1) zly EntityType, (2) obiekty sa w blokach (uzyj Scope='Blocks'), (3) obiekty sa na innym layout.";
+                        }
+                        return $"WYNIK: Niczego po tej modyfikacji nie ma w pamięci dla tej maski. Operacja bezskuteczna, pamięć ZEROWA.{extraHint}";
                     }
                 }
             }
