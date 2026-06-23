@@ -87,6 +87,21 @@ namespace Bricscad_AgentAI_V2.Tools
                         props["Position"] = txt.Position.ToString();
                         props["Height"] = txt.Height;
                     }
+                    else if (ent is MText mtxt)
+                    {
+                        // v2.36.x: MText ma dwa pola tekstowe:
+                        //   .Text    - czysty tekst (bez kodow RTF, bez pol)
+                        //   .Contents - pelny tekst z RTF (kody \f, \C, \P) i polami
+                        // Agent zazwyczaj chce .Contents, bo widzi oryginalny zapis
+                        // uzytkownika. .Text jest przydatny do porownan lub wyszukiwania.
+                        props["Text"] = mtxt.Text;
+                        props["Contents"] = mtxt.Contents;
+                        props["Location"] = mtxt.Location.ToString();
+                        props["Height"] = mtxt.TextHeight;
+                        props["Width"] = mtxt.Width;
+                        props["Attachment"] = mtxt.Attachment.ToString();
+                        try { props["HasFields"] = mtxt.HasFields; } catch { props["HasFields"] = "unknown"; }
+                    }
 
                     return props.ToString(Newtonsoft.Json.Formatting.Indented);
                 }
