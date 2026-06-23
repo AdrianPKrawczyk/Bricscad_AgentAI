@@ -15,6 +15,7 @@ namespace Bricscad_AgentAI_V2.Core
         public string CustomKnowledgePath { get; set; } = string.Empty;
         public System.Collections.Generic.List<string> BenchmarkVisibleColumns { get; set; } = new System.Collections.Generic.List<string>();
         public string LastBenchmarkProfileName { get; set; } = string.Empty;
+        public string LastSubAgentProfileName { get; set; } = string.Empty;
         public string CustomLLMConfigPath { get; set; } = string.Empty;
         public bool EnablePromptWarmup { get; set; } = true;
         public bool PromptWarmupOnAiOpen { get; set; } = true;

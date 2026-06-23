@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -244,13 +244,27 @@ namespace Bricscad_AgentAI_V2.UI
 
             if (cbProfiles.Items.Count > 0)
             {
-                int preferredIndex = cbProfiles.Items.IndexOf("CadProfile");
+                string lastProfile = UISettingsManager.Settings.LastSubAgentProfileName;
+                int preferredIndex = -1;
+                if (!string.IsNullOrEmpty(lastProfile))
+                {
+                    preferredIndex = cbProfiles.Items.IndexOf(lastProfile);
+                }
+                if (preferredIndex < 0)
+                {
+                    preferredIndex = cbProfiles.Items.IndexOf("CadProfile");
+                }
                 cbProfiles.SelectedIndex = preferredIndex >= 0 ? preferredIndex : 0;
             }
         }
 
         private void CbProfiles_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (cbProfiles.SelectedItem != null)
+            {
+                UISettingsManager.Settings.LastSubAgentProfileName = cbProfiles.SelectedItem.ToString();
+                UISettingsManager.Save();
+            }
             ResetConversationForSelectedProfile();
         }
 
