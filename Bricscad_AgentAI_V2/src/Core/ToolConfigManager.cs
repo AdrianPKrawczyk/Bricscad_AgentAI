@@ -612,6 +612,27 @@ EnsureMathPromptFile();
                 }
             }
 
+            // KROK-CadTextProfile.15: ModifyProperties rowniez obsluguje edycje
+            // wlasciwosci systemowych tekstow (TextStyleName, Justify, Rotation, TextHeight,
+            // Width, Position). Dodaj tag #text zeby CadTextProfile (ktory ma AllowedTags
+            // zawierajacy #text) mogl automatycznie aktywowac to narzedzie.
+            // ModifyProperties zostaje rowniez w AllowedTools innych profili (CadProfile,
+            // CadGeometry, CadLayout) dzieki temu ze jest 'Core' w config - zostawiamy to.
+            if (name.Equals("ModifyProperties", StringComparison.OrdinalIgnoreCase))
+            {
+                var settings = _config.Tools[name];
+                if (string.IsNullOrWhiteSpace(settings.Tags))
+                {
+                    settings.Tags = "#cad, #text, #geometry";
+                    changed = true;
+                }
+                else if (settings.Tags.IndexOf("#text", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    settings.Tags = settings.Tags + ", #text";
+                    changed = true;
+                }
+            }
+
             // Tagi dla ReadXData/FindXData w kontekscie tekstu (kontekst, nie zapis)
             if (name.Equals("ReadXData", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("FindXData", StringComparison.OrdinalIgnoreCase))
@@ -760,7 +781,12 @@ EnsureMathPromptFile();
                 "ReadXData", "FindXData",
                 "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
                 "SelectEntities", "Foreach", "ReadFromBlackboard", "WriteToBlackboard",
-                "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps"
+                "RequestAdditionalTools", "UserInput", "UserChoice", "manage_lisps",
+                // KROK-CadTextProfile.15: ModifyProperties do edycji wlasciwosci systemowych
+                // tekstu (TextStyleName, Justify, Rotation, TextHeight, Width, Position).
+                // Bez tego CadTextProfile nie mogl zmieniac stylu tekstu, justowania ani
+                // obrotu - musial delegowac do CadGeometryProfile dla kazdej takiej zmiany.
+                "ModifyProperties"
             })) changed = true;
 
             // 10. Zabezpieczenie/Synchronizacja Modeler3DProfile
