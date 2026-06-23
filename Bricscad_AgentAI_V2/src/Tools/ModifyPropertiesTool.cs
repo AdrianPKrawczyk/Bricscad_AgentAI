@@ -163,6 +163,77 @@ namespace Bricscad_AgentAI_V2.Tools
                                 else if (targetType == typeof(int)) wartoscDoZapisania = int.Parse(newVal, CultureInfo.InvariantCulture);
                                 else if (targetType == typeof(double)) wartoscDoZapisania = double.Parse(newVal.Replace(",", "."), CultureInfo.InvariantCulture);
                                 else if (targetType == typeof(bool)) wartoscDoZapisania = bool.Parse(newVal);
+                                // KROK-CadTextProfile.16: Konwersja enum z nazwy (np. "MiddleCenter"
+                                // dla AttachmentPoint) na wartosc enuma. Bez tego LLM podawal
+                                // "MiddleCenter" jako string, reflection rzucal wyjatek,
+                                // a PropertyValidator akceptowal (bo Attachment jest w API).
+                                // Wspiera enum-y BricsCAD: AttachmentPoint, TextJustification,
+                                // TransparencyMethod, LineWeight, DrawOrderType itd.
+                                else if (targetType.IsEnum)
+                                {
+                                    // Parsowanie enum z nazwy (np. "MiddleCenter") - .NET Framework 4.8
+                                    // nie ma Enum.TryParse(Type, string, out object), wiec uzywamy
+                                    // refleksji do wywolania generycznej Enum.TryParse<T>(string, out T).
+                                    // Fallbacki: PascalCase, case-insensitive match po nazwie, liczba.
+                                    bool enumParsed = false;
+                                    object enumValue = null;
+                                    try
+                                    {
+                                        // Generyczna Enum.TryParse<TEnum>(string, bool ignoreCase, out TEnum result)
+                                        var tryParseGeneric = typeof(Enum)
+                                            .GetMethod("TryParse", new[] { typeof(string), typeof(bool), typeof(object).MakeByRefType() });
+                                        // Nie mozna uzyc generycznej Enum.TryParse<TEnum>(string, out TEnum) -
+                                        // wymaga typeof(TEnum) ktore znamy dopiero po typeof(targetType).
+                                        // Probujemy wiec przez refleksje z object[].
+                                        object[] tryParseArgs = new object[] { newVal, true, null };
+                                        bool tpResult = (bool)tryParseGeneric
+                                            .MakeGenericMethod(targetType)
+                                            .Invoke(null, tryParseArgs);
+                                        if (tpResult)
+                                        {
+                                            enumValue = tryParseArgs[2];
+                                            enumParsed = true;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // Fallback: proste Enum.Parse (case-sensitive)
+                                        try
+                                        {
+                                            enumValue = Enum.Parse(targetType, newVal);
+                                            enumParsed = true;
+                                        }
+                                        catch { }
+                                    }
+                                    if (!enumParsed)
+                                    {
+                                        // Fallback: case-insensitive match po nazwie
+                                        foreach (string name in Enum.GetNames(targetType))
+                                        {
+                                            if (string.Equals(name, newVal, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                enumValue = Enum.Parse(targetType, name);
+                                                enumParsed = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (enumParsed)
+                                    {
+                                        wartoscDoZapisania = enumValue;
+                                    }
+                                    // Fallback: liczba (np. "5")
+                                    else if (int.TryParse(newVal, out int enumInt) && Enum.IsDefined(targetType, enumInt))
+                                    {
+                                        wartoscDoZapisania = Enum.ToObject(targetType, enumInt);
+                                    }
+                                    else
+                                    {
+                                        var validValues = string.Join(", ", Enum.GetNames(targetType));
+                                        ostrzezenia.Add($"[BŁĄD ENUM]: Nie mozna sparsowac '{newVal}' jako {targetType.Name}. " +
+                                                         $"Dopuszczalne wartosci: {validValues}");
+                                    }
+                                }
                                 else if (targetPropName == "ColorIndex" && targetType == typeof(Teigha.Colors.Color))
                                 {
                                     if (int.TryParse(newVal, out int cIndex))
