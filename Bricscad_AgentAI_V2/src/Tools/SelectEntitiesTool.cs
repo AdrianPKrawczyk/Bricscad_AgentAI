@@ -535,7 +535,15 @@ namespace Bricscad_AgentAI_V2.Tools
         
         /// <summary>
         /// Sprawdza czy obiekt posiada XData dla aplikacji o nazwie pasujacej do appName.
-        /// Iteruje po ResultBuffer i porownuje pierwszy TypedValue (string z nazwa aplikacji).
+        /// Iteruje po ResultBuffer i porownuje TypedValue z TypeCode 1001 (ExtendedDataRegAppName)
+        /// z podana nazwa aplikacji.
+        ///
+        /// Format XData w Teigha ResultBuffer:
+        ///   [TypeCode 1001 (RegAppName), TypeCode X1 (Dane1), TypeCode X2 (Dane2), ...]
+        /// Powtarzane dla kazdej aplikacji. Wykrywamy granice aplikacji po TypeCode 1001
+        /// (koniec poprzedniej, poczatek nastepnej).
+        ///
+        /// Wzorzec z FindXDataTool.cs:138 - ten sam warunek TypeCode==1001.
         /// </summary>
         private static bool EntityHasXDataApp(Teigha.DatabaseServices.Entity ent, string appName)
         {
@@ -547,11 +555,10 @@ namespace Bricscad_AgentAI_V2.Tools
                     if (rb == null) return false;
                     foreach (Teigha.DatabaseServices.TypedValue tv in rb)
                     {
-                        // Pierwszy TypedValue w kazdym bloku aplikacji to string z nazwa RegApp.
-                        // Dluzsze XData maja wzorzec: [RegAppName, Dane1, Dane2, ...].
-                        if (tv.TypeCode == 1000 || tv.TypeCode == 1005) // 1000 = tekst, 1005 = handle-encoded string
+                        // TypeCode 1001 = DxfCode.ExtendedDataRegAppName = nazwa zarejestrowanej aplikacji
+                        if (tv.TypeCode == 1001 && tv.Value != null)
                         {
-                            string tvValue = tv.Value?.ToString();
+                            string tvValue = tv.Value.ToString();
                             if (!string.IsNullOrEmpty(tvValue) &&
                                 tvValue.IndexOf(appName, StringComparison.OrdinalIgnoreCase) >= 0)
                             {
