@@ -430,9 +430,26 @@ namespace Bricscad_AgentAI_V2.Tools
                 }
                 else if (successCount > 0)
                 {
-                    // Iteracje sie powiodly ale zadna nie wyprodukowala mutacji -
-                    // prawdopodobnie findText nie pasowal do zadnego obiektu.
-                    summary.Append(" UWAGA: Zadna iteracja nie wyprodukowala mutacji - findText prawdopodobnie nie pasowal do obiektow.");
+                    // Iteracje sie powiodly ale zadna nie wyprodukowala mutacji.
+                    // Moze byc 3 przyczyny:
+                    //   1) findText/ReplaceWith nie pasowal do obiektow (zwykle)
+                    //   2) Action zawiera nierozpoznane tagi (np. {item_text} zamiast {item})
+                    //   3) Iteracja po pustej selekcji (IterateSelection=true bez selekcji)
+                    // Sprawdzamy (2) - szukamy tagow w {nawiasy} ktorych nie podmienilismy.
+                    string unrecognizedTagsHint = DetectUnrecognizedTags(action);
+                    summary.Append(" UWAGA: Zadna iteracja nie wyprodukowala mutacji.");
+                    summary.Append(" Mozliwe przyczyny:");
+                    summary.Append(" (a) findText nie pasowal do zadnego obiektu (wielkosc liter, znaki specjalne, litera/spacja/znak podzialu)");
+                    summary.Append(" (b) Akcja uzywa nierozpoznanych tagow Foreach");
+                    summary.Append(" (c) IterateSelection=true, ale ActiveSelection jest puste");
+                    if (!string.IsNullOrEmpty(unrecognizedTagsHint))
+                    {
+                        summary.Append($" WYKRYTO: {unrecognizedTagsHint}");
+                    }
+                    else
+                    {
+                        summary.Append(" WYKRYTO: Brak nierozpoznanych tagow - prawdopodobnie findText nie pasowal do zadnego obiektu.");
+                    }
                 }
                 if (handles.Count > 0) summary.Append($" Uchwyty: {string.Join(", ", handles.Take(10))}{(handles.Count > 10 ? "..." : "")}");
                 if (errors.Count > 0) summary.Append($" Błędy: {errors.Count} (ostatni: {errors.Last()})");
@@ -454,6 +471,49 @@ namespace Bricscad_AgentAI_V2.Tools
                 sb.AppendLine($"{i + 1}. {finalItems[i]}");
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Wykrywa tagi w formacie {nazwa} ktorych Foreach NIE podmienia automatycznie.
+        /// Rozpoznane tagi: {item}, {index}, {MATH: wyrazenie}.
+        /// Wszystko inne (np. {item_text}, {item_val}, {value}, {x}) jest ignorowane przez Replace
+        /// i przechodzi doslownie do wywolanego narzedzia - co powoduje "findText nie pasowal".
+        /// </summary>
+        private static string DetectUnrecognizedTags(string actionTemplate)
+        {
+            if (string.IsNullOrEmpty(actionTemplate)) return null;
+            var tagPattern = new System.Text.RegularExpressions.Regex(@"\{([^}]+)\}");
+            var matches = tagPattern.Matches(actionTemplate);
+            if (matches.Count == 0) return null;
+
+            var unrecognized = new List<string>();
+            var recognized = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in matches)
+            {
+                string inside = m.Groups[1].Value.Trim();
+                string fullTag = m.Value;
+                // {item} - rozpoznany
+                // {index} - rozpoznany
+                // {MATH: cokolwiek} - rozpoznany (RpnCalculator.ProcessMathTemplates)
+                if (inside == "item" || inside == "index")
+                {
+                    recognized.Add(fullTag);
+                }
+                else if (inside.StartsWith("MATH:", StringComparison.OrdinalIgnoreCase))
+                {
+                    recognized.Add(fullTag);
+                }
+                else
+                {
+                    unrecognized.Add(fullTag);
+                }
+            }
+
+            if (unrecognized.Count == 0) return null;
+
+            return $"Action zawiera tagi ktorych Foreach nie podmienia: {string.Join(", ", unrecognized)}." +
+                   $" Rozpoznane tagi Foreach: {{item}}, {{index}}, {{MATH: wyrazenie}}." +
+                   $" Te nierozpoznane tagi zostaly przekazane DOSLOWNIE do wywolanego narzedzia - prawdopodobna przyczyna 'findText nie pasowal do obiektow'.";
         }
 
         private double[] ParseCoords(string s)

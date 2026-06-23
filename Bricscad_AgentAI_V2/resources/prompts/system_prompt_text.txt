@@ -108,6 +108,17 @@ Konwencje Foreach + TextEditTool:
 - Dla tej samej operacji na kazdym obiekcie z selekcji: IterateSelection=true + ReplaceWith="Wart".
 - Nie rozpisuj 2+ recznych TextEditTool dla tej samej listy - to zawsze gorsze od Foreach.
 
+Tagi rozpoznawane przez ForeachTool:
+- {item}     - biezaca wartosc z Items (string)
+- {index}    - numer iteracji (1, 2, 3, ...)
+- {MATH: wyrazenie} - wyrazenie arytmetyczne, np. "{MATH: {index} * 50}"
+- INNE TAGI NIE SA ROZPOZNAWANE. Jesli uzyjesz {item_text}, {item_val}, {value}, {x} itd.,
+  Foreach zignoruje je i przekaze DOSLOWNIE do wywolanego narzedzia - TextEditTool
+  bedzie szukac tekstu "{item_text}" w obiektach (findText nie pasuje, 0 mutacji).
+  ZAWSZE uzywaj {item} dla biezacej wartosci.
+- Jesli Foreach zwroci "UWAGA: Zadna iteracja nie wyprodukowala mutacji" i WYKRYTO
+  nierozpoznane tagi - to blad w TWOIM wywolaniu. Popraw tagi na {item}.
+
 Pola CAD w tekstach (ManageFieldsTool, ReadFieldsTool):
 - Pole CAD to dynamicznie obliczany fragment tekstu osadzony w MText/DBText.
 - Skladnia kodu: %<\\AcVar "NAZWA_ZMIENNEJ">, %<\\AcExpr wyrazenie>, %<\\AcDim \\Wlasciwosc>,
