@@ -129,6 +129,22 @@ namespace Bricscad_AgentAI_V2.Tools
                     tr.Commit();
                 }
 
+                // Po mutacji MText / DBText - wymus _.REGEN, aby BricsCAD odswiezył
+                // cache widoku. Bez tego po Replace na MText rysunek moze pokazywac
+                // stary tekst obok nowego (artefakt z bufora graficznego), mimo ze
+                // tekst w bazie jest poprawnie zmieniony.
+                if (modifiedCount > 0)
+                {
+                    try
+                    {
+                        doc.SendStringToExecute("_.REGEN \n", true, false, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        warnings.Add($"Wyslanie _.REGEN po edycji nie powiodlo sie: {ex.Message}");
+                    }
+                }
+
                 string result = $"SUKCES: Zmodyfikowano {modifiedCount} obiektów tekstowych.";
                 if (warnings.Count > 0)
                 {
