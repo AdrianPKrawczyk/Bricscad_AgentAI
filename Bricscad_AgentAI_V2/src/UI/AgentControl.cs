@@ -1146,6 +1146,7 @@ namespace Bricscad_AgentAI_V2.UI
                 Dock = DockStyle.Left 
             };
             chkEnableTracer.CheckedChanged += (s, e) => EngineTracer.Enable(chkEnableTracer.Checked);
+            chkEnableTracer.Checked = true;
 
             btnClearDebug = new Button 
             { 
