@@ -138,6 +138,22 @@ PULAPKI POL CAD (z obserwacji rzeczywistych testow - 2026-06-22):
   Po jego uzyciu MText traci dynamiczny kod, zostaje tylko statyczny tekst.
   NIE PROBUJ AllowFieldOverride=true jako "pierwszej opcji" - to ostatecznosc.
 
+PO ConvertToText - WERYFIKACJA WYNIKU (krok obowiazkowy):
+- Po ManageFieldsTool(ConvertToText) ZAWSZE wywolaj ReadTextSampleTool aby zobaczyc efekt.
+- Trzy mozliwe wyniki:
+  * Sukces: tekst zawiera rozwiazana wartosc (np. "Projekt: Rysunek1") - mozna kontynuowac.
+  * Częsciowy: tekst nadal zawiera "%<" ale to BINARNY MARKER (%<\_FldIdx), NIE aktywne pole.
+    Flaga HasFields=false. Tekst mozna edytowac TextEditTool.Replace BEZ AllowFieldOverride -
+    TextEditTool rozroznia aktywne pole od binarnego markera i nie zablokuje edycji.
+    Tekst wynikowy bedzie mial forme np. "Projekt: %<\_FldIdx 0" (do recznego wypelnienia
+    przez BricsCAD po REGEN, lub do zaakceptowania jako placeholder).
+  * Brak zmian: tekst nadal ma czytelny kod "%<\Ac..." - ConvertToText nie zadzialalo.
+    Ponow EvaluateAll (_.REGEN) i sprobuj ponownie.
+- NIE WOLNO po ConvertToText powtarzac tej samej sekwencji wywolan
+  (SelectEntities, ReadFields, ReadTextSampleTool, ManageFields, GetProperties...)
+  - to jest petla. Po 2-3 probach bez zmiany tekstu zakoncz z Failure i wyjasnij,
+  ze pole binarne wymaga interwencji uzytkownika w BricsCAD.
+
 RTF w MText - konstrukcje kodu:
 - Zmiana fontu: \\fArial|b1; - Arial bold, \\fVerdana|i0; - Verdana regular.
 - Kolor tekstu: \\C1; - kolor ACI 1 (czerwony), \\C5; - niebieski, \\C7; - bialy.

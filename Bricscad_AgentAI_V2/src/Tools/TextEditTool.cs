@@ -144,13 +144,22 @@ namespace Bricscad_AgentAI_V2.Tools
 
         private void HandleDBText(DBText dbText, string mode, string findText, string replaceWith, bool allowFieldOverride, HashSet<string> warnings, ref int modifiedCount)
         {
-            // Sprawdz czy obiekt ma pola CAD - jesli tak, zabezpiecz przed zniszczeniem.
-            if (!allowFieldOverride && HasAnyField(dbText))
+            // Sprawdz czy obiekt ma aktywne pole CAD - jesli tak, zabezpiecz przed zniszczeniem.
+            // Binarny marker (%<\_FldIdx) PO konwersji NIE jest aktywnym polem - pozwalamy edytowac,
+            // ale informujemy uzytkownika, ze marker zostanie zachowany.
+            var fieldDetection = DetectField(dbText);
+            if (!allowFieldOverride && fieldDetection == FieldDetection.ActiveField)
             {
                 warnings.Add($"[BLOKADA POLA] DBText (ID: {dbText.Id}) zawiera pole CAD (%<\\Ac...>). " +
                              $"Tryb '{mode}' nie zostanie wykonany. Uzyj ManageFieldsTool " +
                              $"lub ponow wywolanie z AllowFieldOverride=true.");
                 return;
+            }
+            if (fieldDetection == FieldDetection.BinaryMarkerOnly)
+            {
+                warnings.Add($"[INFO MARKER] DBText (ID: {dbText.Id}) zawiera binarny marker pola (%<\\FldIdx) - " +
+                             $"prawdopodobnie rezultat ConvertToText bez wczesniejszego _.REGEN. " +
+                             $"Edycja trybem '{mode}' zostanie wykonana, ale marker zostanie zachowany w tekscie.");
             }
 
             switch (mode)
@@ -181,11 +190,15 @@ namespace Bricscad_AgentAI_V2.Tools
 
         private void HandleMText(MText mText, string mode, string findText, string replaceWith, int colorIndex, bool isBold, bool allowFieldOverride, HashSet<string> warnings, ref int modifiedCount)
         {
-            // Sprawdz czy obiekt ma pola CAD - w trybie Replace zablokuj,
-            // w Append/Prepend dodaj tylko ostrzezenie.
-            bool hasField = HasAnyField(mText);
+            // Sprawdz czy obiekt ma aktywne pole CAD.
+            // Trzy mozliwosci:
+            //   ActiveField       -> flaga HasFields=true -> BLOKUJ edycje (chron przed zniszczeniem)
+            //   BinaryMarkerOnly  -> HasFields=false ale Contents zawiera "%<" (rezultat ConvertToText bez REGEN) ->
+            //                        pozwol na edycje, ale ostrzez ze marker zostanie zachowany
+            //   None              -> brak pola -> normalna edycja
+            var fieldDetection = DetectField(mText);
 
-            if (!allowFieldOverride && mode == "Replace" && hasField)
+            if (!allowFieldOverride && mode == "Replace" && fieldDetection == FieldDetection.ActiveField)
             {
                 warnings.Add($"[BLOKADA POLA] MText (ID: {mText.Id}) zawiera pole CAD (%<\\Ac...>). " +
                              $"Tryb Replace nie zostanie wykonany. Uzyj ManageFieldsTool " +
@@ -193,11 +206,19 @@ namespace Bricscad_AgentAI_V2.Tools
                 return;
             }
 
-            if (hasField && (mode == "Append" || mode == "Prepend" || mode == "FormatHighlight"))
+            if (fieldDetection == FieldDetection.ActiveField &&
+                (mode == "Append" || mode == "Prepend" || mode == "FormatHighlight"))
             {
                 warnings.Add($"[OSTRZEZENIE POLA] MText (ID: {mText.Id}) zawiera pole CAD. " +
                              $"Tryb '{mode}' zostanie wykonany, ale moze zakłócic formatowanie pola. " +
                              $"Rozwaz ManageFieldsTool.InsertField.");
+            }
+
+            if (fieldDetection == FieldDetection.BinaryMarkerOnly)
+            {
+                warnings.Add($"[INFO MARKER] MText (ID: {mText.Id}) zawiera binarny marker pola (%<\\FldIdx) - " +
+                             $"prawdopodobnie rezultat ConvertToText bez wczesniejszego _.REGEN. " +
+                             $"Edycja trybem '{mode}' zostanie wykonana, ale marker zostanie zachowany w tekscie.");
             }
 
             switch (mode)
@@ -232,12 +253,16 @@ namespace Bricscad_AgentAI_V2.Tools
                     }
                     break;
                 case "ClearFormatting":
-                    if (hasField && !allowFieldOverride)
+                    if (fieldDetection == FieldDetection.ActiveField && !allowFieldOverride)
                     {
                         warnings.Add($"[BLOKADA POLA] MText (ID: {mText.Id}) zawiera pole CAD. " +
                                      $"Tryb ClearFormatting nie zostanie wykonany, bo usunalby " +
                                      $"zawartosc z kodami pol. Uzyj ManageFieldsTool.ConvertToText.");
                         return;
+                    }
+                    if (fieldDetection == FieldDetection.BinaryMarkerOnly)
+                    {
+                        warnings.Add($"[INFO MARKER] MText (ID: {mText.Id}) ClearFormatting zachowa binarny marker pola (%<\\FldIdx) w tekscie.");
                     }
                     // HACK NL: Zachowanie znaków nowej linii \P
                     string originalContents = mText.Contents;
@@ -253,33 +278,59 @@ namespace Bricscad_AgentAI_V2.Tools
             }
         }
 
-        private static bool HasAnyField(Entity ent)
+        /// <summary>
+        /// Wynik detekcji pola w obiekcie tekstowym.
+        /// </summary>
+        private enum FieldDetection
         {
-            try
-            {
-                if (ent.HasFields) return true;
-            }
-            catch
-            {
-                // Ignorujemy - traktujemy jako brak flagi.
-            }
+            /// <summary>Brak pola - normalna edycja.</summary>
+            None,
+            /// <summary>Binarny marker pola (%&lt;\_FldIdx) w tresci, ale flaga HasFields=false.
+            /// Typowy stan po ConvertToText bez wczesniejszego _.REGEN - pole zostalo
+            /// zbinaryzowane do markera zamiast rozwiazane do wartosci. Pozwol na edycje,
+            /// ale ostrzez ze marker zostanie zachowany w tekscie.</summary>
+            BinaryMarkerOnly,
+            /// <summary>Aktywne pole (flaga HasFields=true). Tryb Replace zablokowany
+            /// (chyba ze AllowFieldOverride=true). Tryby Append/Prepend/FormatHighlight
+            /// z ostrzezeniem.</summary>
+            ActiveField
+        }
 
-            // Drugie zabezpieczenie: wykrycie znacznika %< w tresci.
+        private static FieldDetection DetectField(Entity ent)
+        {
+            // Zrodlo prawdy: flaga HasFields z Teigha.
+            bool hasFieldsFlag = false;
+            try { hasFieldsFlag = ent.HasFields; }
+            catch { hasFieldsFlag = false; }
+
+            if (hasFieldsFlag) return FieldDetection.ActiveField;
+
+            // Flaga=false - sprawdz czy w tresci zostal binarny marker pola.
+            // Takie markery pojawiaja sie po ConvertFieldToText dla pol, ktorych
+            // Teigha nie umiala rozwiazac (brak przeliczenia REGEN). Sam marker
+            // nie jest aktywnym polem - mozna go bezpiecznie edytowac.
             try
             {
+                string content = "";
                 switch (ent)
                 {
                     case DBText dt:
-                        return (dt.TextString ?? "").Contains("%<");
+                        content = dt.TextString ?? "";
+                        break;
                     case MText mt:
-                        return (mt.Contents ?? "").Contains("%<");
+                        content = mt.Contents ?? "";
+                        break;
+                }
+                if (content.Contains("%<"))
+                {
+                    return FieldDetection.BinaryMarkerOnly;
                 }
             }
             catch
             {
                 // Brak dostepu do tresci - zakladamy brak pola.
             }
-            return false;
+            return FieldDetection.None;
         }
         public List<string> Examples => null;
     }

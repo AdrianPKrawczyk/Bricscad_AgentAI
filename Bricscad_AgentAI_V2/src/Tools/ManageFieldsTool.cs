@@ -704,6 +704,8 @@ namespace Bricscad_AgentAI_V2.Tools
 
             if (ent.IsReadEnabled) ent.UpgradeOpen();
 
+            string contentsBefore = SafeGetContents(ent);
+
             try
             {
                 // ConvertFieldToText to metoda specyficzna dla MText/DBText/AttributeReference/AttributeDefinition.
@@ -718,17 +720,77 @@ namespace Bricscad_AgentAI_V2.Tools
                 {
                     warnings.Add($"[{ent.GetType().Name}#{ent.Id}] Brak publicznej metody ConvertFieldToText w {ent.GetType().Name}. " +
                                  $"Konwersja nie jest obslugiwana dla tego typu encji.");
+                    return;
                 }
             }
             catch (System.Reflection.TargetInvocationException tex)
             {
                 string inner = tex.InnerException != null ? tex.InnerException.Message : tex.Message;
                 warnings.Add($"[{ent.GetType().Name}#{ent.Id}] ConvertFieldToText nie powiodlo sie: {inner}");
+                return;
             }
             catch (Exception ex)
             {
                 warnings.Add($"[{ent.GetType().Name}#{ent.Id}] ConvertFieldToText nie powiodlo sie: {ex.Message}");
+                return;
             }
+
+            // Po mutacji - weryfikacja czy pole zostalo faktycznie rozwiazane do tekstu,
+            // czy tez zostawione jako binarny marker (%<\_FldIdx ...).
+            // Teigha/BricsCAD nie udostepnia API do odczytu rozwiazanej wartosci pola;
+            // jedyne co mozemy zrobic to sprawdzic czy tekst po konwersji nadal zawiera
+            // marker pola (a wiec konwersja nie dala realnej wartosci).
+            try
+            {
+                string contentsAfter = SafeGetContents(ent);
+                if (!string.IsNullOrEmpty(contentsAfter) && contentsAfter.Contains("%<"))
+                {
+                    warnings.Add($"[{ent.GetType().Name}#{ent.Id}] UWAGA: Pole prawdopodobnie bylo w formie BINARNEJ (%<\\FldIdx) - " +
+                                 $"ConvertFieldToText nie rozwiazalo go do wartosci tekstowej, a jedynie zbinaryzowalo marker. " +
+                                 $"Tekst wynikowy: '{TruncateForWarning(contentsAfter, 80)}'. " +
+                                 $"Aby uzyskac wartosc, wywolaj _.REGEN w BricsCAD przed ConvertToText (lub po nim), " +
+                                 $"albo zaakceptuj ze obiekt zawiera binarny placeholder do recznego wypelnienia.");
+                }
+                else if (!string.IsNullOrEmpty(contentsBefore) && contentsBefore.Contains("%<") &&
+                         !string.IsNullOrEmpty(contentsAfter) && !contentsAfter.Contains("%<"))
+                {
+                    // Sukces: czytelny kod pola zostal rozwiazany do wartosci tekstowej.
+                    warnings.Add($"[{ent.GetType().Name}#{ent.Id}] Pole rozwiazane do wartosci tekstowej (binarny marker usuniety).");
+                }
+            }
+            catch
+            {
+                // Weryfikacja nie powiodla sie - nie blokujemy raportu.
+            }
+        }
+
+        private static string SafeGetContents(Entity ent)
+        {
+            try
+            {
+                if (ent is MText mt) return mt.Contents ?? "";
+                if (ent is DBText dt) return dt.TextString ?? "";
+                if (ent is AttributeReference ar)
+                {
+                    if (ar.IsMTextAttribute && ar.MTextAttribute != null)
+                        return ar.MTextAttribute.Contents ?? "";
+                    return ar.TextString ?? "";
+                }
+                if (ent is AttributeDefinition ad)
+                {
+                    if (ad.IsMTextAttributeDefinition && ad.MTextAttributeDefinition != null)
+                        return ad.MTextAttributeDefinition.Contents ?? "";
+                    return ad.TextString ?? "";
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        private static string TruncateForWarning(string text, int max)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= max) return text;
+            return text.Substring(0, max) + "...";
         }
 
         private static string SafeGetMTextCodes(MText mt)
