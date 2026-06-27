@@ -1,0 +1,180 @@
+<UserControl x:Class="WentCad.UI.MainView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="420"
+             MinHeight="560">
+    <DockPanel Margin="8">
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="{Binding Status}"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap" />
+
+        <TabControl>
+            <TabItem Header="Kondygnacje">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="120" />
+                    </Grid.RowDefinitions>
+                    <DataGrid ItemsSource="{Binding Floors}"
+                              SelectedItem="{Binding SelectedFloor}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nazwa" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" />
+                            <DataGridTextColumn Header="Rzedna" Binding="{Binding Elevation, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="H netto" Binding="{Binding HeightNet, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="H calk." Binding="{Binding HeightTotal, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="Baza X" Binding="{Binding BasePoint.X, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="Baza Y" Binding="{Binding BasePoint.Y, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="Opis bazy" Binding="{Binding BasePointDescription, UpdateSourceTrigger=PropertyChanged}" Width="140" />
+                            <DataGridTextColumn Header="Widok" Binding="{Binding DrukWidokiViewId}" Width="120" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,8">
+                        <Button Content="Dodaj" Click="AddFloor_Click" Margin="0,0,6,0" />
+                        <Button Content="Rysuj region" Click="DrawRegion_Click" Margin="0,0,6,0" />
+                        <Button Content="Wybierz region" Click="PickRegion_Click" Margin="0,0,6,0" />
+                        <Button Content="Wskaz baze" Click="PickBasePoint_Click" Margin="0,0,6,0" />
+                        <Button Content="Zapisz" Click="Save_Click" />
+                    </StackPanel>
+                    <DockPanel Grid.Row="2">
+                        <TextBlock DockPanel.Dock="Top" Text="Zakresy DrukWidoki" Margin="0,0,0,4" />
+                        <ListBox x:Name="DrukWidokiList"
+                                 ItemsSource="{Binding DrukWidokiViews}"
+                                 DisplayMemberPath="DisplayName"
+                                 MouseDoubleClick="AssignDrukWidoki_Click" />
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Pomieszczenia">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Kondygnacja" VerticalAlignment="Center" Margin="0,0,6,6" />
+                        <ComboBox Grid.Row="0"
+                                  Grid.Column="1"
+                                  ItemsSource="{Binding Floors}"
+                                  SelectedItem="{Binding SelectedFloor, Mode=TwoWay}"
+                                  DisplayMemberPath="Name"
+                                  Margin="0,0,6,6" />
+                        <Button Grid.Row="0" Grid.Column="2" Content="Skanuj" Click="ScanRooms_Click" Margin="0,0,0,6" />
+                        <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding BoundaryLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa obrysow" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding TagLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa metek" />
+                        <Button Grid.Row="1" Grid.Column="2" Content="Zapisz" Click="Save_Click" Margin="0,0,0,6" />
+                        <TextBox Grid.Row="2" Grid.Column="0" Text="{Binding NumberAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Atrybut numeru" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NameAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Atrybut nazwy" />
+                        <TextBox Grid.Row="3" Grid.Column="0" Text="{Binding HeightAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut wysokosci" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding AreaAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut powierzchni" />
+                    </Grid>
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Rooms}"
+                              SelectedItem="{Binding SelectedRoom}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nr" Binding="{Binding Number, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                            <DataGridTextColumn Header="Nazwa" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" />
+                            <DataGridTextColumn Header="Pow." Binding="{Binding Area, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                            <DataGridTextColumn Header="H" Binding="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Width="55" />
+                            <DataGridTextColumn Header="Kub." Binding="{Binding Volume}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Nawiew" Binding="{Binding CalculatedSupply}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Wywiew" Binding="{Binding CalculatedExhaust}" Width="70" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Systemy">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DataGrid ItemsSource="{Binding Systems}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding SystemId, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                            <DataGridTextColumn Header="Nazwa" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" />
+                            <DataGridTextColumn Header="Typ" Binding="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="Kolor" Binding="{Binding ColorIndex, UpdateSourceTrigger=PropertyChanged}" Width="60" />
+                            <DataGridTextColumn Header="Suma N" Binding="{Binding TotalSupply}" Width="80" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Suma W" Binding="{Binding TotalExhaust}" Width="80" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Button Grid.Row="1" Content="Przelicz i koloruj" Click="Recalculate_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Bilans">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="Kondygnacja" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ComboBox ItemsSource="{Binding Floors}"
+                                  SelectedItem="{Binding SelectedFloor, Mode=TwoWay}"
+                                  DisplayMemberPath="Name"
+                                  MinWidth="220" />
+                    </DockPanel>
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Rooms}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nr" Binding="{Binding Number}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Nazwa" Binding="{Binding Name}" Width="160" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Pow." Binding="{Binding Area, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                            <DataGridTextColumn Header="H" Binding="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Width="55" />
+                            <DataGridTextColumn Header="Kub." Binding="{Binding Volume}" Width="75" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Tryb" Binding="{Binding CalculationMode, UpdateSourceTrigger=PropertyChanged}" Width="110" />
+                            <DataGridTextColumn Header="Osoby" Binding="{Binding Occupants, UpdateSourceTrigger=PropertyChanged}" Width="60" />
+                            <DataGridTextColumn Header="Dawka" Binding="{Binding DosePerOccupant, UpdateSourceTrigger=PropertyChanged}" Width="65" />
+                            <DataGridTextColumn Header="ACH" Binding="{Binding TargetAch, UpdateSourceTrigger=PropertyChanged}" Width="65" />
+                            <DataGridTextColumn Header="Manual N" Binding="{Binding ManualSupply, UpdateSourceTrigger=PropertyChanged}" Width="75" />
+                            <DataGridTextColumn Header="Manual W" Binding="{Binding ManualExhaust, UpdateSourceTrigger=PropertyChanged}" Width="75" />
+                            <DataGridTextColumn Header="Transfer +" Binding="{Binding TransferIn, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="Transfer -" Binding="{Binding TransferOut, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="Nawiew" Binding="{Binding CalculatedSupply}" Width="80" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Wywiew" Binding="{Binding CalculatedExhaust}" Width="80" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Real ACH" Binding="{Binding RealAch}" Width="75" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Netto" Binding="{Binding NetBalance}" Width="75" IsReadOnly="True" />
+                            <DataGridTextColumn Header="System N" Binding="{Binding SupplySystemId, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Header="System W" Binding="{Binding ExhaustSystemId, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Button Grid.Row="2" Content="Przelicz" Click="Recalculate_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Eksport">
+                <StackPanel Margin="0,8,0,0">
+                    <Button Content="Eksportuj CSV" Click="ExportCsv_Click" Width="140" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                    <Button Content="Eksportuj IFC" Click="ExportIfc_Click" Width="140" HorizontalAlignment="Left" />
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</UserControl>

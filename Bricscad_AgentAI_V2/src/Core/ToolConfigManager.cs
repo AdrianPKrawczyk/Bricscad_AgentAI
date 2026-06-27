@@ -67,6 +67,7 @@ namespace Bricscad_AgentAI_V2.Core
         private const string GeometryPromptFile = @"prompts\system_prompt_geometry.txt";
         private const string BlocksPromptFile = @"prompts\system_prompt_blocks.txt";
         private const string MetadataPromptFile = @"prompts\system_prompt_metadata.txt";
+        private const string WentCadPromptFile = @"prompts\system_prompt_wentcad.txt";
         private const string MathPromptFile = @"prompts\system_prompt_math.txt";
         private const string NotesPromptFile = @"prompts\system_prompt_notes.txt";
         private const string AuditorPromptFile = @"prompts\system_prompt_auditor.txt";
@@ -104,8 +105,9 @@ namespace Bricscad_AgentAI_V2.Core
             EnsureGeometryPromptFile();
             EnsureBlocksPromptFile();
             EnsureMetadataPromptFile();
+            EnsureWentCadPromptFile();
             EnsureSupervisorPromptFile();
-EnsureMathPromptFile();
+            EnsureMathPromptFile();
             EnsureNotesPromptFile();
             EnsureAuditorPromptFile();
             EnsureRewidentPromptFile();
@@ -181,6 +183,7 @@ EnsureMathPromptFile();
                 case "CadGeometryProfile": return GeometryPromptFile;
                 case "CadBlocksProfile": return BlocksPromptFile;
                 case "CadMetadataProfile": return MetadataPromptFile;
+                case "WentCadProfile": return WentCadPromptFile;
                 case "CadMathProfile": return MathPromptFile;
                 case "NotesProfile": return NotesPromptFile;
                 case "AuditorProfile": return AuditorPromptFile;
@@ -372,6 +375,8 @@ EnsureMathPromptFile();
 
         private static void EnsureMetadataPromptFile() => EnsurePromptFile(MetadataPromptFile, "Jestes profilem metadanych CAD. Specjalizujesz sie w odczycie i analizie wlasciwosci, XData, selekcji, pomiarow i zestawien.");
 
+        private static void EnsureWentCadPromptFile() => EnsurePromptFile(WentCadPromptFile, "Jestes profilem WentCadProfile. Zarzadzasz projektem WentCad przez plik .wentcad, NOD i XData WENTCAD_*, bez referencji do DLL WentCad.");
+
         private static void EnsureSupervisorPromptFile() => EnsurePromptFile(SupervisorPromptFile, "Jestes Supervisorem systemu Bielik V2. Rozpoznaj intencje uzytkownika, deleguj zadania do najlepszych profili i sam odpowiadaj tylko na luzna rozmowe oraz pytania ogolne.");
 
         private static void EnsureMathPromptFile() => EnsurePromptFile(MathPromptFile, "Jestes profilem CadMathProfile. Wykonujesz pelne obliczenia przez CalculateMath i nie zastepujesz wyniku zgadywaniem.");
@@ -466,6 +471,32 @@ EnsureMathPromptFile();
                     }
                     // ListLayoutsTool is often only the discovery step before a layout action.
                     // Let the ReAct loop decide whether to continue instead of returning a raw list as success.
+                    if (settings.SupportsEarlyExit)
+                    {
+                        settings.SupportsEarlyExit = false;
+                        changed = true;
+                    }
+                }
+
+                if (name.Equals("ReadWentCadProject", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ReadWentCadRooms", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("UpdateWentCadProject", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ManageWentCadFloors", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ManageWentCadRooms", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ManageWentCadSystems", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("RecalculateWentCadBalance", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("RunWentCadCommand", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("SetWentCadFloorRegion", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ScanWentCadRooms", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("UpdateWentCadRoomByNumber", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ConfigureWentCadTestBuilding", StringComparison.OrdinalIgnoreCase))
+                {
+                    var settings = _config.Tools[name];
+                    if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#wentcad", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? "#wentcad, #xdata, #metadata, #pokoje" : settings.Tags + ", #wentcad, #xdata, #metadata, #pokoje";
+                        changed = true;
+                    }
                     if (settings.SupportsEarlyExit)
                     {
                         settings.SupportsEarlyExit = false;
@@ -665,7 +696,7 @@ EnsureMathPromptFile();
                 supervisorProf.SystemPromptFile = SupervisorPromptFile;
                 changed = true;
             }
-            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps", "ExtractRoomDataEntities", "ReadViewDefinitionsTool" };
+            var supervisorDefaults = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "manage_lisps", "ExtractRoomDataEntities", "ReadViewDefinitionsTool", "read_view_definitions", "ReadWentCadProject", "ReadWentCadRooms", "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms", "UpdateWentCadRoomByNumber", "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand", "SetWentCadFloorRegion", "ScanWentCadRooms", "ConfigureWentCadTestBuilding" };
             if (supervisorProf.AllowedTools == null)
             {
                 supervisorProf.AllowedTools = new List<string>();
@@ -825,7 +856,49 @@ EnsureMathPromptFile();
                 metadataProf.SystemPromptFile = MetadataPromptFile;
                 changed = true;
             }
-            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps", "PlotStyleTool", "ReadFields", "ManageFields" })) changed = true;
+            if (EnsureAllowedTools(metadataProf, new[] { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "manage_lisps", "PlotStyleTool", "ReadFields", "ManageFields", "ReadWentCadProject", "ReadWentCadRooms", "RunWentCadCommand" })) changed = true;
+
+            // 5b. Zabezpieczenie/Synchronizacja WentCadProfile
+            if (!_config.Profiles.TryGetValue("WentCadProfile", out var wentCadProf))
+            {
+                wentCadProf = new AgentProfileConfig
+                {
+                    SystemPromptFile = WentCadPromptFile,
+                    AllowedTags = new List<string> { "#wentcad", "#xdata", "#metadata", "#pokoje" }
+                };
+                _config.Profiles["WentCadProfile"] = wentCadProf;
+                changed = true;
+            }
+            if (wentCadProf.SystemPromptFile != WentCadPromptFile)
+            {
+                wentCadProf.SystemPromptFile = WentCadPromptFile;
+                changed = true;
+            }
+            if (wentCadProf.AllowedTags == null)
+            {
+                wentCadProf.AllowedTags = new List<string>();
+                changed = true;
+            }
+            foreach (string tag in new[] { "#wentcad", "#xdata", "#metadata", "#pokoje" })
+            {
+                if (!wentCadProf.AllowedTags.Contains(tag))
+                {
+                    wentCadProf.AllowedTags.Add(tag);
+                    changed = true;
+                }
+            }
+            if (EnsureAllowedTools(wentCadProf, new[]
+            {
+                "ReadWentCadProject", "ReadWentCadRooms",
+                "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms",
+                "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand",
+                "SetWentCadFloorRegion", "ScanWentCadRooms", "UpdateWentCadRoomByNumber", "ConfigureWentCadTestBuilding",
+                "ReadViewDefinitionsTool", "read_view_definitions",
+                "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
+                "ReadXData", "FindXData", "ExtractRoomDataEntities",
+                "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
+                "RequestAdditionalTools", "UserInput", "UserChoice"
+            })) changed = true;
 
             // 6. Zabezpieczenie/Synchronizacja CadMathProfile
             if (!_config.Profiles.TryGetValue("CadMathProfile", out var mathProf))
@@ -1002,7 +1075,7 @@ EnsureMathPromptFile();
                 // i Chain of Evidence (Rewident sledzi mutacje Foreach, nie LISP).
                 // Jesli user WPROST prosi o LISP - deleguj do CadGeometryProfile
                 // z instrukcja "uzyj manage_lisps w profilu Worker".
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "read_view_definitions", "ReadWentCadProject", "ReadWentCadRooms", "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms", "UpdateWentCadRoomByNumber", "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand", "SetWentCadFloorRegion", "ScanWentCadRooms", "ConfigureWentCadTestBuilding" },
                 AllowedTags = new List<string>()
             };
             
@@ -1041,8 +1114,26 @@ EnsureMathPromptFile();
             _config.Profiles["CadMetadataProfile"] = new AgentProfileConfig
             {
                 SystemPromptFile = MetadataPromptFile,
-                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "ReadFields", "ManageFields" },
+                AllowedTools = new List<string> { "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool", "ReadTextSampleTool", "ReadXData", "WriteXData", "FindXData", "ExtractRoomDataEntities", "BatchWriteXData", "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard", "RequestAdditionalTools", "UserInput", "UserChoice", "CaptureVisionArea", "CaptureMetricVisionArea", "ScanMetricVisionDrawing", "QueryVisionScanIndex", "DiagnoseMetricVisionGraphicsSystem", "ReadFields", "ManageFields", "ReadWentCadProject", "ReadWentCadRooms", "RunWentCadCommand" },
                 AllowedTags = new List<string> { "#xdata", "#fields" }
+            };
+
+            _config.Profiles["WentCadProfile"] = new AgentProfileConfig
+            {
+                SystemPromptFile = WentCadPromptFile,
+                AllowedTools = new List<string>
+                {
+                    "ReadWentCadProject", "ReadWentCadRooms",
+                    "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms",
+                    "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand",
+                    "SetWentCadFloorRegion", "ScanWentCadRooms", "UpdateWentCadRoomByNumber", "ConfigureWentCadTestBuilding",
+                    "ReadViewDefinitionsTool", "read_view_definitions",
+                    "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
+                    "ReadXData", "FindXData", "ExtractRoomDataEntities",
+                    "SelectEntities", "ReadFromBlackboard", "WriteToBlackboard",
+                    "RequestAdditionalTools", "UserInput", "UserChoice"
+                },
+                AllowedTags = new List<string> { "#wentcad", "#xdata", "#metadata", "#pokoje" }
             };
 
             _config.Profiles["CadMathProfile"] = new AgentProfileConfig

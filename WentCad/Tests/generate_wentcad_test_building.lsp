@@ -1,0 +1,212 @@
+;;; generate_wentcad_test_building.lsp
+;;; Test environment for WentCad.
+;;; Load in BricsCAD and run: GEN_WENTCAD_TEST_BUILDING
+
+(vl-load-com)
+
+(setq *wc-test-boundary-layer* "WC_TEST_OBRYSY")
+(setq *wc-test-tag-layer* "WC_TEST_METKI")
+(setq *wc-test-wall-layer* "WC_TEST_SCIANY")
+(setq *wc-test-window-layer* "WC_TEST_OKNA")
+(setq *wc-test-note-layer* "WC_TEST_OPISY")
+(setq *wc-test-floor-layer* "_WENTCAD_KONDYGNACJE")
+(setq *wc-test-tag-block* "WC_ROOM_TAG")
+
+(defun wc:acad () (vlax-get-acad-object))
+(defun wc:doc () (vla-get-ActiveDocument (wc:acad)))
+(defun wc:model () (vla-get-ModelSpace (wc:doc)))
+
+(defun wc:pt (x y z)
+  (vlax-3d-point (list x y z))
+)
+
+(defun wc:ensure-layer (name color / layers layer)
+  (setq layers (vla-get-Layers (wc:doc)))
+  (setq layer (vl-catch-all-apply 'vla-Item (list layers name)))
+  (if (vl-catch-all-error-p layer)
+    (setq layer (vla-Add layers name))
+  )
+  (vla-put-Color layer color)
+  layer
+)
+
+(defun wc:lwpoly (points layer color closed / arr idx pl)
+  (setq arr (vlax-make-safearray vlax-vbDouble (cons 0 (- (* 2 (length points)) 1))))
+  (setq idx 0)
+  (foreach p points
+    (vlax-safearray-put-element arr idx (car p))
+    (setq idx (1+ idx))
+    (vlax-safearray-put-element arr idx (cadr p))
+    (setq idx (1+ idx))
+  )
+  (setq pl (vla-AddLightWeightPolyline (wc:model) (vlax-make-variant arr)))
+  (vla-put-Layer pl layer)
+  (vla-put-Color pl color)
+  (vla-put-Closed pl (if closed :vlax-true :vlax-false))
+  pl
+)
+
+(defun wc:rect (x1 y1 x2 y2 layer color)
+  (wc:lwpoly (list (list x1 y1) (list x2 y1) (list x2 y2) (list x1 y2)) layer color T)
+)
+
+(defun wc:line (x1 y1 x2 y2 layer color / ln)
+  (setq ln (vla-AddLine (wc:model) (wc:pt x1 y1 0.0) (wc:pt x2 y2 0.0)))
+  (vla-put-Layer ln layer)
+  (vla-put-Color ln color)
+  ln
+)
+
+(defun wc:text (txt x y h layer color / obj)
+  (setq obj (vla-AddText (wc:model) txt (wc:pt x y 0.0) h))
+  (vla-put-Layer obj layer)
+  (vla-put-Color obj color)
+  obj
+)
+
+(defun wc:add-attribute (blk tag prompt default x y h)
+  (vla-AddAttribute blk h 0 prompt (wc:pt x y 0.0) tag default)
+)
+
+(defun wc:ensure-tag-block (/ blocks blk exists)
+  (setq blocks (vla-get-Blocks (wc:doc)))
+  (setq exists (vl-catch-all-apply 'vla-Item (list blocks *wc-test-tag-block*)))
+  (if (vl-catch-all-error-p exists)
+    (progn
+      (setq blk (vla-Add blocks (wc:pt 0.0 0.0 0.0) *wc-test-tag-block*))
+      (vla-put-Layer (vla-AddLine blk (wc:pt -1.5 -0.8 0.0) (wc:pt 1.5 -0.8 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt 1.5 -0.8 0.0) (wc:pt 1.5 0.8 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt 1.5 0.8 0.0) (wc:pt -1.5 0.8 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt -1.5 0.8 0.0) (wc:pt -1.5 -0.8 0.0)) "0")
+      (wc:add-attribute blk "NR" "Numer pomieszczenia" "0.00" -1.2 0.25 0.35)
+      (wc:add-attribute blk "NAZWA" "Nazwa pomieszczenia" "Pomieszczenie" -1.2 -0.15 0.28)
+      (wc:add-attribute blk "H" "Wysokosc netto" "3.00" -1.2 -0.48 0.22)
+      (wc:add-attribute blk "POW" "Powierzchnia" "0.00" 0.15 -0.48 0.22)
+    )
+  )
+)
+
+(defun wc:set-attrs (br values / attrs tag pair)
+  (setq attrs (vlax-invoke br 'GetAttributes))
+  (foreach att attrs
+    (setq tag (strcase (vla-get-TagString att)))
+    (setq pair (assoc tag values))
+    (if pair
+      (vla-put-TextString att (cdr pair))
+    )
+  )
+)
+
+(defun wc:tag (x y nr name h area / br)
+  (setq br (vla-InsertBlock (wc:model) (wc:pt x y 0.0) *wc-test-tag-block* 1.0 1.0 1.0 0.0))
+  (vla-put-Layer br *wc-test-tag-layer*)
+  (vla-put-Color br 4)
+  (wc:set-attrs br
+    (list
+      (cons "NR" nr)
+      (cons "NAZWA" name)
+      (cons "H" h)
+      (cons "POW" area)
+    )
+  )
+  br
+)
+
+(defun wc:room (x1 y1 x2 y2 nr name h area / cx cy)
+  (wc:rect x1 y1 x2 y2 *wc-test-boundary-layer* 2)
+  (setq cx (/ (+ x1 x2) 2.0))
+  (setq cy (/ (+ y1 y2) 2.0))
+  (wc:tag cx cy nr name h area)
+)
+
+(defun wc:walls-for-floor (x0 y0 / x1 y1 x2 y2)
+  (setq x1 x0)
+  (setq y1 y0)
+  (setq x2 (+ x0 60.0))
+  (setq y2 (+ y0 35.0))
+  (wc:rect x1 y1 x2 y2 *wc-test-wall-layer* 8)
+  (wc:line (+ x0 20.0) y0 (+ x0 20.0) y2 *wc-test-wall-layer* 8)
+  (wc:line (+ x0 40.0) y0 (+ x0 40.0) y2 *wc-test-wall-layer* 8)
+  (wc:line x0 (+ y0 17.5) x2 (+ y0 17.5) *wc-test-wall-layer* 8)
+  (wc:line (+ x0 8.0) y0 (+ x0 16.0) y0 *wc-test-window-layer* 5)
+  (wc:line (+ x0 45.0) y2 (+ x0 55.0) y2 *wc-test-window-layer* 5)
+)
+
+(defun wc:make-parter ()
+  (wc:text "KONDYGNACJA: Parter" 0.0 -6.0 2.5 *wc-test-note-layer* 7)
+  (wc:rect -3.0 -3.0 63.0 38.0 *wc-test-floor-layer* 3)
+  (wc:walls-for-floor 0.0 0.0)
+  (wc:room 0.0 0.0 20.0 17.5 "0.01" "Wiatrolap" "3.00" "350.00")
+  (wc:room 20.0 0.0 40.0 17.5 "0.02" "Komunikacja" "3.00" "350.00")
+  (wc:room 40.0 0.0 60.0 17.5 "0.03" "Biuro" "3.00" "350.00")
+  (wc:room 0.0 17.5 30.0 35.0 "0.04" "Sala spotkan" "3.00" "525.00")
+  (wc:room 30.0 17.5 60.0 35.0 "0.05" "Open space" "3.00" "525.00")
+)
+
+(defun wc:make-pietro ()
+  (wc:text "KONDYGNACJA: Pietro_1" 0.0 74.0 2.5 *wc-test-note-layer* 7)
+  (wc:rect -3.0 77.0 63.0 118.0 *wc-test-floor-layer* 3)
+  (wc:walls-for-floor 0.0 80.0)
+  (wc:room 0.0 80.0 20.0 97.5 "1.01" "Gabinet" "3.20" "350.00")
+  (wc:room 20.0 80.0 40.0 97.5 "1.02" "Pokoj pracy" "3.20" "350.00")
+  (wc:room 40.0 80.0 60.0 97.5 "1.03" "Archiwum" "3.20" "350.00")
+  (wc:room 0.0 97.5 30.0 115.0 "1.04" "Sala szkolen" "3.20" "525.00")
+  (wc:room 30.0 97.5 60.0 115.0 "1.05" "Socjal" "3.20" "525.00")
+)
+
+(defun wc:make-diagnostics ()
+  (wc:text "PRZYPADKI DIAGNOSTYCZNE" 72.0 -6.0 2.0 *wc-test-note-layer* 1)
+  ;; Closed boundary without tag.
+  (wc:rect 72.0 0.0 92.0 14.0 *wc-test-boundary-layer* 1)
+  (wc:text "Obrys bez metki" 72.0 15.5 1.2 *wc-test-note-layer* 1)
+  ;; Tag outside any room.
+  (wc:tag 105.0 7.0 "X.01" "Metka poza obrysem" "3.00" "0.00")
+  (wc:text "Metka poza obrysem" 100.0 15.5 1.2 *wc-test-note-layer* 1)
+  ;; Open boundary.
+  (wc:lwpoly (list (list 72.0 25.0) (list 92.0 25.0) (list 92.0 38.0) (list 72.0 38.0)) *wc-test-boundary-layer* 1 nil)
+  (wc:tag 82.0 31.0 "X.02" "Obrys otwarty" "3.00" "260.00")
+  (wc:text "Nie zamkniety obrys" 72.0 40.0 1.2 *wc-test-note-layer* 1)
+)
+
+(defun wc:setup-layers ()
+  (wc:ensure-layer *wc-test-boundary-layer* 2)
+  (wc:ensure-layer *wc-test-tag-layer* 4)
+  (wc:ensure-layer *wc-test-wall-layer* 8)
+  (wc:ensure-layer *wc-test-window-layer* 5)
+  (wc:ensure-layer *wc-test-note-layer* 7)
+  (wc:ensure-layer *wc-test-floor-layer* 3)
+)
+
+(defun C:GEN_WENTCAD_TEST_BUILDING (/ oldcmdecho oldattreq oldattdia)
+  (setq oldcmdecho (getvar "CMDECHO"))
+  (setq oldattreq (getvar "ATTREQ"))
+  (setq oldattdia (getvar "ATTDIA"))
+  (setvar "CMDECHO" 0)
+  (setvar "ATTREQ" 1)
+  (setvar "ATTDIA" 0)
+
+  (princ "\nWentCad: generowanie budynku testowego...")
+  (wc:setup-layers)
+  (wc:ensure-tag-block)
+  (wc:make-parter)
+  (wc:make-pietro)
+  (wc:make-diagnostics)
+
+  (setvar "CMDECHO" oldcmdecho)
+  (setvar "ATTREQ" oldattreq)
+  (setvar "ATTDIA" oldattdia)
+
+  (princ "\n[SUKCES] Utworzono budynek testowy WentCad.")
+  (princ "\nMapowanie WentCad:")
+  (princ "\n  Warstwa obrysow: WC_TEST_OBRYSY")
+  (princ "\n  Warstwa metek:   WC_TEST_METKI")
+  (princ "\n  Atrybut numeru:  NR")
+  (princ "\n  Atrybut nazwy:   NAZWA")
+  (princ "\n  Atrybut wys.:    H")
+  (princ "\n  Atrybut pow.:    POW")
+  (princ "\nKondygnacje: Parter ok. -3,-3 do 63,38; Pietro_1 ok. -3,77 do 63,118.")
+  (princ)
+)
+
+(princ "\nZaladowano generator testowy WentCad. Uruchom: GEN_WENTCAD_TEST_BUILDING")
+(princ)

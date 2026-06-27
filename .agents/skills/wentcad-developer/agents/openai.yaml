@@ -1,0 +1,4 @@
+interface:
+  display_name: "WentCad Developer"
+  short_description: "Zasady rozwoju niezale¿nej wtyczki WentCad dla BricsCAD."
+  default_prompt: "U¿yj tej umiejêtnoœci przy pracy nad kodem, architektur¹, dokumentacj¹ lub testami WentCad."

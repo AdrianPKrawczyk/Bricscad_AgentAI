@@ -123,8 +123,10 @@ namespace Bricscad_AgentAI_V2.Core
             "WriteXData", "BatchWriteXData", "WriteProjectFile",
             "WriteQAReport", "ImportCsvDataset", "ImportJsonFile", "SaveMacro", "SavePermanentFormula",
             "ManageDataset", "ManageRecipes", "ManageSkills", "manage_lisps",
-            "ExecuteMacro", "ExecuteFormula"
-        };
+            "ExecuteMacro", "ExecuteFormula",
+            "SetWentCadFloorRegion", "ScanWentCadRooms",
+            "UpdateWentCadRoomByNumber", "ConfigureWentCadTestBuilding"
+          };
 
         public static readonly HashSet<string> ReadOnlyTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {

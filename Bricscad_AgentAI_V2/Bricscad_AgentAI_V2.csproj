@@ -189,6 +189,21 @@
     <Compile Include="src\Tools\FindXDataTool.cs" />
     <Compile Include="src\Tools\ExtractRoomDataEntitiesTool.cs" />
     <Compile Include="src\Tools\BatchWriteXDataTool.cs" />
+    <Compile Include="src\Tools\WentCad\WentCadContractReader.cs" />
+    <Compile Include="src\Tools\WentCad\WentCadProjectStore.cs" />
+    <Compile Include="src\Tools\WentCad\WentCadGeometryTools.cs" />
+    <Compile Include="src\Tools\WentCad\ReadWentCadProjectTool.cs" />
+    <Compile Include="src\Tools\WentCad\ReadWentCadRoomsTool.cs" />
+    <Compile Include="src\Tools\WentCad\UpdateWentCadProjectTool.cs" />
+    <Compile Include="src\Tools\WentCad\ManageWentCadFloorsTool.cs" />
+    <Compile Include="src\Tools\WentCad\ManageWentCadRoomsTool.cs" />
+    <Compile Include="src\Tools\WentCad\UpdateWentCadRoomByNumberTool.cs" />
+    <Compile Include="src\Tools\WentCad\ManageWentCadSystemsTool.cs" />
+    <Compile Include="src\Tools\WentCad\RecalculateWentCadBalanceTool.cs" />
+    <Compile Include="src\Tools\WentCad\RunWentCadCommandTool.cs" />
+    <Compile Include="src\Tools\WentCad\SetWentCadFloorRegionTool.cs" />
+    <Compile Include="src\Tools\WentCad\ScanWentCadRoomsTool.cs" />
+    <Compile Include="src\Tools\WentCad\ConfigureWentCadTestBuildingTool.cs" />
     <Compile Include="src\Tools\CaptureVisionAreaTool.cs" />
     <Compile Include="src\Tools\CaptureMetricVisionAreaTool.cs" />
     <Compile Include="src\Tools\ScanMetricVisionDrawingTool.cs" />
@@ -315,6 +330,10 @@
     <Content Include="resources\prompts\system_prompt_metadata.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <TargetPath>prompts\system_prompt_metadata.txt</TargetPath>
+    </Content>
+    <Content Include="resources\prompts\system_prompt_wentcad.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <TargetPath>prompts\system_prompt_wentcad.txt</TargetPath>
     </Content>
     <Content Include="resources\prompts\system_prompt_math.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
