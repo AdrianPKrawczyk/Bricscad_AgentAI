@@ -9,12 +9,16 @@
 (setq *wc-test-tag-layer* "WC_TEST_METKI")
 (setq *wc-test-wall-layer* "WC_TEST_SCIANY")
 (setq *wc-test-window-layer* "WC_TEST_OKNA")
+(setq *wc-test-door-layer* "WC_TEST_DRZWI")
 (setq *wc-test-note-layer* "WC_TEST_OPISY")
 (setq *wc-test-window-note-layer* "WC_TEST_OPISY_OKIEN")
+(setq *wc-test-door-note-layer* "WC_TEST_OPISY_DRZWI")
 (setq *wc-test-floor-layer* "_WENTCAD_KONDYGNACJE")
 (setq *wc-test-tag-block* "WC_ROOM_TAG_CM")
 (setq *wc-test-window-block* "WC_WINDOW_CM")
 (setq *wc-test-window-label-block* "WC_WINDOW_LABEL_CM")
+(setq *wc-test-door-block* "WC_DOOR_CM")
+(setq *wc-test-door-label-block* "WC_DOOR_LABEL_CM")
 (setq *wc-test-wall-thickness* 12.0)
 
 (defun wc:acad () (vlax-get-acad-object))
@@ -124,6 +128,39 @@
   )
 )
 
+(defun wc:ensure-door-block (/ blocks blk exists)
+  (setq blocks (vla-get-Blocks (wc:doc)))
+  (setq exists (vl-catch-all-apply 'vla-Item (list blocks *wc-test-door-block*)))
+  (if (vl-catch-all-error-p exists)
+    (progn
+      (setq blk (vla-Add blocks (wc:pt 0.0 0.0 0.0) *wc-test-door-block*))
+      (vla-put-Layer (vla-AddLine blk (wc:pt -45.0 0.0 0.0) (wc:pt 45.0 0.0 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt -45.0 0.0 0.0) (wc:pt 20.0 55.0 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt 45.0 0.0 0.0) (wc:pt 20.0 55.0 0.0)) "0")
+      (wc:add-attribute blk "WIDTH" "Szerokosc drzwi cm" "90" -42.0 68.0 6.0)
+      (wc:add-attribute blk "HEIGHT" "Wysokosc drzwi cm" "205" -42.0 79.0 6.0)
+      (wc:add-attribute blk "SILL" "Prog cm" "0" -42.0 90.0 6.0)
+    )
+  )
+)
+
+(defun wc:ensure-door-label-block (/ blocks blk exists)
+  (setq blocks (vla-get-Blocks (wc:doc)))
+  (setq exists (vl-catch-all-apply 'vla-Item (list blocks *wc-test-door-label-block*)))
+  (if (vl-catch-all-error-p exists)
+    (progn
+      (setq blk (vla-Add blocks (wc:pt 0.0 0.0 0.0) *wc-test-door-label-block*))
+      (vla-put-Layer (vla-AddLine blk (wc:pt -45.0 -16.0 0.0) (wc:pt 45.0 -16.0 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt 45.0 -16.0 0.0) (wc:pt 45.0 16.0 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt 45.0 16.0 0.0) (wc:pt -45.0 16.0 0.0)) "0")
+      (vla-put-Layer (vla-AddLine blk (wc:pt -45.0 16.0 0.0) (wc:pt -45.0 -16.0 0.0)) "0")
+      (wc:add-attribute blk "WIDTH" "Szerokosc drzwi cm" "90" -36.0 4.0 6.0)
+      (wc:add-attribute blk "HEIGHT" "Wysokosc drzwi cm" "205" -36.0 -8.0 6.0)
+      (wc:add-attribute blk "SILL" "Prog cm" "0" 8.0 -8.0 6.0)
+    )
+  )
+)
+
 (defun wc:set-attrs (br values / attrs tag pair)
   (setq attrs (vlax-invoke br 'GetAttributes))
   (foreach att attrs
@@ -178,6 +215,34 @@
   br
 )
 
+(defun wc:door (x y rot width height sill / br)
+  (setq br (vla-InsertBlock (wc:model) (wc:pt x y 0.0) *wc-test-door-block* (/ width 90.0) 1.0 1.0 rot))
+  (vla-put-Layer br *wc-test-door-layer*)
+  (vla-put-Color br 1)
+  (wc:set-attrs br
+    (list
+      (cons "WIDTH" (rtos width 2 0))
+      (cons "HEIGHT" (rtos height 2 0))
+      (cons "SILL" (rtos sill 2 0))
+    )
+  )
+  br
+)
+
+(defun wc:door-label (x y width height sill / br)
+  (setq br (vla-InsertBlock (wc:model) (wc:pt x y 0.0) *wc-test-door-label-block* 1.0 1.0 1.0 0.0))
+  (vla-put-Layer br *wc-test-door-note-layer*)
+  (vla-put-Color br 30)
+  (wc:set-attrs br
+    (list
+      (cons "WIDTH" (rtos width 2 0))
+      (cons "HEIGHT" (rtos height 2 0))
+      (cons "SILL" (rtos sill 2 0))
+    )
+  )
+  br
+)
+
 (defun wc:room (x1 y1 x2 y2 nr name h area / cx cy)
   (wc:rect x1 y1 x2 y2 *wc-test-boundary-layer* 1)
   (setq cx (/ (+ x1 x2) 2.0))
@@ -206,6 +271,15 @@
   (wc:window-label (+ x0 1350.0) (+ y2 70.0) 200.0 120.0 85.0)
   ;; Diagnostic: window close to an interior wall; scanner should leave it unassigned.
   (wc:window (+ x0 306.0) (+ y0 200.0) 1.5707963268 120.0 140.0 90.0)
+  ;; Doors: one external and several internal, to verify DRZ assignment to SZ/SW.
+  (wc:door x0 (+ y0 105.0) 1.5707963268 90.0 205.0 0.0)
+  (wc:door-label (- x0 90.0) (+ y0 105.0) 90.0 205.0 0.0)
+  (wc:door (+ x0 306.0) (+ y0 105.0) 1.5707963268 90.0 205.0 0.0)
+  (wc:door-label (+ x0 390.0) (+ y0 105.0) 90.0 205.0 0.0)
+  (wc:door (+ x0 906.0) (+ y0 200.0) 1.5707963268 90.0 205.0 0.0)
+  (wc:door-label (+ x0 990.0) (+ y0 200.0) 90.0 205.0 0.0)
+  (wc:door (+ x0 806.0) (+ y0 700.0) 1.5707963268 90.0 205.0 0.0)
+  (wc:door-label (+ x0 890.0) (+ y0 700.0) 90.0 205.0 0.0)
 )
 
 (defun wc:make-parter ()
@@ -249,8 +323,10 @@
   (wc:ensure-layer *wc-test-tag-layer* 4)
   (wc:ensure-layer *wc-test-wall-layer* 8)
   (wc:ensure-layer *wc-test-window-layer* 5)
+  (wc:ensure-layer *wc-test-door-layer* 1)
   (wc:ensure-layer *wc-test-note-layer* 7)
   (wc:ensure-layer *wc-test-window-note-layer* 6)
+  (wc:ensure-layer *wc-test-door-note-layer* 30)
   (wc:ensure-layer *wc-test-floor-layer* 3)
 )
 
@@ -267,6 +343,8 @@
   (wc:ensure-tag-block)
   (wc:ensure-window-block)
   (wc:ensure-window-label-block)
+  (wc:ensure-door-block)
+  (wc:ensure-door-label-block)
   (wc:make-parter)
   (wc:make-pietro)
   (wc:make-diagnostics)
@@ -283,6 +361,13 @@
   (princ "\n  Atrybut nazwy:   NAZWA")
   (princ "\n  Atrybut wys.:    H")
   (princ "\n  Atrybut pow.:    POW")
+  (princ "\nMapowanie WATT:")
+  (princ "\n  Warstwa scian:        WC_TEST_SCIANY")
+  (princ "\n  Warstwa okien:        WC_TEST_OKNA")
+  (princ "\n  Warstwa opisow okien: WC_TEST_OPISY_OKIEN")
+  (princ "\n  Warstwa drzwi:        WC_TEST_DRZWI")
+  (princ "\n  Warstwa opisow drzwi: WC_TEST_OPISY_DRZWI")
+  (princ "\n  Atrybuty otworow:     WIDTH, HEIGHT, SILL")
   (princ "\nJednostki: 1 jednostka DWG = 1 cm; powierzchnie w metkach sa w m2.")
   (princ "\nKondygnacje: Parter ok. -50,-50 do 1850,1050; Pietro_1 ok. -50,1250 do 1850,2350.")
   (princ)

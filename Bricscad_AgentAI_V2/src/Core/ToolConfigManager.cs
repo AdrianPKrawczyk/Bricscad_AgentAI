@@ -489,12 +489,29 @@ namespace Bricscad_AgentAI_V2.Core
                     name.Equals("SetWentCadFloorRegion", StringComparison.OrdinalIgnoreCase) ||
                     name.Equals("ScanWentCadRooms", StringComparison.OrdinalIgnoreCase) ||
                     name.Equals("UpdateWentCadRoomByNumber", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("ConfigureWentCadTestBuilding", StringComparison.OrdinalIgnoreCase))
+                    name.Equals("ConfigureWentCadTestBuilding", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ReadWentCadEnvelope", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ScanWentCadEnvelope", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("UpdateWentCadWall", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("UpdateWentCadWindow", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("ConfigureWentCadEnvelopeTestBuilding", StringComparison.OrdinalIgnoreCase))
                 {
                     var settings = _config.Tools[name];
+                    bool isWattTool =
+                        name.Equals("ReadWentCadEnvelope", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("ScanWentCadEnvelope", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("UpdateWentCadWall", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("UpdateWentCadWindow", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("ConfigureWentCadEnvelopeTestBuilding", StringComparison.OrdinalIgnoreCase);
                     if (string.IsNullOrWhiteSpace(settings.Tags) || settings.Tags.IndexOf("#wentcad", StringComparison.OrdinalIgnoreCase) < 0)
                     {
-                        settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? "#wentcad, #xdata, #metadata, #pokoje" : settings.Tags + ", #wentcad, #xdata, #metadata, #pokoje";
+                        string wentCadTags = isWattTool ? "#wentcad, #watt, #xdata, #metadata, #pokoje" : "#wentcad, #xdata, #metadata, #pokoje";
+                        settings.Tags = string.IsNullOrWhiteSpace(settings.Tags) ? wentCadTags : settings.Tags + ", " + wentCadTags;
+                        changed = true;
+                    }
+                    else if (isWattTool && settings.Tags.IndexOf("#watt", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        settings.Tags += ", #watt";
                         changed = true;
                     }
                     if (settings.SupportsEarlyExit)

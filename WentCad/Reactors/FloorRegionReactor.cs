@@ -11,6 +11,7 @@ namespace WentCad.Reactors
     {
         private static bool _registered;
         private static bool _idleRegistered;
+        private static bool _processingIdle;
         private static readonly Dictionary<string, List<PointDto>> PendingUpdates = new Dictionary<string, List<PointDto>>(StringComparer.OrdinalIgnoreCase);
 
         public static void Register()
@@ -28,37 +29,46 @@ namespace WentCad.Reactors
 
         private static void Database_ObjectModified(object sender, ObjectEventArgs e)
         {
+            if (_processingIdle) return;
+
             var polyline = e.DBObject as Polyline;
             if (polyline == null || polyline.IsUndoing || polyline.Layer != WentCadConstants.FloorRegionLayer || polyline.XData == null)
             {
                 return;
             }
 
-            string floorId = null;
-            bool foundRegApp = false;
-            foreach (TypedValue value in polyline.XData)
+            try
             {
-                if (value.TypeCode == (short)DxfCode.ExtendedDataRegAppName &&
-                    string.Equals(value.Value?.ToString(), WentCadConstants.FloorRegionRegApp, StringComparison.OrdinalIgnoreCase))
+                string floorId = null;
+                bool foundRegApp = false;
+                foreach (TypedValue value in polyline.XData)
                 {
-                    foundRegApp = true;
-                    continue;
+                    if (value.TypeCode == (short)DxfCode.ExtendedDataRegAppName &&
+                        string.Equals(value.Value?.ToString(), WentCadConstants.FloorRegionRegApp, StringComparison.OrdinalIgnoreCase))
+                    {
+                        foundRegApp = true;
+                        continue;
+                    }
+
+                    if (foundRegApp && value.TypeCode == (short)DxfCode.ExtendedDataAsciiString)
+                    {
+                        floorId = value.Value?.ToString();
+                        break;
+                    }
                 }
 
-                if (foundRegApp && value.TypeCode == (short)DxfCode.ExtendedDataAsciiString)
+                if (string.IsNullOrWhiteSpace(floorId)) return;
+
+                PendingUpdates[floorId] = GeometryManager.PolylineToPoints(polyline);
+                if (!_idleRegistered)
                 {
-                    floorId = value.Value?.ToString();
-                    break;
+                    Application.Idle += Application_Idle;
+                    _idleRegistered = true;
                 }
             }
-
-            if (string.IsNullOrWhiteSpace(floorId)) return;
-
-            PendingUpdates[floorId] = GeometryManager.PolylineToPoints(polyline);
-            if (!_idleRegistered)
+            catch
             {
-                Application.Idle += Application_Idle;
-                _idleRegistered = true;
+                // Reactor must never terminate BricsCAD. A later explicit save/sync will persist data.
             }
         }
 
@@ -68,23 +78,50 @@ namespace WentCad.Reactors
             _idleRegistered = false;
             if (PendingUpdates.Count == 0) return;
 
-            var doc = Application.DocumentManager.MdiActiveDocument;
-            if (doc == null) return;
-
-            var project = ProjectFileService.LoadOrCreate(doc);
-            foreach (var update in PendingUpdates)
+            _processingIdle = true;
+            try
             {
-                if (project.Floors.TryGetValue(update.Key, out var floor))
+                var doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc == null) return;
+
+                var project = ProjectFileService.LoadOrCreate(doc);
+                foreach (var update in PendingUpdates)
                 {
-                    floor.Region = update.Value;
+                    if (project.Floors.TryGetValue(update.Key, out var floor))
+                    {
+                        floor.Region = update.Value;
+                    }
                 }
+
+                ProjectFileService.Save(doc, project);
+                TrySaveProjectIndex(doc, project);
+                UI.PaletteSetManager.MainViewInstance?.ViewModel.Load(doc);
             }
+            catch
+            {
+                // Keep BricsCAD alive even if Teigha rejects a transaction during idle.
+            }
+            finally
+            {
+                PendingUpdates.Clear();
+                _processingIdle = false;
+            }
+        }
 
-            ProjectFileService.Save(doc, project);
-            NodManager.SaveProjectIndex(doc, project);
-            PendingUpdates.Clear();
-
-            UI.PaletteSetManager.MainViewInstance?.ViewModel.Load(doc);
+        private static void TrySaveProjectIndex(Document doc, WentCadProject project)
+        {
+            try
+            {
+                NodManager.SaveProjectIndex(doc, project);
+            }
+            catch
+            {
+                try
+                {
+                    doc.Editor.WriteMessage("\nWentCad: pominieto zapis NOD z reaktora kondygnacji; dane .wentcad zostaly zapisane. Uzyj WENTCAD_SYNC, aby odswiezyc indeks DWG.");
+                }
+                catch { }
+            }
         }
     }
 }

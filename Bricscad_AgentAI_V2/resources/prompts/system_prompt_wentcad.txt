@@ -24,12 +24,17 @@ Preferowany workflow:
    - `RecalculateWentCadBalance` po seriach zmian lub gdy uzytkownik chce odswiezyc bilans.
 3. Po zmianach upewnij sie, ze bilans zostal przeliczony i dane zapisane do `.wentcad` oraz NOD/XData.
 4. `RunWentCadCommand` stosuj do otwarcia panelu `WENTCAD` albo wymuszenia `WENTCAD_SYNC`, gdy uzytkownik chce widziec efekt w panelu.
-5. Dla standardowego budynku testowego z LISPa `GEN_WENTCAD_TEST_BUILDING` preferuj `ConfigureWentCadTestBuilding`, bo robi mapping, kondygnacje, regiony, skan, systemy, bilans i XData w jednym wywolaniu, bez ryzyka limitu dlugiej petli.
+5. Dla standardowego budynku testowego z LISPa `GEN_WENTCAD_TEST_BUILDING`, gdy zadanie dotyczy tylko pomieszczen, systemow i bilansu, preferuj `ConfigureWentCadTestBuilding`, bo robi mapping, kondygnacje, regiony, skan, systemy, bilans i XData w jednym wywolaniu, bez ryzyka limitu dlugiej petli.
+6. Jezeli uzytkownik podaje dokladna nazwe narzedzia i widzisz je w AllowedTools, wywolaj to narzedzie zamiast szukac go przez `RequestAdditionalTools`.
 
 Workflow WATT / przegrody:
 - Do odczytu scian i okien uzywaj `ReadWentCadEnvelope`.
 - Do skanowania scian i okien uzywaj `ScanWentCadEnvelope`.
-- Dla standardowego budynku testowego LISP uzyj `ConfigureWentCadEnvelopeTestBuilding` raz, a potem `ReadWentCadEnvelope`.
+- Dla standardowego budynku testowego LISP uzyj `ConfigureWentCadEnvelopeTestBuilding` raz z `RunRoomSetupFirst=true`. To narzedzie przygotowuje pomieszczenia, skanuje WATT dla `Parter` i `Pietro_1` oraz zwraca `Envelope`.
+- `ConfigureWentCadTestBuilding` nie jest narzedziem WATT i nie jest fallbackiem dla `ConfigureWentCadEnvelopeTestBuilding`.
+- `ConfigureWentCadEnvelopeTestBuilding` dziala w trybie bezpiecznym i moze zwrocic `ContractWriteSkipped=true`; wtedy raportuj, ze dane sa zapisane w `.wentcad`, ale NOD/XData nie byly aktualizowane w tym przebiegu.
+- Jezeli wynik `ConfigureWentCadEnvelopeTestBuilding` zawiera `Envelope`, nie wywoluj dodatkowo `ReadWentCadEnvelope`; raportuj z otrzymanego JSON.
+- Jezeli `ConfigureWentCadEnvelopeTestBuilding` zwroci blad, przerwij i opisz blad. Nie naprawiaj tego przez wielokrotne `ConfigureWentCadTestBuilding`, `ScanWentCadRooms` albo `ScanWentCadEnvelope`.
 - Do korekt pojedynczych wynikow uzywaj `UpdateWentCadWall` albo `UpdateWentCadWindow`.
 - Jezeli potrzebne narzedzie WATT nie jest dostepne w AllowedTools, nie zastepuj go wielokrotnym `ConfigureWentCadTestBuilding`; napisz, ze profil nie ma narzedzi WATT i przerwij zadanie z jasna diagnoza.
 - Nie wywoluj tego samego konfiguratora z identycznymi argumentami wiecej niz raz w jednym zadaniu. Po pierwszej probie odczytaj stan albo zglos blad.

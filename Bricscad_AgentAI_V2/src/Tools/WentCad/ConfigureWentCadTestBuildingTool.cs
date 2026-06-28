@@ -20,7 +20,7 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 Function = new FunctionSchema
                 {
                     Name = "ConfigureWentCadTestBuilding",
-                    Description = "Jednym wywolaniem konfiguruje standardowy budynek testowy WentCad z LISPa GEN_WENTCAD_TEST_BUILDING: mapping, kondygnacje, regiony, skan pomieszczen, systemy N1/W1/N2/W2, tryby bilansu, przeliczenie oraz NOD/XData.",
+                    Description = "Jednym wywolaniem konfiguruje standardowy budynek testowy WentCad z LISPa GEN_WENTCAD_TEST_BUILDING dla pomieszczen i bilansu wentylacji: mapping, kondygnacje, regiony, skan pomieszczen, systemy N1/W1/N2/W2, tryby bilansu, przeliczenie oraz NOD/XData. To NIE jest narzedzie WATT; do scian, okien, drzwi i przegrod uzyj ConfigureWentCadEnvelopeTestBuilding.",
                     Parameters = new ParametersSchema
                     {
                         Type = "object",
@@ -47,9 +47,25 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
         {
             if (doc == null) return "Error: Brak aktywnego dokumentu.";
             args = args ?? new JObject();
+            string requestedProjectName = WentCadProjectStore.Clean(args["ProjectName"]);
+            if (LooksLikeWattRequest(requestedProjectName, args))
+            {
+                return new JObject
+                {
+                    ["Error"] = "ConfigureWentCadTestBuilding obsluguje tylko test pomieszczen i bilansu. Nie skanuje WATT, scian, okien ani drzwi.",
+                    ["UseTool"] = "ConfigureWentCadEnvelopeTestBuilding",
+                    ["RequiredArguments"] = new JObject
+                    {
+                        ["RunRoomSetupFirst"] = true,
+                        ["ProjectName"] = string.IsNullOrWhiteSpace(requestedProjectName) ? "WentCad LISP Test Building WATT v1 Test" : requestedProjectName
+                    },
+                    ["DoNotRepeatThisTool"] = true
+                }.ToString(Formatting.Indented);
+            }
+
             var project = WentCadProjectStore.LoadOrCreate(doc);
 
-            project["ProjectName"] = WentCadProjectStore.Clean(args["ProjectName"]) ?? "WentCad LISP Test Building";
+            project["ProjectName"] = requestedProjectName ?? "WentCad LISP Test Building";
             var mapping = project["DetectionMapping"] as JObject ?? new JObject();
             mapping["BoundaryLayer"] = WentCadProjectStore.Clean(args["BoundaryLayer"]) ?? "WC_TEST_OBRYSY";
             mapping["TagLayer"] = WentCadProjectStore.Clean(args["TagLayer"]) ?? "WC_TEST_METKI";
@@ -157,6 +173,26 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 .ToList();
             foreach (string key in remove) rooms.Remove(key);
             return remove.Count;
+        }
+
+        private static bool LooksLikeWattRequest(string projectName, JObject args)
+        {
+            if (!string.IsNullOrWhiteSpace(projectName) &&
+                projectName.IndexOf("WATT", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            foreach (string key in new[]
+            {
+                "WallLayer", "WindowLayer", "DoorLayer", "WindowLabelLayer", "DoorLabelLayer",
+                "MaxInteriorWallDistance", "MaxExteriorConfirmDistance", "MaxWindowSnapDistance"
+            })
+            {
+                if (args[key] != null) return true;
+            }
+
+            return false;
         }
 
         private static string CreateRegionAndReadHandle(Document doc, string floorId, IList<JObject> points)

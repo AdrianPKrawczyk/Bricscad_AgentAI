@@ -48,6 +48,9 @@ namespace WentCad.UI
         public string Kind => Wall?.Kind ?? "";
         public string Construction => string.IsNullOrWhiteSpace(Wall?.ConstructionName) ? "Wybierz konstrukcje..." : Wall.ConstructionName;
         public double Length => Wall?.Length ?? 0;
+        public double Height => Wall?.Height ?? 0;
+        public double GrossArea => Wall?.GrossArea > 0 ? Wall.GrossArea : Length * Height;
+        public double NetArea => System.Math.Max(0, GrossArea - Windows.Sum(o => o.Area));
         public double Thickness => Wall?.Thickness ?? 0;
         public double Azimuth => Wall?.Azimuth ?? 0;
         public double Confidence => Wall?.Confidence ?? 0;

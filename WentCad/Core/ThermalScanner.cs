@@ -36,7 +36,7 @@ namespace WentCad.Core
             var roomPolygons = LoadRoomPolygons(doc, project, floor, result);
             var wallHints = LoadWallHints(doc, floor, settings);
             var regionEdges = ToSegments(ResolveFloorRegion(doc.Database, floor), null, null);
-            var walls = DetectWalls(roomPolygons, wallHints, regionEdges, settings, result);
+            var walls = DetectWalls(project, floor, roomPolygons, wallHints, regionEdges, settings, result);
             var windowCandidates = LoadWindowCandidates(doc, floor, settings);
             result.WindowCandidates = windowCandidates.Count;
             var windows = AssignWindows(walls, windowCandidates, settings, result);
@@ -130,7 +130,7 @@ namespace WentCad.Core
             return hints;
         }
 
-        private static List<ThermalWallDef> DetectWalls(List<RoomPolygon> rooms, List<Segment> wallHints, List<Segment> regionEdges, ThermalSettings settings, ThermalScanResult result)
+        private static List<ThermalWallDef> DetectWalls(WentCadProject project, FloorDef floor, List<RoomPolygon> rooms, List<Segment> wallHints, List<Segment> regionEdges, ThermalSettings settings, ThermalScanResult result)
         {
             var allSegments = rooms.SelectMany(r => ToSegments(r.Points, r.Room, r.Room.BoundaryHandle)).ToList();
             var walls = new List<ThermalWallDef>();
@@ -181,6 +181,9 @@ namespace WentCad.Core
                     }
                 }
 
+                double length = Math.Round(CadLengthToMeters(SegmentLength(segment)), 3);
+                double height = Math.Round(CalculateWallHeight(project, floor, segment.Room, kind), 3);
+
                 walls.Add(new ThermalWallDef
                 {
                     WallId = StableWallId(segment.Room.RoomId, segment.Index),
@@ -190,7 +193,9 @@ namespace WentCad.Core
                     Code = WallCode(kind),
                     P1 = segment.P1,
                     P2 = segment.P2,
-                    Length = Math.Round(CadLengthToMeters(SegmentLength(segment)), 3),
+                    Length = length,
+                    Height = height,
+                    GrossArea = Math.Round(length * height, 3),
                     Thickness = Math.Round(NormalizeWallThickness(thickness), 3),
                     Azimuth = Math.Round(Azimuth(segment), 2),
                     AdjacentRoomId = adjacentRoomId,
@@ -205,6 +210,39 @@ namespace WentCad.Core
             result.InternalWalls = walls.Count(w => w.Kind == "INTERNAL");
             result.UnresolvedWalls = walls.Count(w => w.Kind == "UNRESOLVED");
             return walls;
+        }
+
+        private static double CalculateWallHeight(WentCadProject project, FloorDef floor, RoomDef room, string kind)
+        {
+            if (string.Equals(kind, "EXTERNAL", StringComparison.OrdinalIgnoreCase))
+            {
+                double storeyHeight = CalculateStoreyHeight(project, floor);
+                if (storeyHeight > 0) return storeyHeight;
+            }
+
+            if (floor != null && floor.HeightNet > 0) return floor.HeightNet;
+            return room?.Height > 0 ? room.Height : 0;
+        }
+
+        private static double CalculateStoreyHeight(WentCadProject project, FloorDef floor)
+        {
+            if (project?.Floors != null && floor != null)
+            {
+                var next = project.Floors.Values
+                    .Where(f => f.Order > floor.Order || (f.Order == floor.Order && f.Elevation > floor.Elevation))
+                    .OrderBy(f => f.Elevation)
+                    .ThenBy(f => f.Order)
+                    .FirstOrDefault();
+                if (next != null)
+                {
+                    double delta = next.Elevation - floor.Elevation;
+                    if (delta > 0) return delta;
+                }
+
+                if (floor.HeightTotal > 0) return floor.HeightTotal;
+            }
+
+            return 0;
         }
 
         private static List<WindowCandidate> LoadWindowCandidates(Document doc, FloorDef floor, ThermalSettings settings)

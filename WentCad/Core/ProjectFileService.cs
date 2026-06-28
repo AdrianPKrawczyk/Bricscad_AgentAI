@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Bricscad.ApplicationServices;
 using Newtonsoft.Json;
 using WentCad.Models;
@@ -78,6 +79,14 @@ namespace WentCad.Core
             foreach (var wall in project.Thermal.Walls.Values)
             {
                 if (string.IsNullOrWhiteSpace(wall.Code)) wall.Code = wall.Kind == "EXTERNAL" ? "SZ" : wall.Kind == "INTERNAL" ? "SW" : "?";
+                project.Rooms.TryGetValue(wall.RoomId, out RoomDef room);
+                var floor = !string.IsNullOrWhiteSpace(wall.FloorId) && project.Floors.TryGetValue(wall.FloorId, out FloorDef wallFloor)
+                    ? wallFloor
+                    : room != null && project.Floors.TryGetValue(room.FloorId, out FloorDef roomFloor)
+                        ? roomFloor
+                        : null;
+                wall.Height = Math.Round(CalculateWallHeight(project, floor, room, wall.Kind), 3);
+                wall.GrossArea = wall.Length > 0 && wall.Height > 0 ? Math.Round(wall.Length * wall.Height, 3) : 0;
             }
             foreach (var window in project.Thermal.Windows.Values)
             {
@@ -98,6 +107,36 @@ namespace WentCad.Core
                 project.Systems.Add(new SystemDef { SystemId = "N1", Name = "Nawiew 1", Type = "SUPPLY", ColorIndex = 5 });
                 project.Systems.Add(new SystemDef { SystemId = "W1", Name = "Wywiew 1", Type = "EXHAUST", ColorIndex = 1 });
             }
+        }
+
+        private static double CalculateWallHeight(WentCadProject project, FloorDef floor, RoomDef room, string kind)
+        {
+            if (string.Equals(kind, "EXTERNAL", StringComparison.OrdinalIgnoreCase))
+            {
+                double storeyHeight = CalculateStoreyHeight(project, floor);
+                if (storeyHeight > 0) return storeyHeight;
+            }
+
+            if (floor != null && floor.HeightNet > 0) return floor.HeightNet;
+            return room?.Height > 0 ? room.Height : 0;
+        }
+
+        private static double CalculateStoreyHeight(WentCadProject project, FloorDef floor)
+        {
+            if (project?.Floors == null || floor == null) return 0;
+
+            var next = project.Floors.Values
+                .Where(f => f.Order > floor.Order || (f.Order == floor.Order && f.Elevation > floor.Elevation))
+                .OrderBy(f => f.Elevation)
+                .ThenBy(f => f.Order)
+                .FirstOrDefault();
+            if (next != null)
+            {
+                double delta = next.Elevation - floor.Elevation;
+                if (delta > 0) return delta;
+            }
+
+            return floor.HeightTotal > 0 ? floor.HeightTotal : 0;
         }
     }
 }

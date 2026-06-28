@@ -51,6 +51,8 @@ namespace WentCad.Models
         public PointDto P1 { get; set; } = new PointDto();
         public PointDto P2 { get; set; } = new PointDto();
         public double Length { get; set; }
+        public double Height { get; set; }
+        public double GrossArea { get; set; }
         public double Thickness { get; set; }
         public double Azimuth { get; set; }
         public string AdjacentRoomId { get; set; } = "";

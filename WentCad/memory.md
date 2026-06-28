@@ -56,6 +56,8 @@ Aktualny stan: 2026-06-27
 - WATT: dodano `Thermal.HorizontalPartitions` dla poziomych przegród `PG`, `StW`, `D` oraz pola `ConstructionId/ConstructionName` przy ścianach, otworach i przegrodach poziomych. Zakładka `Struktura` pokazuje kody `SZ`, `SW`, `OZ`, `DRZ`, `PG`, `StW`, `D`.
 - WATT: drzwi sa wykrywane analogicznie do okien (`DoorLayer`, wzorzec bloku, opisy i atrybuty wymiarowe), maja kod `DRZ` i moga byc przypisane do scian zewnetrznych albo wewnetrznych.
 - UI WATT: przycisk `Skanuj WATT - caly budynek` skanuje wszystkie kondygnacje, a zakladka WATT pokazuje takze `PG`, `StW` i `D`.
+- UI WATT/Struktura: sciany maja `H [m]` i `Ab [m2] = L x H`; w strukturze `An [m2]` liczy sie jako `Ab` minus suma powierzchni okien i drzwi przypisanych do sciany.
+- WATT: wysokosc scian zewnetrznych `SZ` jest liczona jako roznica rzednych do kolejnej kondygnacji, z fallbackiem na `H calk.`; sciany wewnetrzne `SW` uzywaja `H netto`.
 
 ## Most Agenta
 
@@ -103,6 +105,7 @@ To jest blokada pliku przez proces BricsCAD, nie błąd kodu WentCad.
 - Komenda LISP: `GEN_WENTCAD_TEST_BUILDING`.
 - Generator tworzy dwa rzuty kondygnacji, warstwy testowe, obrysy pomieszczeń, blok metki `WC_ROOM_TAG` z atrybutami `NR`, `NAZWA`, `H`, `POW`, okna pomocnicze oraz przypadki diagnostyczne.
 - Generator tworzy też blok okna `WC_WINDOW` z atrybutami `WIDTH`, `HEIGHT`, `SILL` oraz blok opisu okna `WC_WINDOW_LABEL` na warstwie `WC_TEST_OPISY_OKIEN`.
+- Generator tworzy też drzwi testowe `WC_DOOR_CM` na warstwie `WC_TEST_DRZWI` oraz opisy `WC_DOOR_LABEL_CM` na `WC_TEST_OPISY_DRZWI`; przypadki obejmują drzwi zewnętrzne i drzwi wewnętrzne.
 - Mapowanie dla panelu WentCad:
   - obrysy: `WC_TEST_OBRYSY`
   - metki: `WC_TEST_METKI`
@@ -114,9 +117,18 @@ To jest blokada pliku przez proces BricsCAD, nie błąd kodu WentCad.
   - ściany: `WC_TEST_SCIANY`
   - okna: `WC_TEST_OKNA`
   - opisy okien: `WC_TEST_OPISY_OKIEN`
+  - drzwi: `WC_TEST_DRZWI`
+  - opisy drzwi: `WC_TEST_OPISY_DRZWI`
   - szerokość: `WIDTH`
   - wysokość: `HEIGHT`
   - parapet: `SILL`
+
+## Agent WentCadProfile / WATT
+
+- `ConfigureWentCadTestBuilding` jest tylko do pomieszczen, systemow i bilansu. Nie wolno traktowac go jako fallbacku dla WATT.
+- Dla testu WATT standardowego budynku LISP nalezy uzywac `ConfigureWentCadEnvelopeTestBuilding` raz z `RunRoomSetupFirst=true`.
+- `ConfigureWentCadEnvelopeTestBuilding` zwraca `Envelope`; jezeli to pole jest obecne, agent raportuje z tego wyniku i nie wywoluje dodatkowo `ReadWentCadEnvelope`.
+- Log Agent-Czat pokazuje teraz `ActiveTools` oraz `AllowedTools`, zeby odroznic narzedzia faktycznie podane do modelu od samych wpisow w konfiguracji profilu.
 
 ## Następne kroki
 

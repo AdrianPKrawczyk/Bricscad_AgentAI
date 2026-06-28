@@ -31,6 +31,7 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                             { "NameAttribute", new ToolParameter { Type = "string", Description = "Atrybut nazwy. Domyslnie DetectionMapping.NameAttribute." } },
                             { "HeightAttribute", new ToolParameter { Type = "string", Description = "Atrybut wysokosci. Domyslnie DetectionMapping.HeightAttribute." } },
                             { "AreaAttribute", new ToolParameter { Type = "string", Description = "Atrybut powierzchni. Domyslnie DetectionMapping.AreaAttribute." } },
+                            { "WriteContractToDwg", new ToolParameter { Type = "boolean", Description = "Czy po skanie zapisac NOD/XData w DWG. Domyslnie true. Dla testow stabilnosci mozna ustawic false, wtedy zapisany bedzie tylko plik .wentcad." } },
                             { "RegionPoints", new ToolParameter { Type = "array", Description = "Opcjonalny region skanowania [{X,Y}, ...] albo [[x,y], ...], gdy kondygnacja nie ma Region.", Items = new JObject { ["type"] = "object" } } },
                             { "MinX", new ToolParameter { Type = "number", Description = "Opcjonalne minimalne X regionu prostokatnego." } },
                             { "MinY", new ToolParameter { Type = "number", Description = "Opcjonalne minimalne Y regionu prostokatnego." } },
@@ -76,7 +77,11 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
             var scan = WentCadGeometryTools.ScanRooms(doc, project, floor, args);
             WentCadProjectStore.Recalculate(project);
             WentCadProjectStore.Save(doc, project);
-            WentCadProjectStore.SaveContractToDwg(doc, project, true);
+            bool writeContract = args["WriteContractToDwg"] == null || args["WriteContractToDwg"].Value<bool>();
+            if (writeContract)
+            {
+                WentCadProjectStore.SaveContractToDwg(doc, project, true);
+            }
 
             return new JObject
             {
@@ -89,6 +94,7 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 ["UnmatchedTags"] = scan.UnmatchedTags,
                 ["Messages"] = new JArray(scan.Messages),
                 ["Rooms"] = new JArray(scan.Rooms),
+                ["ContractWriteSkipped"] = !writeContract,
                 ["Summary"] = WentCadProjectStore.BuildSummary(project, WentCadProjectStore.GetProjectPath(doc))
             }.ToString(Formatting.Indented);
         }

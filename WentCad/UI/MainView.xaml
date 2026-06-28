@@ -24,11 +24,31 @@
                               CanUserAddRows="False">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Nazwa" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" />
-                            <DataGridTextColumn Header="Rzedna" Binding="{Binding Elevation, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                            <DataGridTextColumn Header="H netto" Binding="{Binding HeightNet, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                            <DataGridTextColumn Header="H calk." Binding="{Binding HeightTotal, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                            <DataGridTextColumn Header="Baza X" Binding="{Binding BasePoint.X, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                            <DataGridTextColumn Header="Baza Y" Binding="{Binding BasePoint.Y, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                            <DataGridTextColumn Binding="{Binding Elevation, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Rzedna [m]" ToolTip="Rzedna kondygnacji wzgledem poziomu odniesienia projektu." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding HeightNet, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="H netto [m]" ToolTip="Wysokosc netto pomieszczen na kondygnacji." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding HeightTotal, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="H calk. [m]" ToolTip="Wysokosc calkowita kondygnacji uzywana m.in. przy eksporcie i analizie budynku." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding BasePoint.X, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Baza X [j.DWG]" ToolTip="Wspolrzedna X punktu bazowego kondygnacji w jednostkach rysunku DWG." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding BasePoint.Y, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Baza Y [j.DWG]" ToolTip="Wspolrzedna Y punktu bazowego kondygnacji w jednostkach rysunku DWG." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Opis bazy" Binding="{Binding BasePointDescription, UpdateSourceTrigger=PropertyChanged}" Width="140" />
                             <DataGridTextColumn Header="Widok" Binding="{Binding DrukWidokiViewId}" Width="120" IsReadOnly="True" />
                         </DataGrid.Columns>
@@ -93,11 +113,31 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Nr" Binding="{Binding Number, UpdateSourceTrigger=PropertyChanged}" Width="70" />
                             <DataGridTextColumn Header="Nazwa" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" />
-                            <DataGridTextColumn Header="Pow." Binding="{Binding Area, UpdateSourceTrigger=PropertyChanged}" Width="70" />
-                            <DataGridTextColumn Header="H" Binding="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Width="55" />
-                            <DataGridTextColumn Header="Kub." Binding="{Binding Volume}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Nawiew" Binding="{Binding CalculatedSupply}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Wywiew" Binding="{Binding CalculatedExhaust}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding Area, UpdateSourceTrigger=PropertyChanged}" Width="70">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Pow. [m2]" ToolTip="Powierzchnia pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Width="55">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="H [m]" ToolTip="Wysokosc pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Volume}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Kub. [m3]" ToolTip="Kubatura pomieszczenia: powierzchnia razy wysokosc." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding CalculatedSupply}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Nawiew [m3/h]" ToolTip="Obliczony strumien nawiewu dla pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding CalculatedExhaust}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Wywiew [m3/h]" ToolTip="Obliczony strumien wywiewu dla pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -117,8 +157,16 @@
                             <DataGridTextColumn Header="Nazwa" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*" />
                             <DataGridTextColumn Header="Typ" Binding="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Width="80" />
                             <DataGridTextColumn Header="Kolor" Binding="{Binding ColorIndex, UpdateSourceTrigger=PropertyChanged}" Width="60" />
-                            <DataGridTextColumn Header="Suma N" Binding="{Binding TotalSupply}" Width="80" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Suma W" Binding="{Binding TotalExhaust}" Width="80" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding TotalSupply}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Suma N [m3/h]" ToolTip="Suma nawiewu przypisana do systemu." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding TotalExhaust}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Suma W [m3/h]" ToolTip="Suma wywiewu przypisana do systemu." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <Button Grid.Row="1" Content="Przelicz i koloruj" Click="Recalculate_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
@@ -148,21 +196,73 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Nr" Binding="{Binding Number}" Width="60" IsReadOnly="True" />
                             <DataGridTextColumn Header="Nazwa" Binding="{Binding Name}" Width="160" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Pow." Binding="{Binding Area, UpdateSourceTrigger=PropertyChanged}" Width="70" />
-                            <DataGridTextColumn Header="H" Binding="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Width="55" />
-                            <DataGridTextColumn Header="Kub." Binding="{Binding Volume}" Width="75" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding Area, UpdateSourceTrigger=PropertyChanged}" Width="70">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Pow. [m2]" ToolTip="Powierzchnia pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Width="55">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="H [m]" ToolTip="Wysokosc pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Volume}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Kub. [m3]" ToolTip="Kubatura pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Tryb" Binding="{Binding CalculationMode, UpdateSourceTrigger=PropertyChanged}" Width="110" />
                             <DataGridTextColumn Header="Osoby" Binding="{Binding Occupants, UpdateSourceTrigger=PropertyChanged}" Width="60" />
-                            <DataGridTextColumn Header="Dawka" Binding="{Binding DosePerOccupant, UpdateSourceTrigger=PropertyChanged}" Width="65" />
-                            <DataGridTextColumn Header="ACH" Binding="{Binding TargetAch, UpdateSourceTrigger=PropertyChanged}" Width="65" />
-                            <DataGridTextColumn Header="Manual N" Binding="{Binding ManualSupply, UpdateSourceTrigger=PropertyChanged}" Width="75" />
-                            <DataGridTextColumn Header="Manual W" Binding="{Binding ManualExhaust, UpdateSourceTrigger=PropertyChanged}" Width="75" />
-                            <DataGridTextColumn Header="Transfer +" Binding="{Binding TransferIn, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                            <DataGridTextColumn Header="Transfer -" Binding="{Binding TransferOut, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                            <DataGridTextColumn Header="Nawiew" Binding="{Binding CalculatedSupply}" Width="80" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Wywiew" Binding="{Binding CalculatedExhaust}" Width="80" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Real ACH" Binding="{Binding RealAch}" Width="75" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Netto" Binding="{Binding NetBalance}" Width="75" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding DosePerOccupant, UpdateSourceTrigger=PropertyChanged}" Width="65">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Dawka [m3/h os.]" ToolTip="Higieniczny strumien powietrza na osobe." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding TargetAch, UpdateSourceTrigger=PropertyChanged}" Width="65">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="ACH [1/h]" ToolTip="Docelowa liczba wymian powietrza na godzine." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding ManualSupply, UpdateSourceTrigger=PropertyChanged}" Width="75">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Manual N [m3/h]" ToolTip="Recznie zadany nawiew w trybie MANUAL." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding ManualExhaust, UpdateSourceTrigger=PropertyChanged}" Width="75">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Manual W [m3/h]" ToolTip="Recznie zadany wywiew w trybie MANUAL." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding TransferIn, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Transfer + [m3/h]" ToolTip="Powietrze transferowe doplywajace do pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding TransferOut, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Transfer - [m3/h]" ToolTip="Powietrze transferowe odplywajace z pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding CalculatedSupply}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Nawiew [m3/h]" ToolTip="Wynikowy strumien nawiewu." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding CalculatedExhaust}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Wywiew [m3/h]" ToolTip="Wynikowy strumien wywiewu." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding RealAch}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Real ACH [1/h]" ToolTip="Rzeczywista liczba wymian powietrza na godzine po przeliczeniu strumieni." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding NetBalance}" Width="75" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Netto [m3/h]" ToolTip="Bilans netto pomieszczenia: nawiew i transfery minus wywiew i transfery." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="System N" Binding="{Binding SupplySystemId, UpdateSourceTrigger=PropertyChanged}" Width="80" />
                             <DataGridTextColumn Header="System W" Binding="{Binding ExhaustSystemId, UpdateSourceTrigger=PropertyChanged}" Width="80" />
                         </DataGrid.Columns>
@@ -307,10 +407,41 @@
                                     <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="45" />
                                     <DataGridTextColumn Header="Przegroda" Binding="{Binding Kind}" Width="90" />
                                     <DataGridTextColumn Header="Konstrukcja" Binding="{Binding Construction}" Width="150" />
-                                    <DataGridTextColumn Header="L" Binding="{Binding Length}" Width="60" />
-                                    <DataGridTextColumn Header="Grub." Binding="{Binding Thickness}" Width="60" />
-                                    <DataGridTextColumn Header="Azymut" Binding="{Binding Azimuth}" Width="65" />
-                                    <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" />
+                                    <DataGridTextColumn Binding="{Binding Length}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="L [m]" ToolTip="Dlugosc segmentu przegrody." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Height}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="H [m]" ToolTip="Wysokosc sciany: dla SZ roznica rzednych/H calk., dla SW wysokosc netto kondygnacji." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding GrossArea}" Width="70">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Ab [m2]" ToolTip="Powierzchnia brutto sciany: L x H." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding NetArea}" Width="70">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="An [m2]" ToolTip="Powierzchnia netto sciany: Ab minus suma powierzchni okien i drzwi przypisanych do tej sciany." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Thickness}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Grub. [m]" ToolTip="Szacowana grubosc przegrody." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Azimuth}" Width="65">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Azymut [deg]" ToolTip="Kierunek przegrody w stopniach." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Confidence}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Pewn. [-]" ToolTip="Pewnosc detekcji w zakresie 0-1; im blizej 1, tym mocniejsze potwierdzenie geometrii." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="Sasiednie" Binding="{Binding AdjacentRoomLabel}" Width="120" />
                                     <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" />
                                 </DataGrid.Columns>
@@ -350,8 +481,16 @@
                                     <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="45" />
                                     <DataGridTextColumn Header="Przegroda" Binding="{Binding Kind}" Width="120" />
                                     <DataGridTextColumn Header="Konstrukcja" Binding="{Binding Construction}" Width="160" />
-                                    <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="70" />
-                                    <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" />
+                                    <DataGridTextColumn Binding="{Binding Area}" Width="70">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="A [m2]" ToolTip="Powierzchnia przegrody poziomej." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Confidence}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Pewn. [-]" ToolTip="Pewnosc klasyfikacji przegrody poziomej w zakresie 0-1." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" />
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -366,11 +505,31 @@
                                     <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="45" />
                                     <DataGridTextColumn Header="Typ" Binding="{Binding OpeningKind}" Width="70" />
                                     <DataGridTextColumn Header="Konstrukcja" Binding="{Binding Construction}" Width="150" />
-                                    <DataGridTextColumn Header="B" Binding="{Binding Width}" Width="60" />
-                                    <DataGridTextColumn Header="H" Binding="{Binding Height}" Width="60" />
-                                    <DataGridTextColumn Header="Parapet" Binding="{Binding SillHeight}" Width="70" />
-                                    <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="60" />
-                                    <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" />
+                                    <DataGridTextColumn Binding="{Binding Width}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="B [m]" ToolTip="Szerokosc otworu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Height}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="H [m]" ToolTip="Wysokosc otworu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding SillHeight}" Width="70">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Parapet [m]" ToolTip="Wysokosc parapetu lub progu otworu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Area}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="A [m2]" ToolTip="Pole powierzchni otworu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Confidence}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Pewn. [-]" ToolTip="Pewnosc przypisania otworu do pomieszczenia/przegrody w zakresie 0-1." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" />
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -453,10 +612,36 @@
                             <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="90" IsReadOnly="True" />
                             <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="130" />
                             <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
-                            <DataGridTextColumn Header="L" Binding="{Binding Length}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Grub." Binding="{Binding Thickness}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Azymut" Binding="{Binding Azimuth}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding Length}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="L [m]" ToolTip="Dlugosc segmentu przegrody." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Height}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="H [m]" ToolTip="Wysokosc sciany: dla SZ roznica rzednych/H calk., dla SW wysokosc netto kondygnacji." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding GrossArea}" Width="80" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Ab [m2]" ToolTip="Powierzchnia brutto sciany: L x H." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Thickness}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Grub. [m]" ToolTip="Szacowana grubosc przegrody." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Azimuth}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Azymut [deg]" ToolTip="Kierunek przegrody w stopniach." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Confidence}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Pewn. [-]" ToolTip="Pewnosc detekcji w zakresie 0-1; im blizej 1, tym mocniejsze potwierdzenie geometrii." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" IsReadOnly="True" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -473,11 +658,31 @@
                             <DataGridTextColumn Header="Blok" Binding="{Binding BlockName}" Width="120" IsReadOnly="True" />
                             <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
                             <DataGridTextColumn Header="WallId" Binding="{Binding WallId}" Width="150" IsReadOnly="True" />
-                            <DataGridTextColumn Header="B" Binding="{Binding Width}" Width="60" />
-                            <DataGridTextColumn Header="H" Binding="{Binding Height}" Width="60" />
-                            <DataGridTextColumn Header="Parapet" Binding="{Binding SillHeight}" Width="70" />
-                            <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="60" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding Width}" Width="60">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="B [m]" ToolTip="Szerokosc okna lub drzwi." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Height}" Width="60">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="H [m]" ToolTip="Wysokosc okna lub drzwi." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding SillHeight}" Width="70">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Parapet [m]" ToolTip="Wysokosc parapetu okna lub progu drzwi." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Area}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="A [m2]" ToolTip="Pole powierzchni otworu." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Confidence}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Pewn. [-]" ToolTip="Pewnosc przypisania otworu do sciany w zakresie 0-1." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" IsReadOnly="True" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -493,8 +698,16 @@
                             <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="120" IsReadOnly="True" />
                             <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="160" />
                             <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
-                            <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Binding="{Binding Area}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="A [m2]" ToolTip="Powierzchnia stropu, dachu albo podlogi przypisana do pomieszczenia." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Confidence}" Width="60" IsReadOnly="True">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="Pewn. [-]" ToolTip="Pewnosc klasyfikacji przegrody poziomej w zakresie 0-1." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" IsReadOnly="True" />
                         </DataGrid.Columns>
                     </DataGrid>

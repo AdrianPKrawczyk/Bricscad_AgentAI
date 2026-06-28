@@ -334,7 +334,7 @@ Raport ma zawierac:
 Najpierw uzyj `ReadWentCadProject` i `ReadWentCadRooms`, a jezeli bilans wyglada na nieaktualny, uruchom `RecalculateWentCadBalance`.
 ```
 
-## Prompt W11 - WATT Sciany Zewnetrzne I Okna
+## Prompt W11 - WATT Sciany, Okna I Drzwi
 
 ```text
 Przetestuj WATT v1 w WentCad na aktywnym DWG z modelem `GEN_WENTCAD_TEST_BUILDING`.
@@ -343,22 +343,33 @@ Zalozenia:
 - sciany pomocnicze: `WC_TEST_SCIANY`
 - okna: `WC_TEST_OKNA`
 - opisy okien: `WC_TEST_OPISY_OKIEN`
-- atrybuty okien: `WIDTH`, `HEIGHT`, `SILL`
-- tolerancje testowe: sciana wewnetrzna `15`, sciana zewnetrzna `15`, przypiecie okna `25`
+- drzwi: `WC_TEST_DRZWI`
+- opisy drzwi: `WC_TEST_OPISY_DRZWI`
+- atrybuty otworow: `WIDTH`, `HEIGHT`, `SILL`
+- tolerancje testowe: sciana wewnetrzna `15`, sciana zewnetrzna `15`, przypiecie okna/drzwi `25`
 - kondygnacje: `Parter`, `Pietro_1`
 
 Wykonaj:
-1. Odczytaj `ReadWentCadProject` i `ReadWentCadRooms`.
-2. Jesli pomieszczenia nie maja `BoundaryHandle`, najpierw uzyj `ConfigureWentCadTestBuilding`.
-3. Uzyj `ConfigureWentCadEnvelopeTestBuilding`.
-4. Odczytaj `ReadWentCadEnvelope`.
-5. Zwroc raport:
+0. Uwaga krytyczna: `ConfigureWentCadTestBuilding` nie jest narzedziem WATT. W tym scenariuszu nie jest fallbackiem i nie powinno byc wywolane zamiast `ConfigureWentCadEnvelopeTestBuilding`.
+1. Uzyj `ConfigureWentCadEnvelopeTestBuilding` dokladnie raz z:
+   - `RunRoomSetupFirst=true`
+   - `ProjectName=WentCad LISP Test Building WATT v1 Test`
+2. Jezeli wynik `ConfigureWentCadEnvelopeTestBuilding` zawiera pole `Envelope`, raportuj na podstawie tego pola i nie wywoluj juz `ReadWentCadEnvelope`.
+3. Jezeli wynik nie zawiera pola `Envelope`, uzyj `ReadWentCadEnvelope` dokladnie raz.
+4. Nie wywoluj w tym scenariuszu `ReadWentCadProject`, `ReadWentCadRooms`, `ConfigureWentCadTestBuilding`, `ScanWentCadRooms` ani `ScanWentCadEnvelope`, chyba ze `ConfigureWentCadEnvelopeTestBuilding` jest niedostepne w profilu.
+5. Jezeli `ConfigureWentCadEnvelopeTestBuilding` zwroci blad, przerwij test i opisz blad. Nie powtarzaj tego samego narzedzia i nie probuj go naprawiac petla fallbackow.
+6. Jezeli raport narzedzia zawiera `ContractWriteSkipped=true`, napisz, ze to tryb bezpieczny: dane WATT zapisano do `.wentcad`, a NOD/XData w DWG nie byly aktualizowane podczas tego testu.
+7. Zwroc raport:
    - liczba scian EXTERNAL/INTERNAL/UNRESOLVED dla kazdej kondygnacji,
-   - liczba wykrytych okien i ile ma `RoomId` oraz `WallId`,
-   - lista okien z wymiarami `Width/Height/SillHeight`,
+   - czy sciany maja `Height` i `GrossArea`; dla `Parter` sciany zewnetrzne powinny miec H ok. `3.5`, a wewnetrzne H ok. `3.0`,
+   - liczba wykrytych otworow lacznie oraz osobno `OZ`/`WINDOW` i `DRZ`/`DOOR`,
+   - ile okien i drzwi ma `RoomId` oraz `WallId`,
+   - lista okien i drzwi z wymiarami `Width/Height/SillHeight`, `Area`, `RoomId`, `WallId`,
+   - czy drzwi wewnetrzne zostaly przypisane do scian `INTERNAL`, a drzwi zewnetrzne do sciany `EXTERNAL`,
    - przypadki ostrzezen z `Message`,
    - czy NOD `WENTCAD_WALLS` i `WENTCAD_WINDOWS` zwraca dane.
-6. Jezeli widzisz okno bez przypisania, nie dopisuj go recznie bez uzasadnienia; opisz, czy lezy przy scianie wewnetrznej albo poza tolerancja.
+8. Jezeli widzisz okno/drzwi bez przypisania, nie dopisuj go recznie bez uzasadnienia; opisz, czy lezy przy scianie wewnetrznej, poza tolerancja albo jest duplikatem.
+9. Twardy limit petli dla tego promptu: nie wywoluj zadnego narzedzia wiecej niz raz.
 ```
 
 ## Prompt FULL - Jedno Polecenie Dla Calego Testu
@@ -382,6 +393,6 @@ Kroki:
 4. Uruchom `RunWentCadCommand` z `WENTCAD_SYNC`.
 5. Odczytaj projekt i pomieszczenia ponownie.
 6. Zwroc raport koncowy: kondygnacje, base pointy, liczba pomieszczen, systemy, sumy, tabela bilansu, diagnostyka `X.01`/`X.02`, status NOD/XData.
-7. Uzyj `ConfigureWentCadEnvelopeTestBuilding`, a potem `ReadWentCadEnvelope`, zeby sprawdzic WATT.
+7. Uzyj `ConfigureWentCadEnvelopeTestBuilding`, a potem `ReadWentCadEnvelope`, zeby sprawdzic WATT: sciany, okna, drzwi, H/Ab scian i przypisania `WallId`/`RoomId`.
 8. W statusie NOD/XData nie pisz, ze XData zostalo zapisane na obrysach, jezeli `BoundaryHandle` jest pusty. Napisz wtedy, ze NOD/.wentcad sa zapisane, ale XData wymaga skanu lub uchwytow obrysow.
 ```

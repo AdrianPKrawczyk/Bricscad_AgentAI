@@ -292,24 +292,32 @@ namespace Bricscad_AgentAI_V2.UI
             string systemPrompt = ToolConfigManager.LoadEffectivePromptForProfile(profileName);
             _history.Add(new ChatMessage { Role = "system", Content = systemPrompt });
 
-            int toolCount = _orchestrator.GetToolsPayloadForProfile(profileName).Count;
+            var activeTools = _orchestrator.GetToolsPayloadForProfile(profileName)
+                .Where(t => t?.Function != null)
+                .Select(t => t.Function.Name)
+                .OrderBy(name => name)
+                .ToList();
+            int toolCount = activeTools.Count;
             bool hasUserOverride = !string.IsNullOrWhiteSpace(ToolConfigManager.GetUserPromptOverride(profileName));
             lblProfileInfo.Text = $"Prompt: {profile.SystemPromptFile} | UserPrompt: {(hasUserOverride ? "Tak" : "Nie")} | Tools: {toolCount}";
             AppendSystemMessage($"Tryb testowy aktywny dla profilu `{profileName}`.");
             AppendSystemMessage($"ZaĹ‚adowano prompt `{profile.SystemPromptFile}` i {toolCount} narzÄ™dzi.");
-            AppendToolSection(BuildProfileSnapshot(profileName, profile, toolCount));
+            AppendToolSection(BuildProfileSnapshot(profileName, profile, activeTools));
             UpdateStatus("Gotowy.");
         }
 
-        private string BuildProfileSnapshot(string profileName, AgentProfileConfig profile, int toolCount)
+        private string BuildProfileSnapshot(string profileName, AgentProfileConfig profile, List<string> activeTools)
         {
+            var allowedTools = profile.AllowedTools ?? new List<string>();
             var payload = new
             {
                 Profile = profileName,
                 profile.SystemPromptFile,
                 UserPromptOverride = !string.IsNullOrWhiteSpace(ToolConfigManager.GetUserPromptOverride(profileName)),
-                ToolCount = toolCount,
-                AllowedTools = profile.AllowedTools ?? new List<string>(),
+                ToolCount = activeTools?.Count ?? 0,
+                ActiveTools = activeTools ?? new List<string>(),
+                AllowedToolCount = allowedTools.Count,
+                AllowedTools = allowedTools,
                 AllowedTags = profile.AllowedTags ?? new List<string>()
             };
 
