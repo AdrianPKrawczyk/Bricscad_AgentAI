@@ -140,3 +140,15 @@ To jest blokada pliku przez proces BricsCAD, nie błąd kodu WentCad.
 6. Rozbudować UI o wygodny wybór warstw/atrybutów z listy DWG.
 7. Rozszerzyć IFC o ściany, okna, drzwi i przegródki WATT.
 8. Rozbudować WATT o typy przegród, biblioteki U/g i obliczenia strat/zysków ciepła.
+
+## Katalog WATT
+
+- Model `.wentcad` zawiera `Thermal.Catalog`:
+  - `Materials` z lambda, gestoscia i cieplem wlasciwym,
+  - `LayerSets` z warstwami materialow i grubosciami,
+  - `Constructions` dla typow przegrod `SZ`, `SW`, `PG`, `StW`, `D`,
+  - `OpeningStyles` dla okien i drzwi.
+- `ThermalCatalogService.EnsureDefaults` migruje stare projekty przy odczycie/zapisie i dodaje katalog startowy inspirowany oryginalnym WENTCAD.
+- Zakladka `Katalog` w panelu WentCad pozwala edytowac materialy, warstwy, konstrukcje przegrod oraz style okien/drzwi.
+- Zakladka `WATT` przypisuje wykrytym scianom i przegrodom poziomym `ConstructionId` z katalogu, a oknom/drzwiom `StyleId` zapisany w polu `ConstructionId` otworu.
+- `ConstructionName` pozostaje polem pomocniczym/cache do czytelnego wyswietlania w strukturze budynku; zrodlem prawdy jest identyfikator katalogowy.

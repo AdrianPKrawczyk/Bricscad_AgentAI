@@ -76,6 +76,7 @@ namespace WentCad.Core
             if (project.Thermal.Windows == null) project.Thermal.Windows = new System.Collections.Generic.Dictionary<string, ThermalWindowDef>();
             if (project.Thermal.HorizontalPartitions == null) project.Thermal.HorizontalPartitions = new System.Collections.Generic.Dictionary<string, ThermalHorizontalDef>();
             if (project.Thermal.Settings == null) project.Thermal.Settings = new ThermalSettings();
+            ThermalCatalogService.EnsureDefaults(project);
             foreach (var wall in project.Thermal.Walls.Values)
             {
                 if (string.IsNullOrWhiteSpace(wall.Code)) wall.Code = wall.Kind == "EXTERNAL" ? "SZ" : wall.Kind == "INTERNAL" ? "SW" : "?";

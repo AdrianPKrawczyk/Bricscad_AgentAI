@@ -9,6 +9,69 @@ namespace WentCad.Models
         public Dictionary<string, ThermalWindowDef> Windows { get; set; } = new Dictionary<string, ThermalWindowDef>();
         public Dictionary<string, ThermalHorizontalDef> HorizontalPartitions { get; set; } = new Dictionary<string, ThermalHorizontalDef>();
         public ThermalSettings Settings { get; set; } = new ThermalSettings();
+        public ThermalCatalog Catalog { get; set; } = new ThermalCatalog();
+    }
+
+    public class ThermalCatalog
+    {
+        public Dictionary<string, ThermalMaterialDef> Materials { get; set; } = new Dictionary<string, ThermalMaterialDef>();
+        public Dictionary<string, ThermalLayerSetDef> LayerSets { get; set; } = new Dictionary<string, ThermalLayerSetDef>();
+        public Dictionary<string, ThermalConstructionDef> Constructions { get; set; } = new Dictionary<string, ThermalConstructionDef>();
+        public Dictionary<string, ThermalOpeningStyleDef> OpeningStyles { get; set; } = new Dictionary<string, ThermalOpeningStyleDef>();
+    }
+
+    public class ThermalMaterialDef
+    {
+        public string MaterialId { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "";
+        public double ThermalConductivity { get; set; }
+        public double MassDensity { get; set; }
+        public double SpecificHeatCapacity { get; set; }
+    }
+
+    public class ThermalMaterialLayerDef
+    {
+        public string LayerId { get; set; } = Guid.NewGuid().ToString();
+        public string MaterialId { get; set; } = "";
+        public double Thickness { get; set; }
+    }
+
+    public class ThermalLayerSetDef
+    {
+        public string LayerSetId { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public List<ThermalMaterialLayerDef> Layers { get; set; } = new List<ThermalMaterialLayerDef>();
+    }
+
+    public class ThermalConstructionDef
+    {
+        public string ConstructionId { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public string Code { get; set; } = "SZ";
+        public string LayerSetId { get; set; } = "";
+        public string PredefinedType { get; set; } = "STANDARD";
+        public bool IsExternal { get; set; } = true;
+        public string ThermalType { get; set; } = "WALL";
+        public bool IsGroundContact { get; set; }
+        public bool IsDefault { get; set; }
+        public string DefaultAssignMode { get; set; } = "ALL";
+        public double DefaultTolerancePlus { get; set; } = 0.05;
+        public double DefaultToleranceMinus { get; set; } = 0.04;
+        public double UValue { get; set; }
+
+        public string DisplayName => string.IsNullOrWhiteSpace(Name) ? ConstructionId : $"{Code} - {Name}";
+    }
+
+    public class ThermalOpeningStyleDef
+    {
+        public string StyleId { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public string OpeningKind { get; set; } = "WINDOW";
+        public double OverallUValue { get; set; } = 1.1;
+        public double SolarHeatGainCoefficient { get; set; } = 0.5;
+
+        public string DisplayName => string.IsNullOrWhiteSpace(Name) ? StyleId : $"{OpeningKind} - {Name}";
     }
 
     public class ThermalSettings

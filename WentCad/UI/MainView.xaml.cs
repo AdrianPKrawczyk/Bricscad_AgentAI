@@ -34,6 +34,26 @@ namespace WentCad.UI
 
         private void ScanThermalBuilding_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.ScanThermalBuilding();
 
+        private void AddMaterial_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.AddMaterial();
+
+        private void RemoveMaterial_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RemoveMaterial();
+
+        private void AddLayerSet_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.AddLayerSet();
+
+        private void RemoveLayerSet_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RemoveLayerSet();
+
+        private void AddLayer_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.AddLayerToSelectedSet();
+
+        private void RemoveLayer_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RemoveSelectedLayer();
+
+        private void AddConstruction_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.AddConstruction();
+
+        private void RemoveConstruction_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RemoveConstruction();
+
+        private void AddOpeningStyle_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.AddOpeningStyle();
+
+        private void RemoveOpeningStyle_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RemoveOpeningStyle();
+
         private void Recalculate_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RecalculateAndSync();
 
         private void ExportCsv_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.ExportCsv();

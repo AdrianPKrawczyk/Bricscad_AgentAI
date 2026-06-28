@@ -18,6 +18,11 @@ namespace WentCad.UI
         private FloorDef _selectedFloor;
         private RoomDef _selectedRoom;
         private BuildingRoomNode _selectedBuildingRoom;
+        private ThermalMaterialDef _selectedMaterial;
+        private ThermalLayerSetDef _selectedLayerSet;
+        private ThermalMaterialLayerDef _selectedLayer;
+        private ThermalConstructionDef _selectedConstruction;
+        private ThermalOpeningStyleDef _selectedOpeningStyle;
         private string _status = "Gotowe";
 
         public ObservableCollection<FloorDef> Floors { get; } = new ObservableCollection<FloorDef>();
@@ -26,6 +31,11 @@ namespace WentCad.UI
         public ObservableCollection<ThermalWallDef> Walls { get; } = new ObservableCollection<ThermalWallDef>();
         public ObservableCollection<ThermalWindowDef> Windows { get; } = new ObservableCollection<ThermalWindowDef>();
         public ObservableCollection<ThermalHorizontalDef> HorizontalPartitions { get; } = new ObservableCollection<ThermalHorizontalDef>();
+        public ObservableCollection<ThermalMaterialDef> Materials { get; } = new ObservableCollection<ThermalMaterialDef>();
+        public ObservableCollection<ThermalLayerSetDef> LayerSets { get; } = new ObservableCollection<ThermalLayerSetDef>();
+        public ObservableCollection<ThermalMaterialLayerDef> LayerSetLayers { get; } = new ObservableCollection<ThermalMaterialLayerDef>();
+        public ObservableCollection<ThermalConstructionDef> Constructions { get; } = new ObservableCollection<ThermalConstructionDef>();
+        public ObservableCollection<ThermalOpeningStyleDef> OpeningStyles { get; } = new ObservableCollection<ThermalOpeningStyleDef>();
         public ObservableCollection<DrukWidokiViewItem> DrukWidokiViews { get; } = new ObservableCollection<DrukWidokiViewItem>();
         public ObservableCollection<BuildingFloorNode> BuildingStructure { get; } = new ObservableCollection<BuildingFloorNode>();
 
@@ -70,6 +80,59 @@ namespace WentCad.UI
             {
                 _selectedBuildingRoom = value;
                 OnPropertyChanged(nameof(SelectedBuildingRoom));
+            }
+        }
+
+        public ThermalMaterialDef SelectedMaterial
+        {
+            get => _selectedMaterial;
+            set
+            {
+                _selectedMaterial = value;
+                OnPropertyChanged(nameof(SelectedMaterial));
+            }
+        }
+
+        public ThermalLayerSetDef SelectedLayerSet
+        {
+            get => _selectedLayerSet;
+            set
+            {
+                if (ReferenceEquals(_selectedLayerSet, value) || _selectedLayerSet?.LayerSetId == value?.LayerSetId) return;
+                SaveSelectedLayerSetLayers();
+                _selectedLayerSet = value;
+                RefreshLayerSetLayers();
+                OnPropertyChanged(nameof(SelectedLayerSet));
+            }
+        }
+
+        public ThermalMaterialLayerDef SelectedLayer
+        {
+            get => _selectedLayer;
+            set
+            {
+                _selectedLayer = value;
+                OnPropertyChanged(nameof(SelectedLayer));
+            }
+        }
+
+        public ThermalConstructionDef SelectedConstruction
+        {
+            get => _selectedConstruction;
+            set
+            {
+                _selectedConstruction = value;
+                OnPropertyChanged(nameof(SelectedConstruction));
+            }
+        }
+
+        public ThermalOpeningStyleDef SelectedOpeningStyle
+        {
+            get => _selectedOpeningStyle;
+            set
+            {
+                _selectedOpeningStyle = value;
+                OnPropertyChanged(nameof(SelectedOpeningStyle));
             }
         }
 
@@ -358,6 +421,9 @@ namespace WentCad.UI
         public void Save()
         {
             if (_document == null || Project == null) return;
+            SaveSelectedLayerSetLayers();
+            ThermalCatalogService.RecalculateUValues(Project);
+            ApplyCatalogReferences();
             BalanceEngine.Recalculate(Project);
             ProjectFileService.Save(_document, Project);
             NodManager.SaveProjectIndex(_document, Project);
@@ -365,6 +431,172 @@ namespace WentCad.UI
             GeometryManager.WriteWindowXData(_document, Project);
             RefreshCollections();
             Status = "Zapisano .wentcad, NOD i XData.";
+        }
+
+        public void AddMaterial()
+        {
+            EnsureThermal();
+            var material = new ThermalMaterialDef
+            {
+                MaterialId = Guid.NewGuid().ToString(),
+                Name = "Nowy material",
+                Category = "Inne",
+                ThermalConductivity = 0.04,
+                MassDensity = 1000,
+                SpecificHeatCapacity = 1000
+            };
+            Project.Thermal.Catalog.Materials[material.MaterialId] = material;
+            RefreshCatalog();
+            SelectedMaterial = Materials.FirstOrDefault(m => m.MaterialId == material.MaterialId);
+        }
+
+        public void RemoveMaterial()
+        {
+            if (Project?.Thermal?.Catalog == null || SelectedMaterial == null) return;
+            string id = SelectedMaterial.MaterialId;
+            bool isUsed = Project.Thermal.Catalog.LayerSets.Values.Any(ls => ls.Layers != null && ls.Layers.Any(l => l.MaterialId == id));
+            if (isUsed)
+            {
+                Status = "Nie mozna usunac materialu uzywanego w zestawie warstw.";
+                return;
+            }
+            Project.Thermal.Catalog.Materials.Remove(id);
+            RefreshCatalog();
+        }
+
+        public void AddLayerSet()
+        {
+            EnsureThermal();
+            var layerSet = new ThermalLayerSetDef
+            {
+                LayerSetId = Guid.NewGuid().ToString(),
+                Name = "Nowy zestaw warstw"
+            };
+            string firstMaterialId = Project.Thermal.Catalog.Materials.Keys.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(firstMaterialId))
+            {
+                layerSet.Layers.Add(new ThermalMaterialLayerDef
+                {
+                    MaterialId = firstMaterialId,
+                    Thickness = 0.24
+                });
+            }
+            Project.Thermal.Catalog.LayerSets[layerSet.LayerSetId] = layerSet;
+            RefreshCatalog();
+            SelectedLayerSet = LayerSets.FirstOrDefault(ls => ls.LayerSetId == layerSet.LayerSetId);
+        }
+
+        public void RemoveLayerSet()
+        {
+            if (Project?.Thermal?.Catalog == null || SelectedLayerSet == null) return;
+            string id = SelectedLayerSet.LayerSetId;
+            bool isUsed = Project.Thermal.Catalog.Constructions.Values.Any(c => c.LayerSetId == id);
+            if (isUsed)
+            {
+                Status = "Nie mozna usunac zestawu uzywanego przez typ przegrody.";
+                return;
+            }
+            Project.Thermal.Catalog.LayerSets.Remove(id);
+            RefreshCatalog();
+        }
+
+        public void AddLayerToSelectedSet()
+        {
+            if (SelectedLayerSet == null) return;
+            string firstMaterialId = Project?.Thermal?.Catalog?.Materials?.Keys.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(firstMaterialId))
+            {
+                Status = "Najpierw dodaj material.";
+                return;
+            }
+            LayerSetLayers.Add(new ThermalMaterialLayerDef
+            {
+                LayerId = Guid.NewGuid().ToString(),
+                MaterialId = firstMaterialId,
+                Thickness = 0.10
+            });
+            SaveSelectedLayerSetLayers();
+            ThermalCatalogService.RecalculateUValues(Project);
+            RefreshCatalog(false);
+        }
+
+        public void RemoveSelectedLayer()
+        {
+            if (SelectedLayer == null) return;
+            LayerSetLayers.Remove(SelectedLayer);
+            SaveSelectedLayerSetLayers();
+            ThermalCatalogService.RecalculateUValues(Project);
+            RefreshCatalog(false);
+        }
+
+        public void AddConstruction()
+        {
+            EnsureThermal();
+            string layerSetId = Project.Thermal.Catalog.LayerSets.Keys.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(layerSetId))
+            {
+                AddLayerSet();
+                layerSetId = SelectedLayerSet?.LayerSetId;
+            }
+            var construction = new ThermalConstructionDef
+            {
+                ConstructionId = Guid.NewGuid().ToString(),
+                Name = "Nowa przegroda",
+                Code = "SZ",
+                LayerSetId = layerSetId ?? "",
+                PredefinedType = "STANDARD",
+                IsExternal = true,
+                ThermalType = "WALL"
+            };
+            construction.UValue = ThermalCatalogService.CalculateUValue(Project, construction);
+            Project.Thermal.Catalog.Constructions[construction.ConstructionId] = construction;
+            RefreshCatalog();
+            SelectedConstruction = Constructions.FirstOrDefault(c => c.ConstructionId == construction.ConstructionId);
+        }
+
+        public void RemoveConstruction()
+        {
+            if (Project?.Thermal?.Catalog == null || SelectedConstruction == null) return;
+            string id = SelectedConstruction.ConstructionId;
+            bool isUsed = Project.Thermal.Walls.Values.Any(w => w.ConstructionId == id) ||
+                          Project.Thermal.HorizontalPartitions.Values.Any(p => p.ConstructionId == id);
+            if (isUsed)
+            {
+                Status = "Nie mozna usunac konstrukcji przypisanej do przegrody.";
+                return;
+            }
+            Project.Thermal.Catalog.Constructions.Remove(id);
+            RefreshCatalog();
+        }
+
+        public void AddOpeningStyle()
+        {
+            EnsureThermal();
+            var style = new ThermalOpeningStyleDef
+            {
+                StyleId = Guid.NewGuid().ToString(),
+                Name = "Nowy styl otworu",
+                OpeningKind = "WINDOW",
+                OverallUValue = 1.1,
+                SolarHeatGainCoefficient = 0.5
+            };
+            Project.Thermal.Catalog.OpeningStyles[style.StyleId] = style;
+            RefreshCatalog();
+            SelectedOpeningStyle = OpeningStyles.FirstOrDefault(s => s.StyleId == style.StyleId);
+        }
+
+        public void RemoveOpeningStyle()
+        {
+            if (Project?.Thermal?.Catalog == null || SelectedOpeningStyle == null) return;
+            string id = SelectedOpeningStyle.StyleId;
+            bool isUsed = Project.Thermal.Windows.Values.Any(w => w.ConstructionId == id);
+            if (isUsed)
+            {
+                Status = "Nie mozna usunac stylu przypisanego do okna lub drzwi.";
+                return;
+            }
+            Project.Thermal.Catalog.OpeningStyles.Remove(id);
+            RefreshCatalog();
         }
 
         public void AddFloor()
@@ -584,6 +816,11 @@ namespace WentCad.UI
             Walls.Clear();
             Windows.Clear();
             HorizontalPartitions.Clear();
+            Materials.Clear();
+            LayerSets.Clear();
+            LayerSetLayers.Clear();
+            Constructions.Clear();
+            OpeningStyles.Clear();
             DrukWidokiViews.Clear();
             BuildingStructure.Clear();
             if (Project == null) return;
@@ -600,6 +837,7 @@ namespace WentCad.UI
 
             SelectedFloor = Floors.FirstOrDefault(f => SelectedFloor != null && f.FloorId == SelectedFloor.FloorId) ?? Floors.FirstOrDefault();
             RefreshRooms();
+            RefreshCatalog();
             OnPropertyChanged(nameof(BoundaryLayer));
             OnPropertyChanged(nameof(TagLayer));
             OnPropertyChanged(nameof(NumberAttribute));
@@ -624,6 +862,60 @@ namespace WentCad.UI
             OnPropertyChanged(nameof(MaxInteriorWallDistance));
             OnPropertyChanged(nameof(MaxExteriorConfirmDistance));
             OnPropertyChanged(nameof(MaxWindowSnapDistance));
+        }
+
+        private void RefreshCatalog(bool preserveLayerSelection = true)
+        {
+            if (!preserveLayerSelection) SaveSelectedLayerSetLayers();
+            string selectedMaterialId = SelectedMaterial?.MaterialId;
+            string selectedLayerSetId = SelectedLayerSet?.LayerSetId;
+            string selectedConstructionId = SelectedConstruction?.ConstructionId;
+            string selectedOpeningStyleId = SelectedOpeningStyle?.StyleId;
+
+            Materials.Clear();
+            LayerSets.Clear();
+            Constructions.Clear();
+            OpeningStyles.Clear();
+            if (Project?.Thermal?.Catalog == null) return;
+
+            foreach (var material in Project.Thermal.Catalog.Materials.Values.OrderBy(m => m.Category).ThenBy(m => m.Name)) Materials.Add(material);
+            foreach (var layerSet in Project.Thermal.Catalog.LayerSets.Values.OrderBy(ls => ls.Name)) LayerSets.Add(layerSet);
+            foreach (var construction in Project.Thermal.Catalog.Constructions.Values.OrderBy(c => c.Code).ThenBy(c => c.Name)) Constructions.Add(construction);
+            foreach (var style in Project.Thermal.Catalog.OpeningStyles.Values.OrderBy(s => s.OpeningKind).ThenBy(s => s.Name)) OpeningStyles.Add(style);
+
+            SelectedMaterial = Materials.FirstOrDefault(m => m.MaterialId == selectedMaterialId) ?? Materials.FirstOrDefault();
+            var nextLayerSet = LayerSets.FirstOrDefault(ls => ls.LayerSetId == selectedLayerSetId) ?? LayerSets.FirstOrDefault();
+            if (!ReferenceEquals(_selectedLayerSet, nextLayerSet))
+            {
+                _selectedLayerSet = nextLayerSet;
+                OnPropertyChanged(nameof(SelectedLayerSet));
+            }
+            RefreshLayerSetLayers();
+            SelectedConstruction = Constructions.FirstOrDefault(c => c.ConstructionId == selectedConstructionId) ?? Constructions.FirstOrDefault();
+            SelectedOpeningStyle = OpeningStyles.FirstOrDefault(s => s.StyleId == selectedOpeningStyleId) ?? OpeningStyles.FirstOrDefault();
+        }
+
+        private void RefreshLayerSetLayers()
+        {
+            LayerSetLayers.Clear();
+            SelectedLayer = null;
+            if (SelectedLayerSet?.Layers == null) return;
+            foreach (var layer in SelectedLayerSet.Layers)
+            {
+                LayerSetLayers.Add(layer);
+            }
+            SelectedLayer = LayerSetLayers.FirstOrDefault();
+        }
+
+        private void SaveSelectedLayerSetLayers()
+        {
+            if (SelectedLayerSet == null) return;
+            SelectedLayerSet.Layers = LayerSetLayers.ToList();
+        }
+
+        private void ApplyCatalogReferences()
+        {
+            ThermalCatalogService.ApplyReferences(Project);
         }
 
         private void RefreshRooms()
@@ -774,6 +1066,11 @@ namespace WentCad.UI
             if (Project.Thermal.Windows == null) Project.Thermal.Windows = new System.Collections.Generic.Dictionary<string, ThermalWindowDef>();
             if (Project.Thermal.HorizontalPartitions == null) Project.Thermal.HorizontalPartitions = new System.Collections.Generic.Dictionary<string, ThermalHorizontalDef>();
             if (Project.Thermal.Settings == null) Project.Thermal.Settings = new ThermalSettings();
+            if (Project.Thermal.Catalog == null) Project.Thermal.Catalog = new ThermalCatalog();
+            if (Project.Thermal.Catalog.Materials == null) Project.Thermal.Catalog.Materials = new System.Collections.Generic.Dictionary<string, ThermalMaterialDef>();
+            if (Project.Thermal.Catalog.LayerSets == null) Project.Thermal.Catalog.LayerSets = new System.Collections.Generic.Dictionary<string, ThermalLayerSetDef>();
+            if (Project.Thermal.Catalog.Constructions == null) Project.Thermal.Catalog.Constructions = new System.Collections.Generic.Dictionary<string, ThermalConstructionDef>();
+            if (Project.Thermal.Catalog.OpeningStyles == null) Project.Thermal.Catalog.OpeningStyles = new System.Collections.Generic.Dictionary<string, ThermalOpeningStyleDef>();
         }
 
         private static string Escape(string value)

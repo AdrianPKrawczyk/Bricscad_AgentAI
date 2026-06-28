@@ -271,6 +271,226 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Katalog">
+                <TabControl Margin="0,8,0,0">
+                    <TabItem Header="Materialy">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Dodaj" Click="AddMaterial_Click" Width="90" Margin="0,0,6,0" />
+                                <Button Content="Usun" Click="RemoveMaterial_Click" Width="90" Margin="0,0,6,0" />
+                                <Button Content="Zapisz" Click="Save_Click" Width="90" />
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding Materials}"
+                                      SelectedItem="{Binding SelectedMaterial}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="220">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Material" ToolTip="Nazwa materialu uzywanego w warstwach przegrod." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Category, UpdateSourceTrigger=PropertyChanged}" Width="150">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Kategoria" ToolTip="Grupa materialu, np. izolacje, mury, wykonczenie." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding ThermalConductivity, UpdateSourceTrigger=PropertyChanged}" Width="120">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Lambda [W/(mK)]" ToolTip="Wspolczynnik przewodzenia ciepla materialu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding MassDensity, UpdateSourceTrigger=PropertyChanged}" Width="110">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Rho [kg/m3]" ToolTip="Gestosc objetosciowa materialu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding SpecificHeatCapacity, UpdateSourceTrigger=PropertyChanged}" Width="120">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="cp [J/(kgK)]" ToolTip="Cieplo wlasciwe materialu." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </TabItem>
+
+                    <TabItem Header="Warstwy">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="260" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <DockPanel Grid.Column="0">
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Dodaj" Click="AddLayerSet_Click" Width="75" Margin="0,0,6,0" />
+                                    <Button Content="Usun" Click="RemoveLayerSet_Click" Width="75" />
+                                </StackPanel>
+                                <DataGrid ItemsSource="{Binding LayerSets}"
+                                          SelectedItem="{Binding SelectedLayerSet}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*">
+                                            <DataGridTextColumn.Header>
+                                                <TextBlock Text="Zestaw warstw" ToolTip="Nazwa ukladu warstw, ktory moze byc przypisany do typu przegrody." />
+                                            </DataGridTextColumn.Header>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+                            <DockPanel Grid.Column="2">
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Dodaj warstwe" Click="AddLayer_Click" Width="110" Margin="0,0,6,0" />
+                                    <Button Content="Usun warstwe" Click="RemoveLayer_Click" Width="110" Margin="0,0,6,0" />
+                                    <Button Content="Zapisz" Click="Save_Click" Width="90" />
+                                </StackPanel>
+                                <DataGrid ItemsSource="{Binding LayerSetLayers}"
+                                          SelectedItem="{Binding SelectedLayer}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                    <DataGrid.Columns>
+                                        <DataGridComboBoxColumn SelectedValueBinding="{Binding MaterialId, UpdateSourceTrigger=PropertyChanged}"
+                                                                SelectedValuePath="MaterialId"
+                                                                DisplayMemberPath="Name"
+                                                                ItemsSource="{Binding DataContext.Materials, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                Width="260">
+                                            <DataGridComboBoxColumn.Header>
+                                                <TextBlock Text="Material" ToolTip="Material przypisany do wybranej warstwy." />
+                                            </DataGridComboBoxColumn.Header>
+                                        </DataGridComboBoxColumn>
+                                        <DataGridTextColumn Binding="{Binding Thickness, UpdateSourceTrigger=PropertyChanged}" Width="100">
+                                            <DataGridTextColumn.Header>
+                                                <TextBlock Text="d [m]" ToolTip="Grubosc warstwy w metrach." />
+                                            </DataGridTextColumn.Header>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Grid>
+                    </TabItem>
+
+                    <TabItem Header="Przegrody">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Dodaj" Click="AddConstruction_Click" Width="90" Margin="0,0,6,0" />
+                                <Button Content="Usun" Click="RemoveConstruction_Click" Width="90" Margin="0,0,6,0" />
+                                <Button Content="Zapisz" Click="Save_Click" Width="90" />
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding Constructions}"
+                                      SelectedItem="{Binding SelectedConstruction}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding Code, UpdateSourceTrigger=PropertyChanged}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Kod" ToolTip="Kod OZC/WATT, np. SZ, SW, PG, StW, D." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="220">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Konstrukcja" ToolTip="Nazwa konstrukcji przegrody." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridComboBoxColumn SelectedValueBinding="{Binding LayerSetId, UpdateSourceTrigger=PropertyChanged}"
+                                                            SelectedValuePath="LayerSetId"
+                                                            DisplayMemberPath="Name"
+                                                            ItemsSource="{Binding DataContext.LayerSets, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            Width="190">
+                                        <DataGridComboBoxColumn.Header>
+                                            <TextBlock Text="Warstwy" ToolTip="Zestaw warstw materialowych uzywany do obliczenia U." />
+                                        </DataGridComboBoxColumn.Header>
+                                    </DataGridComboBoxColumn>
+                                    <DataGridTextColumn Binding="{Binding ThermalType, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Typ cieplny" ToolTip="Klasa obliczeniowa, np. WALL, FLOOR, ROOF." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridCheckBoxColumn Binding="{Binding IsExternal, UpdateSourceTrigger=PropertyChanged}" Width="70">
+                                        <DataGridCheckBoxColumn.Header>
+                                            <TextBlock Text="Zewn." ToolTip="Czy przegroda graniczy ze srodowiskiem zewnetrznym." />
+                                        </DataGridCheckBoxColumn.Header>
+                                    </DataGridCheckBoxColumn>
+                                    <DataGridCheckBoxColumn Binding="{Binding IsGroundContact, UpdateSourceTrigger=PropertyChanged}" Width="70">
+                                        <DataGridCheckBoxColumn.Header>
+                                            <TextBlock Text="Grunt" ToolTip="Czy przegroda ma kontakt z gruntem." />
+                                        </DataGridCheckBoxColumn.Header>
+                                    </DataGridCheckBoxColumn>
+                                    <DataGridCheckBoxColumn Binding="{Binding IsDefault, UpdateSourceTrigger=PropertyChanged}" Width="80">
+                                        <DataGridCheckBoxColumn.Header>
+                                            <TextBlock Text="Domyslna" ToolTip="Konstrukcja preferowana przy automatycznym przypisywaniu danego kodu." />
+                                        </DataGridCheckBoxColumn.Header>
+                                    </DataGridCheckBoxColumn>
+                                    <DataGridTextColumn Binding="{Binding DefaultAssignMode, UpdateSourceTrigger=PropertyChanged}" Width="100">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Tryb" ToolTip="Tryb domyslnego przypisania, np. ALL albo BY_THICKNESS." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding DefaultToleranceMinus, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Tol. - [m]" ToolTip="Dolna tolerancja grubosci przy przypisywaniu po grubosci." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding DefaultTolerancePlus, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Tol. + [m]" ToolTip="Gorna tolerancja grubosci przy przypisywaniu po grubosci." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding UValue}" Width="90" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="U [W/m2K]" ToolTip="Wspolczynnik przenikania ciepla liczony z warstw i oporow przejmowania." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </TabItem>
+
+                    <TabItem Header="Okna i drzwi">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Dodaj" Click="AddOpeningStyle_Click" Width="90" Margin="0,0,6,0" />
+                                <Button Content="Usun" Click="RemoveOpeningStyle_Click" Width="90" Margin="0,0,6,0" />
+                                <Button Content="Zapisz" Click="Save_Click" Width="90" />
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding OpeningStyles}"
+                                      SelectedItem="{Binding SelectedOpeningStyle}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding OpeningKind, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Typ" ToolTip="Rodzaj otworu: WINDOW albo DOOR." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="240">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="Styl" ToolTip="Nazwa stylu okna albo drzwi." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding OverallUValue, UpdateSourceTrigger=PropertyChanged}" Width="110">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="U [W/m2K]" ToolTip="Wspolczynnik przenikania ciepla okna lub drzwi." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding SolarHeatGainCoefficient, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="g [-]" ToolTip="Calkowita przepuszczalnosc energii promieniowania slonecznego; dla drzwi moze byc 0." />
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </TabItem>
+                </TabControl>
+            </TabItem>
+
             <TabItem Header="Struktura">
                 <TabItem.Resources>
                     <HierarchicalDataTemplate DataType="{x:Type local:BuildingFloorNode}" ItemsSource="{Binding Rooms}">
@@ -610,7 +830,15 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="50" IsReadOnly="True" />
                             <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="90" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="130" />
+                            <DataGridComboBoxColumn SelectedValueBinding="{Binding ConstructionId, UpdateSourceTrigger=PropertyChanged}"
+                                                    SelectedValuePath="ConstructionId"
+                                                    DisplayMemberPath="DisplayName"
+                                                    ItemsSource="{Binding DataContext.Constructions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Width="170">
+                                <DataGridComboBoxColumn.Header>
+                                    <TextBlock Text="Konstrukcja" ToolTip="Typ przegrody z katalogu konstrukcji WATT." />
+                                </DataGridComboBoxColumn.Header>
+                            </DataGridComboBoxColumn>
                             <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
                             <DataGridTextColumn Binding="{Binding Length}" Width="70" IsReadOnly="True">
                                 <DataGridTextColumn.Header>
@@ -654,7 +882,15 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="50" IsReadOnly="True" />
                             <DataGridTextColumn Header="Typ" Binding="{Binding OpeningKind}" Width="70" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="130" />
+                            <DataGridComboBoxColumn SelectedValueBinding="{Binding ConstructionId, UpdateSourceTrigger=PropertyChanged}"
+                                                    SelectedValuePath="StyleId"
+                                                    DisplayMemberPath="DisplayName"
+                                                    ItemsSource="{Binding DataContext.OpeningStyles, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Width="170">
+                                <DataGridComboBoxColumn.Header>
+                                    <TextBlock Text="Styl" ToolTip="Styl okna albo drzwi z katalogu WATT." />
+                                </DataGridComboBoxColumn.Header>
+                            </DataGridComboBoxColumn>
                             <DataGridTextColumn Header="Blok" Binding="{Binding BlockName}" Width="120" IsReadOnly="True" />
                             <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
                             <DataGridTextColumn Header="WallId" Binding="{Binding WallId}" Width="150" IsReadOnly="True" />
@@ -696,7 +932,15 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="50" IsReadOnly="True" />
                             <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="120" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="160" />
+                            <DataGridComboBoxColumn SelectedValueBinding="{Binding ConstructionId, UpdateSourceTrigger=PropertyChanged}"
+                                                    SelectedValuePath="ConstructionId"
+                                                    DisplayMemberPath="DisplayName"
+                                                    ItemsSource="{Binding DataContext.Constructions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Width="180">
+                                <DataGridComboBoxColumn.Header>
+                                    <TextBlock Text="Konstrukcja" ToolTip="Typ przegrody poziomej z katalogu konstrukcji WATT." />
+                                </DataGridComboBoxColumn.Header>
+                            </DataGridComboBoxColumn>
                             <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
                             <DataGridTextColumn Binding="{Binding Area}" Width="70" IsReadOnly="True">
                                 <DataGridTextColumn.Header>
