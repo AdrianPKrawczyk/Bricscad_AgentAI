@@ -1,0 +1,871 @@
+{
+  "RunMetadata": {
+    "BenchmarkName": "Benchmark_13_CadTextProfile",
+    "ModelName": "LLM-Benchmark-V2",
+    "ProfileName": "CadTextProfile",
+    "RunDate": "2026-06-25",
+    "Comment": "Benchmark dla CadTextProfile: odczyt tekstow, masowa edycja DBText/MText, RTF, ochrona pol CAD oraz wlasciwosci systemowe tekstu przez ModifyProperties. Pokrywa TextEditTool, ReadTextSampleTool, ReadFields, Foreach, manage_lisps i ModifyProperties, w tym TextStyleName, Height, Width, Attachment/Justify, Annotative, BackgroundFill, UseBackgroundColor, BackgroundFillColor, BackgroundScaleFactor i ShowBorders."
+  },
+  "Tests": [
+    {
+      "Id": 1,
+      "Category": "TextReadSelection",
+      "Difficulty": 1,
+      "TestName": "Read_Selected_Text_Sample",
+      "Description": "Szybki podglad tresci aktualnie zaznaczonych tekstow powinien uzyc ReadTextSampleTool bez nowej selekcji.",
+      "UserPrompt": "Pokaz probe tresci aktualnie zaznaczonych tekstow. Nie zaznaczaj nic od nowa.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadTextSampleTool": "OK: Odczytano probe 3 tekstow z ActiveSelection."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ReadTextSampleTool",
+          "ErrorMessage": "BLAD: CadTextProfile powinien uzyc ReadTextSampleTool do probki tekstow."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "SelectEntities",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Nie nalezy wykonywac SelectEntities, gdy uzytkownik prosi o aktualne zaznaczenie."
+        }
+      ]
+    },
+    {
+      "Id": 2,
+      "Category": "TextReadSelection",
+      "Difficulty": 1,
+      "TestName": "List_Selected_Text_Properties",
+      "Description": "Lista wszystkich zaznaczonych tekstow wymaga pelniejszego odczytu niz probka.",
+      "UserPrompt": "Wypisz wszystkie aktualnie zaznaczone teksty wraz z typem obiektu i warstwa. Uzyj GetPropertiesTool.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "GetPropertiesTool": "OK: Wypisano wlasciwosci 8 obiektow tekstowych."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "GetPropertiesTool",
+          "ErrorMessage": "BLAD: Do pelnej listy tekstow powinien zostac uzyty GetPropertiesTool."
+        }
+      ]
+    },
+    {
+      "Id": 3,
+      "Category": "TextSelectFilters",
+      "Difficulty": 2,
+      "TestName": "Select_MText_By_Layer_And_Text",
+      "Description": "Filtrowanie MText po warstwie i tresci przed edycja.",
+      "UserPrompt": "Zaznacz tylko MText na warstwie OPISY, ktore zawieraja tekst [STARY]. Na razie nic nie edytuj.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "OK: Zaznaczono 12 obiektow MText."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "SelectEntities",
+          "ErrorMessage": "BLAD: Model powinien uzyc SelectEntities."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "EntityType",
+          "TargetValue": "MText",
+          "ErrorMessage": "BLAD: SelectEntities powinien filtrowac typ MText."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Conditions",
+          "TargetValue": "OPISY",
+          "ErrorMessage": "BLAD: SelectEntities powinien filtrowac warstwe OPISY."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Conditions",
+          "TargetValue": "[STARY]",
+          "ErrorMessage": "BLAD: SelectEntities powinien filtrowac tekst zawierajacy [STARY]."
+        }
+      ]
+    },
+    {
+      "Id": 4,
+      "Category": "TextSelectFilters",
+      "Difficulty": 2,
+      "TestName": "Select_DBText_And_MText_By_Content",
+      "Description": "Selekcja obejmujaca jednoczesnie DBText i MText.",
+      "UserPrompt": "Zaznacz wszystkie DBText i MText, ktore zawieraja slowo ROBOCZE.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "OK: Zaznaczono 18 obiektow DBText/MText."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "SelectEntities",
+          "ErrorMessage": "BLAD: Model powinien uzyc SelectEntities."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "EntityType",
+          "TargetValue": "DBText",
+          "ErrorMessage": "BLAD: EntityType powinien obejmowac DBText."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "EntityType",
+          "TargetValue": "MText",
+          "ErrorMessage": "BLAD: EntityType powinien obejmowac MText."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Conditions",
+          "TargetValue": "ROBOCZE",
+          "ErrorMessage": "BLAD: Warunek selekcji powinien zawierac ROBOCZE."
+        }
+      ]
+    },
+    {
+      "Id": 5,
+      "Category": "TextEditSingle",
+      "Difficulty": 2,
+      "TestName": "Replace_Selected_Text_After_Sample",
+      "Description": "Bezpieczna zamiana tekstu po odczycie probki.",
+      "UserPrompt": "W aktualnie zaznaczonych tekstach zamien dokladnie 'temp' na 'docelowe'. Najpierw sprawdz probe tresci.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadTextSampleTool": "OK: Probe pokazuje tekst temp.",
+        "TextEditTool": "OK: Zmieniono 3 teksty."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "ReadTextSampleTool, TextEditTool",
+          "ErrorMessage": "BLAD: Najpierw powinna byc probka tekstu, potem TextEditTool."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "Replace || replace",
+          "ErrorMessage": "BLAD: TextEditTool powinien pracowac w trybie Replace."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "FindText",
+          "TargetValue": "temp || 'temp'",
+          "ErrorMessage": "BLAD: FindText powinien wskazywac temp."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "ReplaceWith",
+          "TargetValue": "docelowe || 'docelowe'",
+          "ErrorMessage": "BLAD: ReplaceWith powinien wskazywac docelowe."
+        }
+      ]
+    },
+    {
+      "Id": 6,
+      "Category": "TextEditSingle",
+      "Difficulty": 1,
+      "TestName": "Append_Selected_Text",
+      "Description": "Dopisanie sufiksu do aktualnej selekcji.",
+      "UserPrompt": "Do aktualnie zaznaczonych tekstow dopisz na koncu _2026.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "TextEditTool": "OK: Dopisano sufiks do 4 tekstow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "TextEditTool",
+          "ErrorMessage": "BLAD: Model powinien uzyc TextEditTool."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "Append || append",
+          "ErrorMessage": "BLAD: TextEditTool powinien uzyc trybu Append."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "ReplaceWith",
+          "TargetValue": "_2026",
+          "ErrorMessage": "BLAD: ReplaceWith powinien zawierac sufiks _2026."
+        }
+      ]
+    },
+    {
+      "Id": 7,
+      "Category": "TextEditSingle",
+      "Difficulty": 1,
+      "TestName": "Prepend_Selected_Text",
+      "Description": "Dopisanie prefiksu do aktualnej selekcji.",
+      "UserPrompt": "Do aktualnie zaznaczonych tekstow dopisz na poczatku [OK] .",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "TextEditTool": "OK: Dodano prefiks do 4 tekstow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "TextEditTool",
+          "ErrorMessage": "BLAD: Model powinien uzyc TextEditTool."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "Prepend || prepend",
+          "ErrorMessage": "BLAD: TextEditTool powinien uzyc trybu Prepend."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "ReplaceWith",
+          "TargetValue": "[OK]",
+          "ErrorMessage": "BLAD: ReplaceWith powinien zawierac prefiks [OK]."
+        }
+      ]
+    },
+    {
+      "Id": 8,
+      "Category": "TextEditMassForeach",
+      "Difficulty": 4,
+      "TestName": "Mass_Replace_Thirty_Texts_Foreach",
+      "Description": "Dla kilkudziesieciu tekstow profil powinien uzyc Foreach zamiast wielu recznych TextEditTool.",
+      "UserPrompt": "Zaznacz wszystkie MText na warstwie OPISY zawierajace [STARY], a potem w okolo 30 znalezionych tekstach zamien [STARY] na [NOWY]. Uzyj Foreach do masowej edycji.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "SelectEntities": "OK: Zaznaczono 30 MText.",
+        "Foreach": "SUKCES: Wykonano 30/30 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "SequenceMatch",
+          "TargetValue": "SelectEntities, Foreach",
+          "ErrorMessage": "BLAD: Oczekiwano sekwencji SelectEntities -> Foreach."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "IterateSelection",
+          "TargetValue": "true || True",
+          "ErrorMessage": "BLAD: Foreach powinien iterowac po aktualnej selekcji."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Action",
+          "TargetValue": "TextEditTool",
+          "ErrorMessage": "BLAD: Foreach.Action powinien wywolywac TextEditTool."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Action",
+          "TargetValue": "[NOWY]",
+          "ErrorMessage": "BLAD: Foreach.Action powinien zawierac docelowy tekst [NOWY]."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "TextEditTool",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Dla masowej edycji TextEditTool powinien byc w Action Foreach, nie jako seria osobnych wywolan."
+        }
+      ]
+    },
+    {
+      "Id": 9,
+      "Category": "TextEditMassForeach",
+      "Difficulty": 4,
+      "TestName": "Mass_Append_Selected_Foreach",
+      "Description": "Masowe dopisanie sufiksu do selekcji przez Foreach.",
+      "UserPrompt": "Wszystkim aktualnie zaznaczonym 80 tekstom dopisz na koncu _REV. Zrob to przez Foreach, bez recznego powtarzania TextEditTool.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "Foreach": "SUKCES: Wykonano 80/80 operacji."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "Foreach",
+          "ErrorMessage": "BLAD: Model powinien uzyc Foreach."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Action",
+          "TargetValue": "Append",
+          "ErrorMessage": "BLAD: Foreach.Action powinien uzywac trybu Append."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Action",
+          "TargetValue": "_REV",
+          "ErrorMessage": "BLAD: Foreach.Action powinien zawierac sufiks _REV."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "TextEditTool",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Nie nalezy wykonywac wielu osobnych TextEditTool poza Foreach."
+        }
+      ]
+    },
+    {
+      "Id": 10,
+      "Category": "TextEditMassForeach",
+      "Difficulty": 5,
+      "TestName": "Huge_Text_Replace_Use_Lisp",
+      "Description": "Dla setek obiektow profil powinien delegowac masowa zamiane do LISP, zgodnie z priorytetem powyzej limitu Foreach.",
+      "UserPrompt": "Na warstwach OPISY i UWAGI jest okolo 600 tekstow. Zamien w nich ROBOCZE na FINALNE mozliwie najwydajniej.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "manage_lisps": "OK: Wygenerowano i uruchomiono LISP do masowej zamiany tekstow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "manage_lisps",
+          "ErrorMessage": "BLAD: Dla setek tekstow model powinien uzyc manage_lisps."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Template",
+          "TargetValue": "replace_text",
+          "ErrorMessage": "BLAD: manage_lisps powinien uzyc szablonu do zamiany tekstu."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "ReplaceWith",
+          "TargetValue": "FINALNE",
+          "ErrorMessage": "BLAD: ReplaceWith powinien zawierac FINALNE."
+        }
+      ]
+    },
+    {
+      "Id": 11,
+      "Category": "TextRTF",
+      "Difficulty": 3,
+      "TestName": "FormatHighlight_MText_Red",
+      "Description": "Podswietlenie fragmentu MText kolorem ACI 1.",
+      "UserPrompt": "W zaznaczonych MText podswietl slowo PILNE na czerwono, zachowujac pozostale formatowanie.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "TextEditTool": "OK: Dodano formatowanie RTF do MText."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "TextEditTool",
+          "ErrorMessage": "BLAD: Formatowanie tekstu powinno isc przez TextEditTool."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "FormatHighlight || format_highlight || Format",
+          "ErrorMessage": "BLAD: TextEditTool powinien uzyc trybu FormatHighlight."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "FindText",
+          "TargetValue": "PILNE",
+          "ErrorMessage": "BLAD: FindText powinien zawierac PILNE."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "ColorIndex",
+          "TargetValue": "1 || red || czerwony",
+          "ErrorMessage": "BLAD: Kolor podswietlenia powinien byc czerwony / ACI 1."
+        }
+      ]
+    },
+    {
+      "Id": 12,
+      "Category": "TextRTF",
+      "Difficulty": 2,
+      "TestName": "ClearFormatting_MText",
+      "Description": "Usuniecie kodow RTF z MText bez kasowania tresci.",
+      "UserPrompt": "W aktualnie zaznaczonych MText usun formatowanie RTF, ale zostaw tresc i podzialy linii.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "TextEditTool": "OK: Usunieto formatowanie RTF."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "TextEditTool",
+          "ErrorMessage": "BLAD: Czyszczenie formatowania powinno isc przez TextEditTool."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "ClearFormatting || clear_formatting",
+          "ErrorMessage": "BLAD: TextEditTool powinien uzyc trybu ClearFormatting."
+        }
+      ]
+    },
+    {
+      "Id": 13,
+      "Category": "TextFieldsSafety",
+      "Difficulty": 4,
+      "TestName": "Field_Text_ReadFields_Before_Edit",
+      "Description": "Przed edycja tekstu, ktory moze zawierac pole CAD, profil powinien odczytac pola zamiast zamieniac kody na slepo.",
+      "UserPrompt": "W zaznaczonym MText jest automatyczne pole CAD z nazwa rysunku. Chce zmienic prefiks 'Projekt:' na 'Rysunek:'. Najpierw sprawdz pola i nie niszcz kodu pola.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadFields": "OK: Znaleziono 1 aktywne pole CAD w MText."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ReadFields",
+          "ErrorMessage": "BLAD: Przed edycja tekstu z polem CAD wymagany jest ReadFields."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "TextEditTool",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Nie nalezy od razu wykonywac TextEditTool.Replace na tekscie z polem CAD."
+        }
+      ]
+    },
+    {
+      "Id": 14,
+      "Category": "TextPropertiesBasic",
+      "Difficulty": 2,
+      "TestName": "Change_Text_Style",
+      "Description": "Zmiana stylu tekstu powinna isc przez ModifyProperties z Prop TextStyleName.",
+      "UserPrompt": "Dla aktualnie zaznaczonych tekstow ustaw styl tekstu na CP_TXT.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Zmieniono styl tekstu."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Zmiana stylu tekstu powinna uzyc ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "TextStyleName",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac Prop TextStyleName."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "CP_TXT",
+          "ErrorMessage": "BLAD: Modifications powinny ustawic styl CP_TXT."
+        }
+      ]
+    },
+    {
+      "Id": 15,
+      "Category": "TextPropertiesBasic",
+      "Difficulty": 3,
+      "TestName": "Double_Text_Height_After_Inspect",
+      "Description": "Zmiana wysokosci relatywnie wymaga sprawdzenia obecnej wartosci i ModifyProperties.",
+      "UserPrompt": "Dla zaznaczonego tekstu podwoj wysokosc. Najpierw sprawdz aktualna wysokosc obiektu.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InspectEntity": "OK: Height=2.5, ObjectName=AcDbText.",
+        "ModifyProperties": "OK: Ustawiono Height=5.0."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Przy zmianie relatywnej finalna modyfikacja powinna isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Height",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac Height."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Modifications",
+          "TargetValue": "[{\"Prop\":\"Height\",\"Val\":\"MATH: $OLD_Height * 2\"}] || [{\"Prop\":\"Height\",\"Val\":\"5\"}] || [{\"Prop\":\"Height\",\"Val\":\"5.0\"}] || [{\"Prop\":\"Height\",\"Val\":5}] || [{\"Prop\":\"Height\",\"Val\":5.0}]",
+          "ErrorMessage": "BLAD: Dla podwojenia wysokosci oczekiwana jest formula MATH albo wartosc 5.0 po odczycie Height=2.5."
+        }
+      ]
+    },
+    {
+      "Id": 16,
+      "Category": "TextPropertiesBasic",
+      "Difficulty": 2,
+      "TestName": "Set_MText_Width",
+      "Description": "Zmiana szerokosci MText powinna uzyc wlasciwosci Width.",
+      "UserPrompt": "Dla zaznaczonych MText ustaw szerokosc ramki tekstu na 120.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono Width=120."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Zmiana szerokosci MText powinna uzyc ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Width",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac Width."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "120",
+          "ErrorMessage": "BLAD: Modifications powinny ustawic wartosc 120."
+        }
+      ]
+    },
+    {
+      "Id": 17,
+      "Category": "TextPropertiesBasic",
+      "Difficulty": 2,
+      "TestName": "Set_Text_Rotation_Degrees",
+      "Description": "Obrot tekstu powinien uzyc ModifyProperties i wlasciwosci Rotation.",
+      "UserPrompt": "Obroc aktualnie zaznaczone teksty o -45 stopni.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono Rotation=-0.785398."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Obrot tekstu powinien uzyc ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Rotation",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac Rotation."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Modifications[0].Val",
+          "TargetValue": "-0.785398 || -0.7854 || MATH: -45 * 3.14159 / 180",
+          "ErrorMessage": "BLAD: Rotation powinno odpowiadac -45 stopniom w radianach albo formule MATH."
+        }
+      ]
+    },
+    {
+      "Id": 18,
+      "Category": "TextPropertiesAlignment",
+      "Difficulty": 3,
+      "TestName": "MText_Attachment_MiddleCenter",
+      "Description": "Wyrownanie MText powinno uzyc Attachment, nie Justify.",
+      "UserPrompt": "Zaznaczony obiekt to MText. Ustaw punkt zaczepienia i wyrownanie na srodek/srodek.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InspectEntity": "OK: ObjectName=AcDbMText.",
+        "ModifyProperties": "OK: Ustawiono Attachment=MiddleCenter."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Wyrownanie MText powinno uzyc ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Attachment",
+          "ErrorMessage": "BLAD: Dla MText oczekiwany jest Prop Attachment."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "MiddleCenter",
+          "ErrorMessage": "BLAD: Attachment powinno byc MiddleCenter."
+        }
+      ]
+    },
+    {
+      "Id": 19,
+      "Category": "TextPropertiesAlignment",
+      "Difficulty": 3,
+      "TestName": "DBText_Justify_MiddleCenter",
+      "Description": "Wyrownanie DBText powinno uzyc Justify, nie Attachment.",
+      "UserPrompt": "Zaznaczony obiekt to DBText. Ustaw wyrownanie tekstu na srodek/srodek.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "InspectEntity": "OK: ObjectName=AcDbText.",
+        "ModifyProperties": "OK: Ustawiono Justify=MiddleCenter."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Wyrownanie DBText powinno uzyc ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Justify",
+          "ErrorMessage": "BLAD: Dla DBText oczekiwany jest Prop Justify."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "MiddleCenter",
+          "ErrorMessage": "BLAD: Justify powinno byc MiddleCenter."
+        }
+      ]
+    },
+    {
+      "Id": 20,
+      "Category": "TextPropertiesAnnotative",
+      "Difficulty": 2,
+      "TestName": "Turn_On_Annotative",
+      "Description": "Wlaczenie opcji opisowy/annotative.",
+      "UserPrompt": "Dla zaznaczonych tekstow wlacz wlasciwosc opisowy.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono Annotative=true."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Wlasciwosc opisowy powinna isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Annotative",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac Annotative."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "true",
+          "ErrorMessage": "BLAD: Annotative powinno byc ustawione na true."
+        }
+      ]
+    },
+    {
+      "Id": 21,
+      "Category": "TextPropertiesAnnotative",
+      "Difficulty": 2,
+      "TestName": "Turn_Off_Annotative",
+      "Description": "Wylaczenie opcji opisowy/annotative.",
+      "UserPrompt": "Dla zaznaczonych tekstow wylacz wlasciwosc opisowy.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono Annotative=false."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Wylaczenie opisowy powinno isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "Annotative",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac Annotative."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "false",
+          "ErrorMessage": "BLAD: Annotative powinno byc ustawione na false."
+        }
+      ]
+    },
+    {
+      "Id": 22,
+      "Category": "TextPropertiesMaskFrame",
+      "Difficulty": 4,
+      "TestName": "Background_Mask_Red_With_Frame",
+      "Description": "Wlaczenie maski tla, koloru wypelnienia, przesuniecia granicy i ramki.",
+      "UserPrompt": "Dla zaznaczonych MText wlacz maske tla, ustaw kolor maski na czerwony ACI 1, przesuniecie granicy na 3 i wlacz ramke wokol tekstu.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono BackgroundFill, BackgroundFillColor, BackgroundScaleFactor i ShowBorders."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Maska tla i ramka powinny isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "BackgroundFill",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac BackgroundFill."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "BackgroundFillColor",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac BackgroundFillColor."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "BackgroundScaleFactor",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac BackgroundScaleFactor."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "ShowBorders",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac ShowBorders."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "1",
+          "ErrorMessage": "BLAD: Kolor maski powinien zawierac ACI 1."
+        }
+      ]
+    },
+    {
+      "Id": 23,
+      "Category": "TextPropertiesMaskFrame",
+      "Difficulty": 4,
+      "TestName": "Background_Mask_Use_Drawing_Background",
+      "Description": "Wlaczenie maski tla z opcja Uzyj koloru tla rysunku, bez pytania o kolor.",
+      "UserPrompt": "Dla zaznaczonych MText wlacz maske tla i ustaw kolor wypelnienia jako kolor tla rysunku. Nie pytaj mnie o numer koloru.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono BackgroundFill=true i UseBackgroundColor=true."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Opcja koloru tla rysunku powinna isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "BackgroundFill",
+          "ErrorMessage": "BLAD: Modifications powinny wlaczyc BackgroundFill."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "UseBackgroundColor",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac UseBackgroundColor."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "true",
+          "ErrorMessage": "BLAD: BackgroundFill i UseBackgroundColor powinny byc ustawione na true."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "UserInput",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: Agent nie powinien pytac uzytkownika o kolor tla rysunku."
+        }
+      ]
+    },
+    {
+      "Id": 24,
+      "Category": "TextPropertiesMaskFrame",
+      "Difficulty": 2,
+      "TestName": "Turn_On_Text_Frame",
+      "Description": "Sama ramka wokol tekstu powinna uzyc ShowBorders.",
+      "UserPrompt": "Dla zaznaczonych MText wlacz tylko ramke wokol tekstu.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono ShowBorders=true."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Ramka wokol tekstu powinna isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "ShowBorders",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac ShowBorders."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "true",
+          "ErrorMessage": "BLAD: ShowBorders powinno byc true."
+        }
+      ]
+    },
+    {
+      "Id": 25,
+      "Category": "TextPropertiesMaskFrame",
+      "Difficulty": 3,
+      "TestName": "Turn_Off_Background_And_Frame",
+      "Description": "Wylaczenie maski tla i ramki.",
+      "UserPrompt": "Dla zaznaczonych MText wylacz maske tla oraz ramke wokol tekstu.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ModifyProperties": "OK: Ustawiono BackgroundFill=false i ShowBorders=false."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "ModifyProperties",
+          "ErrorMessage": "BLAD: Wylaczenie maski i ramki powinno isc przez ModifyProperties."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "BackgroundFill",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac BackgroundFill."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "ShowBorders",
+          "ErrorMessage": "BLAD: Modifications powinny zawierac ShowBorders."
+        },
+        {
+          "RuleType": "StringContains",
+          "TargetArgument": "Modifications",
+          "TargetValue": "false",
+          "ErrorMessage": "BLAD: BackgroundFill i ShowBorders powinny byc false."
+        }
+      ]
+    },
+    {
+      "Id": 26,
+      "Category": "TextPropertiesGuardrails",
+      "Difficulty": 3,
+      "TestName": "Do_Not_Edit_Content_With_ModifyProperties",
+      "Description": "Zmiana tresci tekstu nie moze isc przez ModifyProperties; do tego sluzy TextEditTool.",
+      "UserPrompt": "W zaznaczonych tekstach zmien tresc z 'BRUDNOPIS' na 'WYDANIE'.",
+      "MockMemoryVariables": {},
+      "SimulatedCADResponses": {
+        "ReadTextSampleTool": "OK: Probe pokazuje BRUDNOPIS.",
+        "TextEditTool": "OK: Zmieniono tresc tekstow."
+      },
+      "ValidationRules": [
+        {
+          "RuleType": "ToolCalled",
+          "TargetValue": "TextEditTool",
+          "ErrorMessage": "BLAD: Zmiana tresci tekstu powinna uzyc TextEditTool."
+        },
+        {
+          "RuleType": "AnyOfArgumentMatch",
+          "TargetArgument": "Mode",
+          "TargetValue": "Replace || replace",
+          "ErrorMessage": "BLAD: TextEditTool powinien uzyc Replace."
+        },
+        {
+          "RuleType": "ToolCallCountMax",
+          "TargetValue": "ModifyProperties",
+          "ExpectedOutput": "0",
+          "ErrorMessage": "BLAD: ModifyProperties nie powinien byc uzywany do zmiany tresci tekstu."
+        }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,7 @@ namespace Bricscad_AgentAI_V2.Tests.Tools
         private const string PromptFileRelative = @"prompts\system_prompt_text.txt";
         private static readonly string[] ExpectedMutatingTools = new[]
         {
-            "TextEditTool", "ManageFields", "Foreach", "manage_lisps"
+            "TextEditTool", "ManageFields", "ModifyProperties", "Foreach", "manage_lisps"
         };
 
         private static readonly string[] ExpectedReadTools = new[]
@@ -30,7 +30,7 @@ namespace Bricscad_AgentAI_V2.Tests.Tools
 
         private static readonly string[] ForbiddenTools = new[]
         {
-            "CreateObject", "ModifyProperties", "ManageLayers",
+            "CreateObject", "ManageLayers",
             "DimensionEditTool", "CreateBlock", "InsertBlock", "EditBlock",
             "EditAttributes", "ListBlocks", "WriteXData", "BatchWriteXData"
         };
@@ -194,7 +194,10 @@ namespace Bricscad_AgentAI_V2.Tests.Tools
                 "EvaluateAll",
                 "PULAPKI",
                 "wylistuj",
-                "GetPropertiesTool"
+                "GetPropertiesTool",
+                "BackgroundFill",
+                "ShowBorders",
+                "UseBackgroundColor"
             };
 
             foreach (string phrase in requiredPhrases)

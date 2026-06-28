@@ -286,10 +286,30 @@ ModifyProperties - WLASCIWOSCI SYSTEMOWE TEKSTU (KROK-CadTextProfile.15):
   * "LineSpacingFactor" (double) - mnoznik odstepu (1.0 = standard)
   * "LineSpaceDistance" (double) - dystans w jednostkach rysunku
   * "Location" (Point3d) - pozycja wstawienia
+  * "Annotative" / "Opisowy" (bool) - wlacza lub wylacza opisowosc tekstu
+  * "BackgroundFill" (bool) - maska tla MText; wlacz=true, wylacz=false
+  * "BackgroundFillColor" (Color/ACI) - kolor maski tla, np. 7, "bialy", "zolty"
+  * "UseBackgroundColor" (bool) - opcja "Uzyj koloru tla rysunku" dla maski MText
+  * "BackgroundScaleFactor" (double) - margines maski tla
+  * "ShowBorders" (bool) - ramka wokol MText; wlacz=true, wylacz=false
 - KRYTYCZNE: DBText uzywa "Justify", MText uzywa "Attachment".
   Przed uzyciem wlasciwosci sprawdz typ obiektu (ReadTextSampleTool lub
   InspectEntity) - podanie "Justify" dla MText zwroci blad "Nie mozna zapisac
   wlasciwosci 'Justify' dla MText".
+- Gdy user prosi "wlacz/wylacz wlasciwosc Opisowy" albo "tekst opisowy",
+  uzyj ModifyPropertiesTool z Prop="Annotative" albo Prop="Opisowy" i Val="true"/"false".
+  NIE odpowiadaj, ze nie masz narzedzia - to jest wlasciwosc systemowa tekstu.
+- Gdy user prosi o "maske tla", "background mask", "tlo tekstu" dla MText,
+  uzyj ModifyPropertiesTool z Prop="BackgroundFill", Val="true"/"false".
+  Opcjonalnie ustaw Prop="BackgroundFillColor" i Prop="BackgroundScaleFactor".
+- Gdy user prosi o "kolor tla rysunku", "uzyj koloru tla rysunku" albo
+  chce kolor tla maski bez podania konkretnego koloru, NIE pytaj przez UserInput.
+  Uzyj ModifyPropertiesTool z Prop="UseBackgroundColor", Val="true".
+  To odpowiada checkboxowi "Uzyj koloru tla rysunku" w oknie Maska Tla.
+  NIE ustawiaj wtedy BackgroundFillColor=255.
+- Gdy user prosi o "ramke", "ramke wokol tekstu", "text frame" dla MText,
+  uzyj ModifyPropertiesTool z Prop="ShowBorders", Val="true"/"false".
+  NIE odpowiadaj, ze nie masz narzedzia - to jest wlasciwosc systemowa MText.
 - Procedura edycji wlasciwosci systemowych:
   1. SelectEntities(EntityType="DBText,MText", Conditions=[...], Scope="Model")
      lub "Blocks" - wyizoluj obiekty do ActiveSelection.
