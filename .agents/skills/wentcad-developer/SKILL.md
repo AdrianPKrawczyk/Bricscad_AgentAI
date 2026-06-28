@@ -37,6 +37,8 @@ Prowadź prace nad `WentCad` jako nad osobną wtyczką BricsCAD, a nie jako modu
 - `.wentcad` jest źródłem prawdy; NOD i XData są indeksem CAD oraz trwałymi powiązaniami z geometrią.
 - `Bielik.DrukWidoki` jest czytany, nie modyfikowany.
 - Pierwszy etap WentCad obejmuje wentylację, pomieszczenia, kondygnacje i podstawowy bilans. IFC i WATT są etapami późniejszymi.
+- WATT v1 obejmuje detekcję ścian i okien jako model `Thermal` w `.wentcad`; pełne obliczenia strat/zysków są osobnym etapem.
+- Tool-e Agenta dla WATT (`ReadWentCadEnvelope`, `ScanWentCadEnvelope`, `UpdateWentCadWall`, `UpdateWentCadWindow`) również nie mogą referencjonować `WentCad.dll`.
 
 ## Kiedy Czytać Referencję
 
@@ -45,6 +47,8 @@ Przeczytaj `references/development-guide.md`, gdy zadanie dotyczy:
 - nowych komend BricsCAD,
 - zmian modelu `.wentcad`,
 - NOD lub XData `WENTCAD_*`,
+- modelu `Thermal.Walls`, `Thermal.Windows`, `Thermal.Settings`,
+- NOD `WENTCAD_WALLS` / `WENTCAD_WINDOWS` albo XData `WENTCAD_WINDOW`,
 - skanowania pomieszczeń,
 - bilansu wentylacji,
 - integracji z `Bielik.DrukWidoki`,

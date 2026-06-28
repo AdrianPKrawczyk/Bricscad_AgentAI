@@ -8,6 +8,8 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
         public const string ProjectNod = "WENTCAD_PROJECT";
         public const string FloorsNod = "WENTCAD_FLOORS";
         public const string RoomsNod = "WENTCAD_ROOMS";
+        public const string WallsNod = "WENTCAD_WALLS";
+        public const string WindowsNod = "WENTCAD_WINDOWS";
 
         public static JObject Read(Database db)
         {
@@ -15,7 +17,9 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
             {
                 ["Project"] = null,
                 ["Floors"] = new JArray(),
-                ["Rooms"] = new JArray()
+                ["Rooms"] = new JArray(),
+                ["Walls"] = new JArray(),
+                ["Windows"] = new JArray()
             };
 
             using (var tr = db.TransactionManager.StartTransaction())
@@ -24,6 +28,8 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 result["Project"] = ReadSingleJson(tr, nod, ProjectNod, "project");
                 result["Floors"] = ReadDictionaryJson(tr, nod, FloorsNod);
                 result["Rooms"] = ReadDictionaryJson(tr, nod, RoomsNod);
+                result["Walls"] = ReadDictionaryJson(tr, nod, WallsNod);
+                result["Windows"] = ReadDictionaryJson(tr, nod, WindowsNod);
                 tr.Commit();
             }
 

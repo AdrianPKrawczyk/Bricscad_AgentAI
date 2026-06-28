@@ -14,9 +14,11 @@ Scenariusz zaklada aktywny DWG z wygenerowanym budynkiem testowym:
 - atrybut nazwy: `NAZWA`,
 - atrybut wysokosci: `H`,
 - atrybut powierzchni: `POW`,
-- kondygnacja `Parter`: zakres prowadnicy okolo `-3,-3` do `63,38`,
-- kondygnacja `Pietro_1`: zakres prowadnicy okolo `-3,77` do `63,118`,
-- diagnostyka: okolice `68,-3` do `112,43`.
+- jednostki DWG: `1 jednostka = 1 cm`,
+- powierzchnie w metkach: m2,
+- kondygnacja `Parter`: zakres prowadnicy okolo `-50,-50` do `1850,1050`,
+- kondygnacja `Pietro_1`: zakres prowadnicy okolo `-50,1250` do `1850,2350`,
+- diagnostyka: okolice `2050,-50` do `2950,950`.
 
 ## Jak Uzywac
 
@@ -110,10 +112,10 @@ Kondygnacja 1:
 - Elevation: 0
 - HeightNet: 3.0
 - HeightTotal: 3.5
-- BasePointX: -3
-- BasePointY: -3
+- BasePointX: -50
+- BasePointY: -50
 - BasePointZ: 0
-- BasePointDescription: `Punkt bazowy Parter: lewy dolny naroznik prowadnicy, X=-3, Y=-3`
+- BasePointDescription: `Punkt bazowy Parter: lewy dolny naroznik prowadnicy, X=-50, Y=-50, jednostki cm`
 
 Kondygnacja 2:
 - Name: `Pietro_1`
@@ -121,16 +123,16 @@ Kondygnacja 2:
 - Elevation: 3.5
 - HeightNet: 3.2
 - HeightTotal: 3.5
-- BasePointX: -3
-- BasePointY: 77
+- BasePointX: -50
+- BasePointY: 1250
 - BasePointZ: 0
-- BasePointDescription: `Punkt bazowy Pietro_1: odpowiadajacy lewy dolny naroznik prowadnicy, X=-3, Y=77`
+- BasePointDescription: `Punkt bazowy Pietro_1: odpowiadajacy lewy dolny naroznik prowadnicy, X=-50, Y=1250, jednostki cm`
 
 Wykonaj:
 1. Uzyj `ManageWentCadFloors` dla `Parter`.
 2. Uzyj `ManageWentCadFloors` dla `Pietro_1`.
-3. Uzyj `SetWentCadFloorRegion` dla `Parter` z `MinX=-3`, `MinY=-3`, `MaxX=63`, `MaxY=38`.
-4. Uzyj `SetWentCadFloorRegion` dla `Pietro_1` z `MinX=-3`, `MinY=77`, `MaxX=63`, `MaxY=118`.
+3. Uzyj `SetWentCadFloorRegion` dla `Parter` z `MinX=-50`, `MinY=-50`, `MaxX=1850`, `MaxY=1050`.
+4. Uzyj `SetWentCadFloorRegion` dla `Pietro_1` z `MinX=-50`, `MinY=1250`, `MaxX=1850`, `MaxY=2350`.
 5. Nie pros uzytkownika o klikanie regionow, jezeli `SetWentCadFloorRegion` jest dostepny.
 6. Odczytaj `ReadWentCadProject`.
 7. Zweryfikuj, ze `Region` dla obu kondygnacji ma co najmniej 4 punkty.
@@ -151,17 +153,17 @@ Wykonaj:
 3. Znajdz kondygnacje `Parter` i `Pietro_1`.
 4. Najpierw sprawdz, czy `Region` dla `Parter` i `Pietro_1` ma punkty. Jezeli ktorykolwiek `Region` jest pusty, napisz: `Brak regionu kondygnacji - najpierw uzyj WENTCAD_PICK_FLOOR_REGION albo przycisku Wybierz region, inaczej skan pomiesza rzuty`.
 5. Sprawdz, czy `Parter` ma pomieszczenia:
-   - `0.01` Wiatrolap, H=3.0, Pow=350
-   - `0.02` Komunikacja, H=3.0, Pow=350
-   - `0.03` Biuro, H=3.0, Pow=350
-   - `0.04` Sala spotkan, H=3.0, Pow=525
-   - `0.05` Open space, H=3.0, Pow=525
+   - `0.01` Wiatrolap, H=3.0, Pow=12.00
+   - `0.02` Komunikacja, H=3.0, Pow=23.52
+   - `0.03` Biuro, H=3.0, Pow=35.52
+   - `0.04` Sala spotkan, H=3.0, Pow=47.04
+   - `0.05` Open space, H=3.0, Pow=58.09
 6. Sprawdz, czy `Pietro_1` ma pomieszczenia:
-   - `1.01` Gabinet, H=3.2, Pow=350
-   - `1.02` Pokoj pracy, H=3.2, Pow=350
-   - `1.03` Archiwum, H=3.2, Pow=350
-   - `1.04` Sala szkolen, H=3.2, Pow=525
-   - `1.05` Socjal, H=3.2, Pow=525
+   - `1.01` Gabinet, H=3.2, Pow=12.00
+   - `1.02` Pokoj pracy, H=3.2, Pow=23.52
+   - `1.03` Archiwum, H=3.2, Pow=35.52
+   - `1.04` Sala szkolen, H=3.2, Pow=47.04
+   - `1.05` Socjal, H=3.2, Pow=58.09
 7. Jezeli numery `1.xx` sa na `Parter`, a `Pietro_1` jest puste, rozpoznaj blad braku regionu podczas skanowania i nie przechodz do W7.
 8. Nie tworz pomieszczen diagnostycznych `X.01` ani `X.02`.
 9. Jezeli nie ma pomieszczen, jasno napisz: `W4 to tylko weryfikacja. Uruchom skan w panelu albo uzyj W5`.
@@ -177,8 +179,8 @@ Wykonaj:
 1. Odczytaj `ReadWentCadProject`.
 2. Znajdz kondygnacje `Parter` i `Pietro_1`.
 3. Jezeli `Region` kondygnacji jest pusty, najpierw ustaw:
-   - `SetWentCadFloorRegion` dla `Parter`: `MinX=-3`, `MinY=-3`, `MaxX=63`, `MaxY=38`;
-   - `SetWentCadFloorRegion` dla `Pietro_1`: `MinX=-3`, `MinY=77`, `MaxX=63`, `MaxY=118`.
+   - `SetWentCadFloorRegion` dla `Parter`: `MinX=-50`, `MinY=-50`, `MaxX=1850`, `MaxY=1050`;
+   - `SetWentCadFloorRegion` dla `Pietro_1`: `MinX=-50`, `MinY=1250`, `MaxX=1850`, `MaxY=2350`.
 4. Uzyj `ScanWentCadRooms` dla `Parter`.
 5. Uzyj `ScanWentCadRooms` dla `Pietro_1`.
 6. Uruchom `RecalculateWentCadBalance` z `WriteRoomXData=true`.
@@ -198,18 +200,18 @@ Przed upsertami odczytaj `ReadWentCadRooms`. Jezeli pokoj o wymaganym numerze ju
 Dla kazdego nowego pomieszczenia uzyj `ManageWentCadRooms` z `Action=upsert`, ale zawsze z jednoznacznym `FloorId` oraz `Number`. Jezeli pomieszczenie zostalo juz zeskanowane, aktualizuj je przez `UpdateWentCadRoomByNumber` z `FloorName` i `Number`.
 
 Parter:
-- Number `0.01`, Name `Wiatrolap`, Area 350, Height 3.0
-- Number `0.02`, Name `Komunikacja`, Area 350, Height 3.0
-- Number `0.03`, Name `Biuro`, Area 350, Height 3.0
-- Number `0.04`, Name `Sala spotkan`, Area 525, Height 3.0
-- Number `0.05`, Name `Open space`, Area 525, Height 3.0
+- Number `0.01`, Name `Wiatrolap`, Area 12.00, Height 3.0
+- Number `0.02`, Name `Komunikacja`, Area 23.52, Height 3.0
+- Number `0.03`, Name `Biuro`, Area 35.52, Height 3.0
+- Number `0.04`, Name `Sala spotkan`, Area 47.04, Height 3.0
+- Number `0.05`, Name `Open space`, Area 58.09, Height 3.0
 
 Pietro_1:
-- Number `1.01`, Name `Gabinet`, Area 350, Height 3.2
-- Number `1.02`, Name `Pokoj pracy`, Area 350, Height 3.2
-- Number `1.03`, Name `Archiwum`, Area 350, Height 3.2
-- Number `1.04`, Name `Sala szkolen`, Area 525, Height 3.2
-- Number `1.05`, Name `Socjal`, Area 525, Height 3.2
+- Number `1.01`, Name `Gabinet`, Area 12.00, Height 3.2
+- Number `1.02`, Name `Pokoj pracy`, Area 23.52, Height 3.2
+- Number `1.03`, Name `Archiwum`, Area 35.52, Height 3.2
+- Number `1.04`, Name `Sala szkolen`, Area 47.04, Height 3.2
+- Number `1.05`, Name `Socjal`, Area 58.09, Height 3.2
 
 Po upsertach:
 1. Uruchom `RecalculateWentCadBalance`.
@@ -332,6 +334,33 @@ Raport ma zawierac:
 Najpierw uzyj `ReadWentCadProject` i `ReadWentCadRooms`, a jezeli bilans wyglada na nieaktualny, uruchom `RecalculateWentCadBalance`.
 ```
 
+## Prompt W11 - WATT Sciany Zewnetrzne I Okna
+
+```text
+Przetestuj WATT v1 w WentCad na aktywnym DWG z modelem `GEN_WENTCAD_TEST_BUILDING`.
+
+Zalozenia:
+- sciany pomocnicze: `WC_TEST_SCIANY`
+- okna: `WC_TEST_OKNA`
+- opisy okien: `WC_TEST_OPISY_OKIEN`
+- atrybuty okien: `WIDTH`, `HEIGHT`, `SILL`
+- tolerancje testowe: sciana wewnetrzna `15`, sciana zewnetrzna `15`, przypiecie okna `25`
+- kondygnacje: `Parter`, `Pietro_1`
+
+Wykonaj:
+1. Odczytaj `ReadWentCadProject` i `ReadWentCadRooms`.
+2. Jesli pomieszczenia nie maja `BoundaryHandle`, najpierw uzyj `ConfigureWentCadTestBuilding`.
+3. Uzyj `ConfigureWentCadEnvelopeTestBuilding`.
+4. Odczytaj `ReadWentCadEnvelope`.
+5. Zwroc raport:
+   - liczba scian EXTERNAL/INTERNAL/UNRESOLVED dla kazdej kondygnacji,
+   - liczba wykrytych okien i ile ma `RoomId` oraz `WallId`,
+   - lista okien z wymiarami `Width/Height/SillHeight`,
+   - przypadki ostrzezen z `Message`,
+   - czy NOD `WENTCAD_WALLS` i `WENTCAD_WINDOWS` zwraca dane.
+6. Jezeli widzisz okno bez przypisania, nie dopisuj go recznie bez uzasadnienia; opisz, czy lezy przy scianie wewnetrznej albo poza tolerancja.
+```
+
 ## Prompt FULL - Jedno Polecenie Dla Calego Testu
 
 Ten prompt jest dluzszy, ale pozwala uruchomic caly scenariusz w jednym zadaniu dla `WentCadProfile`.
@@ -343,8 +372,8 @@ Zalozenia modelu:
 - obrysy: `WC_TEST_OBRYSY`
 - metki: `WC_TEST_METKI`
 - atrybuty: `NR`, `NAZWA`, `H`, `POW`
-- parter: prowadnica `-3,-3` do `63,38`, baza `-3,-3`, rzedna 0, H netto 3.0, H calk. 3.5
-- pietro: prowadnica `-3,77` do `63,118`, baza `-3,77`, rzedna 3.5, H netto 3.2, H calk. 3.5
+- parter: prowadnica `-50,-50` do `1850,1050`, baza `-50,-50`, rzedna 0, H netto 3.0, H calk. 3.5
+- pietro: prowadnica `-50,1250` do `1850,2350`, baza `-50,1250`, rzedna 3.5, H netto 3.2, H calk. 3.5
 
 Kroki:
 1. Odczytaj obecny stan przez `ReadWentCadProject`.
@@ -353,5 +382,6 @@ Kroki:
 4. Uruchom `RunWentCadCommand` z `WENTCAD_SYNC`.
 5. Odczytaj projekt i pomieszczenia ponownie.
 6. Zwroc raport koncowy: kondygnacje, base pointy, liczba pomieszczen, systemy, sumy, tabela bilansu, diagnostyka `X.01`/`X.02`, status NOD/XData.
-7. W statusie NOD/XData nie pisz, ze XData zostalo zapisane na obrysach, jezeli `BoundaryHandle` jest pusty. Napisz wtedy, ze NOD/.wentcad sa zapisane, ale XData wymaga skanu lub uchwytow obrysow.
+7. Uzyj `ConfigureWentCadEnvelopeTestBuilding`, a potem `ReadWentCadEnvelope`, zeby sprawdzic WATT.
+8. W statusie NOD/XData nie pisz, ze XData zostalo zapisane na obrysach, jezeli `BoundaryHandle` jest pusty. Napisz wtedy, ze NOD/.wentcad sa zapisane, ale XData wymaga skanu lub uchwytow obrysow.
 ```

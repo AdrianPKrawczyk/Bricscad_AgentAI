@@ -13,6 +13,7 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
     internal static class WentCadProjectStore
     {
         public const string RoomRegApp = "WENTCAD_ROOM";
+        public const string WindowRegApp = "WENTCAD_WINDOW";
 
         public static string GetProjectPath(Document doc)
         {
@@ -66,9 +67,13 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 SaveJson(tr, doc.Database, WentCadContractReader.ProjectNod, "project", BuildProjectSummary(project).ToString(Formatting.None));
                 SaveJsonMap(tr, doc.Database, WentCadContractReader.FloorsNod, ObjectMap(project, "Floors"), "FloorId");
                 SaveJsonMap(tr, doc.Database, WentCadContractReader.RoomsNod, ObjectMap(project, "Rooms"), "RoomId");
+                var thermal = Thermal(project);
+                SaveJsonMap(tr, doc.Database, WentCadContractReader.WallsNod, ObjectMap(thermal, "Walls"), "WallId");
+                SaveJsonMap(tr, doc.Database, WentCadContractReader.WindowsNod, ObjectMap(thermal, "Windows"), "WindowId");
                 if (writeRoomXData)
                 {
                     WriteRoomXData(tr, doc.Database, project);
+                    WriteWindowXData(tr, doc.Database, project);
                 }
                 tr.Commit();
             }
@@ -359,6 +364,7 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
 
         public static JObject BuildSummary(JObject project, string projectPath)
         {
+            var thermal = Thermal(project);
             return new JObject
             {
                 ["ProjectPath"] = projectPath,
@@ -366,6 +372,8 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 ["ProjectName"] = project["ProjectName"],
                 ["FloorsCount"] = ObjectMap(project, "Floors").Count,
                 ["RoomsCount"] = ObjectMap(project, "Rooms").Count,
+                ["WallsCount"] = ObjectMap(thermal, "Walls").Count,
+                ["WindowsCount"] = ObjectMap(thermal, "Windows").Count,
                 ["SystemsCount"] = (project["Systems"] as JArray)?.Count ?? 0,
                 ["UpdatedAt"] = project["UpdatedAt"]
             };
@@ -380,6 +388,20 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 project[name] = map;
             }
             return map;
+        }
+
+        public static JObject Thermal(JObject project)
+        {
+            var thermal = project["Thermal"] as JObject;
+            if (thermal == null)
+            {
+                thermal = new JObject();
+                project["Thermal"] = thermal;
+            }
+            ObjectMap(thermal, "Walls");
+            ObjectMap(thermal, "Windows");
+            if (!(thermal["Settings"] is JObject)) thermal["Settings"] = new JObject();
+            return thermal;
         }
 
         public static string Clean(JToken token)
@@ -416,6 +438,17 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
             if (project["ProjectName"] == null) project["ProjectName"] = Path.GetFileNameWithoutExtension(doc?.Name ?? "WentCad");
             ObjectMap(project, "Floors");
             ObjectMap(project, "Rooms");
+            var thermal = Thermal(project);
+            var settings = thermal["Settings"] as JObject;
+            if (settings["WindowWidthAttribute"] == null) settings["WindowWidthAttribute"] = "WIDTH";
+            if (settings["WindowHeightAttribute"] == null) settings["WindowHeightAttribute"] = "HEIGHT";
+            if (settings["WindowSillAttribute"] == null) settings["WindowSillAttribute"] = "SILL";
+            if (settings["MaxInteriorWallDistance"] == null) settings["MaxInteriorWallDistance"] = 0.6;
+            if (settings["MaxExteriorConfirmDistance"] == null) settings["MaxExteriorConfirmDistance"] = 1.2;
+            if (settings["MaxWindowSnapDistance"] == null) settings["MaxWindowSnapDistance"] = 1.0;
+            if (settings["DefaultWindowWidth"] == null) settings["DefaultWindowWidth"] = 1.2;
+            if (settings["DefaultWindowHeight"] == null) settings["DefaultWindowHeight"] = 1.5;
+            if (settings["DefaultWindowSillHeight"] == null) settings["DefaultWindowSillHeight"] = 0.9;
             if (!(project["Systems"] is JArray)) project["Systems"] = new JArray();
             if (((JArray)project["Systems"]).Count == 0)
             {
@@ -563,6 +596,19 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
             }
         }
 
+        private static void WriteWindowXData(Transaction tr, Database db, JObject project)
+        {
+            EnsureRegApp(db, tr, WindowRegApp);
+            foreach (JObject window in ObjectMap(Thermal(project), "Windows").Properties().Select(p => p.Value).OfType<JObject>())
+            {
+                ObjectId id;
+                if (!TryGetObjectId(db, Clean(window["BlockHandle"]), out id)) continue;
+                var ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
+                if (ent == null) continue;
+                ent.XData = BuildWindowXData(project, window);
+            }
+        }
+
         private static ResultBuffer BuildRoomXData(JObject project, JObject room)
         {
             var values = new List<TypedValue>
@@ -580,6 +626,25 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
             AddX(values, "Volume", Format(ToDouble(room["Volume"], 0), "0.##"));
             AddX(values, "SupplyFlow", Format(ToDouble(room["CalculatedSupply"], 0), "0"));
             AddX(values, "ExhaustFlow", Format(ToDouble(room["CalculatedExhaust"], 0), "0"));
+            return new ResultBuffer(values.ToArray());
+        }
+
+        private static ResultBuffer BuildWindowXData(JObject project, JObject window)
+        {
+            var values = new List<TypedValue>
+            {
+                new TypedValue((short)DxfCode.ExtendedDataRegAppName, WindowRegApp)
+            };
+            AddX(values, "ProjectId", Clean(project["ProjectId"]));
+            AddX(values, "WindowId", Clean(window["WindowId"]));
+            AddX(values, "FloorId", Clean(window["FloorId"]));
+            AddX(values, "RoomId", Clean(window["RoomId"]));
+            AddX(values, "WallId", Clean(window["WallId"]));
+            AddX(values, "Width", Format(ToDouble(window["Width"], 0), "0.###"));
+            AddX(values, "Height", Format(ToDouble(window["Height"], 0), "0.###"));
+            AddX(values, "SillHeight", Format(ToDouble(window["SillHeight"], 0), "0.###"));
+            AddX(values, "Area", Format(ToDouble(window["Area"], 0), "0.###"));
+            AddX(values, "Confidence", Format(ToDouble(window["Confidence"], 0), "0.##"));
             return new ResultBuffer(values.ToArray());
         }
 

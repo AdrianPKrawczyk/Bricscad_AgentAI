@@ -13,6 +13,7 @@ namespace WentCad.Models
         public Dictionary<string, RoomDef> Rooms { get; set; } = new Dictionary<string, RoomDef>();
         public List<SystemDef> Systems { get; set; } = new List<SystemDef>();
         public RoomDetectionMapping DetectionMapping { get; set; } = new RoomDetectionMapping();
+        public ThermalModel Thermal { get; set; } = new ThermalModel();
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 

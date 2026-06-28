@@ -20,13 +20,12 @@ Wersja v1 obejmuje:
 - eksport CSV,
 - eksport IFC2x3 pomieszczeń jako `IfcSpace`,
 - punkt bazowy kondygnacji do składania wielu rzutów w jednym układzie budynku.
+- detekcję WATT v1: ściany zewnętrzne/wewnętrzne/nierozstrzygnięte oraz okna przypisane do ścian i pomieszczeń.
 
 Poza zakresem v1, ale przewidziane dalej:
 
-- automatyczna detekcja ścian zewnętrznych/wewnętrznych,
-- detekcja okien,
 - bilanse strat i zysków ciepła,
-- pełna integracja z logiką WATT.
+- pełna integracja z typami przegród, biblioteką U/g i obliczeniami WATT/OZC.
 
 ## Kompilacja
 
@@ -96,6 +95,8 @@ NOD przechowuje indeks i publiczny kontrakt CAD:
 - `WENTCAD_PROJECT`
 - `WENTCAD_FLOORS`
 - `WENTCAD_ROOMS`
+- `WENTCAD_WALLS`
+- `WENTCAD_WINDOWS`
 
 To z tej warstwy korzystają tool-e Agenta. Dzięki temu Agent nie musi ładować ani referencjonować DLL `WentCad`.
 
@@ -118,6 +119,8 @@ Najważniejsze pola:
 - `ExhaustFlow`.
 
 `WENTCAD_FLOOR_REGION` jest zapisywane na własnych poliliniach regionów kondygnacji i zawiera `FloorId`.
+
+`WENTCAD_WINDOW` jest zapisywane na wykrytych blokach, liniach albo poliliniach okien i zawiera najważniejsze pola: `ProjectId`, `WindowId`, `FloorId`, `RoomId`, `WallId`, `Width`, `Height`, `SillHeight`, `Area`, `Confidence`.
 
 ## Współpraca z Bielik.DrukWidoki
 
@@ -154,6 +157,35 @@ Obsługiwane są:
 - dowolne bloki z atrybutami jako metki.
 
 Dopasowanie odbywa się przez położenie punktu wstawienia metki wewnątrz obrysu.
+
+## WATT v1: ściany i okna
+
+Zakładka `WATT` skanuje aktywną kondygnację po wcześniejszym skanie pomieszczeń. Źródłem topologii są obrysy pomieszczeń zapisane przez `BoundaryHandle`.
+
+Użytkownik ustawia:
+
+- warstwę ścian pomocniczych,
+- warstwę okien,
+- opcjonalny fragment nazwy bloku okna,
+- opcjonalną warstwę i fragment nazwy bloku opisu okna,
+- atrybuty szerokości, wysokości i parapetu okna.
+
+Model danych trafia do `.wentcad`:
+
+- `Thermal.Walls`,
+- `Thermal.Windows`,
+- `Thermal.Settings`.
+
+Skaner:
+
+- dzieli obrys pomieszczenia na segmenty ścian,
+- rozpoznaje ściany wewnętrzne przez równoległość, nakładanie rzutów i dystans do segmentu sąsiedniego pomieszczenia,
+- rozpoznaje ściany zewnętrzne przez brak sąsiada i potwierdzenie warstwą ścian albo regionem kondygnacji,
+- oznacza przypadki niepewne jako `UNRESOLVED`,
+- wykrywa okna z bloków lub prostych linii/polilinii na warstwie okien,
+- przypina okna do najbliższej ściany zewnętrznej.
+
+Wyniki są indeksowane w NOD `WENTCAD_WALLS` i `WENTCAD_WINDOWS`. Overlay diagnostyczny trafia na warstwy `_WENTCAD_PRZEGRODY` i `_WENTCAD_PRZEGRODY_UWAGI`.
 
 ## Bilans v1
 
@@ -198,6 +230,10 @@ Tool-e:
 - `ScanWentCadRooms` skanuje obrysy i metki w regionie kondygnacji bez klikania w panelu oraz uzupełnia `BoundaryHandle`/`TagHandle`,
 - `UpdateWentCadRoomByNumber` bezpiecznie aktualizuje istniejące pomieszczenie po `FloorName/FloorId + Number` i nie tworzy rekordów bez kondygnacji,
 - `ConfigureWentCadTestBuilding` wykonuje pełny scenariusz testowy LISP w jednym wywołaniu, aby ominąć limit długiej pętli agenta,
+- `ReadWentCadEnvelope` odczytuje ściany i okna WATT z NOD,
+- `ScanWentCadEnvelope` skanuje ściany i okna bez klikania w panelu,
+- `UpdateWentCadWall` i `UpdateWentCadWindow` pozwalają korygować wynik skanu,
+- `ConfigureWentCadEnvelopeTestBuilding` wykonuje zbiorczy test WATT dla modelu LISP,
 - `RunWentCadCommand` wysyła do BricsCAD tylko jawnie dozwolone komendy `WENTCAD` i `WENTCAD_SYNC`.
 
 Nie ma referencji projektowej ani binarnej z Agenta do `WentCad.dll`.
@@ -245,6 +281,7 @@ Do każdego `IfcSpace` dopisywany jest `Pset_WentCad_Ventilation` z podstawowymi
 - `Core/NodManager.cs` - zapis/odczyt NOD.
 - `Core/GeometryManager.cs` - XData, warstwy, kolorowanie, geometria.
 - `Core/RoomScanner.cs` - skanowanie pomieszczeń.
+- `Core/ThermalScanner.cs` - skanowanie ścian i okien WATT.
 - `Core/BalanceEngine.cs` - podstawowy bilans.
 - `Reactors/FloorRegionReactor.cs` - aktualizacja regionów kondygnacji po edycji.
 

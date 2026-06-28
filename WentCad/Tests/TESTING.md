@@ -88,9 +88,11 @@ GEN_WENTCAD_TEST_BUILDING
 
 Oczekiwany wynik w model space:
 
-- rzut `Parter` w obszarze około `-3,-3` do `63,38`,
-- rzut `Pietro_1` w obszarze około `-3,77` do `63,118`,
-- diagnostyka po prawej stronie, około `72,0`,
+- rysunek jest w centymetrach: `1 jednostka DWG = 1 cm`,
+- powierzchnie w metkach są zapisane w m², a wysokości w m,
+- rzut `Parter` w obszarze około `-50,-50` do `1850,1050`,
+- rzut `Pietro_1` w obszarze około `-50,1250` do `1850,2350`,
+- diagnostyka po prawej stronie, około `2050,0`,
 - obrysy pomieszczeń na warstwie `WC_TEST_OBRYSY`,
 - metki blokowe na warstwie `WC_TEST_METKI`,
 - pomocnicze obrysy kondygnacji na warstwie `_WENTCAD_KONDYGNACJE`.
@@ -123,8 +125,8 @@ Kliknij `Zapisz`.
 4. Alternatywnie kliknij `Rysuj region` i narysuj prostokąt obejmujący parter, najlepiej od około:
 
 ```text
--3,-3
-63,38
+-50,-50
+1850,1050
 ```
 
 5. Przejdź do zakładki `Pomieszczenia`.
@@ -159,8 +161,8 @@ WENTCAD_SYNC
 4. Alternatywnie kliknij `Rysuj region` i narysuj prostokąt obejmujący piętro, najlepiej od około:
 
 ```text
--3,77
-63,118
+-50,1250
+1850,2350
 ```
 
 5. W zakładce `Pomieszczenia` kliknij `Skanuj`.
@@ -186,8 +188,8 @@ Ten test sprawdza przypadki błędne.
 3. Narysuj prostokąt obejmujący obszar diagnostyczny, np.:
 
 ```text
-68,-3
-112,43
+2050,-50
+2950,950
 ```
 
 4. W zakładce `Pomieszczenia` kliknij `Skanuj`.
@@ -273,14 +275,14 @@ Oczekiwany wynik:
 3. Wskaż punkt odpowiadający wspólnemu punktowi budynku, np. lewy dolny narożnik prowadnicy parteru:
 
 ```text
--3,-3
+-50,-50
 ```
 
 4. Dla `Pietro_1` kliknij `Wskaz baze`.
 5. Wskaż odpowiadający punkt na rzucie piętra:
 
 ```text
--3,77
+-50,1250
 ```
 
 6. Kliknij `Zapisz`.
@@ -292,9 +294,44 @@ Oczekiwany wynik:
 - obok pliku `.wentcad` powstaje plik `.ifc`,
 - plik zawiera `IfcBuildingStorey` dla kondygnacji,
 - pomieszczenia są zapisane jako `IfcSpace`,
-- parter i piętro po imporcie do przeglądarki IFC są nad sobą, a nie przesunięte o `80` jednostek w osi Y.
+- parter i piętro po imporcie do przeglądarki IFC są nad sobą, a nie przesunięte o `1300` cm w osi Y.
 
-## 14. Test Integracji Z Agentem
+## 14. Test WATT: Ściany Zewnętrzne I Okna
+
+1. Upewnij się, że parter i piętro mają zeskanowane pomieszczenia oraz `BoundaryHandle`.
+2. Przejdź do zakładki `WATT`.
+3. Dla testowego LISPa ustaw:
+
+| Pole | Wartość |
+|---|---|
+| Warstwa ścian | `WC_TEST_SCIANY` |
+| Warstwa okien | `WC_TEST_OKNA` |
+| Warstwa opisów okien | `WC_TEST_OPISY_OKIEN` |
+| Atrybut szerokości | `WIDTH` |
+| Atrybut wysokości | `HEIGHT` |
+| Atrybut parapetu | `SILL` |
+| Tolerancja ściany wewnętrznej | `15` |
+| Tolerancja ściany zewnętrznej | `15` |
+| Tolerancja przypięcia okna | `25` |
+
+4. Wybierz `Parter` i kliknij `Skanuj WATT`.
+5. Wybierz `Pietro_1` i kliknij `Skanuj WATT`.
+
+Oczekiwany wynik:
+
+- tabela ścian pokazuje segmenty `EXTERNAL`, `INTERNAL` i ewentualne `UNRESOLVED`,
+- tabela okien pokazuje okna przypisane do `WallId` i `RoomId`,
+- obiekty okien dostają XData `WENTCAD_WINDOW`,
+- NOD zawiera `WENTCAD_WALLS` i `WENTCAD_WINDOWS`,
+- w modelu pojawia się overlay `_WENTCAD_PRZEGRODY` dla ścian zewnętrznych i `_WENTCAD_PRZEGRODY_UWAGI` dla przypadków nierozstrzygniętych.
+
+Uwagi diagnostyczne:
+
+- okno przy ścianie wewnętrznej powinno pozostać nieprzypisane,
+- linie okien z warstwy `WC_TEST_OKNA` są obsługiwane jako fallback,
+- bloki `WC_WINDOW_CM` powinny dostarczyć wymiary z atrybutów `WIDTH`, `HEIGHT`, `SILL`.
+
+## 15. Test Integracji Z Agentem
 
 Jeżeli `Bricscad_AgentAI_V2` jest załadowany:
 
@@ -315,7 +352,14 @@ Oczekiwany wynik:
 - Agent odczytuje dane z NOD bez referencji do `WentCad.dll`,
 - brak uruchomionego Agenta nie wpływa na działanie panelu `WENTCAD`.
 
-## 15. Kryteria Zaliczania Testu
+Dodatkowo dla WATT:
+
+1. Uruchom `ConfigureWentCadEnvelopeTestBuilding` albo `ScanWentCadEnvelope` dla `Parter` i `Pietro_1`.
+2. Uruchom `ReadWentCadEnvelope`.
+3. Sprawdź, czy wynik zawiera `Walls` i `Windows`.
+4. W razie potrzeby popraw pojedynczy rekord przez `UpdateWentCadWall` albo `UpdateWentCadWindow`.
+
+## 16. Kryteria Zaliczania Testu
 
 Test można uznać za zaliczony, jeżeli:
 
@@ -327,12 +371,13 @@ Test można uznać za zaliczony, jeżeli:
 - bilans przelicza przepływy,
 - eksport CSV tworzy plik wynikowy,
 - eksport IFC tworzy plik wynikowy z `IfcSpace`,
+- WATT zapisuje ściany i okna do `.wentcad` oraz NOD,
 - tool-e Agenta odczytują JSON z NOD, jeśli Agent jest załadowany.
 
-## 16. Znane Ograniczenia v1
+## 17. Znane Ograniczenia v1
 
 - Regiony kondygnacji z generatora LISP są wizualnymi prowadnicami, nie pełnym importem zakresów WentCad.
 - Własny region v1 najlepiej tworzyć przez `Rysuj region` w panelu `WENTCAD`.
 - Skaner v1 obsługuje zamknięte polilinie i bloki z atrybutami, ale nie analizuje jeszcze natywnego XData CadProfi.
 - IFC v1 eksportuje pomieszczenia jako `IfcSpace`, ale nie eksportuje jeszcze ścian, okien, drzwi ani pełnych przegród WATT.
-- WATT, detekcja ścian i detekcja okien są kolejnymi etapami.
+- WATT v1 wykrywa geometrię ścian i okien, ale nie liczy jeszcze strat/zysków ciepła.

@@ -26,6 +26,14 @@ Preferowany workflow:
 4. `RunWentCadCommand` stosuj do otwarcia panelu `WENTCAD` albo wymuszenia `WENTCAD_SYNC`, gdy uzytkownik chce widziec efekt w panelu.
 5. Dla standardowego budynku testowego z LISPa `GEN_WENTCAD_TEST_BUILDING` preferuj `ConfigureWentCadTestBuilding`, bo robi mapping, kondygnacje, regiony, skan, systemy, bilans i XData w jednym wywolaniu, bez ryzyka limitu dlugiej petli.
 
+Workflow WATT / przegrody:
+- Do odczytu scian i okien uzywaj `ReadWentCadEnvelope`.
+- Do skanowania scian i okien uzywaj `ScanWentCadEnvelope`.
+- Dla standardowego budynku testowego LISP uzyj `ConfigureWentCadEnvelopeTestBuilding` raz, a potem `ReadWentCadEnvelope`.
+- Do korekt pojedynczych wynikow uzywaj `UpdateWentCadWall` albo `UpdateWentCadWindow`.
+- Jezeli potrzebne narzedzie WATT nie jest dostepne w AllowedTools, nie zastepuj go wielokrotnym `ConfigureWentCadTestBuilding`; napisz, ze profil nie ma narzedzi WATT i przerwij zadanie z jasna diagnoza.
+- Nie wywoluj tego samego konfiguratora z identycznymi argumentami wiecej niz raz w jednym zadaniu. Po pierwszej probie odczytaj stan albo zglos blad.
+
 Zasady raportowania geometrii i XData:
 - Nie pisz, ze XData `WENTCAD_ROOM` sa zapisane na obrysach, jezeli pomieszczenia nie maja niepustego `BoundaryHandle`.
 - Jezeli wszystkie lub czesc pomieszczen maja puste `BoundaryHandle` albo `TagHandle`, nazwij projekt "danymi bilansowymi bez powiazania z geometria DWG" i zalec skanowanie z panelu po przypisaniu regionow kondygnacji.

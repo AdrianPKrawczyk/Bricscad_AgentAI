@@ -111,6 +111,55 @@ namespace WentCad.Core
             }
         }
 
+        public static void WriteWindowXData(Document doc, WentCadProject project)
+        {
+            if (project?.Thermal?.Windows == null) return;
+            using (doc.LockDocument())
+            using (var tr = doc.Database.TransactionManager.StartTransaction())
+            {
+                EnsureRegApp(doc.Database, tr, WentCadConstants.WindowRegApp);
+                foreach (var window in project.Thermal.Windows.Values)
+                {
+                    if (!TryGetObjectId(doc.Database, window.BlockHandle, out ObjectId id)) continue;
+                    var ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
+                    if (ent == null) continue;
+                    ent.XData = BuildWindowXData(project, window);
+                }
+                tr.Commit();
+            }
+        }
+
+        public static void DrawThermalOverlay(Document doc, WentCadProject project)
+        {
+            if (project?.Thermal?.Walls == null) return;
+            using (doc.LockDocument())
+            using (var tr = doc.Database.TransactionManager.StartTransaction())
+            {
+                EnsureLayer(doc.Database, tr, WentCadConstants.ThermalOverlayLayer, 1, false, false);
+                EnsureLayer(doc.Database, tr, WentCadConstants.ThermalIssueLayer, 30, false, false);
+
+                var bt = (BlockTable)tr.GetObject(doc.Database.BlockTableId, OpenMode.ForRead);
+                var btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+                foreach (var wall in project.Thermal.Walls.Values)
+                {
+                    if (!string.Equals(wall.Kind, "EXTERNAL", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(wall.Kind, "UNRESOLVED", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var line = new Line(new Point3d(wall.P1.X, wall.P1.Y, 0), new Point3d(wall.P2.X, wall.P2.Y, 0));
+                    line.Layer = string.Equals(wall.Kind, "UNRESOLVED", StringComparison.OrdinalIgnoreCase)
+                        ? WentCadConstants.ThermalIssueLayer
+                        : WentCadConstants.ThermalOverlayLayer;
+                    line.Color = Color.FromColorIndex(ColorMethod.ByAci, string.Equals(wall.Kind, "UNRESOLVED", StringComparison.OrdinalIgnoreCase) ? (short)30 : (short)1);
+                    btr.AppendEntity(line);
+                    tr.AddNewlyCreatedDBObject(line, true);
+                }
+                tr.Commit();
+            }
+        }
+
         public static bool TryGetObjectId(Database db, string handleString, out ObjectId id)
         {
             id = ObjectId.Null;
@@ -183,6 +232,26 @@ namespace WentCad.Core
             Add(values, "Volume", room.Volume.ToString("0.##", CultureInfo.InvariantCulture));
             Add(values, "SupplyFlow", room.CalculatedSupply.ToString("0", CultureInfo.InvariantCulture));
             Add(values, "ExhaustFlow", room.CalculatedExhaust.ToString("0", CultureInfo.InvariantCulture));
+            return new ResultBuffer(values.ToArray());
+        }
+
+        private static ResultBuffer BuildWindowXData(WentCadProject project, ThermalWindowDef window)
+        {
+            var values = new List<TypedValue>
+            {
+                new TypedValue((short)DxfCode.ExtendedDataRegAppName, WentCadConstants.WindowRegApp)
+            };
+
+            Add(values, "ProjectId", project.ProjectId.ToString());
+            Add(values, "WindowId", window.WindowId);
+            Add(values, "FloorId", window.FloorId);
+            Add(values, "RoomId", window.RoomId);
+            Add(values, "WallId", window.WallId);
+            Add(values, "Width", window.Width.ToString("0.###", CultureInfo.InvariantCulture));
+            Add(values, "Height", window.Height.ToString("0.###", CultureInfo.InvariantCulture));
+            Add(values, "SillHeight", window.SillHeight.ToString("0.###", CultureInfo.InvariantCulture));
+            Add(values, "Area", window.Area.ToString("0.###", CultureInfo.InvariantCulture));
+            Add(values, "Confidence", window.Confidence.ToString("0.##", CultureInfo.InvariantCulture));
             return new ResultBuffer(values.ToArray());
         }
 

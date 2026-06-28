@@ -34,6 +34,7 @@ Aktualny stan: 2026-06-27
   - Pomieszczenia
   - Systemy
   - Bilans
+  - WATT
   - Eksport
 - Reactor `FloorRegionReactor` aktualizuje geometrię kondygnacji po edycji polilinii regionu.
 - Skanowanie pomieszczeń działa po wybranej kondygnacji, warstwie obrysów, warstwie metek i mapowaniu atrybutów.
@@ -47,6 +48,14 @@ Aktualny stan: 2026-06-27
 - UI: zakładka `Bilans` ma pełny widok tabelaryczny z danymi pomieszczenia, parametrami obliczeniowymi, transferami, wynikowym nawiewem/wywiewem, real ACH, bilansem netto i systemami.
 - IFC v1: dodano eksport `IfcProject -> IfcSite -> IfcBuilding -> IfcBuildingStorey -> IfcSpace`; obrysy pomieszczeń są wyciągane jako `IfcExtrudedAreaSolid`.
 - Punkt bazowy: każda kondygnacja ma `BasePoint.X/Y` i `BasePointDescription`; opis generowany przez `WENTCAD_PICK_BASE_POINT` zawiera współrzędne, np. `Punkt bazowy X=-3, Y=77`; eksport IFC odejmuje punkt bazowy kondygnacji od współrzędnych obrysów, aby rzuty rozłożone w DWG mogły złożyć się pionowo w IFC.
+- WATT v1: dodano model `Thermal.Walls`, `Thermal.Windows`, `Thermal.Settings`, NOD `WENTCAD_WALLS`/`WENTCAD_WINDOWS` oraz XData `WENTCAD_WINDOW`.
+- WATT v1: zakładka `WATT` skanuje ściany jako segmenty obrysów pomieszczeń, klasyfikuje `INTERNAL` przez sąsiedztwo pomieszczeń i `EXTERNAL` przez potwierdzenie warstwą ścian albo regionem.
+- WATT v1: okna są wykrywane z bloków albo linii/polilinii na warstwie okien, a następnie przypisywane do najbliższej ściany zewnętrznej.
+- Wizualizacja WATT: zewnętrzne i nierozstrzygnięte segmenty są rysowane jako overlay na warstwach `_WENTCAD_PRZEGRODY` i `_WENTCAD_PRZEGRODY_UWAGI`.
+- UI: zakładka `Struktura` pokazuje read-only model budynku jako projekcję danych `.wentcad`: kondygnacje -> pomieszczenia -> przegrody -> okna. Nie dodaje nowego schematu danych; korzysta z `Rooms`, `Thermal.Walls` i `Thermal.Windows`.
+- WATT: dodano `Thermal.HorizontalPartitions` dla poziomych przegród `PG`, `StW`, `D` oraz pola `ConstructionId/ConstructionName` przy ścianach, otworach i przegrodach poziomych. Zakładka `Struktura` pokazuje kody `SZ`, `SW`, `OZ`, `DRZ`, `PG`, `StW`, `D`.
+- WATT: drzwi sa wykrywane analogicznie do okien (`DoorLayer`, wzorzec bloku, opisy i atrybuty wymiarowe), maja kod `DRZ` i moga byc przypisane do scian zewnetrznych albo wewnetrznych.
+- UI WATT: przycisk `Skanuj WATT - caly budynek` skanuje wszystkie kondygnacje, a zakladka WATT pokazuje takze `PG`, `StW` i `D`.
 
 ## Most Agenta
 
@@ -64,12 +73,18 @@ W `Bricscad_AgentAI_V2/src/Tools/WentCad` dodano tool-e bez referencji do DLL `W
 - `ManageWentCadSystems`
 - `RecalculateWentCadBalance`
 - `RunWentCadCommand`
+- `ReadWentCadEnvelope`
+- `ScanWentCadEnvelope`
+- `UpdateWentCadWall`
+- `UpdateWentCadWindow`
+- `ConfigureWentCadEnvelopeTestBuilding`
 
 Tool-e czytają NOD lub wysyłają bezpieczne komendy `WENTCAD`/`WENTCAD_SYNC`.
 `SetWentCadFloorRegion` i `ScanWentCadRooms` pozwalają agentowi wykonać pełny test CAD bez interaktywnego klikania regionów/skanowania w panelu.
 
 `UpdateWentCadRoomByNumber` jest preferowana sciezka aktualizacji bilansu po skanie, bo wymaga `FloorName/FloorId + Number` i nie tworzy rekordow bez kondygnacji.
 `ConfigureWentCadTestBuilding` wykonuje caly scenariusz testowy LISP w jednym wywolaniu, aby uniknac przerwania przez limit dlugiej petli agenta.
+`ScanWentCadEnvelope` i `ConfigureWentCadEnvelopeTestBuilding` realizuja WATT bez referencji do `WentCad.dll`; czytaja geometrie DWG oraz zapisują `.wentcad`/NOD/XData.
 
 ## Weryfikacja
 
@@ -87,6 +102,7 @@ To jest blokada pliku przez proces BricsCAD, nie błąd kodu WentCad.
 - Dodano `WentCad/Tests/TESTING.md` z ręczną procedurą testowania panelu, skanowania, bilansu, zapisu, CSV i integracji z Agentem.
 - Komenda LISP: `GEN_WENTCAD_TEST_BUILDING`.
 - Generator tworzy dwa rzuty kondygnacji, warstwy testowe, obrysy pomieszczeń, blok metki `WC_ROOM_TAG` z atrybutami `NR`, `NAZWA`, `H`, `POW`, okna pomocnicze oraz przypadki diagnostyczne.
+- Generator tworzy też blok okna `WC_WINDOW` z atrybutami `WIDTH`, `HEIGHT`, `SILL` oraz blok opisu okna `WC_WINDOW_LABEL` na warstwie `WC_TEST_OPISY_OKIEN`.
 - Mapowanie dla panelu WentCad:
   - obrysy: `WC_TEST_OBRYSY`
   - metki: `WC_TEST_METKI`
@@ -94,6 +110,13 @@ To jest blokada pliku przez proces BricsCAD, nie błąd kodu WentCad.
   - nazwa: `NAZWA`
   - wysokość: `H`
   - powierzchnia: `POW`
+- Mapowanie WATT:
+  - ściany: `WC_TEST_SCIANY`
+  - okna: `WC_TEST_OKNA`
+  - opisy okien: `WC_TEST_OPISY_OKIEN`
+  - szerokość: `WIDTH`
+  - wysokość: `HEIGHT`
+  - parapet: `SILL`
 
 ## Następne kroki
 
@@ -104,3 +127,4 @@ To jest blokada pliku przez proces BricsCAD, nie błąd kodu WentCad.
 5. Doprecyzować mapowanie metek CadProfi i istniejących XData CadProfi.
 6. Rozbudować UI o wygodny wybór warstw/atrybutów z listy DWG.
 7. Rozszerzyć IFC o ściany, okna, drzwi i przegródki WATT.
+8. Rozbudować WATT o typy przegród, biblioteki U/g i obliczenia strat/zysków ciepła.

@@ -69,10 +69,10 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 ["Elevation"] = 0.0,
                 ["HeightNet"] = 3.0,
                 ["HeightTotal"] = 3.5,
-                ["BasePointX"] = -3.0,
-                ["BasePointY"] = -3.0,
+                ["BasePointX"] = -50.0,
+                ["BasePointY"] = -50.0,
                 ["BasePointZ"] = 0.0,
-                ["BasePointDescription"] = "Punkt bazowy Parter (-3, -3)"
+                ["BasePointDescription"] = "Punkt bazowy Parter (-50, -50), jednostki cm"
             });
             JObject pietro = WentCadProjectStore.UpsertFloor(project, new JObject
             {
@@ -81,14 +81,14 @@ namespace Bricscad_AgentAI_V2.Tools.WentCad
                 ["Elevation"] = 3.5,
                 ["HeightNet"] = 3.2,
                 ["HeightTotal"] = 3.5,
-                ["BasePointX"] = -3.0,
-                ["BasePointY"] = 77.0,
+                ["BasePointX"] = -50.0,
+                ["BasePointY"] = 1250.0,
                 ["BasePointZ"] = 3.5,
-                ["BasePointDescription"] = "Punkt bazowy Pietro_1 (-3, 77)"
+                ["BasePointDescription"] = "Punkt bazowy Pietro_1 (-50, 1250), jednostki cm"
             });
 
-            var parterRegion = WentCadGeometryTools.BuildRectangle(-3, -3, 63, 38);
-            var pietroRegion = WentCadGeometryTools.BuildRectangle(-3, 77, 63, 118);
+            var parterRegion = WentCadGeometryTools.BuildRectangle(-50, -50, 1850, 1050);
+            var pietroRegion = WentCadGeometryTools.BuildRectangle(-50, 1250, 1850, 2350);
             parter["Region"] = WentCadGeometryTools.ToJArray(parterRegion);
             pietro["Region"] = WentCadGeometryTools.ToJArray(pietroRegion);
             parter["DrukWidokiViewId"] = null;

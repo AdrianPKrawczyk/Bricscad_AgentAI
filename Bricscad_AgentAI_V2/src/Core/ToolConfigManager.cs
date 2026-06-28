@@ -893,6 +893,7 @@ namespace Bricscad_AgentAI_V2.Core
                 "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms",
                 "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand",
                 "SetWentCadFloorRegion", "ScanWentCadRooms", "UpdateWentCadRoomByNumber", "ConfigureWentCadTestBuilding",
+                "ReadWentCadEnvelope", "ScanWentCadEnvelope", "UpdateWentCadWall", "UpdateWentCadWindow", "ConfigureWentCadEnvelopeTestBuilding",
                 "ReadViewDefinitionsTool", "read_view_definitions",
                 "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
                 "ReadXData", "FindXData", "ExtractRoomDataEntities",
@@ -1075,7 +1076,7 @@ namespace Bricscad_AgentAI_V2.Core
                 // i Chain of Evidence (Rewident sledzi mutacje Foreach, nie LISP).
                 // Jesli user WPROST prosi o LISP - deleguj do CadGeometryProfile
                 // z instrukcja "uzyj manage_lisps w profilu Worker".
-                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "read_view_definitions", "ReadWentCadProject", "ReadWentCadRooms", "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms", "UpdateWentCadRoomByNumber", "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand", "SetWentCadFloorRegion", "ScanWentCadRooms", "ConfigureWentCadTestBuilding" },
+                AllowedTools = new List<string> { "UserInput", "UserChoice", "ReadFromBlackboard", "WriteToBlackboard", "DelegateTask", "SearchKnowledgeBase", "SavePermanentFormula", "SaveMacro", "ExecuteFormula", "ExecuteMacro", "ReadKnowledgeTool", "SearchUnitsNetTool", "QueryDataset", "ImportCsvDataset", "ImportJsonFile", "ManageDataset", "ReadProjectFile", "WriteProjectFile", "ManageRecipes", "ReadHelp", "manage_skills", "SearchFileContent", "read_view_definitions", "ReadWentCadProject", "ReadWentCadRooms", "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms", "UpdateWentCadRoomByNumber", "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand", "SetWentCadFloorRegion", "ScanWentCadRooms", "ConfigureWentCadTestBuilding", "ReadWentCadEnvelope", "ScanWentCadEnvelope", "UpdateWentCadWall", "UpdateWentCadWindow", "ConfigureWentCadEnvelopeTestBuilding" },
                 AllowedTags = new List<string>()
             };
             
@@ -1127,6 +1128,7 @@ namespace Bricscad_AgentAI_V2.Core
                     "UpdateWentCadProject", "ManageWentCadFloors", "ManageWentCadRooms",
                     "ManageWentCadSystems", "RecalculateWentCadBalance", "RunWentCadCommand",
                     "SetWentCadFloorRegion", "ScanWentCadRooms", "UpdateWentCadRoomByNumber", "ConfigureWentCadTestBuilding",
+                    "ReadWentCadEnvelope", "ScanWentCadEnvelope", "UpdateWentCadWall", "UpdateWentCadWindow", "ConfigureWentCadEnvelopeTestBuilding",
                     "ReadViewDefinitionsTool", "read_view_definitions",
                     "InspectEntity", "GetPropertiesTool", "AnalyzeSelectionTool", "ReadPropertyTool",
                     "ReadXData", "FindXData", "ExtractRoomDataEntities",

@@ -25,6 +25,12 @@ namespace WentCad.Core
 
                 SaveJsonMap(tr, doc.Database, WentCadConstants.FloorsNod, project.Floors);
                 SaveJsonMap(tr, doc.Database, WentCadConstants.RoomsNod, project.Rooms);
+                if (project.Thermal != null)
+                {
+                    SaveJsonMap(tr, doc.Database, WentCadConstants.WallsNod, project.Thermal.Walls ?? new Dictionary<string, ThermalWallDef>());
+                    SaveJsonMap(tr, doc.Database, WentCadConstants.WindowsNod, project.Thermal.Windows ?? new Dictionary<string, ThermalWindowDef>());
+                    SaveJsonMap(tr, doc.Database, WentCadConstants.HorizontalPartitionsNod, project.Thermal.HorizontalPartitions ?? new Dictionary<string, ThermalHorizontalDef>());
+                }
                 tr.Commit();
             }
         }
@@ -74,6 +80,9 @@ namespace WentCad.Core
                 result["Project"] = ReadFirstJson(tr, nod, WentCadConstants.ProjectNod, "project");
                 result["Floors"] = ReadDictionaryJson(tr, nod, WentCadConstants.FloorsNod);
                 result["Rooms"] = ReadDictionaryJson(tr, nod, WentCadConstants.RoomsNod);
+                result["Walls"] = ReadDictionaryJson(tr, nod, WentCadConstants.WallsNod);
+                result["Windows"] = ReadDictionaryJson(tr, nod, WentCadConstants.WindowsNod);
+                result["HorizontalPartitions"] = ReadDictionaryJson(tr, nod, WentCadConstants.HorizontalPartitionsNod);
                 tr.Commit();
             }
             return result;

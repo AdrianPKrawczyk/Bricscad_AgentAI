@@ -1,6 +1,7 @@
 <UserControl x:Class="WentCad.UI.MainView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WentCad.UI"
              MinWidth="420"
              MinHeight="560">
     <DockPanel Margin="8">
@@ -62,6 +63,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -166,6 +168,336 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <Button Grid.Row="2" Content="Przelicz" Click="Recalculate_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Struktura">
+                <TabItem.Resources>
+                    <HierarchicalDataTemplate DataType="{x:Type local:BuildingFloorNode}" ItemsSource="{Binding Rooms}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Details}" FontSize="10" Foreground="Gray" />
+                        </StackPanel>
+                    </HierarchicalDataTemplate>
+                    <HierarchicalDataTemplate DataType="{x:Type local:BuildingRoomNode}" ItemsSource="{Binding Children}">
+                        <StackPanel MouseEnter="BuildingStructureRoom_MouseEnter">
+                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                            <TextBlock FontSize="10" Foreground="Gray">
+                                <Run Text="Pow. " />
+                                <Run Text="{Binding Area, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                <Run Text=" m2 | Kub. " />
+                                <Run Text="{Binding Volume, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                <Run Text=" m3" />
+                            </TextBlock>
+                        </StackPanel>
+                    </HierarchicalDataTemplate>
+                    <HierarchicalDataTemplate DataType="{x:Type local:BuildingWallNode}" ItemsSource="{Binding Children}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding DisplayName}" />
+                            <TextBlock FontSize="10" Foreground="Gray">
+                                <Run Text="d=" />
+                                <Run Text="{Binding Thickness, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                <Run Text=" m | az. " />
+                                <Run Text="{Binding Azimuth, Mode=OneWay, StringFormat={}{0:0}}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </HierarchicalDataTemplate>
+                    <DataTemplate DataType="{x:Type local:BuildingHorizontalNode}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding DisplayName}" />
+                            <TextBlock Text="{Binding Construction}" FontSize="10" Foreground="Gray" />
+                        </StackPanel>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:BuildingWindowNode}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding DisplayName}" />
+                            <TextBlock FontSize="10" Foreground="Gray">
+                                <Run Text="{Binding Construction, Mode=OneWay}" />
+                                <Run Text=" | A=" />
+                                <Run Text="{Binding Area, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                <Run Text=" m2" />
+                            </TextBlock>
+                        </StackPanel>
+                    </DataTemplate>
+                </TabItem.Resources>
+
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TreeView Grid.Column="0"
+                              ItemsSource="{Binding BuildingStructure}"
+                              SelectedItemChanged="BuildingStructure_SelectedItemChanged"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto" />
+
+                    <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedBuildingRoom.DisplayName, Mode=OneWay, TargetNullValue=Wybierz pomieszczenie}"
+                                       FontSize="16"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,8" />
+
+                            <UniformGrid Columns="4" Margin="0,0,0,10">
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="Pow." FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.Area, Mode=OneWay, StringFormat={}{0:0.##} m2}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="H" FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.Height, Mode=OneWay, StringFormat={}{0:0.##} m}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="Kub." FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.Volume, Mode=OneWay, StringFormat={}{0:0.##} m3}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="N/W" FontSize="10" Foreground="Gray" />
+                                    <TextBlock FontWeight="SemiBold">
+                                        <Run Text="{Binding SelectedBuildingRoom.Supply, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                        <Run Text=" / " />
+                                        <Run Text="{Binding SelectedBuildingRoom.Exhaust, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <UniformGrid Columns="5" Margin="0,0,0,10">
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="Zewn." FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.ExternalWallCount, Mode=OneWay}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="Wewn." FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.InternalWallCount, Mode=OneWay}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="Nierozw." FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.UnresolvedWallCount, Mode=OneWay}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="L zewn." FontSize="10" Foreground="Gray" />
+                                    <TextBlock Text="{Binding SelectedBuildingRoom.ExternalWallLength, Mode=OneWay, StringFormat={}{0:0.##} m}" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="Okna" FontSize="10" Foreground="Gray" />
+                                    <TextBlock FontWeight="SemiBold">
+                                        <Run Text="{Binding SelectedBuildingRoom.WindowCount, Mode=OneWay}" />
+                                        <Run Text=" | " />
+                                        <Run Text="{Binding SelectedBuildingRoom.WindowArea, Mode=OneWay, StringFormat={}{0:0.##} m2}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="{Binding SelectedBuildingRoom.WattState, Mode=OneWay}" Foreground="Gray" FontStyle="Italic" Margin="0,0,0,8" />
+
+                            <TextBlock Text="Przegrody pionowe" FontWeight="Bold" Margin="0,0,0,4" />
+                            <DataGrid ItemsSource="{Binding SelectedBuildingRoom.Walls}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      IsReadOnly="True"
+                                      MaxHeight="300"
+                                      RowDetailsVisibilityMode="Visible"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="45" />
+                                    <DataGridTextColumn Header="Przegroda" Binding="{Binding Kind}" Width="90" />
+                                    <DataGridTextColumn Header="Konstrukcja" Binding="{Binding Construction}" Width="150" />
+                                    <DataGridTextColumn Header="L" Binding="{Binding Length}" Width="60" />
+                                    <DataGridTextColumn Header="Grub." Binding="{Binding Thickness}" Width="60" />
+                                    <DataGridTextColumn Header="Azymut" Binding="{Binding Azimuth}" Width="65" />
+                                    <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" />
+                                    <DataGridTextColumn Header="Sasiednie" Binding="{Binding AdjacentRoomLabel}" Width="120" />
+                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" />
+                                </DataGrid.Columns>
+                                <DataGrid.RowDetailsTemplate>
+                                    <DataTemplate>
+                                        <ItemsControl ItemsSource="{Binding Windows}" Margin="28,4,0,6">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock>
+                                                        <Run Text="{Binding Code, Mode=OneWay}" />
+                                                        <Run Text=" " />
+                                                        <Run Text="{Binding Construction, Mode=OneWay}" />
+                                                        <Run Text=" B=" />
+                                                        <Run Text="{Binding Width, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                                        <Run Text=" H=" />
+                                                        <Run Text="{Binding Height, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                                        <Run Text=" Parapet=" />
+                                                        <Run Text="{Binding SillHeight, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                                        <Run Text=" A=" />
+                                                        <Run Text="{Binding Area, Mode=OneWay, StringFormat={}{0:0.##}}" />
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </DataTemplate>
+                                </DataGrid.RowDetailsTemplate>
+                            </DataGrid>
+
+                            <TextBlock Text="Stropy, podlogi i dachy" FontWeight="Bold" Margin="0,10,0,4" />
+                            <DataGrid ItemsSource="{Binding SelectedBuildingRoom.HorizontalPartitions}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      IsReadOnly="True"
+                                      MaxHeight="180"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="45" />
+                                    <DataGridTextColumn Header="Przegroda" Binding="{Binding Kind}" Width="120" />
+                                    <DataGridTextColumn Header="Konstrukcja" Binding="{Binding Construction}" Width="160" />
+                                    <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="70" />
+                                    <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" />
+                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <TextBlock Text="Okna bez przypisanej przegrody" FontWeight="Bold" Margin="0,10,0,4" />
+                            <DataGrid ItemsSource="{Binding SelectedBuildingRoom.OrphanWindows}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      IsReadOnly="True"
+                                      MaxHeight="140">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="45" />
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding OpeningKind}" Width="70" />
+                                    <DataGridTextColumn Header="Konstrukcja" Binding="{Binding Construction}" Width="150" />
+                                    <DataGridTextColumn Header="B" Binding="{Binding Width}" Width="60" />
+                                    <DataGridTextColumn Header="H" Binding="{Binding Height}" Width="60" />
+                                    <DataGridTextColumn Header="Parapet" Binding="{Binding SillHeight}" Width="70" />
+                                    <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="60" />
+                                    <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" />
+                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="WATT">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="140" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Kondygnacja" VerticalAlignment="Center" Margin="0,0,6,6" />
+                        <ComboBox Grid.Row="0"
+                                  Grid.Column="1"
+                                  Grid.ColumnSpan="3"
+                                  ItemsSource="{Binding Floors}"
+                                  SelectedItem="{Binding SelectedFloor, Mode=TwoWay}"
+                                  DisplayMemberPath="Name"
+                                  Margin="0,0,6,6" />
+                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,6">
+                            <Button Content="Skanuj WATT" Click="ScanThermal_Click" Margin="0,0,0,4" />
+                            <Button Content="Skanuj WATT - caly budynek" Click="ScanThermalBuilding_Click" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Warstwy" VerticalAlignment="Center" Margin="0,0,6,6" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding WallLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa scian pomocniczych" />
+                        <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding WindowLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa okien" />
+                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding WindowLabelLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa opisow okien" />
+                        <Button Grid.Row="1" Grid.Column="4" Content="Zapisz" Click="Save_Click" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Bloki" VerticalAlignment="Center" Margin="0,0,6,6" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding WindowBlockNamePattern, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Fragment nazwy bloku okna" />
+                        <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding WindowLabelBlockNamePattern, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Fragment nazwy bloku opisu okna" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Atrybuty" VerticalAlignment="Center" Margin="0,0,6,8" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding WindowWidthAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut szerokosci okna" />
+                        <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding WindowHeightAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut wysokosci okna" />
+                        <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding WindowSillAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut wysokosci parapetu" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Tolerancje" VerticalAlignment="Center" Margin="0,0,6,8" />
+                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding MaxInteriorWallDistance, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Maksymalny dystans sciany wewnetrznej w jednostkach DWG" />
+                        <TextBox Grid.Row="4" Grid.Column="2" Text="{Binding MaxExteriorConfirmDistance, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Maksymalny dystans potwierdzenia sciany zewnetrznej" />
+                        <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding MaxWindowSnapDistance, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Maksymalny dystans przypiecia okna do sciany" />
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Drzwi" VerticalAlignment="Center" Margin="0,0,6,6" />
+                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding DoorLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa drzwi" />
+                        <TextBox Grid.Row="5" Grid.Column="2" Text="{Binding DoorBlockNamePattern, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Fragment nazwy bloku drzwi" />
+                        <TextBox Grid.Row="5" Grid.Column="3" Text="{Binding DoorLabelLayer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,6" ToolTip="Warstwa opisow drzwi" />
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Atr. drzwi" VerticalAlignment="Center" Margin="0,0,6,8" />
+                        <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding DoorWidthAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut szerokosci drzwi" />
+                        <TextBox Grid.Row="6" Grid.Column="2" Text="{Binding DoorHeightAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut wysokosci drzwi" />
+                        <TextBox Grid.Row="6" Grid.Column="3" Text="{Binding DoorSillAttribute, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,8" ToolTip="Atrybut progu/parapetu drzwi" />
+                    </Grid>
+
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Walls}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              Margin="0,4,0,8"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="50" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="90" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="130" />
+                            <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
+                            <DataGridTextColumn Header="L" Binding="{Binding Length}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Grub." Binding="{Binding Thickness}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Azymut" Binding="{Binding Azimuth}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <DataGrid Grid.Row="2"
+                              ItemsSource="{Binding Windows}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="50" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Typ" Binding="{Binding OpeningKind}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="130" />
+                            <DataGridTextColumn Header="Blok" Binding="{Binding BlockName}" Width="120" IsReadOnly="True" />
+                            <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
+                            <DataGridTextColumn Header="WallId" Binding="{Binding WallId}" Width="150" IsReadOnly="True" />
+                            <DataGridTextColumn Header="B" Binding="{Binding Width}" Width="60" />
+                            <DataGridTextColumn Header="H" Binding="{Binding Height}" Width="60" />
+                            <DataGridTextColumn Header="Parapet" Binding="{Binding SillHeight}" Width="70" />
+                            <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <DataGrid Grid.Row="3"
+                              ItemsSource="{Binding HorizontalPartitions}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              Margin="0,8,0,0"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Kod" Binding="{Binding Code}" Width="50" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="120" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Konstrukcja" Binding="{Binding ConstructionName}" Width="160" />
+                            <DataGridTextColumn Header="RoomId" Binding="{Binding RoomId}" Width="130" IsReadOnly="True" />
+                            <DataGridTextColumn Header="A" Binding="{Binding Area}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Pewn." Binding="{Binding Confidence}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Message}" Width="*" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Grid>
             </TabItem>
 

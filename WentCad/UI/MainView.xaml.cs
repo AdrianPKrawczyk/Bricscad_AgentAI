@@ -30,6 +30,10 @@ namespace WentCad.UI
 
         private void ScanRooms_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.ScanRooms();
 
+        private void ScanThermal_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.ScanThermalEnvelope();
+
+        private void ScanThermalBuilding_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.ScanThermalBuilding();
+
         private void Recalculate_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.RecalculateAndSync();
 
         private void ExportCsv_Click(object sender, System.Windows.RoutedEventArgs e) => ViewModel.ExportCsv();
@@ -41,6 +45,19 @@ namespace WentCad.UI
         private void AssignDrukWidoki_Click(object sender, MouseButtonEventArgs e)
         {
             ViewModel.AssignSelectedDrukWidokiView(DrukWidokiList.SelectedItem as DrukWidokiViewItem);
+        }
+
+        private void BuildingStructure_SelectedItemChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<object> e)
+        {
+            ViewModel.SelectBuildingStructureNode(e.NewValue);
+        }
+
+        private void BuildingStructureRoom_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is System.Windows.FrameworkElement element)
+            {
+                ViewModel.SelectBuildingStructureNode(element.DataContext);
+            }
         }
     }
 }
